@@ -193,10 +193,10 @@ jobs:
           set -euo pipefail
           report="../full-source-phpcs-report.json"
           set +e
-          vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist --report=json > "$report"
+          vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist --report=json --report-file="$report"
           phpcs_status=$?
           set -e
-          python3 - "$report" "$phpcs_status" <<'PY'
+          if python3 - "$report" "$phpcs_status" <<'PY'
           import collections
           import json
           import sys
@@ -204,7 +204,11 @@ jobs:
 
           report_path = Path(sys.argv[1])
           status = int(sys.argv[2])
-          data = json.loads(report_path.read_text(encoding="utf-8"))
+          try:
+              data = json.loads(report_path.read_text(encoding="utf-8"))
+          except (OSError, json.JSONDecodeError) as error:
+              print(f"PHPCS JSON report unavailable ({error}); using text-report fallback.")
+              sys.exit(2)
           totals = data.get("totals", {})
           files = data.get("files", {})
           sources = collections.Counter()
@@ -227,16 +231,32 @@ jobs:
           print("TOP AFFECTED PHP FILES:")
           for total, errors, warnings, name in sorted(file_totals, reverse=True)[:25]:
               print(f"{total:5d} total ({errors} errors, {warnings} warnings) {name}")
-          print("Full machine-readable report is attached as a workflow artifact.")
           PY
+          then
+            :
+          else
+            text_report="../full-source-phpcs-report.txt"
+            set +e
+            vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist --report=full --report-file="$text_report"
+            fallback_status=$?
+            set -e
+            echo "FULL-SOURCE PHPCS TEXT FALLBACK: exit=$fallback_status"
+            if [ -s "$text_report" ]; then
+              tail -n 220 "$text_report"
+            else
+              echo "No text report was produced; see the preceding PHPCS diagnostic output."
+            fi
+          fi
           echo "phpcs_exit=$phpcs_status" >> "$GITHUB_OUTPUT"
 
       - name: Upload full-source PHPCS inventory
         uses: actions/upload-artifact@v4
         with:
           name: stockland-erp-full-source-phpcs-inventory
-          path: full-source-phpcs-report.json
-          if-no-files-found: error
+          path: |
+            full-source-phpcs-report.json
+            full-source-phpcs-report.txt
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Remove CI-only Composer vendor tree and PHPUnit cache before runtime QA and packaging
@@ -286,7 +306,17 @@ jobs:
               if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
                   paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip; its SHA-256 is recorded below after all package tests passed."
           text = "\n\n".join(paragraphs)
-          text += "\n\n## Rebuilt package (after successful CI)\n\n- File: audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n- SHA-256: " + sys.argv[1] + "\n- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924\n- Status: CI build and static checks completed successfully on this artifact. Live WordPress/MariaDB staging certification remains separate.\n"
+          if "\\n## Rebuilt package " in text:
+              text = text.split("\\n## Rebuilt package ", 1)[0]
+          text = text.rstrip()
+          text += (
+              "\\n\\n## Rebuilt package (verified after successful CI)\\n\\n"
+              "- Package: audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\\n"
+              "- SHA-256: " + sys.argv[1] + "\\n"
+              "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\\n"
+              "- Full-source inventory is diagnostic until its findings are resolved; the production-service coding-standard gate is separate.\\n"
+              "- CI build/static checks passed; live WordPress/MariaDB staging certification remains separate.\\n"
+          )
           p.write_text(text, encoding="utf-8")
           PY
 
