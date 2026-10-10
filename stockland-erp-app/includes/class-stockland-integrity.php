@@ -139,7 +139,7 @@ final class Stockland_Integrity {
 			$wpdb->last_error = '';
 			$like             = $wpdb->esc_like( $prefix ) . '%';
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- FK metadata must be read directly from the current database schema.
-			$rows             = $wpdb->get_results(
+			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME LIKE %s AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION',
 					$like
