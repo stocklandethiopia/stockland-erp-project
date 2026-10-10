@@ -127,7 +127,7 @@ jobs:
                   paragraphs[i] = "The canonical plugin source has been imported from the hash-verified 105-entry candidate and its Bootstrap asset has been replaced with the authenticated upstream 5.3.8 file. Automated validation is running; a rebuilt installable ZIP is not certified until the tests finish successfully."
           p.write_text("\n\n".join(paragraphs), encoding="utf-8")
           PY
-          git add -A stockland-erp-app audit/packages AUDIT/16.1.57-package-identity.md
+          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
