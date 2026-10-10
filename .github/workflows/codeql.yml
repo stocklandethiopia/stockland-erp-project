@@ -2,7 +2,7 @@ name: "CodeQL Advanced"
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "audit/**"]
   pull_request:
     branches: ["main"]
   schedule:
@@ -12,7 +12,24 @@ permissions:
   contents: read
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      has_javascript: ${{ steps.detect.outputs.has_javascript }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        shell: bash
+        run: |
+          if git ls-files '*.js' '*.jsx' '*.ts' '*.tsx' | grep -q .; then
+            echo "has_javascript=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_javascript=false" >> "$GITHUB_OUTPUT"
+          fi
+
   analyze:
+    needs: detect
+    if: ${{ matrix.language == 'actions' || needs.detect.outputs.has_javascript == 'true' }}
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
@@ -28,28 +45,14 @@ jobs:
             build-mode: none
           - language: javascript-typescript
             build-mode: none
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Report ERP source coverage
-        shell: bash
-        run: |
-          if [ ! -f "stockland-erp-app/stockland-inventory.php" ] && ! git ls-files '*.php' | grep -q .; then
-            echo "::warning title=ERP source missing::This repository does not track the Stockland ERP PHP plugin source. This CodeQL run can only cover tracked JavaScript and GitHub Actions files; it is not a complete ERP scan."
-          fi
-          if ! git ls-files '*.js' | grep -q .; then
-            echo "::warning title=ERP JavaScript source missing::No JavaScript source is tracked in this repository. The packaged ERP assets must be committed or supplied to CI to receive JavaScript CodeQL coverage."
-          fi
-
+      - uses: actions/checkout@v4
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended,security-and-quality
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:

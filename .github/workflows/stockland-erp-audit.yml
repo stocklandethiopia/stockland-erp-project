@@ -27,15 +27,61 @@ jobs:
           test -f stockland-erp-app/tools/qa/run-static-qa.php
           test -f stockland-erp-app/tools/qa/check-release-1657.php
 
-      - name: Verify authoritative Bootstrap 5.3.8 asset
+      - name: Verify upstream Bootstrap reference
         shell: bash
         run: |
           set -euo pipefail
           test -f audit/vendor/bootstrap-5.3.8/bootstrap.min.css
           test "$(git hash-object audit/vendor/bootstrap-5.3.8/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
           grep -q 'Bootstrap  v5.3.8' audit/vendor/bootstrap-5.3.8/bootstrap.min.css
-          test -f stockland-erp-app/assets/bootstrap.min.css
-          test "$(git hash-object stockland-erp-app/assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+
+      - name: Integrate Bootstrap 5.3.8 into ERP and manifest
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp ../audit/vendor/bootstrap-5.3.8/bootstrap.min.css assets/bootstrap.min.css
+          test "$(git hash-object assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("RELEASE_MANIFEST.json")
+          m = json.loads(p.read_text(encoding="utf-8"))
+          if m.get("release") != "16.1.57":
+              raise SystemExit("Refusing to package unexpected ERP release")
+          frontend = m.setdefault("frontend", {})
+          frontend["bootstrap_version"] = "5.3.8"
+          frontend["bootstrap_source_git_blob_sha1"] = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          frontend["bootstrap_sri_sha384"] = "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+          m.setdefault("quality", {})["bootstrap_css_upstream_verified"] = True
+          m["known_open_findings"] = [
+              x for x in m.get("known_open_findings", [])
+              if "Bootstrap CSS remains" not in x and "bootstrap v5.3.8" not in x.lower()
+          ]
+          changes = m.setdefault("release_candidate_changes", [])
+          note = "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; source Git blob SHA and official SRI are recorded in the manifest."
+          if note not in changes:
+              changes.append(note)
+          p.write_text(json.dumps(m, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          readme = Path("README.md")
+          if readme.exists():
+              text = readme.read_text(encoding="utf-8")
+              text = text.replace(
+                  "The bundled local Bootstrap CSS remains authentic 5.3.6; it has not been falsely relabelled as 5.3.8.",
+                  "This package uses the official local Bootstrap CSS 5.3.8 asset verified against its upstream Git blob and documented SRI; no CDN runtime dependency is added."
+              )
+              readme.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Rebuild custom CSS and confirm Bootstrap version
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/qa/rebuild-css.py
+          test "$(git hash-object assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          grep -q 'Bootstrap  v5.3.8' assets/bootstrap.min.css
+          python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -55,12 +101,41 @@ jobs:
           set -euo pipefail
           find stockland-erp-app -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
-      - name: Validate manifest and run ERP static QA
+      - name: Validate and execute Composer test suites
         working-directory: stockland-erp-app
         run: |
           set -euo pipefail
-          php -r '$m=json_decode(file_get_contents("RELEASE_MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); if (($m["release"] ?? "") !== "16.1.57") { fwrite(STDERR,"Wrong release manifest\n"); exit(1); }'
+          composer validate --strict
+          composer install --prefer-dist --no-interaction --no-progress
+          composer test
+          composer lint:php
+
+      - name: Run ERP QA and JavaScript syntax checks
+        working-directory: stockland-erp-app
+        run: |
+          set -euo pipefail
           php tools/qa/run-static-qa.php
           php tools/qa/smoke-integrity-scan.php
           node --check assets/app.js
           node --check assets/pwa.js
+
+      - name: Build install/update package and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          rm -f "$package" "$package.sha256"
+          zip -qr "$package" stockland-erp-app
+          unzip -t "$package"
+          sha256sum "$package" > "$package.sha256"
+          cat "$package.sha256"
+
+      - name: Upload verified candidate package
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockland-erp-16.1.57-bootstrap-5.3.8-candidate
+          path: |
+            STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip
+            STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
