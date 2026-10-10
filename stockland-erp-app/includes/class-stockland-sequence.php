@@ -1,4 +1,9 @@
 <?php
+/**
+ * Stockland ERP document sequence service.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -12,6 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Stockland_Sequence {
 	const KEY_PREFIX = '__stockland_sequence__';
 
+	/**
+	 * Allocate the next document number atomically.
+	 *
+	 * @param string      $prefix Document-number prefix.
+	 * @param string|null $date   Optional date in a format accepted by strtotime().
+	 * @return string Allocated document number.
+	 * @throws Exception When the prefix, date, or sequence storage is invalid.
+	 */
 	public static function next( $prefix, $date = null ) {
 		global $wpdb;
 
@@ -20,7 +33,9 @@ final class Stockland_Sequence {
 			throw new Exception( 'Invalid document sequence prefix.' );
 		}
 
-		$date      = $date ?: current_time( 'Y-m-d' );
+		if ( empty( $date ) ) {
+			$date = current_time( 'Y-m-d' );
+		}
 		$timestamp = strtotime( (string) $date );
 		if ( false === $timestamp ) {
 			throw new Exception( 'Invalid document sequence date.' );
@@ -36,8 +51,10 @@ final class Stockland_Sequence {
 		// connection's allocated value in MySQL's session LAST_INSERT_ID().
 		$inserted = $wpdb->query(
 			$wpdb->prepare(
-				"INSERT IGNORE INTO {$table} (setting_key, setting_value, updated_by) VALUES (%s, '0', %d)",
+				'INSERT IGNORE INTO %i (setting_key, setting_value, updated_by) VALUES (%s, %s, %d)',,
+				$table,
 				$key,
+				'0',
 				$user
 			)
 		);
@@ -47,7 +64,8 @@ final class Stockland_Sequence {
 
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$table} SET setting_value = LAST_INSERT_ID(CAST(setting_value AS UNSIGNED) + 1), updated_by = %d WHERE setting_key = %s",
+				'UPDATE %i SET setting_value = LAST_INSERT_ID(CAST(setting_value AS UNSIGNED) + 1), updated_by = %d WHERE setting_key = %s',,
+				$table,
 				$user,
 				$key
 			)
@@ -64,5 +82,8 @@ final class Stockland_Sequence {
 		return $prefix . '-' . $year . '-' . str_pad( (string) $next, 6, '0', STR_PAD_LEFT );
 	}
 
+	/**
+	 * Prevent direct instantiation.
+	 */
 	private function __construct() {}
 }

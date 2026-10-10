@@ -1,4 +1,9 @@
 <?php
+/**
+ * Stockland ERP read-only integrity and foreign-key diagnostics.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,14 +14,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * before a damaged relationship becomes an operational transaction.
  */
 final class Stockland_Integrity {
+	/**
+	 * Run read-only relational, ledger, and procurement consistency checks.
+	 *
+	 * @return array Summary with check counts, unknown checks, and FK metadata.
+	 */
 	public static function scan() {
 		global $wpdb;
 		$checks  = array();
 		$unknown = array();
-		$t       = static function ( $name ) {
-			return Stockland_DB::table( $name );
+		$t       = static function ( $name ) use ( $wpdb ) {
+			return $wpdb->prepare( '%i', Stockland_DB::table( $name ) );
 		};
-		$users   = $wpdb->prefix . 'stock_users';
+		$users   = $wpdb->prepare( '%i', $wpdb->prefix . 'stock_users' );
 
 		// Every query below is SELECT-only. A SQL error is reported as UNKNOWN,
 		// never silently converted to zero and never repaired automatically.
@@ -77,6 +87,7 @@ final class Stockland_Integrity {
 
 		foreach ( $queries as $name => $sql ) {
 			$wpdb->last_error = '';
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This loop executes internal read-only templates only; table identifiers are already quoted using the %i placeholder and no request values are interpolated.
 			$value            = $wpdb->get_var( $sql );
 			if ( '' !== (string) $wpdb->last_error || null === $value ) {
 				$checks[ $name ] = null;
@@ -115,16 +126,24 @@ final class Stockland_Integrity {
 	 * This intentionally never runs ALTER TABLE: legacy ERP data must be orphan-
 	 * checked and migration-tested on a staging copy before any constraints are added.
 	 */
+	/**
+	 * Read actual InnoDB foreign-key metadata without modifying the schema.
+	 *
+	 * @param wpdb $wpdb WordPress database connection.
+	 * @return array Foreign-key inventory status and observed metadata.
+	 */
 	private static function foreign_key_inventory( $wpdb ) {
 		$prefix = (string) $wpdb->prefix . 'stock_';
 		try {
 			$wpdb->last_error = '';
 			$like             = $wpdb->esc_like( $prefix ) . '%';
-			$sql              = $wpdb->prepare(
-				'SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME LIKE %s AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION',
-				$like
+			$rows             = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME LIKE %s AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION',
+					$like
+				),
+				ARRAY_A
 			);
-			$rows             = $wpdb->get_results( $sql, ARRAY_A );
 			if ( ! empty( $wpdb->last_error ) || ! is_array( $rows ) ) {
 				return array(
 					'status'                    => 'UNKNOWN',
