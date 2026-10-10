@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<ruleset name="Stockland ERP Enterprise PHP Standard">
+    <description>Enterprise coding standard for new and materially changed Stockland ERP code. Frozen legacy files remain governed by the release regression suite.</description>
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+    <rule ref="WordPress"/>
+    <rule ref="WordPress-Extra"/>
+    <rule ref="WordPress-Docs"/>
+    <config name="minimum_supported_wp_version" value="6.8"/>
+    <config name="testVersion" value="8.4-"/>
+    <file>includes/class-stockland-sequence.php</file>
+    <file>includes/class-stockland-money.php</file>
+    <file>includes/class-stockland-integrity.php</file>
+    <file>tests</file>
+    <file>tools/qa</file>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+</ruleset>

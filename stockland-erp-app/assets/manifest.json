@@ -1,0 +1,42 @@
+{
+  "name": "Stockland Ethiopia ERP",
+  "short_name": "Stockland ERP",
+  "id": "stockland-erp",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "background_color": "#0b1730",
+  "theme_color": "#295ff3",
+  "description": "Stockland Ethiopia live ERP for Product Master, daily POS import, inventory, warehouse, procurement, finance, HR, payroll and reporting.",
+  "lang": "en",
+  "categories": [
+    "business",
+    "productivity",
+    "finance"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
