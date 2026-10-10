@@ -51,7 +51,7 @@ final class Stockland_Sequence {
 		// connection's allocated value in MySQL's session LAST_INSERT_ID().
 		$inserted = $wpdb->query(
 			$wpdb->prepare(
-				'INSERT IGNORE INTO %i (setting_key, setting_value, updated_by) VALUES (%s, %s, %d)',,
+				'INSERT IGNORE INTO %i (setting_key, setting_value, updated_by) VALUES (%s, %s, %d)',
 				$table,
 				$key,
 				'0',
@@ -64,7 +64,7 @@ final class Stockland_Sequence {
 
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				'UPDATE %i SET setting_value = LAST_INSERT_ID(CAST(setting_value AS UNSIGNED) + 1), updated_by = %d WHERE setting_key = %s',,
+				'UPDATE %i SET setting_value = LAST_INSERT_ID(CAST(setting_value AS UNSIGNED) + 1), updated_by = %d WHERE setting_key = %s',
 				$table,
 				$user,
 				$key
