@@ -1,0 +1,66 @@
+name: Stockland ERP package and source gate
+
+on:
+  push:
+    branches: ["main", "audit/**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  audit-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require complete canonical ERP source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f stockland-erp-app/stockland-inventory.php || {
+            echo "::error title=Missing authoritative plugin source::The repository must include the complete stockland-erp-app source tree before a full ERP scan can run."
+            exit 1
+          }
+          test -f stockland-erp-app/RELEASE_MANIFEST.json
+          test -f stockland-erp-app/tools/qa/run-static-qa.php
+          test -f stockland-erp-app/tools/qa/check-release-1657.php
+
+      - name: Verify authoritative Bootstrap 5.3.8 asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f audit/vendor/bootstrap-5.3.8/bootstrap.min.css
+          test "$(git hash-object audit/vendor/bootstrap-5.3.8/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          grep -q 'Bootstrap  v5.3.8' audit/vendor/bootstrap-5.3.8/bootstrap.min.css
+          test -f stockland-erp-app/assets/bootstrap.min.css
+          test "$(git hash-object stockland-erp-app/assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, dom, zip, fileinfo
+          coverage: none
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Lint complete PHP source
+        shell: bash
+        run: |
+          set -euo pipefail
+          find stockland-erp-app -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Validate manifest and run ERP static QA
+        working-directory: stockland-erp-app
+        run: |
+          set -euo pipefail
+          php -r '$m=json_decode(file_get_contents("RELEASE_MANIFEST.json"),true,512,JSON_THROW_ON_ERROR); if (($m["release"] ?? "") !== "16.1.57") { fwrite(STDERR,"Wrong release manifest\n"); exit(1); }'
+          php tools/qa/run-static-qa.php
+          php tools/qa/smoke-integrity-scan.php
+          node --check assets/app.js
+          node --check assets/pwa.js
