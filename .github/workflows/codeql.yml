@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  detect:
+  detect-source:
     runs-on: ubuntu-latest
     outputs:
       has_javascript: ${{ steps.detect.outputs.has_javascript }}
@@ -27,33 +27,45 @@ jobs:
             echo "has_javascript=false" >> "$GITHUB_OUTPUT"
           fi
 
-  analyze:
-    needs: detect
-    if: ${{ matrix.language == 'actions' || needs.detect.outputs.has_javascript == 'true' }}
-    name: Analyze (${{ matrix.language }})
+  analyze-actions:
+    name: Analyze GitHub Actions workflows
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
       packages: read
       actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: actions
-            build-mode: none
-          - language: javascript-typescript
-            build-mode: none
     steps:
       - uses: actions/checkout@v4
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          languages: actions
           queries: security-extended,security-and-quality
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:actions"
+
+  analyze-javascript:
+    name: Analyze JavaScript / TypeScript
+    needs: detect-source
+    if: ${{ needs.detect-source.outputs.has_javascript == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended,security-and-quality
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"
