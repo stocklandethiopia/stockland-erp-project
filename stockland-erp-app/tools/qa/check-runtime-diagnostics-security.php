@@ -61,7 +61,8 @@ if (!str_contains($js, 'function resolveTrustedApiUrl(path)') || !str_contains($
     fwrite(STDERR, "FAIL REST API helper does not enforce destination validation\n"); exit(1);
 }
 $integrity = file_get_contents(dirname(__DIR__, 2) . '/includes/class-stockland-integrity.php');
-if (!str_contains($integrity, 'information_schema.KEY_COLUMN_USAGE') || !str_contains($integrity, "'database_foreign_keys' => \$foreign_keys") || !str_contains($integrity, "'automatic_migration' => false")) {
+$integrity_normalized = preg_replace('/\\s+/', ' ', $integrity);
+if (!str_contains($integrity, 'information_schema.KEY_COLUMN_USAGE') || !str_contains($integrity_normalized, "'database_foreign_keys' => \$foreign_keys") || !str_contains($integrity_normalized, "'automatic_migration' => false")) {
     fwrite(STDERR, "FAIL read-only database foreign-key inventory is missing\n"); exit(1);
 }
 echo "Runtime diagnostics security QA PASS: sensitive route authorization, legacy query redaction, REST destination guard and read-only FK inventory present.\n";
