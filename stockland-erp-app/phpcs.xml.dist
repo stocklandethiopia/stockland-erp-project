@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <ruleset name="Stockland ERP Enterprise PHP Standard">
-    <description>Enterprise coding standard for new and materially changed Stockland ERP code. Frozen legacy files remain governed by the release regression suite.</description>
+    <description>Targeted production-service coding standard for the sequence, money and integrity components. QA scripts and PHPUnit fixtures are verified by syntax checks and executable regression suites; the separate full-audit profile includes all PHP files to inventory legacy style findings.</description>
     <arg name="basepath" value="."/>
     <arg name="colors"/>
     <arg name="extensions" value="php"/>
@@ -12,7 +12,5 @@
     <file>includes/class-stockland-sequence.php</file>
     <file>includes/class-stockland-money.php</file>
     <file>includes/class-stockland-integrity.php</file>
-    <file>tests</file>
-    <file>tools/qa</file>
     <exclude-pattern>*/vendor/*</exclude-pattern>
 </ruleset>
