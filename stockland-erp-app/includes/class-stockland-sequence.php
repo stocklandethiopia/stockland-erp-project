@@ -4,6 +4,7 @@
  *
  * @package Stockland_ERP
  */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
