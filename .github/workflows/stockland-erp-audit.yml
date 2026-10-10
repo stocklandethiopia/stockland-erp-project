@@ -185,6 +185,60 @@ jobs:
         working-directory: stockland-erp-app
         run: composer test
 
+      - name: Inventory full-source PHP coding-standard findings
+        id: full-source-phpcs
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="../full-source-phpcs-report.json"
+          set +e
+          vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist --report=json > "$report"
+          phpcs_status=$?
+          set -e
+          python3 - "$report" "$phpcs_status" <<'PY'
+          import collections
+          import json
+          import sys
+          from pathlib import Path
+
+          report_path = Path(sys.argv[1])
+          status = int(sys.argv[2])
+          data = json.loads(report_path.read_text(encoding="utf-8"))
+          totals = data.get("totals", {})
+          files = data.get("files", {})
+          sources = collections.Counter()
+          file_totals = []
+          for name, result in files.items():
+              errors = result.get("errors", 0)
+              warnings = result.get("warnings", 0)
+              file_totals.append((errors + warnings, errors, warnings, name))
+              for message in result.get("messages", []):
+                  sources[message.get("source", "unknown")] += 1
+          print(
+              "FULL-SOURCE PHPCS INVENTORY (diagnostic, non-gating): "
+              f"exit={status}, errors={totals.get('errors', 0)}, "
+              f"warnings={totals.get('warnings', 0)}, "
+              f"fixable={totals.get('fixable', 0)}, files={len(files)}"
+          )
+          print("TOP FINDING RULES:")
+          for rule, count in sources.most_common(20):
+              print(f"{count:5d} {rule}")
+          print("TOP AFFECTED PHP FILES:")
+          for total, errors, warnings, name in sorted(file_totals, reverse=True)[:25]:
+              print(f"{total:5d} total ({errors} errors, {warnings} warnings) {name}")
+          print("Full machine-readable report is attached as a workflow artifact.")
+          PY
+          echo "phpcs_exit=$phpcs_status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload full-source PHPCS inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockland-erp-full-source-phpcs-inventory
+          path: full-source-phpcs-report.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Remove CI-only Composer vendor tree and PHPUnit cache before runtime QA and packaging
         shell: bash
         run: |
