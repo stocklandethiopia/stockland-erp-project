@@ -185,14 +185,15 @@ jobs:
         working-directory: stockland-erp-app
         run: composer test
 
-      - name: Remove CI-only Composer vendor tree before runtime QA and packaging
+      - name: Remove CI-only Composer vendor tree and PHPUnit cache before runtime QA and packaging
         shell: bash
         run: |
           set -euo pipefail
-          # Dependency installation is for lint/tests only. Never scan or ship
-          # third-party dev packages as Stockland plugin runtime code.
-          rm -rf stockland-erp-app/vendor
+          # Dependencies and PHPUnit caches are for lint/tests only. Never scan
+          # or ship them as Stockland plugin runtime code.
+          rm -rf stockland-erp-app/vendor stockland-erp-app/.phpunit.cache
           test ! -d stockland-erp-app/vendor
+          test ! -d stockland-erp-app/.phpunit.cache
 
       - name: Run ERP static/integrity QA and JS checks
         working-directory: stockland-erp-app
