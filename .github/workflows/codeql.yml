@@ -5,6 +5,7 @@ on:
     branches: ["main", "audit/**"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
   schedule:
     - cron: "26 21 * * 1"
 
