@@ -50,6 +50,7 @@ final class Stockland_Sequence {
 		// INSERT IGNORE is safe because setting_key is the primary key. The
 		// following UPDATE atomically owns the row lock and records this exact
 		// connection's allocated value in MySQL's session LAST_INSERT_ID().
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Atomic sequence initialization must execute against the current database row.
 		$inserted = $wpdb->query(
 			$wpdb->prepare(
 				'INSERT IGNORE INTO %i (setting_key, setting_value, updated_by) VALUES (%s, %s, %d)',
@@ -63,6 +64,7 @@ final class Stockland_Sequence {
 			throw new Exception( 'Could not initialize the document sequence.' );
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Atomic row update and LAST_INSERT_ID allocation must bypass cache.
 		$updated = $wpdb->query(
 			$wpdb->prepare(
 				'UPDATE %i SET setting_value = LAST_INSERT_ID(CAST(setting_value AS UNSIGNED) + 1), updated_by = %d WHERE setting_key = %s',
@@ -75,6 +77,7 @@ final class Stockland_Sequence {
 			throw new Exception( 'Could not advance the document sequence.' );
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- LAST_INSERT_ID is connection-local and cannot be cached.
 		$next = (int) $wpdb->get_var( 'SELECT LAST_INSERT_ID()' );
 		if ( $next <= 0 ) {
 			throw new Exception( 'The document sequence returned an invalid value.' );
