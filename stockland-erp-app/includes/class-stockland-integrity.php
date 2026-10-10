@@ -88,7 +88,7 @@ final class Stockland_Integrity {
 		foreach ( $queries as $name => $sql ) {
 			$wpdb->last_error = '';
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This loop executes internal read-only templates only; table identifiers are already quoted using the %i placeholder and no request values are interpolated.
-			$value            = $wpdb->get_var( $sql );
+			$value = $wpdb->get_var( $sql );
 			if ( '' !== (string) $wpdb->last_error || null === $value ) {
 				$checks[ $name ] = null;
 				$unknown[]       = $name;
