@@ -4,6 +4,7 @@ on:
   push:
     branches: ["audit/**"]
     paths:
+      - "stockland-erp-app/**"
       - "audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip"
       - ".github/workflows/stockland-erp-audit.yml"
   pull_request:
