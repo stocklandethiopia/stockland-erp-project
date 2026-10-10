@@ -128,7 +128,7 @@ jobs:
       - name: Dispatch CodeQL against imported source
         if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: gh workflow run codeql.yml --ref "$GITHUB_REF_NAME"
 
@@ -191,10 +191,11 @@ jobs:
           from pathlib import Path
           p = Path("AUDIT/16.1.57-package-identity.md")
           text = p.read_text(encoding="utf-8")
-          text = text.replace(
-              "The repository still does not contain the complete plugin package in this change, so it does **not** yet contain the full source tree or matching release ZIP.",
-              "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip."
-          )
+          paragraphs = text.split("\n\n")
+          for i, paragraph in enumerate(paragraphs):
+              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph:
+                  paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip."
+          text = "\n\n".join(paragraphs)
           text += "\n\n## Rebuilt package (after successful CI)\n\n- File: audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n- SHA-256: " + sys.argv[1] + "\n- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924\n- Status: CI build and static checks completed successfully on this artifact. Live WordPress/MariaDB staging certification remains separate.\n"
           p.write_text(text, encoding="utf-8")
           PY
