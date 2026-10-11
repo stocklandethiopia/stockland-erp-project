@@ -2483,17 +2483,68 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'invalid_location', 'Selected location is not an active branch or warehouse.', array( 'status' => 400 ) );
 		}
 
-		$branch_filter   = $scope ? $wpdb->prepare( ' AND l.id=%d', $scope ) : '';
-		$product_filter  = $scope ? $wpdb->prepare( ' AND s.branch_location_id=%d', $scope ) : '';
-		$person_filter   = $scope ? $wpdb->prepare( ' AND s.branch_location_id=%d', $scope ) : '';
-		$transfer_filter = $scope ? $wpdb->prepare( ' AND (t.from_location_id=%d OR t.to_location_id=%d)', $scope, $scope ) : '';
-		$low_filter      = $scope ? $wpdb->prepare( ' AND l.id=%d', $scope ) : '';
+		$branch_filter   = $scope ? ' AND l.id=%d' : '';
+		$product_filter  = $scope ? ' AND s.branch_location_id=%d' : '';
+		$person_filter   = $scope ? ' AND s.branch_location_id=%d' : '';
+		$transfer_filter = $scope ? ' AND (t.from_location_id=%d OR t.to_location_id=%d)' : '';
+		$low_filter      = $scope ? ' AND l.id=%d' : '';
 
-		$sales      = $wpdb->get_results( $wpdb->prepare( 'SELECT l.id,l.location_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue,COALESCE(SUM(s.gross_profit),0) profit FROM ' . Stockland_DB::table( 'locations' ) . ' l LEFT JOIN ' . Stockland_DB::table( 'sales' ) . " s ON s.branch_location_id=l.id AND s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s WHERE l.location_type='Branch' {$branch_filter} GROUP BY l.id,l.location_name ORDER BY revenue DESC", $from, $to ), ARRAY_A );
-		$by_product = $wpdb->get_results( $wpdb->prepare( 'SELECT l.location_name,s.sku,s.variant_id,p.product_name,p.brand,p.color,p.size,p.size_system,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue,COALESCE(SUM(s.gross_profit),0) profit FROM ' . Stockland_DB::table( 'sales' ) . ' s JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=s.branch_location_id JOIN ' . Stockland_DB::table( 'products' ) . " p ON (p.variant_id=s.variant_id OR (s.variant_id IS NULL AND p.sku=s.sku)) WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s {$product_filter} GROUP BY l.id,s.sku,s.variant_id,p.product_name,p.brand,p.color,p.size,p.size_system ORDER BY revenue DESC LIMIT 200", $from, $to ), ARRAY_A );
-		$by_person  = $wpdb->get_results( $wpdb->prepare( 'SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue FROM ' . Stockland_DB::table( 'sales' ) . ' s JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=s.branch_location_id LEFT JOIN {$wpdb->users} u ON u.ID=s.staff_user_id WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s {$person_filter} GROUP BY l.id,s.staff_user_id,u.display_name ORDER BY revenue DESC", $from, $to ), ARRAY_A );
-		$variance   = $wpdb->get_results( $wpdb->prepare( 'SELECT t.transfer_id,f.location_name from_location_name,to_l.location_name to_location_name,t.sku,p.product_name,t.dispatched_qty,t.received_qty,t.variance_qty,t.receipt_reason,t.received_at FROM ' . Stockland_DB::table( 'transfers' ) . ' t JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id JOIN ' . Stockland_DB::table( 'products' ) . " p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE t.status IN('Received','Completed') AND DATE(t.received_at) BETWEEN %s AND %s AND ABS(t.variance_qty)>0 {$transfer_filter} ORDER BY t.received_at DESC", $from, $to ), ARRAY_A );
-		$low        = $wpdb->get_results( "SELECT l.location_name,p.sku,p.product_name,COALESCE(b.physical_stock,0) current_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level FROM " . Stockland_DB::table( 'products' ) . ' p CROSS JOIN ' . Stockland_DB::table( 'locations' ) . ' l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM ' . Stockland_DB::table( 'transactions' ) . " WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch') {$low_filter} AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) ORDER BY current_stock,p.sku", ARRAY_A );
+		$branch_args = array( Stockland_DB::table( 'locations' ), Stockland_DB::table( 'sales' ), $from, $to );
+		if ( $scope ) {
+			$branch_args[] = (int) $scope;
+		}
+		$sales = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT l.id,l.location_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue,COALESCE(SUM(s.gross_profit),0) profit FROM %i l LEFT JOIN %i s ON s.branch_location_id=l.id AND s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s WHERE l.location_type='Branch' {$branch_filter} GROUP BY l.id,l.location_name ORDER BY revenue DESC",
+				$branch_args
+			),
+			ARRAY_A
+		);
+		$product_args = array( Stockland_DB::table( 'sales' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'products' ), $from, $to );
+		if ( $scope ) {
+			$product_args[] = (int) $scope;
+		}
+		$by_product = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT l.location_name,s.sku,s.variant_id,p.product_name,p.brand,p.color,p.size,p.size_system,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue,COALESCE(SUM(s.gross_profit),0) profit FROM %i s JOIN %i l ON l.id=s.branch_location_id JOIN %i p ON (p.variant_id=s.variant_id OR (s.variant_id IS NULL AND p.sku=s.sku)) WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s {$product_filter} GROUP BY l.id,s.sku,s.variant_id,p.product_name,p.brand,p.color,p.size,p.size_system ORDER BY revenue DESC LIMIT 200",
+				$product_args
+			),
+			ARRAY_A
+		);
+		$person_args = array( Stockland_DB::table( 'sales' ), Stockland_DB::table( 'locations' ), $wpdb->users, $from, $to );
+		if ( $scope ) {
+			$person_args[] = (int) $scope;
+		}
+		$by_person = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue FROM %i s JOIN %i l ON l.id=s.branch_location_id LEFT JOIN %i u ON u.ID=s.staff_user_id WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s {$person_filter} GROUP BY l.id,s.staff_user_id,u.display_name ORDER BY revenue DESC",
+				$person_args
+			),
+			ARRAY_A
+		);
+		$variance_args = array( Stockland_DB::table( 'transfers' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'products' ), $from, $to );
+		if ( $scope ) {
+			$variance_args[] = (int) $scope;
+			$variance_args[] = (int) $scope;
+		}
+		$variance = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT t.transfer_id,f.location_name from_location_name,to_l.location_name to_location_name,t.sku,p.product_name,t.dispatched_qty,t.received_qty,t.variance_qty,t.receipt_reason,t.received_at FROM %i t JOIN %i f ON f.id=t.from_location_id JOIN %i to_l ON to_l.id=t.to_location_id JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE t.status IN('Received','Completed') AND DATE(t.received_at) BETWEEN %s AND %s AND ABS(t.variance_qty)>0 {$transfer_filter} ORDER BY t.received_at DESC",
+				$variance_args
+			),
+			ARRAY_A
+		);
+		$low_args = array( Stockland_DB::table( 'products' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'transactions' ) );
+		if ( $scope ) {
+			$low_args[] = (int) $scope;
+		}
+		$low = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT l.location_name,p.sku,p.product_name,COALESCE(b.physical_stock,0) current_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level FROM %i p CROSS JOIN %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch') {$low_filter} AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) ORDER BY current_stock,p.sku",
+				$low_args
+			),
+			ARRAY_A
+		);
 		return rest_ensure_response(
 			array(
 				'from'              => $from,
