@@ -1,28 +1,84 @@
 <?php
+/**
+ * Stockland ERP employee, compensation, and payroll REST endpoints.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Implements controlled HR, compensation, payroll generation, and payroll approval flows.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_HR extends Stockland_REST_Base {
+	/**
+	 * Registers the HR and payroll REST controller hooks.
+	 *
+	 * @return void Registers controller hooks.
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) ); }
 
+	/**
+	 * Checks whether the current user has Owner authority.
+	 *
+	 * @return bool Whether the current user is an authorized Owner.
+	 */
 	private function owner() {
 		return Stockland_Authority::can_manage_hr(); }
+	/**
+	 * Checks whether the current user may manage payroll as Management.
+	 *
+	 * @return bool Whether the current user may manage payroll.
+	 */
 	private function payroll_manager() {
 		return Stockland_Authority::can_manage_payroll(); }
+	/**
+	 * Checks whether the current user may approve payroll as Owner.
+	 *
+	 * @return bool Whether the current user may approve payroll.
+	 */
 	private function payroll_owner() {
 		return Stockland_Authority::can_approve_payroll(); }
+	/**
+	 * Builds a forbidden response for an unauthorized HR/payroll action.
+	 *
+	 * @param mixed  $message Value for the message argument.
+	 * @param string $status Requested record status.
+	 * @return WP_Error A forbidden REST response.
+	 */
 	private function deny( $message = 'You do not have HR authority.', $status = 403 ) {
 		return new WP_Error( 'forbidden', $message, array( 'status' => $status ) ); }
+	/**
+	 * Normalizes a monetary amount using the ERP money rules.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @return string The normalized monetary value.
+	 */
 	private function money( $v ) {
 		return Stockland_Money::decimal( Stockland_Money::minor( $v ) ); }
+	/**
+	 * Validates a statutory, employment, or payroll date.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @param mixed $fallback Value for the fallback argument.
+	 * @return string|false The normalized date, or false when invalid.
+	 */
 	private function valid_date( $v, $fallback = null ) {
 		$v = sanitize_text_field( (string) $v );
 		if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m ) || ! checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ) {
 			return $fallback;
 		} return $v; }
 
+	/**
+	 * Registers HR employee, compensation, and payroll endpoints.
+	 *
+	 * @return void Registers HR/payroll routes.
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -150,6 +206,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Builds the role-scoped HR/payroll bootstrap data.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function bootstrap( WP_REST_Request $r ) {
 		$payroll_visible = Stockland_Authority::can_view_payroll();
 		return rest_ensure_response(
@@ -172,6 +234,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Reads employee rows authorized for the requested HR view.
+	 *
+	 * @param mixed $with_comp Value for the with comp argument.
+	 * @return array The authorized employee rows.
+	 */
 	private function employee_rows( $with_comp = false ) {
 		global $wpdb;
 		$e = Stockland_DB::table( 'employees' );
@@ -188,15 +256,32 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL uses a fixed two-choice allowance-column fragment; table names and the effective date are passed via %i/%s placeholders.
 		return $wpdb->get_results( $wpdb->prepare( $sql, $e, $l, $c, $c, current_time( 'Y-m-d' ) ), ARRAY_A );
 	}
+	/**
+	 * Reads payroll data within the caller's authorized scope.
+	 *
+	 * @return array The authorized payroll rows.
+	 */
 	private function payroll_rows() {
 		global $wpdb;
 		$p = Stockland_DB::table( 'payroll_periods' );
 		return $wpdb->get_results( $wpdb->prepare( 'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100', $p, $wpdb->users ), ARRAY_A );
 	}
 
+	/**
+	 * Lists employee records visible to the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function employees( WP_REST_Request $r ) {
 		return rest_ensure_response( $this->employee_rows( Stockland_Authority::can_view_payroll() ) ); }
 
+	/**
+	 * Creates an employee master record after HR authority and field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function employee_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
 			return $this->deny();
@@ -249,6 +334,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Updates an employee master record without rewriting posted payroll history.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function employee_update( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
 			return $this->deny();
@@ -315,6 +406,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Creates a compensation agreement or segment for an employee.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function compensation_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
 			return $this->deny();
@@ -495,6 +592,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) ); }
 	}
 
+	/**
+	 * Lists payroll periods and status visible to the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function payroll_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$rows = $this->payroll_rows();
@@ -519,6 +622,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Creates a draft payroll period within the configured statutory rules.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function payroll_create( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
 			return $this->deny( 'Only active Stockland Management can prepare payroll; the Owner has read and final-approval access.', 403 );
@@ -566,6 +675,13 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Returns an employee's effective-dated compensation segments.
+	 *
+	 * @param mixed $employee Value for the employee argument.
+	 * @param mixed $period Value for the period argument.
+	 * @return array Effective-dated compensation segments.
+	 */
 	private function compensation_segments( $employee, $period ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'employee_compensation' );
@@ -739,6 +855,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		) : array();
 	}
 
+	/**
+	 * Calculates payroll totals and statutory component summaries.
+	 *
+	 * @param int $period_id Payroll period ID.
+	 * @return array|WP_Error Calculated payroll totals or a validation error.
+	 */
 	private function payroll_totals( $period_id ) {
 		global $wpdb;
 		$lines  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY id', Stockland_DB::table( 'payroll_lines' ), $period_id ), ARRAY_A );
@@ -768,6 +890,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		return $totals;
 	}
 
+	/**
+	 * Saves calculated payroll totals for a draft payroll period.
+	 *
+	 * @param int $period_id Payroll period ID.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	private function save_payroll_totals( $period_id ) {
 		global $wpdb;
 		$totals = $this->payroll_totals( $period_id );
@@ -778,6 +906,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		return $totals;
 	}
 
+	/**
+	 * Generates draft payroll lines from eligible employee/compensation data.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function payroll_generate( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
 			return $this->deny( 'Only an active Owner or Management profile can prepare payroll.', 403 );
@@ -900,12 +1034,25 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'payroll_generate_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Returns permitted compensation notes and classifications.
+	 *
+	 * @param int   $employee_id Employee master ID.
+	 * @param mixed $as_of Value for the as of argument.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	private function compensation_notes( $employee_id, $as_of ) {
 		global $wpdb;
 		$c = Stockland_DB::table( 'employee_compensation' );
 		return (string) $wpdb->get_var( $wpdb->prepare( 'SELECT statutory_classification_note FROM %i WHERE employee_id=%d AND effective_from<=%s ORDER BY effective_from DESC,id DESC LIMIT 1', $c, $employee_id, $as_of ) );
 	}
 
+	/**
+	 * Updates one editable draft payroll line with validated statutory values.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function payroll_line_update( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
 			return $this->deny( 'Only an active Owner or Management profile can edit draft payroll.', 403 );
@@ -1041,6 +1188,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'payroll_line_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Returns the detail of a payroll period authorized for the current user.
+	 *
+	 * @param int $id ERP record ID.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	private function payroll_detail( $id ) {
 		global $wpdb;
 		$p = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
@@ -1049,7 +1202,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}$p['lines'] = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY employee_name', Stockland_DB::table( 'payroll_lines' ), $id ), ARRAY_A );
 		return $p;}
 
-	/** Management submits a completed draft; only the Owner may approve/pay it. */
+	/**
+	 * Management submits a completed draft; only the Owner may approve/pay it.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 */
 	public function payroll_submit( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
 			return $this->deny( 'Only active Stockland Management may prepare and submit payroll for Owner approval.', 403 );
@@ -1097,6 +1254,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'payroll_submit_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Performs the configured final payroll approval checks.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function payroll_approve( WP_REST_Request $r ) {
 		if ( ! $this->payroll_owner() ) {
 			return $this->deny( 'Only the Owner can approve payroll.', 403 );
@@ -1218,6 +1381,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'payroll_approve_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Records payroll payment under the approved workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 */
 	public function payroll_pay( WP_REST_Request $r ) {
 		if ( ! $this->payroll_owner() ) {
 			return $this->deny( 'Only the Owner can pay payroll.', 403 );
