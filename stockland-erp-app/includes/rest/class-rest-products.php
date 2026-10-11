@@ -81,7 +81,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 	 * The full source value remains represented by the event hash payload in Stockland_Audit.
 	 */
 	private function audit_value( $value ) {
-		if ( $value === null ) {
+		if ( null === $value ) {
 			return null;
 		}
 		$text = is_string( $value ) ? $value : wp_json_encode( $value );
@@ -147,10 +147,10 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			$args             = array();
 			// In-place compatibility: accept both the newer q contract and the legacy search contract.
 			$q = trim( (string) $request->get_param( 'q' ) );
-			if ( $q === '' ) {
+			if ( '' === $q ) {
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
-			if ( $q !== '' ) {
+			if ( '' !== $q ) {
 				$like   = '%' . $wpdb->esc_like( $q ) . '%';
 				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
 				$args   = array_fill( 0, 9, $like );
@@ -158,8 +158,8 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			$limit = min( 500, max( 1, (int) ( $request->get_param( 'limit' ) ?: 500 ) ) );
 			// Exact SKU matches sort first; this makes a known SKU deterministic
 			// while retaining broad catalog search for partial SKU/name/dimension terms.
-			$exact = $q !== '' ? 'CASE WHEN sku = %s THEN 0 ELSE 1 END,' : '';
-			if ( $q !== '' ) {
+			$exact = '' !== $q ? 'CASE WHEN sku = %s THEN 0 ELSE 1 END,' : '';
+			if ( '' !== $q ) {
 				array_unshift( $args, $q );
 			}
 			$sql    = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,{$cost},retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active FROM {$table} WHERE {$where} ORDER BY {$exact} COALESCE(parent_sku,sku), color, size, sku LIMIT %d";
@@ -208,9 +208,9 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		if ( ! in_array( $type, array( 'STYLE', 'VARIANT', 'SIMPLE' ), true ) ) {
 			return new WP_Error( 'invalid_product_type', 'product_type must be STYLE, VARIANT or SIMPLE.', array( 'status' => 400 ) );
 		}
-		if ( $type === 'VARIANT' && empty( $p['parent_sku'] ) ) {
+		if ( 'VARIANT' === $type && empty( $p['parent_sku'] ) ) {
 			return new WP_Error( 'missing_parent', 'A VARIANT must have a parent_sku (style).', array( 'status' => 400 ) );
-		} if ( $type === 'VARIANT' ) {
+		} if ( 'VARIANT' === $type ) {
 			$parent = Stockland_DB::get_product( $this->clean( $p['parent_sku'] ) );
 			if ( ! $parent || ( $parent['product_type'] ?? '' ) !== 'STYLE' ) {
 				return new WP_Error( 'invalid_parent', 'parent_sku must reference an existing STYLE product.', array( 'status' => 400 ) );
@@ -244,7 +244,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		);
 		try {
 			foreach ( array( 'purchase_cost', 'retail_price', 'wholesale_price' ) as $field ) {
-				if ( isset( $p[ $field ] ) && $p[ $field ] !== '' ) {
+				if ( isset( $p[ $field ] ) && '' !== $p[ $field ] ) {
 					$new[ $field ] = Stockland_Money::decimal( Stockland_Money::minor( $p[ $field ] ) );
 				}
 			}
@@ -253,12 +253,12 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 		$new['product_type'] = $type;
 		foreach ( array( 'purchase_cost', 'retail_price', 'wholesale_price' ) as $field ) {
-			if ( $new[ $field ] !== null && Stockland_Money::minor( $new[ $field ] ) < 0 ) {
+			if ( null !== $new[ $field ] && Stockland_Money::minor( $new[ $field ] ) < 0 ) {
 				return new WP_Error( 'invalid_price', 'Prices and costs cannot be negative.', array( 'status' => 400 ) );
 			}
 		}
 		if ( empty( $new['parent_sku'] ) ) {
-			$new['parent_sku'] = $type === 'SIMPLE' ? $sku : $new['parent_sku'];
+			$new['parent_sku'] = 'SIMPLE' === $type ? $sku : $new['parent_sku'];
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start Product Master create transaction.', array( 'status' => 500 ) );
@@ -309,7 +309,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 		$prefix = $this->clean( $p['sku_prefix'] ?? ( $style['style_code'] ?: $parent ) );
 		$prefix = strtoupper( trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9_-]+/', '-', $prefix ) ), '-_' ) );
-		if ( $prefix === '' ) {
+		if ( '' === $prefix ) {
 			$prefix = strtoupper( $parent );
 		}
 		$created = array();
@@ -341,7 +341,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					}
 					$safe_c = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $ccode ?: $cname ) ) ), '-' );
 					$safe_s = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $zcode ) ) ), '-' );
-					if ( $safe_c === '' || $safe_s === '' ) {
+					if ( '' === $safe_c || '' === $safe_s ) {
 						continue;
 					}
 					$base = $prefix;
@@ -472,18 +472,18 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			if ( ! in_array( $next_type, array( 'STYLE', 'VARIANT', 'SIMPLE' ), true ) ) {
 				throw new Exception( 'product_type must be STYLE, VARIANT or SIMPLE.' );
 			}
-			if ( $next_type === 'VARIANT' ) {
+			if ( 'VARIANT' === $next_type ) {
 				$next_parent = $this->clean( $p['parent_sku'] ?? ( $current['parent_sku'] ?? '' ) );
 				$next_color  = $this->clean( $p['color'] ?? ( $current['color'] ?? '' ) );
 				$next_size   = $this->clean( $p['size'] ?? ( $current['size'] ?? '' ) );
-				if ( $next_parent === '' ) {
+				if ( '' === $next_parent ) {
 					throw new Exception( 'A VARIANT must have a parent_sku (style).' );
 				}
 				$parent = Stockland_DB::get_product( $next_parent );
 				if ( ! $parent || ( $parent['product_type'] ?? '' ) !== 'STYLE' ) {
 					throw new Exception( 'parent_sku must reference an existing STYLE product.' );
 				}
-				if ( $next_color === '' || $next_size === '' ) {
+				if ( '' === $next_color || '' === $next_size ) {
 					throw new Exception( 'A stockable VARIANT requires both color and size.' );
 				}
 			}
@@ -492,11 +492,11 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			$update  = array();
 			foreach ( array( 'product_name', 'category', 'gender', 'age_group', 'unit', 'notes', 'branch_reorder_level', 'central_reorder_level', 'is_active', 'product_type', 'parent_sku', 'style_code', 'brand', 'department', 'sub_category', 'collection_name', 'season', 'material', 'fit', 'country_of_origin', 'image_url', 'barcode', 'gtin', 'color', 'color_code', 'size', 'size_code', 'size_system' ) as $field ) {
 				if ( isset( $p[ $field ] ) ) {
-					if ( $field === 'image_url' ) {
+					if ( 'image_url' === $field ) {
 						$update[ $field ] = esc_url_raw( $p[ $field ] );
 					} elseif ( in_array( $field, array( 'branch_reorder_level', 'central_reorder_level' ), true ) ) {
 						$update[ $field ] = (int) $p[ $field ];
-					} elseif ( $field === 'product_type' ) {
+					} elseif ( 'product_type' === $field ) {
 						$update[ $field ] = $next_type;
 					} else {
 						$update[ $field ] = $this->clean( $p[ $field ] );

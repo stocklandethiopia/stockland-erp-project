@@ -877,14 +877,14 @@ class Stockland_Activator {
 				$db_error   = (string) $wpdb->last_error;
 				if ( false === $result ) {
 					$detail = 'Core table ' . ( $table_key ?: 'unknown' ) . ' could not be created';
-					if ( $db_error !== '' ) {
+					if ( '' !== $db_error ) {
 						$detail .= ': ' . $db_error;
 					}
 					throw new RuntimeException( $detail );
 				}
-				if ( $table_key === '' || ! self::table_exists_static( $p . 'stock_' . $table_key ) ) {
+				if ( '' === $table_key || ! self::table_exists_static( $p . 'stock_' . $table_key ) ) {
 					$detail = 'Core table ' . ( $table_key ?: 'unknown' ) . ' was not physically verified after CREATE TABLE.';
-					if ( $db_error !== '' ) {
+					if ( '' !== $db_error ) {
 						$detail .= ' Database error: ' . $db_error;
 					}
 					throw new RuntimeException( $detail );
@@ -1301,7 +1301,7 @@ class Stockland_Activator {
 			if ( ! empty( $row['branch_code'] ) ) {
 				continue;
 			}
-			$prefix    = $row['location_type'] === 'Warehouse' ? 'WH' : ( $row['location_type'] === 'Sales channel' ? 'SC' : 'BR' );
+			$prefix    = 'Warehouse' === $row['location_type'] ? 'WH' : ( 'Sales channel' === $row['location_type'] ? 'SC' : 'BR' );
 			$candidate = $prefix . str_pad( (string) ( (int) $row['id'] ), 3, '0', STR_PAD_LEFT );
 			$exists    = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$p}stock_locations WHERE branch_code=%s AND id<>%d LIMIT 1", $candidate, (int) $row['id'] ) );
 			if ( $exists ) {
@@ -1433,7 +1433,7 @@ class Stockland_Activator {
 			throw new RuntimeException( 'Cannot enforce variant-first Product Master identity: duplicate variant_id values exist.' );
 		}
 		$has_sku_unique = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='sku' AND NON_UNIQUE=0", DB_NAME, $table ) );
-		if ( $has_sku_unique === false ) {
+		if ( false === $has_sku_unique ) {
 			$has_sku_unique = false; }
 		$sku_clause       = $has_sku_unique ? '' : ', ADD UNIQUE KEY sku (sku)';
 		$wpdb->last_error = '';

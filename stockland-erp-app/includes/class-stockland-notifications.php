@@ -19,7 +19,7 @@ class Stockland_Notifications {
 				'title'             => sanitize_text_field( $title ),
 				'message'           => wp_kses_post( $message ),
 				'entity_type'       => $entity_type ? sanitize_key( $entity_type ) : null,
-				'entity_id'         => $entity_id !== null ? sanitize_text_field( (string) $entity_id ) : null,
+				'entity_id'         => null !== $entity_id ? sanitize_text_field( (string) $entity_id ) : null,
 				'severity'          => sanitize_key( $severity ),
 				'is_read'           => 0,
 				'created_at'        => current_time( 'mysql' ),
@@ -38,7 +38,7 @@ class Stockland_Notifications {
 				'title'             => sanitize_text_field( $title ),
 				'message'           => wp_kses_post( $message ),
 				'entity_type'       => $entity_type ? sanitize_key( $entity_type ) : null,
-				'entity_id'         => $entity_id !== null ? sanitize_text_field( (string) $entity_id ) : null,
+				'entity_id'         => null !== $entity_id ? sanitize_text_field( (string) $entity_id ) : null,
 				'severity'          => sanitize_key( $severity ),
 				'is_read'           => 0,
 				'created_at'        => current_time( 'mysql' ),
@@ -96,15 +96,15 @@ class Stockland_Notifications {
 	public static function notify_product_master( $action, $product ) {
 		$sku  = sanitize_text_field( (string) ( $product['sku'] ?? '' ) );
 		$name = sanitize_text_field( (string) ( $product['product_name'] ?? $sku ) );
-		if ( $sku === '' ) {
+		if ( '' === $sku ) {
 			return false;
 		}
 		$count = isset( $product['created_count'] ) ? (int) $product['created_count'] : 0;
-		if ( $action === 'VARIANT_MATRIX' ) {
+		if ( 'VARIANT_MATRIX' === $action ) {
 			$title   = 'Product variants created';
 			$message = $count . ' new variant(s) were created under ' . $sku . ' — ' . ( $name ?: $sku ) . '. Review Product Master when needed.';
 		} else {
-			$verb    = $action === 'UPDATED' ? 'updated' : 'created';
+			$verb    = 'UPDATED' === $action ? 'updated' : 'created';
 			$title   = 'Product Master ' . $verb;
 			$message = $name . ' (' . $sku . ') was ' . $verb . ' in Product Master. No inventory quantity was changed.';
 		}

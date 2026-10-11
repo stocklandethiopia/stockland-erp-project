@@ -11,7 +11,7 @@ class Stockland_Product_Service {
 		$new_sku    = sanitize_text_field( (string) $new_sku );
 		$reason     = sanitize_text_field( (string) $reason );
 		$reference  = sanitize_text_field( (string) $reference );
-		if ( $variant_id <= 0 || $new_sku === '' || $reason === '' ) {
+		if ( $variant_id <= 0 || '' === $new_sku || '' === $reason ) {
 			throw new Exception( 'variant_id, new SKU and reason are required.' );
 		}
 		if ( ! preg_match( '/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/', $new_sku ) ) {

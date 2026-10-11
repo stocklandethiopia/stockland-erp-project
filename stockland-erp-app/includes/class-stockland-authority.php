@@ -118,10 +118,10 @@ class Stockland_Authority {
 	public static function can_view_external_purchase_orders( $user_id = null ) {
 		$uid  = $user_id ?: get_current_user_id();
 		$role = self::role( $uid );
-		if ( $role === self::OWNER || $role === self::MANAGEMENT ) {
+		if ( self::OWNER === $role || self::MANAGEMENT === $role ) {
 			return user_can( $uid, 'stockland_view_financials' );
 		}
-		if ( $role === self::WAREHOUSE_MANAGER ) {
+		if ( self::WAREHOUSE_MANAGER === $role ) {
 			return user_can( $uid, 'stockland_view_warehouse' );
 		}
 		return false;
@@ -170,7 +170,7 @@ class Stockland_Authority {
 
 	public static function can_pick_requisition( $user_id = null ) {
 		$r = self::role( $user_id );
-		return $r === self::WAREHOUSE_EMPLOYEE;
+		return self::WAREHOUSE_EMPLOYEE === $r;
 	}
 
 	public static function can_receive_requisition( $user_id = null ) {
@@ -214,11 +214,11 @@ class Stockland_Authority {
 
 	public static function can_approve_requisition( $stage, $user_id = null ) {
 		$r = self::role( $user_id );
-		if ( $stage === 'management' ) {
-			return $r === self::MANAGEMENT;
+		if ( 'management' === $stage ) {
+			return self::MANAGEMENT === $r;
 		}
-		if ( $stage === 'owner' ) {
-			return $r === self::OWNER;
+		if ( 'owner' === $stage ) {
+			return self::OWNER === $r;
 		}
 		return false;
 	}

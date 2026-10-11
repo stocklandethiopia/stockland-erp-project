@@ -203,19 +203,19 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$p    = $r->get_json_params();
 		$code = sanitize_text_field( $p['employee_id'] ?? '' );
 		$name = sanitize_text_field( $p['full_name'] ?? '' );
-		if ( $code === '' || $name === '' ) {
+		if ( '' === $code || '' === $name ) {
 			return new WP_Error( 'invalid', 'employee_id and full_name are required.', array( 'status' => 400 ) );
 		}
 		if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'employees' ) . ' WHERE employee_id=%s', $code ) ) ) {
 			return new WP_Error( 'duplicate', 'Employee ID already exists.', array( 'status' => 409 ) );
 		}
-		$branch = isset( $p['branch_location_id'] ) && $p['branch_location_id'] !== '' ? (int) $p['branch_location_id'] : null;
+		$branch = isset( $p['branch_location_id'] ) && '' !== $p['branch_location_id'] ? (int) $p['branch_location_id'] : null;
 		if ( $branch && ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE id=%d AND is_active=1', $branch ) ) ) {
 			return new WP_Error( 'location', 'Active branch/location not found.', array( 'status' => 400 ) );
 		}
 		$row = array(
 			'employee_id'        => $code,
-			'wp_user_id'         => isset( $p['wp_user_id'] ) && $p['wp_user_id'] !== '' ? (int) $p['wp_user_id'] : null,
+			'wp_user_id'         => isset( $p['wp_user_id'] ) && '' !== $p['wp_user_id'] ? (int) $p['wp_user_id'] : null,
 			'full_name'          => $name,
 			'branch_location_id' => $branch,
 			'position_title'     => sanitize_text_field( $p['position_title'] ?? '' ),
@@ -267,7 +267,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$data['email'] = sanitize_email( $p['email'] );
 		}
 		if ( array_key_exists( 'branch_location_id', $p ) ) {
-			$b = $p['branch_location_id'] === '' || $p['branch_location_id'] === null ? null : (int) $p['branch_location_id'];
+			$b = '' === $p['branch_location_id'] || null === $p['branch_location_id'] ? null : (int) $p['branch_location_id'];
 			if ( $b && ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE id=%d AND is_active=1', $b ) ) ) {
 				return new WP_Error( 'location', 'Active location not found.', array( 'status' => 400 ) );
 			}$data['branch_location_id'] = $b; }
@@ -329,7 +329,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'service_contract_outside_employee_payroll', 'This record is classified as RETAINER_SERVICE, so do not create employee PAYE/pension compensation here. Use the separately approved contract/payment procedure.', array( 'status' => 409 ) );
 		}
 		$p = $r->get_json_params();
-		if ( ! array_key_exists( 'base_salary', $p ) || $p['base_salary'] === '' ) {
+		if ( ! array_key_exists( 'base_salary', $p ) || '' === $p['base_salary'] ) {
 			return new WP_Error( 'classification_required', 'Base monthly salary is required.', array( 'status' => 400 ) );
 		}
 		$has_allowance_rows = array_key_exists( 'allowances', $p ) && is_array( $p['allowances'] );
@@ -344,7 +344,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'hr_schema_upgrade_required', 'Run the protected Owner/System Control HR schema upgrade before saving allowance details. No compensation was saved.', array( 'status' => 409 ) );
 		}
 		$effective_raw = isset( $p['effective_from'] ) ? (string) $p['effective_from'] : '';
-		$effective     = $effective_raw === '' ? current_time( 'Y-m-d' ) : $this->valid_date( $effective_raw, null );
+		$effective     = '' === $effective_raw ? current_time( 'Y-m-d' ) : $this->valid_date( $effective_raw, null );
 		if ( ! $effective ) {
 			return new WP_Error( 'invalid_effective_date', 'Effective date must be a real date in YYYY-MM-DD format.', array( 'status' => 400 ) );
 		}
@@ -374,7 +374,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 					$basis    = sanitize_textarea_field( $item['legal_basis'] ?? '' );
 					$evidence = sanitize_text_field( $item['evidence_reference'] ?? '' );
 					$verified = ! empty( $item['owner_verified'] ) && Stockland_Authority::role() === 'owner';
-					if ( $treatment === 'EXEMPT' && ( Stockland_Authority::role() !== 'owner' || strlen( trim( $basis ) ) < 20 || strlen( trim( $evidence ) ) < 4 || ! $verified ) ) {
+					if ( 'EXEMPT' === $treatment && ( Stockland_Authority::role() !== 'owner' || strlen( trim( $basis ) ) < 20 || strlen( trim( $evidence ) ) < 4 || ! $verified ) ) {
 						throw new InvalidArgumentException( 'Allowance row ' . ( $i + 1 ) . ' exemption needs a specific current legal clause (20+ characters), a supporting document/reference, and Owner verification. It remains taxable until all three are recorded.' );
 					}
 					$entry                   = array(
@@ -382,14 +382,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 						'label'              => sanitize_text_field( $catalog[ $category ]['label'] ),
 						'amount'             => $amount,
 						'tax_treatment'      => $treatment,
-						'legal_basis'        => $treatment === 'EXEMPT' ? substr( trim( $basis ), 0, 500 ) : '',
-						'evidence_reference' => $treatment === 'EXEMPT' ? substr( trim( $evidence ), 0, 190 ) : '',
-						'owner_verified'     => $treatment === 'EXEMPT' && $verified,
-						'verified_by'        => $treatment === 'EXEMPT' ? (int) get_current_user_id() : null,
-						'verified_at'        => $treatment === 'EXEMPT' ? current_time( 'mysql' ) : null,
+						'legal_basis'        => 'EXEMPT' === $treatment ? substr( trim( $basis ), 0, 500 ) : '',
+						'evidence_reference' => 'EXEMPT' === $treatment ? substr( trim( $evidence ), 0, 190 ) : '',
+						'owner_verified'     => 'EXEMPT' === $treatment && $verified,
+						'verified_by'        => 'EXEMPT' === $treatment ? (int) get_current_user_id() : null,
+						'verified_at'        => 'EXEMPT' === $treatment ? current_time( 'mysql' ) : null,
 					);
 					$normalized_allowances[] = $entry;
-					if ( $treatment === 'EXEMPT' ) {
+					if ( 'EXEMPT' === $treatment ) {
 						$exempt = Stockland_Money::add( $exempt, $amount );
 					} else {
 						$taxable = Stockland_Money::add( $taxable, $amount );
@@ -444,7 +444,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( ( Stockland_Money::minor( $exempt ) > 0 || $pensionability_differs ) && strlen( $note ) < 20 ) {
 			return new WP_Error( 'classification_basis_required', 'Record a specific legal/contract basis (at least 20 characters) for exempt allowances or when pensionable salary differs from base salary. The ERP does not decide statutory eligibility.', array( 'status' => 400 ) );
 		}
-		if ( $note === '' ) {
+		if ( '' === $note ) {
 			$note = 'All allowance classified as taxable; pensionable salary equals base salary by Owner classification.';
 		}
 		$row = array(
@@ -525,10 +525,10 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$key   = sanitize_text_field( $p['period_key'] ?? '' );
 		$start = $this->valid_date( $p['start_date'] ?? null, null );
 		$end   = $this->valid_date( $p['end_date'] ?? null, null );
-		if ( $key === '' || ! $start || ! $end || $start > $end ) {
+		if ( '' === $key || ! $start || ! $end || $start > $end ) {
 			return new WP_Error( 'invalid', 'Valid period_key, start_date and end_date are required.', array( 'status' => 400 ) );
 		}$month_start = substr( $start, 0, 7 ) . '-01';
-		$month_end    = date( 'Y-m-t', strtotime( $start ) );
+		$month_end    = gmdate( 'Y-m-t', strtotime( $start . ' 00:00:00 UTC' ) );
 		if ( $start !== $month_start || $end !== $month_end || $key !== substr( $start, 0, 7 ) ) {
 			return new WP_Error( 'payroll_month_required', 'Statutory PAYE is monthly: use period key YYYY-MM with the first and last date of that same calendar month.', array( 'status' => 400 ) );
 		}if ( $start < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
@@ -610,8 +610,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				continue;
 			}
 			$comp_status  = (string) ( $c['statutory_classification_status'] ?? '' );
-			$manager_safe = $comp_status === 'MANAGEMENT_PREPARED' && Stockland_Money::minor( $c['exempt_allowance_total'] ?? '0.00' ) === 0 && Stockland_Money::minor( Stockland_Money::subtract( $c['pensionable_salary'] ?? '0.00', $c['base_salary'] ?? '0.00' ) ) === 0;
-			if ( ( $comp_status !== 'OWNER_CLASSIFIED' && ! $manager_safe ) || $c['taxable_allowance_total'] === null || $c['exempt_allowance_total'] === null || $c['pensionable_salary'] === null ) {
+			$manager_safe = 'MANAGEMENT_PREPARED' === $comp_status && Stockland_Money::minor( $c['exempt_allowance_total'] ?? '0.00' ) === 0 && Stockland_Money::minor( Stockland_Money::subtract( $c['pensionable_salary'] ?? '0.00', $c['base_salary'] ?? '0.00' ) ) === 0;
+			if ( ( 'OWNER_CLASSIFIED' !== $comp_status && ! $manager_safe ) || null === $c['taxable_allowance_total'] || null === $c['exempt_allowance_total'] || null === $c['pensionable_salary'] ) {
 				throw new RuntimeException( 'Compensation effective ' . $c['effective_from'] . ' for ' . $employee['employee_id'] . ' is not owner-classified. Open HR → Set Compensation and explicitly classify taxable/exempt allowance and pensionable salary.' );
 			}
 			$exempt           = Stockland_Money::decimal( Stockland_Money::minor( $c['exempt_allowance_total'] ) );
@@ -668,7 +668,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$end_obj   = new DateTimeImmutable( $to );
 			$days      = (int) $start_obj->diff( $end_obj )->days + 1;
 			foreach ( $totals as $field => $old ) {
-				$source_field     = $field === 'other_deduction_total' ? 'standard_deduction_total' : $field;
+				$source_field     = 'other_deduction_total' === $field ? 'standard_deduction_total' : $field;
 				$amount           = Stockland_Money::decimal( Stockland_Money::minor( $c[ $source_field ] ?? 0 ) );
 				$part             = Stockland_Money::proportion_of_quantity( $amount, $days, $days_in_month );
 				$totals[ $field ] = Stockland_Money::add( $totals[ $field ], $part );
@@ -713,8 +713,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 						$largest_key   = $sig;}
 				}
 				$delta = $target - $actual;
-				if ( $delta !== 0 ) {
-					if ( $largest_key === null ) {
+				if ( 0 !== $delta ) {
+					if ( null === $largest_key ) {
 						throw new RuntimeException( 'Allowance audit snapshot is missing the ' . $treatment . ' component needed to reconcile ' . $employee['employee_id'] . '. Re-save compensation through Owner HR.' );
 					}
 					if ( abs( $delta ) > max( 5, count( $keys ) * 5 ) ) {
@@ -790,7 +790,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! $period ) {
 				throw new Exception( 'Payroll period not found.' );
 			}
-			if ( $period['status'] !== 'DRAFT' ) {
+			if ( 'DRAFT' !== $period['status'] ) {
 				throw new Exception( 'Only DRAFT payroll periods can be generated.' );
 			}
 			$month_start = substr( $period['start_date'], 0, 7 ) . '-01';
@@ -916,7 +916,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( ! $period ) {
 			return new WP_Error( 'not_found', 'Payroll period not found.', array( 'status' => 404 ) );
 		}
-		if ( $period['status'] !== 'DRAFT' ) {
+		if ( 'DRAFT' !== $period['status'] ) {
 			return new WP_Error( 'locked', 'Approved or paid payroll cannot be edited.', array( 'status' => 409 ) );
 		}
 		$line = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'payroll_lines' ) . ' WHERE id=%d AND period_id=%d', $lid, $pid ), ARRAY_A );
@@ -926,7 +926,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$legacy = ( ( $line['statutory_status'] ?? 'LEGACY' ) !== 'CALCULATED' );
 		if ( $legacy ) {
 			foreach ( array( 'taxable_allowance_total', 'exempt_allowance_total', 'pensionable_salary', 'other_deduction_total' ) as $field ) {
-				if ( ! array_key_exists( $field, $p ) || $p[ $field ] === '' ) {
+				if ( ! array_key_exists( $field, $p ) || '' === $p[ $field ] ) {
 					return new WP_Error( 'legacy_line_requires_classification', 'Legacy draft line has no auditable component split. Submit taxable allowance, exempt allowance, pensionable salary and other deductions explicitly before approving.', array( 'status' => 409 ) );
 				}
 			}
@@ -962,8 +962,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( Stockland_Money::minor( $pensionable ) !== Stockland_Money::minor( $line['base_salary'] ) && strlen( trim( $basis ) ) < 20 ) {
 			return new WP_Error( 'classification_basis_required', 'A non-standard pensionable salary requires a documented legal/contract basis of at least 20 characters.', array( 'status' => 400 ) );
 		}
-		if ( $basis !== '' ) {
-			$note = substr( $note . ' | Classification basis: ' . $basis . ( $evidence !== '' ? ' | Evidence: ' . $evidence : '' ), 0, 500 );
+		if ( '' !== $basis ) {
+			$note = substr( $note . ' | Classification basis: ' . $basis . ( '' !== $evidence ? ' | Evidence: ' . $evidence : '' ), 0, 500 );
 		}
 		$line_snapshot = json_decode( (string) ( $line['allowance_breakdown_json'] ?? '' ), true );
 		if ( ! is_array( $line_snapshot ) ) {
@@ -1063,7 +1063,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! $p ) {
 				throw new Exception( 'Payroll period not found.' );
 			}
-			if ( $p['status'] !== 'DRAFT' ) {
+			if ( 'DRAFT' !== $p['status'] ) {
 				throw new Exception( 'Only DRAFT payroll may be submitted.' );
 			}
 			if ( Stockland_Authority::role( $uid ) !== 'management' || (int) $p['created_by'] !== $uid ) {
@@ -1110,7 +1110,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Payroll period not found.' );
 			}
 			$creator_role = Stockland_Authority::role( (int) $p['created_by'] );
-			if ( $p['status'] !== 'SUBMITTED' || $creator_role !== 'management' ) {
+			if ( 'SUBMITTED' !== $p['status'] || 'management' !== $creator_role ) {
 				throw new Exception( 'Payroll must be submitted by Management and show SUBMITTED before Owner approval. Legacy Owner-created drafts require Management to review and submit before approval.' );
 			}
 			if ( (int) $p['created_by'] === get_current_user_id() ) {
@@ -1225,14 +1225,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$method = strtoupper( sanitize_text_field( $p['method'] ?? 'BANK' ) );
 		if ( ! in_array( $method, array( 'BANK', 'CASH' ), true ) ) {
 			return new WP_Error( 'invalid', 'Payment method must be BANK or CASH.', array( 'status' => 400 ) );
-		}$account = $method === 'BANK' ? '1010' : '1000';
+		}$account = 'BANK' === $method ? '1010' : '1000';
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start payroll payment transaction.', array( 'status' => 500 ) );
 		}try {
 			$period = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'payroll_periods' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
 			if ( ! $period ) {
 				throw new Exception( 'Payroll period not found.' );
-			}if ( $period['status'] !== 'APPROVED' ) {
+			}if ( 'APPROVED' !== $period['status'] ) {
 				throw new Exception( 'Only approved payroll can be paid.' );
 			}$amount = $this->money( $period['net_total'] );
 			if ( $amount <= 0 ) {

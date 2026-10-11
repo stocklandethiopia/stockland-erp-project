@@ -40,7 +40,7 @@ class Stockland_XLSX {
 		if ( $fh ) {
 			fclose( $fh );
 		}
-		if ( $signature !== "PK\x03\x04" && $signature !== "PK\x05\x06" && $signature !== "PK\x07\x08" ) {
+		if ( "PK\x03\x04" !== $signature && "PK\x05\x06" !== $signature && "PK\x07\x08" !== $signature ) {
 			throw new Exception( 'Invalid XLSX container signature. Upload a real ZIP-based XLSX workbook.' );
 		}
 		if ( class_exists( 'ZipArchive' ) ) {
@@ -91,7 +91,7 @@ class Stockland_XLSX {
 	private function getFromName( $name ) {
 		if ( $this->zip ) {
 			$v = $this->zip->getFromName( $name );
-			return $v === false ? null : $v;
+			return false === $v ? null : $v;
 		}
 		$r = $this->pcl->extract( PCLZIP_OPT_BY_NAME, $name, PCLZIP_OPT_EXTRACT_AS_STRING );
 		return ( is_array( $r ) && isset( $r[0]['content'] ) ) ? $r[0]['content'] : null;
@@ -110,13 +110,13 @@ class Stockland_XLSX {
 
 	private function xml( $name ) {
 		$raw = $this->getFromName( $name );
-		if ( $raw === null ) {
+		if ( null === $raw ) {
 			return null;
 		}
 		$previous = libxml_use_internal_errors( true );
 		try {
 			$x = simplexml_load_string( $raw, 'SimpleXMLElement', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT );
-			if ( $x === false ) {
+			if ( false === $x ) {
 				$detail = 'Invalid XML in workbook.';
 				$errs   = libxml_get_errors();
 				if ( ! empty( $errs ) ) {
@@ -144,16 +144,16 @@ class Stockland_XLSX {
 			return;
 		}
 		$size = $this->entrySize( 'xl/sharedStrings.xml' );
-		if ( $size !== null && $size > self::MAX_SHARED_XML_BYTES ) {
+		if ( null !== $size && $size > self::MAX_SHARED_XML_BYTES ) {
 			throw new Exception( 'XLSX shared strings section is too large for the hosting safety limit.' );
 		}
 		if ( $this->zip && class_exists( 'XMLReader' ) && method_exists( 'XMLReader', 'fromStream' ) ) {
 			$stream = $this->zip->getStream( 'xl/sharedStrings.xml' );
-			if ( $stream !== false ) {
+			if ( false !== $stream ) {
 				$reader = XMLReader::fromStream( $stream, null, LIBXML_NONET | LIBXML_COMPACT );
 				$count  = 0;
 				while ( $reader->read() ) {
-					if ( $reader->nodeType === XMLReader::ELEMENT && $reader->localName === 'si' ) {
+					if ( XMLReader::ELEMENT === $reader->nodeType && 'si' === $reader->localName ) {
 						if ( ++$count > self::MAX_SHARED_STRINGS ) {
 							throw new Exception( 'XLSX contains too many shared strings.' );
 						}
@@ -164,7 +164,7 @@ class Stockland_XLSX {
 						$previous = libxml_use_internal_errors( true );
 						try {
 							$si = simplexml_load_string( $raw, 'SimpleXMLElement', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT );
-							if ( $si === false ) {
+							if ( false === $si ) {
 								throw new Exception( 'Invalid shared string XML in workbook.' );
 							}
 							$this->shared[] = $this->textParts( $si );
@@ -205,7 +205,7 @@ class Stockland_XLSX {
 		$relationshipNodes = $rels->xpath( '//*[local-name()="Relationship"]' );
 		foreach ( (array) $relationshipNodes as $r ) {
 			$target = (string) $r['Target'];
-			if ( $target === '' ) {
+			if ( '' === $target ) {
 				continue;
 			}
 			if ( strpos( $target, '/' ) === 0 ) {
@@ -225,7 +225,7 @@ class Stockland_XLSX {
 			$name  = (string) $s['name'];
 			$attrs = $s->attributes( 'http://schemas.openxmlformats.org/officeDocument/2006/relationships' );
 			$rid   = isset( $attrs['id'] ) ? (string) $attrs['id'] : '';
-			if ( $name !== '' && $rid !== '' && isset( $map[ $rid ] ) ) {
+			if ( '' !== $name && '' !== $rid && isset( $map[ $rid ] ) ) {
 				$this->sheets[ $name ] = $map[ $rid ];
 			}
 		}
@@ -248,14 +248,14 @@ class Stockland_XLSX {
 	private function value( $c ) {
 		$v = (string) $c->v;
 		$t = (string) $c['t'];
-		if ( $t === 's' ) {
+		if ( 's' === $t ) {
 			return $this->shared[ (int) $v ] ?? '';
 		}
-		if ( $t === 'inlineStr' ) {
+		if ( 'inlineStr' === $t ) {
 			return $this->textParts( $c->is );
 		}
-		if ( $t === 'b' ) {
-			return ( (string) $v === '1' ) ? '1' : '0';
+		if ( 'b' === $t ) {
+			return ( '1' === (string) $v ) ? '1' : '0';
 		}
 		return $v;
 	}
@@ -276,11 +276,11 @@ class Stockland_XLSX {
 		}
 		$path = $this->sheets[ $sheet ];
 		$size = $this->entrySize( $path );
-		if ( $size !== null && $size > self::MAX_SHEET_XML_BYTES ) {
+		if ( null !== $size && $size > self::MAX_SHEET_XML_BYTES ) {
 			throw new Exception( 'Worksheet ' . $sheet . ' exceeds the XLSX uncompressed safety limit. Split the workbook.' );
 		}
 		$stream = $this->zip->getStream( $path );
-		if ( $stream === false ) {
+		if ( false === $stream ) {
 			throw new Exception( 'Could not open worksheet stream: ' . $sheet . '.' );
 		}
 		$reader   = null;
@@ -304,13 +304,13 @@ class Stockland_XLSX {
 				stream_copy_to_stream( $stream, $out );
 				fclose( $out );
 				$reader = XMLReader::open( $temp_xml, null, LIBXML_NONET | LIBXML_COMPACT );
-				if ( $reader === false ) {
+				if ( false === $reader ) {
 					throw new Exception( 'Could not initialize the XML worksheet reader.' );
 				}
 			}
 			$nodes = 0;
 			while ( $reader->read() ) {
-				if ( $reader->nodeType !== XMLReader::ELEMENT || $reader->localName !== 'row' ) {
+				if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
 					continue;
 				}
 				if ( ++$nodes > $max_physical_rows ) {
@@ -324,7 +324,7 @@ class Stockland_XLSX {
 				$previous = libxml_use_internal_errors( true );
 				try {
 					$row = simplexml_load_string( $raw, 'SimpleXMLElement', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT );
-					if ( $row === false ) {
+					if ( false === $row ) {
 						throw new Exception( 'Invalid worksheet row XML in ' . $sheet . '.' );
 					}
 					$values = array();
@@ -410,14 +410,14 @@ class Stockland_XLSX {
 			}
 			$r = array();
 			foreach ( $headers as $i => $h ) {
-				if ( $h !== '' ) {
+				if ( '' !== $h ) {
 					$r[ $h ] = $vals[ $i ] ?? null;
 				}
 			}
 			if ( array_filter(
 				$r,
 				function ( $v ) {
-					return $v !== null && $v !== '';
+					return null !== $v && '' !== $v;
 				}
 			) ) {
 				$out[] = $r;

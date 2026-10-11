@@ -24,7 +24,7 @@ final class Stockland_Business_Calendar {
 
 	public static function config() {
 		$raw = trim( (string) Stockland_DB::get_setting( self::SETTING_KEY, '' ) );
-		if ( $raw === '' ) {
+		if ( '' === $raw ) {
 			return self::default_config();
 		}
 		$data = json_decode( $raw, true );
@@ -57,7 +57,7 @@ final class Stockland_Business_Calendar {
 					continue;
 				}
 				$label                 = sanitize_text_field( (string) $label );
-				$base[ $key ][ $date ] = $label !== '' ? $label : ( 'holidays' === $key ? 'Closed' : 'Open' );
+				$base[ $key ][ $date ] = '' !== $label ? $label : ( 'holidays' === $key ? 'Closed' : 'Open' );
 			}
 			ksort( $base[ $key ], SORT_STRING );
 		}
@@ -155,10 +155,10 @@ final class Stockland_Business_Calendar {
 		$label = sanitize_text_field( (string) $label );
 		unset( $cfg['holidays'][ $date ], $cfg['open_overrides'][ $date ] );
 		if ( 'CLOSED' === $status ) {
-			$cfg['holidays'][ $date ] = $label !== '' ? $label : 'Closed by Management';
+			$cfg['holidays'][ $date ] = '' !== $label ? $label : 'Closed by Management';
 		}
 		if ( 'OPEN' === $status ) {
-			$cfg['open_overrides'][ $date ] = $label !== '' ? $label : 'Open override';
+			$cfg['open_overrides'][ $date ] = '' !== $label ? $label : 'Open override';
 		}
 		return Stockland_Settings::update( self::SETTING_KEY, wp_json_encode( self::normalize_config( $cfg ) ), $user_id );
 	}

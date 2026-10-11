@@ -51,15 +51,15 @@ class Stockland_REST_Locations {
 		$type = in_array( $p['location_type'] ?? 'Branch', array( 'Branch', 'Sales channel' ), true ) ? $p['location_type'] : 'Branch';
 		$desc = sanitize_text_field( $p['role_description'] ?? '' );
 		$code = sanitize_key( $p['branch_code'] ?? '' );
-		if ( $name === '' ) {
+		if ( '' === $name ) {
 			return new WP_Error( 'invalid', 'Location name is required.', array( 'status' => 400 ) );
 		}$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE location_name=%s LIMIT 1', $name ) );
 		if ( $exists ) {
 			return new WP_Error( 'duplicate', 'A location with this name already exists.', array( 'status' => 409 ) );
-		}if ( $type === 'Branch' && $code === '' ) {
+		}if ( 'Branch' === $type && '' === $code ) {
 			$next = (int) $wpdb->get_var( 'SELECT COALESCE(MAX(id),0)+1 FROM ' . Stockland_DB::table( 'locations' ) );
 			$code = 'BR' . str_pad( (string) $next, 3, '0', STR_PAD_LEFT );
-		}if ( $code !== '' ) {
+		}if ( '' !== $code ) {
 			$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE branch_code=%s LIMIT 1', $code ) );
 			if ( $dup ) {
 				return new WP_Error( 'duplicate_code', 'This branch/location code is already in use.', array( 'status' => 409 ) );
@@ -109,7 +109,7 @@ class Stockland_REST_Locations {
 			return new WP_Error( 'central_fixed', 'Central Warehouse is a protected system location. Add/rename retail branches without changing the warehouse identity.', array( 'status' => 409 ) );
 		}if ( isset( $p['location_name'] ) ) {
 			$name = sanitize_text_field( $p['location_name'] );
-			if ( $name === '' ) {
+			if ( '' === $name ) {
 				return new WP_Error( 'invalid', 'Location name cannot be empty.', array( 'status' => 400 ) );
 			}$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE location_name=%s AND id<>%d', $name, $id ) );
 			if ( $dup ) {
@@ -117,7 +117,7 @@ class Stockland_REST_Locations {
 			}$data['location_name'] = $name;
 		}if ( isset( $p['branch_code'] ) ) {
 			$code = sanitize_key( $p['branch_code'] );
-			if ( $code === '' ) {
+			if ( '' === $code ) {
 				return new WP_Error( 'invalid', 'Location code cannot be empty.', array( 'status' => 400 ) );
 			} $dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE branch_code=%s AND id<>%d LIMIT 1', $code, $id ) );
 			if ( $dup ) {

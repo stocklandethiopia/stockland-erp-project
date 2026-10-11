@@ -281,7 +281,7 @@ class Stockland_REST_Setup {
 				$progress = Stockland_Activator::activate( self::CORE_BATCH_SIZE );
 			} elseif ( $before['finance']['missing'] || ! empty( $before['finance']['upgrade_gaps'] ) ) {
 				$progress = Stockland_Accounting::install( self::FINANCE_BATCH_SIZE );
-				if ( $progress === null ) {
+				if ( null === $progress ) {
 					$progress = array( 'complete' => empty( Stockland_Accounting::missing_tables() ) && empty( Stockland_Accounting::upgrade_gaps() ) );
 				}
 			} else {
@@ -306,7 +306,7 @@ class Stockland_REST_Setup {
 			$after_hr_gaps       = count( (array) ( $after['hr']['upgrade_gaps'] ?? array() ) );
 			$hr_upgrade_gain     = max( 0, $before_hr_gaps - $after_hr_gaps );
 			$upgrade_gain       += $hr_upgrade_gain;
-			if ( ! $after['ready'] && $verified_gain === 0 && $upgrade_gain === 0 && ( $after['state'] === 'CORE' || $after['state'] === 'FINANCE' || $after['state'] === 'HR' ) ) {
+			if ( ! $after['ready'] && 0 === $verified_gain && 0 === $upgrade_gain && ( 'CORE' === $after['state'] || 'FINANCE' === $after['state'] || 'HR' === $after['state'] ) ) {
 				$stage  = $after['state'];
 				$detail = 'No verified database progress was made in ' . $stage . ' setup. Remaining tables: ' . implode( ', ', (array) $after['total']['missing'] );
 				if ( is_array( $progress ) && ! empty( $progress['errors'] ) ) {

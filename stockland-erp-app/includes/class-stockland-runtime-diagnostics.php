@@ -13,7 +13,7 @@ final class Stockland_Runtime_Diagnostics {
 	}
 	public static function stage( $name ) {
 		$name        = sanitize_key( (string) $name );
-		self::$stage = substr( $name !== '' ? $name : 'unknown', 0, 80 );
+		self::$stage = substr( '' !== $name ? $name : 'unknown', 0, 80 );
 	}
 	public static function capture_fatal() {
 		$last = error_get_last();
@@ -31,9 +31,9 @@ final class Stockland_Runtime_Diagnostics {
 		// setup cache-busters, and application-specific tokens; they are never
 		// required to identify a failing route.
 		// This is diagnostic-only request metadata; never retain query strings or nonces.
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-		$uri         = self::request_path( $request_uri );
-		$entry       = array(
+		$request_uri        = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$uri                = self::request_path( $request_uri );
+		$entry              = array(
 			'reference'    => 'FATAL-' . gmdate( 'YmdHis' ) . '-' . substr( hash( 'sha256', $message . '|' . $file . '|' . $line . '|' . $uri ), 0, 8 ),
 			'time_gmt'     => gmdate( 'Y-m-d H:i:s' ),
 			'type'         => (int) ( $last['type'] ?? 0 ),
@@ -46,10 +46,14 @@ final class Stockland_Runtime_Diagnostics {
 			'memory_usage' => function_exists( 'memory_get_usage' ) ? memory_get_usage( true ) : null,
 			'memory_limit' => function_exists( 'ini_get' ) ? (string) ini_get( 'memory_limit' ) : '',
 		);
+		$persistence_failed = false;
 		try {
-			update_option( self::OPTION, $entry, false );} catch ( Throwable $e ) {
-			}
-			error_log( 'Stockland ERP FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri );
+			update_option( self::OPTION, $entry, false );
+		} catch ( Throwable $e ) {
+			// The shutdown logger below is the fallback when the option write fails.
+			$persistence_failed = true;
+		}
+		error_log( 'Stockland ERP FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri . ' persistence_failed=' . ( $persistence_failed ? 'yes' : 'no' ) );
 	}
 	public static function last_fatal() {
 		$v = get_option( self::OPTION, array() );
@@ -63,15 +67,18 @@ final class Stockland_Runtime_Diagnostics {
 		}
 		foreach ( array( 'reference', 'message', 'file', 'stage', 'method' ) as $key ) {
 			if ( isset( $v[ $key ] ) && is_string( $v[ $key ] ) ) {
-				$v[ $key ] = self::clean( $v[ $key ], $key === 'message' ? self::MAX_TEXT : 300 );
+				$v[ $key ] = self::clean( $v[ $key ], 'message' === $key ? self::MAX_TEXT : 300 );
 			}
 		}
 		return $v;
 	}
 	/** Return a bounded path without query or fragment data. */
 	private static function request_path( $uri ) {
-		$path = parse_url( (string) $uri, PHP_URL_PATH );
-		if ( ! is_string( $path ) || $path === '' ) {
+		$raw_uri = (string) $uri;
+		$path    = function_exists( 'wp_parse_url' )
+			? wp_parse_url( $raw_uri, PHP_URL_PATH )
+			: preg_replace( '/[?#].*$/', '', preg_replace( '#^[a-z][a-z0-9+.-]*://[^/]*#i', '', $raw_uri ) );
+		if ( ! is_string( $path ) || '' === $path ) {
 			$path = '/';
 		}
 		$path = preg_replace( '/[\x00-\x1F\x7F]/', '', $path );
@@ -95,8 +102,11 @@ final class Stockland_Runtime_Diagnostics {
 		);
 		if ( $wpdb ) {
 			try {
-				$e['db_select_ok'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );} catch ( Throwable $x ) {
-				}
+				$e['db_select_ok'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );
+			} catch ( Throwable $x ) {
+				// Fail closed: the database probe remains false when the query throws.
+				$e['db_select_ok'] = false;
+			}
 		}
 		return $e;
 	}

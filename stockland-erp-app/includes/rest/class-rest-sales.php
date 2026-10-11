@@ -118,7 +118,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		$user_id = get_current_user_id();
 
 		foreach ( array( 'sku', 'quantity_sold', 'vat_mode' ) as $field ) {
-			if ( ! isset( $p[ $field ] ) || $p[ $field ] === '' ) {
+			if ( ! isset( $p[ $field ] ) || '' === $p[ $field ] ) {
 				return new WP_Error( 'missing_field', "Field '{$field}' is required.", array( 'status' => 400 ) );
 			}
 		}
@@ -137,7 +137,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			return new WP_Error( 'branch_required', 'branch_location_id is required for this POS role.', array( 'status' => 400 ) );
 		}
 
-		$sale_date = isset( $p['sale_date'] ) && $p['sale_date'] !== '' ? sanitize_text_field( $p['sale_date'] ) : current_time( 'Y-m-d' );
+		$sale_date = isset( $p['sale_date'] ) && '' !== $p['sale_date'] ? sanitize_text_field( $p['sale_date'] ) : current_time( 'Y-m-d' );
 		if ( ! Stockland_Business_Calendar::valid_date( $sale_date ) ) {
 			return new WP_Error( 'invalid_date', 'sale_date must be a real YYYY-MM-DD date.', array( 'status' => 400 ) );
 		}
@@ -147,8 +147,8 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			if ( $quantity <= 0 ) {
 				throw new InvalidArgumentException( 'quantity_sold must be greater than zero.' );
 			}
-			$selling_price_input = isset( $p['selling_price'] ) && $p['selling_price'] !== '' ? $p['selling_price'] : null;
-			if ( $selling_price_input === null ) {
+			$selling_price_input = isset( $p['selling_price'] ) && '' !== $p['selling_price'] ? $p['selling_price'] : null;
+			if ( null === $selling_price_input ) {
 				$selling_price_input = '0'; // Replaced from live master immediately after row lock.
 			}
 			if ( ! in_array( strtoupper( (string) $p['vat_mode'] ), array( 'VAT_INCLUDED', 'WITHOUT_VAT' ), true ) ) {
@@ -158,8 +158,8 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			return new WP_Error( 'invalid_sale_input', $e->getMessage(), array( 'status' => 400 ) );
 		}
 
-		$sale_id_input = isset( $p['sale_id'] ) && $p['sale_id'] !== '' ? sanitize_text_field( (string) $p['sale_id'] ) : '';
-		if ( $sale_id_input !== '' && ( strlen( $sale_id_input ) > 20 || ! preg_match( '/^[A-Za-z0-9-]+$/', $sale_id_input ) ) ) {
+		$sale_id_input = isset( $p['sale_id'] ) && '' !== $p['sale_id'] ? sanitize_text_field( (string) $p['sale_id'] ) : '';
+		if ( '' !== $sale_id_input && ( strlen( $sale_id_input ) > 20 || ! preg_match( '/^[A-Za-z0-9-]+$/', $sale_id_input ) ) ) {
 			return new WP_Error( 'invalid_sale_id', 'sale_id must be at most 20 letters, numbers or hyphens.', array( 'status' => 400 ) );
 		}
 
@@ -182,10 +182,10 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 
 			// Idempotent client retry: an explicitly repeated sale_id must describe the
 			// same transaction, otherwise return a conflict rather than double-posting.
-			if ( $sale_id_input !== '' ) {
+			if ( '' !== $sale_id_input ) {
 				$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sales_table} WHERE sale_id=%s LIMIT 1 FOR UPDATE", $sale_id_input ), ARRAY_A );
 				if ( $existing ) {
-					$requested_price = $selling_price_input === '0' ? $existing['selling_price'] : Stockland_Money::decimal( Stockland_Money::minor( $selling_price_input ) );
+					$requested_price = '0' === $selling_price_input ? $existing['selling_price'] : Stockland_Money::decimal( Stockland_Money::minor( $selling_price_input ) );
 					if ( (int) $existing['branch_location_id'] !== (int) $branch_location_id ||
 						(string) $existing['sale_date'] !== $sale_date ||
 						(string) $existing['sku'] !== $sku ||
@@ -218,7 +218,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			}
 
 			$master_price  = Stockland_Money::decimal( Stockland_Money::minor( $product['retail_price'] ) );
-			$selling_price = $selling_price_input === '0' ? $master_price : Stockland_Money::decimal( Stockland_Money::minor( $selling_price_input ) );
+			$selling_price = '0' === $selling_price_input ? $master_price : Stockland_Money::decimal( Stockland_Money::minor( $selling_price_input ) );
 			$vat_rate      = (float) Stockland_DB::get_vat_rate();
 			$calc          = Stockland_Sale_Math::calculate( $quantity, $selling_price, $p['vat_mode'], $vat_rate );
 			$cogs          = Stockland_Money::multiply( $quantity, $product['purchase_cost'] );
@@ -229,7 +229,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 				throw new Exception( sprintf( 'Insufficient available stock for %s. Available %s, requested %s.', $sku, $available, $quantity ) );
 			}
 
-			$sale_id  = $sale_id_input !== '' ? $sale_id_input : Stockland_Sequence::next( 'POS', $sale_date );
+			$sale_id  = '' !== $sale_id_input ? $sale_id_input : Stockland_Sequence::next( 'POS', $sale_date );
 			$inserted = $wpdb->insert(
 				$sales_table,
 				array(
@@ -256,7 +256,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 					'staff_user_id'        => $user_id,
 					'closed_at'            => current_time( 'mysql' ),
 					'closed_by'            => $user_id,
-					'external_receipt_no'  => isset( $p['external_receipt_no'] ) && $p['external_receipt_no'] !== '' ? sanitize_text_field( (string) $p['external_receipt_no'] ) : null,
+					'external_receipt_no'  => isset( $p['external_receipt_no'] ) && '' !== $p['external_receipt_no'] ? sanitize_text_field( (string) $p['external_receipt_no'] ) : null,
 				)
 			);
 			if ( ! $inserted ) {
@@ -367,7 +367,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			if ( ! $sale ) {
 				throw new Exception( 'Sale not found.' );
 			}
-			if ( $sale['posting_status'] === 'CLOSED' ) {
+			if ( 'CLOSED' === $sale['posting_status'] ) {
 				throw new Exception( 'This sale is already closed and cannot be modified. Use /returns for corrections.' );
 			}
 			if ( Stockland_DB::get_available_stock( $sale['branch_location_id'], $sale['sku'] ) < (float) $sale['quantity_sold'] ) {
@@ -475,7 +475,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start day-close transaction.', array( 'status' => 500 ) );}
 		try {
 			$existing = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$closings_table} WHERE branch_location_id=%d AND business_date=%s FOR UPDATE", $branch_location_id, $business_date ) );
-			if ( $existing === 'CLOSED' ) {
+			if ( 'CLOSED' === $existing ) {
 				throw new Exception( 'This business day is already closed.' );
 			}
 			$import_jobs    = Stockland_DB::table( 'import_jobs' );

@@ -161,13 +161,13 @@ class Stockland_REST_Requisition_V16 {
 			$actions = array();
 			$st      = $row['status'];
 			$pending = '';
-			if ( $st === 'Requested' ) {
+			if ( 'Requested' === $st ) {
 				if ( Stockland_Authority::can_review_requisition() ) {
 					$actions[] = 'REVIEW';
 				} else {
 					$pending = 'Branch Manager';
 				}
-			} elseif ( $st === 'Reviewed' ) {
+			} elseif ( 'Reviewed' === $st ) {
 				$mg = Stockland_Authority::can_approve_requisition( 'management' );
 				$ow = Stockland_Authority::can_approve_requisition( 'owner' );
 				if ( $mg && empty( $row['management_decision'] ) ) {
@@ -179,19 +179,19 @@ class Stockland_REST_Requisition_V16 {
 				if ( ! $actions ) {
 					$pending = 'Owner or Management';
 				}
-			} elseif ( $st === 'Approved' ) {
+			} elseif ( 'Approved' === $st ) {
 				if ( Stockland_Authority::can_reserve_requisition() ) {
 					$actions[] = 'RESERVE';
 				} else {
 					$pending = 'Store Manager';
 				}
-			} elseif ( $st === 'Reserved' ) {
+			} elseif ( 'Reserved' === $st ) {
 				if ( Stockland_Authority::can_pick_requisition() ) {
 					$actions[] = 'PICK';
 				} else {
 					$pending = 'Warehouse Employee';
 				}
-			} elseif ( $st === 'Picked' ) {
+			} elseif ( 'Picked' === $st ) {
 				if ( Stockland_Authority::can_receive_requisition() ) {
 					$actions[] = 'RECEIVE';
 				} else {
@@ -280,7 +280,7 @@ class Stockland_REST_Requisition_V16 {
 			return $this->deny( 'forbidden', 'This requisition is outside your branch scope.' );
 		}
 
-		if ( $stage === 'review' ) {
+		if ( 'review' === $stage ) {
 			if ( ! Stockland_Authority::can_review_requisition() ) {
 				return $this->deny( 'forbidden', 'Branch Manager review authority is required.' );
 			}
@@ -295,7 +295,7 @@ class Stockland_REST_Requisition_V16 {
 				if ( ! $locked ) {
 					throw new Exception( 'Requisition disappeared during review.' );
 				}
-				if ( $locked['status'] !== 'Requested' ) {
+				if ( 'Requested' !== $locked['status'] ) {
 					throw new Exception( 'This requisition has already been reviewed.' );
 				}
 				$ok = $wpdb->update(
@@ -332,13 +332,13 @@ class Stockland_REST_Requisition_V16 {
 		if ( ! Stockland_Authority::can_approve_requisition( $stage ) ) {
 			return $this->deny( 'forbidden', 'You do not hold approval authority for this approval line.' );
 		}
-		if ( $req['status'] !== 'Reviewed' ) {
+		if ( 'Reviewed' !== $req['status'] ) {
 			return $this->deny( 'invalid_state', 'Only a reviewed requisition can be approved.', 409 );
 		}
 		if ( ! in_array( $decision, array( 'APPROVE', 'PARTIAL', 'REJECT' ), true ) ) {
 			return $this->deny( 'invalid_decision', 'Decision must be APPROVE, PARTIAL or REJECT.', 400 );
 		}
-		if ( in_array( $decision, array( 'PARTIAL', 'REJECT' ), true ) && $note === '' ) {
+		if ( in_array( $decision, array( 'PARTIAL', 'REJECT' ), true ) && '' === $note ) {
 			return $this->deny( 'reason_required', 'A comment/reason is required for a partial approval or rejection.', 400 );
 		}
 		$mode    = 'ONE_OF';
@@ -358,17 +358,17 @@ class Stockland_REST_Requisition_V16 {
 			if ( ! $locked_req ) {
 				throw new Exception( 'Requisition disappeared during approval.' );
 			}
-			if ( $locked_req['status'] !== 'Reviewed' ) {
+			if ( 'Reviewed' !== $locked_req['status'] ) {
 				throw new Exception( 'Only a reviewed requisition can be approved. Current status: ' . $locked_req['status'] . '.' );
 			}
 			$scope_req = $this->scope_ok( $locked_req );
 			if ( ! $scope_req ) {
 				throw new Exception( 'This requisition is outside your branch scope.' );
 			}
-			if ( $stage === 'management' && ! empty( $locked_req['management_decision'] ) ) {
+			if ( 'management' === $stage && ! empty( $locked_req['management_decision'] ) ) {
 				throw new Exception( 'The Management approval line has already been decided.' );
 			}
-			if ( $stage === 'owner' && ! empty( $locked_req['owner_decision'] ) ) {
+			if ( 'owner' === $stage && ! empty( $locked_req['owner_decision'] ) ) {
 				throw new Exception( 'The Owner approval line has already been decided.' );
 			}
 			$req  = $locked_req;
@@ -385,18 +385,18 @@ class Stockland_REST_Requisition_V16 {
 			foreach ( $items as $item ) {
 				$requested = (float) $item['quantity_requested'];
 				$available = (float) ( $by[ $item['id'] ]['available'] ?? 0 );
-				$q         = isset( $input[ $item['id'] ] ) ? (float) $input[ $item['id'] ] : ( $decision === 'APPROVE' ? $requested : 0 );
-				if ( $decision === 'REJECT' ) {
+				$q         = isset( $input[ $item['id'] ] ) ? (float) $input[ $item['id'] ] : ( 'APPROVE' === $decision ? $requested : 0 );
+				if ( 'REJECT' === $decision ) {
 					$q = 0;
 				}if ( $q < 0 || $q > $requested ) {
 					throw new Exception( 'Invalid approved quantity for ' . $item['sku'] . '. Requested ' . $requested . '.' );
 				}if ( $q > $available ) {
 					throw new Exception( 'Insufficient live Central Warehouse availability for ' . $item['sku'] . '. Requested ' . $q . ', available ' . $available . ', shortfall ' . max( 0, $q - $available ) . '. Choose APPROVE FULL only when fully available, or APPROVE PARTIAL with a quantity up to ' . $available . '.' );
 				}$approved[ $item['id'] ] = $q;}
-			if ( $decision !== 'REJECT' && array_sum( $approved ) <= 0 ) {
+			if ( 'REJECT' !== $decision && array_sum( $approved ) <= 0 ) {
 				throw new Exception( 'Approval must include at least one unit. Use Reject when no stock is to be supplied.' );
 			}
-			$field = $stage === 'management' ? array(
+			$field = 'management' === $stage ? array(
 				'management_decision'       => $decision,
 				'management_approved_by'    => get_current_user_id(),
 				'management_approved_at'    => current_time( 'mysql' ),
@@ -410,7 +410,7 @@ class Stockland_REST_Requisition_V16 {
 			if ( false === $wpdb->update( Stockland_DB::table( 'requisitions' ), $field, array( 'requisition_id' => $id ) ) ) {
 				throw new Exception( 'Approval could not be saved.' );
 			}
-			if ( $decision !== 'REJECT' ) {
+			if ( 'REJECT' !== $decision ) {
 				foreach ( $items as $item ) {
 					$item_ok = $wpdb->update( Stockland_DB::table( 'requisition_items' ), array( 'quantity_approved' => $approved[ $item['id'] ] ), array( 'id' => $item['id'] ) );
 					if ( false === $item_ok ) {
@@ -419,11 +419,11 @@ class Stockland_REST_Requisition_V16 {
 				}
 			}
 			$req2   = $this->req( $id );
-			$mg     = ( $req2['management_decision'] === 'APPROVE' || $req2['management_decision'] === 'PARTIAL' );
-			$ow     = ( $req2['owner_decision'] === 'APPROVE' || $req2['owner_decision'] === 'PARTIAL' );
-			$reject = ( $req2['management_decision'] === 'REJECT' || $req2['owner_decision'] === 'REJECT' );
-			$final  = ( $decision !== 'REJECT' );
-			if ( $reject && $decision === 'REJECT' && $mode === 'ONE_OF' ) {
+			$mg     = ( 'APPROVE' === $req2['management_decision'] || 'PARTIAL' === $req2['management_decision'] );
+			$ow     = ( 'APPROVE' === $req2['owner_decision'] || 'PARTIAL' === $req2['owner_decision'] );
+			$reject = ( 'REJECT' === $req2['management_decision'] || 'REJECT' === $req2['owner_decision'] );
+			$final  = ( 'REJECT' !== $decision );
+			if ( $reject && 'REJECT' === $decision && 'ONE_OF' === $mode ) {
 				$final = true;
 			}
 			if ( $final ) {
@@ -532,7 +532,7 @@ class Stockland_REST_Requisition_V16 {
 				Stockland_Notifications::push_role( 'warehouse_manager', $wh, 'warehouse_requisition', 'Approved requisition — RESERVE required', 'Requisition ' . $id . ' from ' . $req['location_name'] . ' is approved. Next action: Store/Warehouse Manager must RESERVE the approved quantities. ' . implode( '; ', $summary ), 'requisition', $id, 'action' );
 				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Requisition approved', 'Requisition ' . $id . ' is approved. Central Warehouse will reserve and prepare the requested items.', 'info' );
 			} elseif ( ! $final ) {
-				$waiting = ( $stage === 'management' ? 'Owner' : 'Management' );
+				$waiting = ( 'management' === $stage ? 'Owner' : 'Management' );
 				Stockland_Notifications::notify_approvers( $id, $req['branch_location_id'], 'Requisition awaiting ' . $waiting . ' approval', $req['location_name'] . ' requisition ' . $id . ' has one approval line completed and is awaiting ' . $waiting . '.' );}
 				return rest_ensure_response( $this->detail( new WP_REST_Request( 'GET', '/stockland/v16/requisitions/' . $id ) ) );
 		} catch ( Throwable $e ) {
@@ -549,10 +549,10 @@ class Stockland_REST_Requisition_V16 {
 		if ( ! in_array( $action, array( 'reserve', 'pick' ), true ) ) {
 			return $this->deny( 'invalid_action', 'Warehouse action must be reserve or pick.', 400 );
 		}
-		if ( $action === 'reserve' && ! Stockland_Authority::can_reserve_requisition() ) {
+		if ( 'reserve' === $action && ! Stockland_Authority::can_reserve_requisition() ) {
 			return $this->deny( 'forbidden', 'Only the Store/Warehouse Manager can reserve an approved requisition.', 403 );
 		}
-		if ( $action === 'pick' && ! Stockland_Authority::can_pick_requisition() ) {
+		if ( 'pick' === $action && ! Stockland_Authority::can_pick_requisition() ) {
 			return $this->deny( 'forbidden', 'Only Store/Warehouse personnel can pick a reserved requisition.', 403 );
 		}
 		$req = $this->req( $id );
@@ -573,7 +573,7 @@ class Stockland_REST_Requisition_V16 {
 			$req    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisitions' ) . ' WHERE requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
 			$items  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisition_items' ) . ' WHERE requisition_id=%s ORDER BY id', $id ), ARRAY_A );
 			$pickup = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
-			if ( $action === 'reserve' ) {
+			if ( 'reserve' === $action ) {
 				if ( ! $pickup ) {
 					throw new Exception( 'Warehouse pickup date is required when reserving a branch requisition.' );
 				}
@@ -586,7 +586,7 @@ class Stockland_REST_Requisition_V16 {
 					if ( ! $transfer ) {
 						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
 					}
-					if ( $transfer['status'] === 'Approved' ) {
+					if ( 'Approved' === $transfer['status'] ) {
 						$available = Stockland_DB::get_available_stock( $wh, $item['sku'] );
 						if ( $available < $qty ) {
 							throw new Exception( 'Insufficient available warehouse stock for ' . $item['sku'] . '. Available ' . $available . ', approved ' . $qty . '.' );
@@ -620,7 +620,7 @@ class Stockland_REST_Requisition_V16 {
 						if ( false === $tr_ok ) {
 							throw new Exception( $wpdb->last_error ?: 'Transfer reservation state could not be saved.' );
 						}
-					} elseif ( $transfer['status'] === 'Reserved' ) {
+					} elseif ( 'Reserved' === $transfer['status'] ) {
 						$tr_pickup_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'pickup_date' => $pickup ), array( 'transfer_id' => $transfer['transfer_id'] ) );
 						if ( false === $tr_pickup_ok ) {
 							throw new Exception( $wpdb->last_error ?: 'Transfer pickup date could not be saved.' );
@@ -664,7 +664,7 @@ class Stockland_REST_Requisition_V16 {
 					if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, get_current_user_id() ) ) {
 						throw new Exception( 'Warehouse ledger could not post the pick for ' . $transfer['sku'] . '.' );
 					}$released = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'reservations' ) . " SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", current_time( 'mysql' ), $transfer['transfer_id'] ) );
-					if ( $released === false ) {
+					if ( false === $released ) {
 						throw new Exception( 'Warehouse reservation could not be released.' );
 					}$tr_pick_ok = $wpdb->update(
 						Stockland_DB::table( 'transfers' ),
@@ -728,7 +728,7 @@ class Stockland_REST_Requisition_V16 {
 		if ( ! Stockland_Authority::can_access_location( (int) $req['branch_location_id'] ) ) {
 			return $this->deny( 'forbidden', 'This requisition is outside your authorized branch scope.', 403 );
 		}
-		if ( $req['status'] !== 'Picked' ) {
+		if ( 'Picked' !== $req['status'] ) {
 			return $this->deny( 'invalid_state', 'Only a Picked requisition can be received. No In Transit stage is used.', 409 );
 		}
 		$payload   = $r->get_json_params();
@@ -755,7 +755,7 @@ class Stockland_REST_Requisition_V16 {
 			$locked = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisitions' ) . ' WHERE requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
 			if ( ! $locked ) {
 				throw new Exception( 'Requisition disappeared during receipt.' );
-			}if ( $locked['status'] !== 'Picked' ) {
+			}if ( 'Picked' !== $locked['status'] ) {
 				throw new Exception( 'Only a Picked requisition can be received. Current state: ' . $locked['status'] . '.' );
 			}
 			$transfers = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'transfers' ) . ' WHERE requisition_id=%s ORDER BY created_at FOR UPDATE', $id ), ARRAY_A );
@@ -777,12 +777,12 @@ class Stockland_REST_Requisition_V16 {
 					'received_qty' => null,
 					'reason'       => '',
 				);
-				$received = $opt['received_qty'] === null ? $dispatch : (float) $opt['received_qty'];
+				$received = null === $opt['received_qty'] ? $dispatch : (float) $opt['received_qty'];
 				$reason   = trim( (string) $opt['reason'] );
 				if ( $received < 0 || $received > $dispatch + 0.00001 ) {
 					throw new Exception( 'Received quantity for ' . $t['sku'] . ' must be between 0 and ' . $dispatch . '.' );
 				}
-				if ( abs( $received - $dispatch ) > 0.00001 && $reason === '' ) {
+				if ( abs( $received - $dispatch ) > 0.00001 && '' === $reason ) {
 					throw new Exception( 'A receiving variance for ' . $t['sku'] . ' requires a reason.' );
 				}
 				$cur                 = $t;

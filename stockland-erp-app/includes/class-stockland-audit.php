@@ -30,7 +30,7 @@ class Stockland_Audit {
 		$table     = Stockland_DB::table( 'audit_logs' );
 		$lock_name = 'stockland_audit_chain';
 		$locked    = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,10)', $lock_name ) );
-		if ( (string) $locked !== '1' ) {
+		if ( '1' !== (string) $locked ) {
 			return false;
 		}
 		try {
@@ -38,7 +38,7 @@ class Stockland_Audit {
 			$stamp            = current_time( 'mysql' );
 			$action_stored    = self::stored_action( $action );
 			$sku_stored       = self::stored_text( $sku );
-			$quantity_stored  = $quantity !== null ? number_format( (float) $quantity, 2, '.', '' ) : null;
+			$quantity_stored  = null !== $quantity ? number_format( (float) $quantity, 2, '.', '' ) : null;
 			$old_stored       = self::stored_text( $old_value );
 			$new_stored       = self::stored_text( $new_value );
 			$reason_stored    = self::stored_text( $reason );
@@ -63,7 +63,7 @@ class Stockland_Audit {
 				$table,
 				array(
 					'user_id'            => (int) $user_id,
-					'branch_location_id' => $branch_location_id !== null ? (int) $branch_location_id : null,
+					'branch_location_id' => null !== $branch_location_id ? (int) $branch_location_id : null,
 					'action_time'        => $stamp,
 					'action'             => $action_stored,
 					'sku'                => $sku_stored,
@@ -72,7 +72,7 @@ class Stockland_Audit {
 					'new_value'          => $new_stored,
 					'reason'             => $reason_stored,
 					'reference'          => $reference_stored,
-					'approver_id'        => $approver_id !== null ? (int) $approver_id : null,
+					'approver_id'        => null !== $approver_id ? (int) $approver_id : null,
 					'previous_hash'      => $previous ?: null,
 					'event_hash'         => $event_hash,
 					'hash_version'       => self::HASH_VERSION,
@@ -85,7 +85,7 @@ class Stockland_Audit {
 	}
 
 	private static function stored_text( $value ) {
-		if ( $value === null ) {
+		if ( null === $value ) {
 			return null;
 		}
 		if ( is_string( $value ) ) {
@@ -122,16 +122,16 @@ class Stockland_Audit {
 		return wp_json_encode(
 			array(
 				'user_id'            => (int) $user_id,
-				'branch_location_id' => $branch_location_id !== null ? (int) $branch_location_id : null,
+				'branch_location_id' => null !== $branch_location_id ? (int) $branch_location_id : null,
 				// Canonical payload mirrors the actual VARCHAR/DECIMAL storage representation.
 				'action'             => self::stored_action( $action ),
 				'sku'                => self::stored_text( $sku ),
-				'quantity'           => $quantity !== null ? number_format( (float) $quantity, 2, '.', '' ) : null,
+				'quantity'           => null !== $quantity ? number_format( (float) $quantity, 2, '.', '' ) : null,
 				'old_value'          => self::stored_text( $old_value ),
 				'new_value'          => self::stored_text( $new_value ),
 				'reason'             => self::stored_text( $reason ),
 				'reference'          => self::stored_text( $reference ),
-				'approver_id'        => $approver_id !== null ? (int) $approver_id : null,
+				'approver_id'        => null !== $approver_id ? (int) $approver_id : null,
 				'action_time'        => (string) $stamp,
 				'previous_hash'      => (string) $previous,
 				'hash_version'       => (int) $version,
@@ -141,7 +141,7 @@ class Stockland_Audit {
 
 	private static function numeric_candidate( $value ) {
 		$s = trim( (string) $value );
-		if ( $s === '' || ! preg_match( '/^-?(?:\d+|\d*\.\d+)(?:[eE][+-]?\d+)?$/', $s ) ) {
+		if ( '' === $s || ! preg_match( '/^-?(?:\d+|\d*\.\d+)(?:[eE][+-]?\d+)?$/', $s ) ) {
 			return null;
 		}
 		return (float) $s;
@@ -156,15 +156,15 @@ class Stockland_Audit {
 		foreach ( $fields as $field ) {
 			$raw    = $row[ $field ] ?? null;
 			$values = array( $raw );
-			if ( $raw !== null && $raw !== '' ) {
+			if ( null !== $raw && '' !== $raw ) {
 				$n = self::numeric_candidate( $raw );
-				if ( $n !== null ) {
+				if ( null !== $n ) {
 					$values[] = $n;
 				}
 			}
 			$uniq = array();
 			foreach ( $values as $v ) {
-				$key          = is_scalar( $v ) || $v === null ? gettype( $v ) . '|' . (string) $v : wp_json_encode( $v );
+				$key          = is_scalar( $v ) || null === $v ? gettype( $v ) . '|' . (string) $v : wp_json_encode( $v );
 				$uniq[ $key ] = $v;
 			}
 			$variants[ $field ] = array_values( $uniq );
@@ -176,15 +176,15 @@ class Stockland_Audit {
 						$payload = wp_json_encode(
 							array(
 								'user_id'            => (int) $row['user_id'],
-								'branch_location_id' => $row['branch_location_id'] !== null ? (int) $row['branch_location_id'] : null,
+								'branch_location_id' => null !== $row['branch_location_id'] ? (int) $row['branch_location_id'] : null,
 								'action'             => (string) $row['action'],
-								'sku'                => $row['sku'] !== null ? (string) $row['sku'] : null,
-								'quantity'           => $quantity !== null && $quantity !== '' && is_numeric( $quantity ) ? $quantity : $quantity,
+								'sku'                => null !== $row['sku'] ? (string) $row['sku'] : null,
+								'quantity'           => null !== $quantity && '' !== $quantity && is_numeric( $quantity ) ? $quantity : $quantity,
 								'old_value'          => $old,
 								'new_value'          => $new,
-								'reason'             => $row['reason'] !== null ? (string) $row['reason'] : null,
+								'reason'             => null !== $row['reason'] ? (string) $row['reason'] : null,
 								'reference'          => $reference,
-								'approver_id'        => $row['approver_id'] !== null ? (int) $row['approver_id'] : null,
+								'approver_id'        => null !== $row['approver_id'] ? (int) $row['approver_id'] : null,
 								'action_time'        => (string) $row['action_time'],
 								'previous_hash'      => (string) $previous,
 								'hash_version'       => self::HASH_VERSION,
@@ -207,19 +207,19 @@ class Stockland_Audit {
 		// modifying the historical row.
 		$base       = array(
 			'user_id'            => (int) $row['user_id'],
-			'branch_location_id' => $row['branch_location_id'] !== null ? (int) $row['branch_location_id'] : null,
+			'branch_location_id' => null !== $row['branch_location_id'] ? (int) $row['branch_location_id'] : null,
 			'action'             => (string) $row['action'],
 			'sku'                => $row['sku'],
 			'old_value'          => $row['old_value'],
 			'new_value'          => $row['new_value'],
 			'reason'             => $row['reason'],
 			'reference'          => $row['reference'],
-			'approver_id'        => $row['approver_id'] !== null ? (int) $row['approver_id'] : null,
+			'approver_id'        => null !== $row['approver_id'] ? (int) $row['approver_id'] : null,
 			'action_time'        => $row['action_time'],
 			'previous_hash'      => (string) $row['previous_hash'],
 		);
 		$quantities = array( $row['quantity'] );
-		if ( $row['quantity'] !== null && $row['quantity'] !== '' ) {
+		if ( null !== $row['quantity'] && '' !== $row['quantity'] ) {
 			$quantities[] = (float) $row['quantity'];
 			$quantities[] = (int) $row['quantity'];
 		}

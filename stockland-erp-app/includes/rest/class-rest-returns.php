@@ -91,16 +91,16 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		if ( (string) $return_date > $current_date ) {
 			return new WP_Error( 'future_date', 'Return/damage date cannot be in the future.', array( 'status' => 400 ) );
 		}
-		if ( $p['return_type'] !== 'Adjustment' && Stockland_DB::is_day_closed( $location_id, (string) $return_date ) ) {
+		if ( 'Adjustment' !== $p['return_type'] && Stockland_DB::is_day_closed( $location_id, (string) $return_date ) ) {
 			return new WP_Error( 'closed_date', 'The selected business date is already closed. Use the controlled post-close adjustment/reversal workflow.', array( 'status' => 409 ) );
 		}
-		$lock_date = $p['return_type'] === 'Adjustment' ? $current_date : (string) $return_date;
+		$lock_date = 'Adjustment' === $p['return_type'] ? $current_date : (string) $return_date;
 		$lock      = Stockland_DB::acquire_day_lock( $location_id, $lock_date );
 		if ( ! $lock['ok'] ) {
 			return new WP_Error( 'busy', 'Another inventory operation is being processed for this location/date. Please retry.', array( 'status' => 409 ) );
 		}
 
-		if ( $p['return_type'] === 'Adjustment' ) {
+		if ( 'Adjustment' === $p['return_type'] ) {
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 				Stockland_DB::release_day_lock( $lock );
 				return new WP_Error( 'transaction_failed', 'Could not start adjustment transaction.', array( 'status' => 500 ) );}
@@ -166,7 +166,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 			}
 		}
 
-		if ( $p['return_type'] === 'Damage' && Stockland_DB::get_available_stock( $location_id, $sku ) < (float) $p['quantity'] ) {
+		if ( 'Damage' === $p['return_type'] && Stockland_DB::get_available_stock( $location_id, $sku ) < (float) $p['quantity'] ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'insufficient_stock', 'Insufficient available stock for this damage quantity.', array( 'status' => 409 ) ); }
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
@@ -194,7 +194,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 			}
 
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), ARRAY_A );
-			if ( $p['return_type'] === 'Adjustment' ) {
+			if ( 'Adjustment' === $p['return_type'] ) {
 				return rest_ensure_response( $row ); // protected above; retained for defensive compatibility
 			}
 
@@ -221,7 +221,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 					$net   = Stockland_Money::proportion_of_quantity( $sale['net_sales_excl_vat'], $q, $sale['quantity_sold'] );
 					$vat   = Stockland_Money::proportion_of_quantity( $sale['vat_amount'], $q, $sale['quantity_sold'] );
 					$gross = Stockland_Money::add( $net, $vat ); }
-				if ( $row['return_type'] === 'Return' ) {
+				if ( 'Return' === $row['return_type'] ) {
 					$gl = Stockland_Accounting::post_journal(
 						$row['return_date'],
 						'SALES_RETURN',
