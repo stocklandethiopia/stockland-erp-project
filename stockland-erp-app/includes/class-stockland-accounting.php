@@ -490,7 +490,7 @@ class Stockland_Accounting {
 		foreach ( $suppliers as $row ) {
 			$id      = (int) $row['id'];
 			$desired = Stockland_Money::decimal( Stockland_Money::minor( $row['opening_balance'] ) );
-			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.credit-l.debit),0) FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' AND l.supplier_id=%d AND j.source_type='SUPPLIER_OPENING_BALANCE'", $id ) ) ) );
+			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.credit-l.debit),0) FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' AND l.supplier_id=%d AND j.source_type='SUPPLIER_OPENING_BALANCE'", $gll, $glj, $id ) ) ) );
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'SUPPLIER', $id, $posted, $desired, get_current_user_id() );
 				if ( false === $jid ) {
@@ -506,11 +506,11 @@ class Stockland_Accounting {
 		if ( 0 === $remaining ) {
 			return true;
 		}
-		$customers = $wpdb->get_results( "SELECT id,opening_balance FROM {$cus} WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT {$remaining}", ARRAY_A );
+		$customers = $wpdb->get_results( $wpdb->prepare( 'SELECT id,opening_balance FROM %i WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT %d', $cus, $remaining ), ARRAY_A );
 		foreach ( $customers as $row ) {
 			$id      = (int) $row['id'];
 			$desired = Stockland_Money::decimal( Stockland_Money::minor( $row['opening_balance'] ) );
-			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.debit-l.credit),0) FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' AND l.customer_id=%d AND j.source_type='CUSTOMER_OPENING_BALANCE'", $id ) ) ) );
+			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.debit-l.credit),0) FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' AND l.customer_id=%d AND j.source_type='CUSTOMER_OPENING_BALANCE'", $gll, $glj, $id ) ) ) );
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'CUSTOMER', $id, $posted, $desired, get_current_user_id() );
 				if ( false === $jid ) {
@@ -715,7 +715,7 @@ class Stockland_Accounting {
 			array( '2033', 'Other Payroll Deductions Payable', 'LIABILITY' ),
 		);
 		foreach ( $accounts as $a ) {
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}stock_gl_accounts (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)", $a[0], $a[1], $a[2] ) );
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)", $p . 'stock_gl_accounts', $a[0], $a[1], $a[2] ) );
 		}
 	}
 
@@ -760,7 +760,7 @@ class Stockland_Accounting {
 
 	private static function seed_walkin_customer( $p ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}stock_customers (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)", 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)", $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
 	}
 
 	/** Idempotently ensure statutory payroll accounts exist during an Owner-approved payroll posting. */
