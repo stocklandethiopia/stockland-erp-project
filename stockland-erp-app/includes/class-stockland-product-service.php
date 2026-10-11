@@ -1,4 +1,10 @@
 <?php
+/**
+ * Product Master mutation safeguards for Stockland ERP.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -62,7 +68,27 @@ class Stockland_Product_Service {
 			);
 			foreach ( $checks as $name => $check ) {
 				$table = Stockland_DB::table( $check['table'] );
-				if ( Stockland_DB::table_exists( $table ) && (int) $wpdb->get_var( $wpdb->prepare( $check['sql'], $table, $variant_id ) ) > 0 ) {
+				if ( ! Stockland_DB::table_exists( $table ) ) {
+					continue;
+				}
+				switch ( $name ) {
+					case 'reservations':
+						$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status IN('Active','Reserved')", $table, $variant_id ) );
+						break;
+					case 'transfers':
+						$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status NOT IN('Rejected','Cancelled','Completed','Received')", $table, $variant_id ) );
+						break;
+					case 'requisitions':
+						$count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_approved IS NOT NULL AND COALESCE(quantity_received,0)<COALESCE(quantity_approved,0)', $table, $variant_id ) );
+						break;
+					case 'purchase_orders':
+						$count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_received<quantity_ordered', $table, $variant_id ) );
+						break;
+					default:
+						// Unknown internal check keys must fail closed instead of executing dynamic SQL.
+						throw new Exception( 'Unsupported operational reference check.' );
+				}
+				if ( (int) $count > 0 ) {
 					throw new Exception( 'SKU replacement is blocked while there are open ' . $name . '.' );
 				}
 			}
