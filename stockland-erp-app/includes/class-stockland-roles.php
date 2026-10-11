@@ -12,6 +12,7 @@ class Stockland_Roles {
 	const ROLE_WAREHOUSE_MANAGER  = 'stockland_warehouse_manager';
 	const ROLE_AUDITOR            = 'stockland_auditor';
 
+	/** Return the canonical capabilities that form the base ERP role namespace. */
 	private static function base_caps() {
 		return array(
 			'stockland_view_audit_log',
@@ -66,6 +67,7 @@ class Stockland_Roles {
 		);
 	}
 
+	/** Register the supported Stockland ERP roles and their initial capabilities. */
 	public static function register_roles() {
 		add_role(
 			self::ROLE_OWNER,
@@ -287,6 +289,7 @@ class Stockland_Roles {
 		);
 	}
 
+	/** Synchronize existing role capabilities with the canonical role map. */
 	public static function sync_roles() {
 		$map = self::role_caps_map();
 		// Build the complete ERP capability namespace from the role map itself.
@@ -332,6 +335,12 @@ class Stockland_Roles {
 		}
 	}
 
+	/**
+	 * Retrieve the active ERP profile for a WordPress user.
+	 *
+	 * @param int $wp_user_id WordPress user identifier.
+	 * @return array|null Active ERP user profile, or null when not assigned.
+	 */
 	public static function get_profile( $wp_user_id ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'users' );
@@ -361,6 +370,13 @@ class Stockland_Roles {
 		return array_values( array_unique( array_filter( $ids ) ) );
 	}
 
+	/**
+	 * Check whether a user may view a branch's operational data.
+	 *
+	 * @param int $wp_user_id WordPress user identifier.
+	 * @param int $branch_location_id Branch location identifier.
+	 * @return bool True when the role or assigned location scope permits access.
+	 */
 	public static function can_view_branch( $wp_user_id, $branch_location_id ) {
 		$profile = self::get_profile( $wp_user_id );
 		if ( ! $profile ) {
