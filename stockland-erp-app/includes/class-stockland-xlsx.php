@@ -69,7 +69,7 @@ class Stockland_XLSX {
 			throw new Exception( 'XLSX file is too large. Maximum allowed size is 8 MB.' );
 		}
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Binary signature validation needs a native stream before ZipArchive parses the upload.
-		$fh        = fopen( $file, 'rb' );
+		$fh = fopen( $file, 'rb' );
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Read only the four-byte binary XLSX signature from the temporary upload.
 		$signature = $fh ? fread( $fh, 4 ) : false;
 		if ( $fh ) {
@@ -248,7 +248,8 @@ class Stockland_XLSX {
 				}
 				$reader->close();
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- ZipArchive returns a native resource handle that must be closed directly.
-				fclose( $stream );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- XMLReader consumes this native stream from ZipArchive; WordPress filesystem abstractions cannot close the ZipArchive stream resource.
+			fclose( $stream );
 				return;
 			}
 		}
