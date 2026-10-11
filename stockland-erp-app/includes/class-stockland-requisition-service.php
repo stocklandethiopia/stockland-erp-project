@@ -55,7 +55,7 @@ class Stockland_Requisition_Service {
 		if ( empty( $clean ) ) {
 			return new WP_Error( 'invalid', 'At least one valid requisition item is required.', array( 'status' => 400 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start requisition transaction.', array( 'status' => 500 ) );
 		}
 		$id = null;
@@ -92,7 +92,7 @@ class Stockland_Requisition_Service {
 			if ( ! Stockland_Audit::log( $user_id, $branch, 'REQUISITION_CREATE', null, null, null, $id, null, $id, $user_id ) ) {
 				throw new Exception( 'Audit event could not be recorded; requisition was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Requisition create commit failed.' );
 			}
 			$role = Stockland_Authority::role( $user_id );
@@ -107,7 +107,7 @@ class Stockland_Requisition_Service {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'requisition_create_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 	/**
