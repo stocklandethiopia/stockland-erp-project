@@ -545,7 +545,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'branch_customer_registration_only', 'Branch customer registration creates new customers only. Existing customer financial/master changes remain management-controlled.', array( 'status' => 403 ) );
 		}
 		if ( $id ) {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'customers' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'customers' ), $id ), ARRAY_A );
 			if ( ! $existing ) {
 				return new WP_Error( 'not_found', 'Customer not found.', array( 'status' => 404 ) );
 			}$old_opening = $this->money( $existing['opening_balance'] );}
