@@ -30,7 +30,7 @@ jobs:
   audit-source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -122,7 +122,7 @@ jobs:
           coverage: none
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -176,7 +176,7 @@ jobs:
       - name: Upload review-only PHPCBF patch
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stockland-phpcbf-review-patch
           path: |
@@ -258,7 +258,7 @@ jobs:
           echo "phpcs_exit=$phpcs_status" >> "$GITHUB_OUTPUT"
 
       - name: Upload full-source PHPCS inventory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stockland-erp-full-source-phpcs-inventory
           path: |
@@ -337,7 +337,7 @@ jobs:
           PY
 
       - name: Upload built package for review
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stockland-erp-16.1.57-bootstrap-5.3.8-candidate
           path: |
@@ -369,7 +369,7 @@ jobs:
       contents: write
       actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 0
@@ -382,12 +382,12 @@ jobs:
           coverage: none
 
       - name: Set up Node for static QA
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
       - name: Download the source-gate PHPCBF preview artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: stockland-phpcbf-review-patch
           path: stockland-phpcbf-review
