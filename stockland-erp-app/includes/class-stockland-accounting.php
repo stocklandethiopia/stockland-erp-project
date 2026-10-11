@@ -341,7 +341,7 @@ class Stockland_Accounting {
 				$result = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
 					$msg = 'Accounting/procurement table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
-					throw new RuntimeException( $msg );}
+					throw new RuntimeException( esc_html( $msg ) );}
 				$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 				if ( ! $table_key || ! $exists ) {
 					throw new RuntimeException( 'Accounting/procurement table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
@@ -950,6 +950,7 @@ class Stockland_Accounting {
 	 * @param array  $lines Debit/credit journal lines.
 	 * @param int    $user_id Actor user identifier.
 	 * @return mixed Posted journal identifier or false when validation/persistence fails.
+	 * @throws RuntimeException When the journal cannot be validated or committed.
 	 */
 	public static function post_journal( $date, $source_type, $source_id, $memo, $lines, $user_id ) {
 		global $wpdb;
