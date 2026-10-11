@@ -338,7 +338,7 @@ class Stockland_Accounting {
 			if ( $batch_mode ) {
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This CREATE TABLE statement is generated only from the class-owned schema array; table keys are verified against the internal allowlist and no request data enters the DDL.
-				$result = $wpdb->query( $direct_sql );
+				$result = Stockland_DB::execute_query( $direct_sql );
 				if ( false === $result ) {
 					throw new RuntimeException( 'Accounting/procurement table could not be created.' );
 				}
@@ -379,7 +379,7 @@ class Stockland_Accounting {
 				$fallback         = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; the table key was matched against the internal required-table allowlist above.
-				$wpdb->query( $fallback );
+				Stockland_DB::execute_query( $fallback );
 				if ( ! empty( $wpdb->last_error ) ) {
 					throw new RuntimeException( 'Accounting/procurement table ' . esc_html( $key ) . ' could not be created.' );
 				}
@@ -624,7 +624,7 @@ class Stockland_Accounting {
 			);
 			if ( ! $has_variant ) {
 				$wpdb->last_error = '';
-				if ( false === $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $target['after'] ) ) ) {
+				if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $target['after'] ) ) ) {
 					throw new RuntimeException( 'Accounting schema upgrade could not add ' . esc_html( $table ) . '.variant_id.' );
 				}
 			}
@@ -649,7 +649,7 @@ class Stockland_Accounting {
 			);
 			if ( ! $has_variant_index ) {
 				$wpdb->last_error = '';
-				if ( false === $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) ) ) {
+				if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) ) ) {
 					throw new RuntimeException( 'Accounting schema upgrade could not add the variant_id index to ' . esc_html( $table ) . '.' );
 				}
 			}
@@ -679,7 +679,7 @@ class Stockland_Accounting {
 		if ( $prod_exists ) {
 			foreach ( $targets as $target ) {
 				$wpdb->last_error = '';
-				$wpdb->query( $wpdb->prepare( 'UPDATE %i i INNER JOIN %i p ON p.sku=i.sku SET i.variant_id=p.variant_id WHERE i.variant_id IS NULL AND p.is_active=1', $target['table'], $prod ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i i INNER JOIN %i p ON p.sku=i.sku SET i.variant_id=p.variant_id WHERE i.variant_id IS NULL AND p.is_active=1', $target['table'], $prod ) );
 				if ( ! empty( $wpdb->last_error ) ) {
 					throw new RuntimeException( 'Accounting variant identity backfill failed for ' . esc_html( $target['table'] ) . '.' );
 				}
@@ -763,7 +763,7 @@ class Stockland_Accounting {
 			array( '2033', 'Other Payroll Deductions Payable', 'LIABILITY' ),
 		);
 		foreach ( $accounts as $a ) {
-			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $p . 'stock_gl_accounts', $a[0], $a[1], $a[2] ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $p . 'stock_gl_accounts', $a[0], $a[1], $a[2] ) );
 		}
 	}
 
@@ -819,7 +819,7 @@ class Stockland_Accounting {
 	 */
 	private static function seed_walkin_customer( $p ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)', $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
+		Stockland_DB::execute_query( $wpdb->prepare( 'INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)', $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
 	}
 
 	/**
@@ -841,7 +841,7 @@ class Stockland_Accounting {
 		);
 		foreach ( $accounts as $a ) {
 			$wpdb->last_error = '';
-			$ok               = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $table, $a[0], $a[1], $a[2] ) );
+			$ok               = Stockland_DB::execute_query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $table, $a[0], $a[1], $a[2] ) );
 			if ( false === $ok || ! empty( $wpdb->last_error ) ) {
 				return false;
 			}
@@ -984,10 +984,10 @@ class Stockland_Accounting {
 		$in_transaction = (int) Stockland_DB::read_var( 'SELECT @@session.in_transaction' ) === 1;
 		$savepoint      = 'stockland_gl_' . wp_rand( 100000, 999999 );
 		if ( $in_transaction ) {
-			if ( false === $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) ) ) {
+			if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) ) ) {
 				return false;
 			}
-		} elseif ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		} elseif ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return false;
 		}
 
@@ -1032,19 +1032,19 @@ class Stockland_Accounting {
 			if ( ! Stockland_Audit::log( $user_id, null, 'GL_POST', null, $sum_d, null, null, $memo, $num ) ) {
 				throw new Exception( 'Audit failed' );}
 			if ( $in_transaction ) {
-				if ( false === $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) ) ) {
+				if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) ) ) {
 					throw new Exception( 'Could not release accounting savepoint.' );
 				}
-			} elseif ( false === $wpdb->query( 'COMMIT' ) ) {
+			} elseif ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Journal commit failed' );
 			}
 			return $jid;
 		} catch ( Throwable $e ) {
 			if ( $in_transaction ) {
-				$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
-				$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
 			} else {
-				$wpdb->query( 'ROLLBACK' );
+				Stockland_DB::execute_query( 'ROLLBACK' );
 			}
 			return false;
 		}
