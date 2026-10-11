@@ -2307,7 +2307,7 @@ class Stockland_REST_Import_V16 {
 					if ( '' === $identifier_value ) {
 						continue;
 					}
-					$hit = $wpdb->get_row( $wpdb->prepare( 'SELECT sku,variant_id FROM ' . Stockland_DB::table( 'products' ) . " WHERE {$identifier}=%s AND sku<>%s LIMIT 1 FOR UPDATE", $identifier_value, $sku ), ARRAY_A );
+					$hit = $wpdb->get_row( $wpdb->prepare( 'SELECT sku,variant_id FROM %i WHERE %i=%s AND sku<>%s LIMIT 1 FOR UPDATE', Stockland_DB::table( 'products' ), $identifier, $identifier_value, $sku ), ARRAY_A );
 					if ( $hit && (string) $hit['sku'] !== $old_sku ) {
 						throw new Exception( ucfirst( $identifier ) . ' ' . $identifier_value . ' is already assigned to SKU ' . $hit['sku'] . '. Import aborted before committing this row.' );
 					}
@@ -2520,7 +2520,7 @@ class Stockland_REST_Import_V16 {
 		}
 		try {
 			if ( $id ) {
-				$current = $wpdb->get_row( $wpdb->prepare( "SELECT id FROM {$maps} WHERE id=%d LIMIT 1 FOR UPDATE", $id ), ARRAY_A );
+				$current = $wpdb->get_row( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d LIMIT 1 FOR UPDATE', $maps, $id ), ARRAY_A );
 				if ( ! $current ) {
 					throw new Exception( 'Mapping not found.' );
 				}
@@ -2529,7 +2529,7 @@ class Stockland_REST_Import_V16 {
 					throw new Exception( 'Could not update mapping.' );
 				}$existing = $id;
 			} else {
-				$same_open = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$maps} WHERE source_system=%s AND external_code=%s AND effective_from IS NULL AND effective_to IS NULL AND is_active=1 LIMIT 1 FOR UPDATE", $source, $external ) );
+				$same_open = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE source_system=%s AND external_code=%s AND effective_from IS NULL AND effective_to IS NULL AND is_active=1 LIMIT 1 FOR UPDATE', $maps, $source, $external ) );
 				if ( $same_open ) {
 					$ok = $wpdb->update( $maps, $data, array( 'id' => (int) $same_open ) );
 					if ( false === $ok ) {
