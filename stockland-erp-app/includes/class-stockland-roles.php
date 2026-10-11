@@ -1,8 +1,19 @@
 <?php
+/**
+ * ERP role definitions, capability synchronization and location scopes.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Defines ERP-specific capabilities and location-aware access checks.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_Roles {
 	const ROLE_OWNER              = 'stockland_owner';
 	const ROLE_MANAGEMENT         = 'stockland_management';
