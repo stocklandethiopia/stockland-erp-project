@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP schema creation, validation, and idempotent upgrade routines.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -74,6 +80,8 @@ class Stockland_Activator {
 	 * $batch_size=0 completes the full schema/release finalization. A positive
 	 * value installs only that many currently-missing Core tables, then returns
 	 * progress. This keeps first-run requests short on constrained shared hosting.
+
+	 * @param int $batch_size Maximum number of schema objects to process in this activation batch.
 	 */
 	public static function activate( $batch_size = 0 ) {
 		$batch_size = max( 0, (int) $batch_size );
@@ -1213,6 +1221,11 @@ class Stockland_Activator {
 		);
 	}
 
+	/**
+	 * Returns the authoritative manifest of application-owned tables and their schema requirements.
+	 *
+	 * @return array The ordered application-table schema manifest.
+	 */
 	public static function application_table_manifest() {
 		return array_values(
 			array_unique(
@@ -1250,6 +1263,12 @@ class Stockland_Activator {
 		update_option( 'stockland_setup_state', 'ACTIVATED', false );
 	}
 
+	/**
+	 * Checks whether a validated database table exists on the current WordPress connection.
+	 *
+	 * @param string $table_name Allow-listed table name to check.
+	 * @return bool Whether the table exists.
+	 */
 	private static function table_exists_static( $table_name ) {
 		global $wpdb;
 		return (bool) $wpdb->get_var(
@@ -1261,6 +1280,12 @@ class Stockland_Activator {
 		);
 	}
 
+	/**
+	 * Ensures the required Stockland operational locations exist without duplicating existing locations.
+	 *
+	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @return void Ensures required operational locations exist.
+	 */
 	private static function seed_locations( $p ) {
 		global $wpdb;
 
@@ -1290,6 +1315,8 @@ class Stockland_Activator {
 	 * are starting values Management already entered in the workbook —
 	 * nothing here is invented, and Management can change any of them
 	 * post-activation via the settings screen (VAT rate, reorder levels).
+
+	 * @param wpdb $p WordPress database connection used by the protected installer.
 	 */
 	private static function backfill_location_codes( $p ) {
 		global $wpdb;
@@ -1311,6 +1338,12 @@ class Stockland_Activator {
 		}
 	}
 
+	/**
+	 * Ensures required Stockland system settings have their safe default values.
+	 *
+	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @return void Ensures required settings exist.
+	 */
 	private static function seed_settings( $p ) {
 		global $wpdb;
 
@@ -1351,6 +1384,8 @@ class Stockland_Activator {
 	 * inventory/POS/ledger/workflow system installed by activate() above is
 	 * completely unaffected and keeps working; only the accounting screens
 	 * stay unavailable until this succeeds.
+
+	 * @param bool $force Whether the controlled installer should force the supported accounting setup path.
 	 */
 	public static function maybe_install_accounting( $force = false ) {
 		// Schema installation is never a public-request operation. Keep it behind
@@ -1413,6 +1448,12 @@ class Stockland_Activator {
 		}
 	}
 
+	/**
+	 * Applies the controlled variant-first product identity migration while preserving historical ledger records.
+	 *
+	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @return void Applies the idempotent product identity migration.
+	 */
 	private static function upgrade_variant_first_product_identity( $p ) {
 		global $wpdb;
 		$table = $p . 'stock_products';
@@ -1446,7 +1487,11 @@ class Stockland_Activator {
 		}
 	}
 
-	/** v16 convergence: make every required module/schema line up under one clean production contract. */
+	/**
+	 * v16 convergence: make every required module/schema line up under one clean production contract.
+	 *
+	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 */
 	private static function apply_schema_1600_migrations( $p ) {
 		global $wpdb;
 		$has_col   = function ( $table, $column ) use ( $wpdb ) {
