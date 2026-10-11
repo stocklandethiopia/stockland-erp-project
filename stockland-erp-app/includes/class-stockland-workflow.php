@@ -30,7 +30,7 @@ class Stockland_Workflow {
 	public static function event( $entity_type, $entity_id, $from, $to, $user_id, $location_id = null, $meta = array() ) {
 		global $wpdb;
 		$t  = Stockland_DB::table( 'workflow_events' );
-		$ok = $wpdb->insert(
+		$ok = Stockland_DB::insert_record(
 			$t,
 			array(
 				'entity_type' => $entity_type,
