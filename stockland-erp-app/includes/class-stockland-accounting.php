@@ -892,7 +892,7 @@ class Stockland_Accounting {
 		$in_transaction = (int) $wpdb->get_var( 'SELECT @@session.in_transaction' ) === 1;
 		$savepoint      = 'stockland_gl_' . wp_rand( 100000, 999999 );
 		if ( $in_transaction ) {
-			if ( false === $wpdb->query( "SAVEPOINT {$savepoint}" ) ) {
+			if ( false === $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) ) ) {
 				return false;
 			}
 		} elseif ( false === $wpdb->query( 'START TRANSACTION' ) ) {
@@ -940,7 +940,7 @@ class Stockland_Accounting {
 			if ( ! Stockland_Audit::log( $user_id, null, 'GL_POST', null, $sum_d, null, null, $memo, $num ) ) {
 				throw new Exception( 'Audit failed' );}
 			if ( $in_transaction ) {
-				if ( false === $wpdb->query( "RELEASE SAVEPOINT {$savepoint}" ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) ) ) {
 					throw new Exception( 'Could not release accounting savepoint.' );
 				}
 			} elseif ( false === $wpdb->query( 'COMMIT' ) ) {
@@ -949,8 +949,8 @@ class Stockland_Accounting {
 			return $jid;
 		} catch ( Throwable $e ) {
 			if ( $in_transaction ) {
-				$wpdb->query( "ROLLBACK TO SAVEPOINT {$savepoint}" );
-				$wpdb->query( "RELEASE SAVEPOINT {$savepoint}" );
+				$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
+				$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
 			} else {
 				$wpdb->query( 'ROLLBACK' );
 			}
