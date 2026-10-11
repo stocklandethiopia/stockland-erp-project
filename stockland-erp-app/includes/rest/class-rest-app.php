@@ -703,10 +703,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( is_array( $scope_ids ) ) {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$req_sql .= " AND branch_location_id IN({$ph})";
-				$req_args = $scope_ids;
+				$req_args = array_merge( $req_args, $scope_ids );
 			} elseif ( null !== $scope_ids ) {
 				$req_sql         .= ' AND branch_location_id=%d';
-						$req_args = $scope_ids;}
+						$req_args = array_merge( $req_args, $scope_ids );}
 			$pending = (int) $wpdb->get_var( $wpdb->prepare( $req_sql, $req_args ) );
 
 			$approval_queue       = 0;
@@ -743,10 +743,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( is_array( $scope_ids ) ) {
 				$ph         = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$stock_sql .= " AND l.id IN({$ph})";
-				$stock_args = $scope_ids;
+				$stock_args = array_merge( $stock_args, $scope_ids );
 			} elseif ( null !== $scope_ids ) {
 				$stock_sql         .= ' AND l.id=%d';
-						$stock_args = $scope_ids;}
+						$stock_args = array_merge( $stock_args, $scope_ids );}
 				$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
 				$stock_by_location = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
