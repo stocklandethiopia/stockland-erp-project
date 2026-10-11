@@ -49,7 +49,7 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			if ( Stockland_DB::is_day_closed( $wh, $date ) ) {
 				throw new Exception( 'This Central Warehouse business day is already closed.' );
 			}
-			$wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM ' . Stockland_DB::table( 'products' ) . ' WHERE sku=%s FOR UPDATE', $sku ) );
+			$wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
 			if ( Stockland_DB::get_available_stock( $wh, $sku ) < $q ) {
 				throw new Exception( 'Insufficient Central Warehouse stock.' );
 			}
