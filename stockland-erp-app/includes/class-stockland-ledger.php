@@ -112,7 +112,7 @@ class Stockland_Ledger {
 			if ( ! $product || empty( $product['variant_id'] ) ) {
 				throw new RuntimeException( 'The SKU has no active Product Master variant.' );
 			}
-			$ok = $wpdb->insert(
+			$ok = Stockland_DB::insert_record(
 				$table,
 				array(
 					'location_id'      => (int) $location_id,
@@ -194,7 +194,7 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Could not clear derived balance rows.' );
 			}
 			foreach ( $rows as $row ) {
-				if ( false === $wpdb->insert(
+				if ( false === Stockland_DB::insert_record(
 					$bal,
 					array(
 						'location_id'  => (int) $row['location_id'],
@@ -244,7 +244,7 @@ class Stockland_Ledger {
 			if ( null === $qty || $wpdb->last_error ) {
 				throw new RuntimeException( 'Could not read inventory ledger total.' );
 			}
-			if ( false === $wpdb->delete(
+			if ( false === Stockland_DB::delete_record(
 				$bal,
 				array(
 					'location_id' => (int) $location_id,
@@ -253,7 +253,7 @@ class Stockland_Ledger {
 			) ) {
 				throw new RuntimeException( 'Could not clear derived balance.' );
 			}
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				$bal,
 				array(
 					'location_id'  => (int) $location_id,
