@@ -123,6 +123,7 @@ class Stockland_REST_Inventory_Report_V16 {
 	 *
 	 * @param int $warehouse_id Warehouse location identifier.
 	 * @return array Available quantities keyed by variant identity.
+	 * @throws RuntimeException When the authoritative availability query fails.
 	 */
 	private function current_warehouse_available( $warehouse_id ) {
 		global $wpdb;
@@ -156,7 +157,8 @@ class Stockland_REST_Inventory_Report_V16 {
 			ARRAY_A
 		);
 		if ( $wpdb->last_error ) {
-			throw new RuntimeException( 'Warehouse availability read failed: ' . $wpdb->last_error );
+			Stockland_Runtime_Diagnostics::log_error( 'Daily Inventory warehouse availability query failed: ' . $wpdb->last_error );
+			throw new RuntimeException( 'Warehouse availability read failed.' );
 		}
 		$map = array();
 		foreach ( (array) $rows as $row ) {
@@ -180,7 +182,7 @@ class Stockland_REST_Inventory_Report_V16 {
 			ARRAY_A
 		);
 		if ( $wpdb->last_error ) {
-			error_log( 'Stockland Daily Inventory product query: ' . $wpdb->last_error );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland Daily Inventory product query: ' . $wpdb->last_error );
 			return array();
 		}
 		return $rows;
@@ -194,18 +196,6 @@ class Stockland_REST_Inventory_Report_V16 {
 	 */
 	public function daily_inventory( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_entry' );
-		/*
-		 * Log an exact fatal boundary if PHP terminates during this report.
-		 * This does not alter business data and is intentionally read-only.
-		 */
-		register_shutdown_function(
-			function () {
-				$last = error_get_last();
-				if ( is_array( $last ) && in_array( (int) ( $last['type'] ?? 0 ), array( E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE ), true ) ) {
-					error_log( 'Stockland Daily Inventory FATAL: ' . (string) ( $last['message'] ?? 'unknown' ) . ' @ ' . (string) ( $last['file'] ?? 'unknown' ) . ':' . (string) ( $last['line'] ?? '0' ) );
-				}
-			}
-		);
 		try {
 			return $this->daily_inventory_impl( $r ); } catch ( Throwable $e ) {
 			$ref = 'INV-' . gmdate( 'YmdHis' ) . '-' . substr( hash( 'sha256', wp_json_encode( array( get_current_user_id(), $r->get_params(), $e->getMessage() ) ) ), 0, 8 );
