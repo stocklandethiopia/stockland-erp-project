@@ -689,7 +689,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! preg_match( '/^[A-Fa-f0-9-]{16,80}$/', $request_key ) ) {
 			return new WP_Error( 'invalid_request_key', 'request_key must be a valid generated idempotency token.', array( 'status' => 400 ) );
 		}
-		$fingerprint = hash(
+		$fingerprint  = hash(
 			'sha256',
 			wp_json_encode(
 				array(
@@ -712,7 +712,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '' !== $request_key ? '[[SLPOREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
+		$marker       = '' !== $request_key ? '[[SLPOREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
 		$request_lock = null;
 		if ( '' !== $request_key ) {
 			$request_lock = Stockland_DB::acquire_named_lock( 'po_create_request_' . $request_key, 10 );
@@ -1007,7 +1007,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				'quantity'   => number_format( $q, 2, '.', '' ),
 			);
 		}
-		$fingerprint = hash(
+		$fingerprint  = hash(
 			'sha256',
 			wp_json_encode(
 				array(
@@ -1018,7 +1018,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '' !== $request_key ? '[[SLGRNREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
+		$marker       = '' !== $request_key ? '[[SLGRNREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
 		$request_lock = null;
 		// Stable request lock serializes concurrent retries before checking the receipt marker.
 		if ( '' !== $request_key ) {
@@ -2315,13 +2315,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $date ) {
 			return new WP_Error( 'invalid_date', 'payment_date is invalid.', array( 'status' => 400 ) );
 		}
-		$reference   = sanitize_text_field( $p['reference'] ?? '' );
-		$notes       = sanitize_text_field( $p['notes'] ?? '' );
-		$allocations = $p['allocations'] ?? array();
-		$request_lock = null;
-		$fingerprint = '';
-		$payment_request_key  = '';
-		$stored_notes = $notes;
+		$reference           = sanitize_text_field( $p['reference'] ?? '' );
+		$notes               = sanitize_text_field( $p['notes'] ?? '' );
+		$allocations         = $p['allocations'] ?? array();
+		$request_lock        = null;
+		$fingerprint         = '';
+		$payment_request_key = '';
+		$stored_notes        = $notes;
 		// Idempotency covers every manual payment type, not only AP. Retrying the same
 		// request returns the original result; reusing a key with changed details fails.
 		$payment_request_key = strtolower( sanitize_text_field( (string) ( $p['request_key'] ?? '' ) ) );
@@ -2330,7 +2330,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		$allocation_input = is_array( $allocations ) ? $allocations : array();
 		$groups           = array();
-		$allocated_total   = '0.00';
+		$allocated_total  = '0.00';
 		if ( 'SUPPLIER' === $type && ! $sid ) {
 			return new WP_Error( 'supplier_required', 'supplier_id is required.', array( 'status' => 400 ) );
 		}
@@ -2342,7 +2342,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		foreach ( $allocation_input as $allocation ) {
 			$invoice_id = (int) ( $allocation['invoice_id'] ?? 0 );
-			$allocated = $this->money( $allocation['amount'] ?? 0 );
+			$allocated  = $this->money( $allocation['amount'] ?? 0 );
 			if ( $invoice_id <= 0 || $allocated <= 0 ) {
 				return new WP_Error( 'invalid_allocation', 'Each payment allocation needs a valid invoice and positive amount.', array( 'status' => 400 ) );
 			}
@@ -2351,7 +2351,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( $groups ) {
 			ksort( $groups, SORT_NUMERIC );
 			foreach ( $groups as $invoice_id => $allocated ) {
-				$canonical[]    = array(
+				$canonical[]     = array(
 					'invoice_id' => (int) $invoice_id,
 					'amount'     => $allocated,
 				);
@@ -2364,7 +2364,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( 'SUPPLIER' === $type && Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 			return new WP_Error( 'allocation_total_mismatch', 'Supplier payment allocation total must equal the payment amount exactly.', array( 'status' => 409 ) );
 		}
-		$fingerprint = hash(
+		$fingerprint  = hash(
 			'sha256',
 			wp_json_encode(
 				array(
@@ -2380,7 +2380,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '[[SLPAYREQ:' . $payment_request_key . ':' . $fingerprint . ']]';
+		$marker       = '[[SLPAYREQ:' . $payment_request_key . ':' . $fingerprint . ']]';
 		$stored_notes = trim( $marker . ' ' . $notes );
 		if ( strlen( $stored_notes ) > 500 ) {
 			return new WP_Error( 'notes_too_long', 'Payment notes exceed the supported length after the idempotency marker.', array( 'status' => 400 ) );
@@ -2562,7 +2562,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}
 				$debit_account = '2010';
 				$poitems       = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d FOR UPDATE', $poid ), ARRAY_A );
-				$po_map         = array();
+				$po_map        = array();
 				foreach ( $poitems as $pi ) {
 					$po_map[ (int) $pi['id'] ] = $pi;
 				}

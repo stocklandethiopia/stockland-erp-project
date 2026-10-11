@@ -93,7 +93,7 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 	private function auto_map_headers( $headers, $type ) {
-		$aliases     = $this->aliases( $type );
+		$aliases      = $this->aliases( $type );
 		$norm_headers = array();
 		foreach ( (array) $headers as $h ) {
 			$norm_headers[ $this->norm( $h ) ] = (string) $h;}
@@ -111,7 +111,7 @@ class Stockland_REST_Import_V16 {
 			}
 			if ( ! $hit ) {
 				foreach ( $list as $a ) {
-					$na          = $this->norm( $a );
+					$na           = $this->norm( $a );
 					$alias_tokens = array_values( array_filter( explode( '_', $na ) ) );
 					foreach ( $norm_headers as $nh => $original ) {
 						$header_tokens = array_values( array_filter( explode( '_', $nh ) ) );

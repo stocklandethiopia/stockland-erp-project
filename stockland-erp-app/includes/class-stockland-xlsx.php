@@ -201,7 +201,7 @@ class Stockland_XLSX {
 		// OOXML workbook and relationships parts normally use default XML namespaces.
 		// SimpleXML direct property access may therefore return empty children on valid
 		// Excel files. Use local-name() XPath to recognize standard namespace-qualified XML.
-		$map               = array();
+		$map                = array();
 		$relationship_nodes = $rels->xpath( '//*[local-name()="Relationship"]' );
 		foreach ( (array) $relationship_nodes as $r ) {
 			$target = (string) $r['Target'];
