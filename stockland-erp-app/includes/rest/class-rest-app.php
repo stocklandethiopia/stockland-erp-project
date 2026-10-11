@@ -864,10 +864,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$requested_limit = $request->get_param( 'limit' );
 			$limit           = min( 200, max( 1, (int) ( $requested_limit ? $requested_limit : 100 ) ) );
 			$args = array( $table );
-			$sql  = 'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY sku ASC LIMIT %d';
+			$sql  = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY sku ASC LIMIT %d";
 			if ( '' !== $q ) {
 				$like = '%' . $wpdb->esc_like( $q ) . '%';
-				$sql  = 'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s) ORDER BY CASE WHEN sku=%s THEN 0 WHEN barcode=%s THEN 1 WHEN gtin=%s THEN 2 ELSE 3 END, sku ASC LIMIT %d';
+				$sql  = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s) ORDER BY CASE WHEN sku=%s THEN 0 WHEN barcode=%s THEN 1 WHEN gtin=%s THEN 2 ELSE 3 END, sku ASC LIMIT %d";
 				$args = array_merge( $args, array_fill( 0, 9, $like ), array( $q, $q, $q ) );
 			}
 			$args[] = $limit;
