@@ -525,6 +525,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$locs = array();
 			} else {
 				$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only generated %d tokens; location IDs are integer-cast and all values are bound in prepare().
 				$locs = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
 			}
 			$central_location = $central_id ? Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
@@ -901,12 +902,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$rows = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
-				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
+				Stockland_Runtime_Diagnostics::log_error( 'Stockland SKU search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'sku_search_failed', 'Live SKU search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );
 			}
 			return rest_ensure_response( is_array( $rows ) ? $rows : array() );
 		} catch ( Throwable $e ) {
-			error_log( 'Stockland SKU search runtime error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland SKU search runtime error: ' . $e->getMessage() . ' @ ' . basename( $e->getFile() ) . ':' . $e->getLine() );
 			return new WP_Error( 'sku_search_failed', 'Live SKU search encountered a server error. No ERP data was changed.', array( 'status' => 500 ) );
 		}
 	}
@@ -1886,8 +1887,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
                  GROUP BY ul.wp_user_id
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login";
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
+		// SQL is a fixed assignment/location query with identifier placeholders.
 		$rows = Stockland_DB::read_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql uses fixed clauses and %i identifiers; each physical table name is passed as a separate prepare() argument.
 			$wpdb->prepare(
 				$sql,
 				$users_table,
@@ -3590,7 +3592,20 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function count_report( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = sanitize_text_field( $r['id'] );
-		$b  = Stockland_DB::read_row( $wpdb->prepare( 'SELECT b.*,l.location_name,u.display_name uploaded_by_name,au.display_name approved_by_name FROM ' . Stockland_DB::table( 'count_batches' ) . ' b JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=b.location_id LEFT JOIN {$wpdb->users} u ON u.ID=b.uploaded_by LEFT JOIN {$wpdb->users} au ON au.ID=b.approved_by WHERE b.id=%d", (int) $id ), ARRAY_A );
+		$count_batches_table = Stockland_DB::table( 'count_batches' );
+		$locations_table     = Stockland_DB::table( 'locations' );
+		$users_table         = $wpdb->users;
+		$b                   = Stockland_DB::read_row(
+			$wpdb->prepare(
+				'SELECT b.*,l.location_name,u.display_name uploaded_by_name,au.display_name approved_by_name FROM %i b JOIN %i l ON l.id=b.location_id LEFT JOIN %i u ON u.ID=b.uploaded_by LEFT JOIN %i au ON au.ID=b.approved_by WHERE b.id=%d',
+				$count_batches_table,
+				$locations_table,
+				$users_table,
+				$users_table,
+				(int) $id
+			),
+			ARRAY_A
+		);
 		if ( ! $b ) {
 			return new WP_Error( 'not_found', 'Physical count batch not found.', array( 'status' => 404 ) );
 		}
@@ -3600,7 +3615,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}if ( $allowed && (int) $allowed !== (int) $b['location_id'] ) {
 			return new WP_Error( 'forbidden', 'You are not authorized to view this count.', array( 'status' => 403 ) );
 		}
-		$lines   = Stockland_DB::read_results( $wpdb->prepare( 'SELECT cl.*,p.retail_price,p.wholesale_price FROM %i cl LEFT JOIN %i p ON (p.variant_id=cl.variant_id OR (cl.variant_id IS NULL AND p.sku=cl.sku)) WHERE cl.batch_id=%s ORDER BY cl.id', 'count_lines', $b['batch_id'], 'products' ), ARRAY_A );
+		$lines   = Stockland_DB::read_results( $wpdb->prepare( 'SELECT cl.*,p.retail_price,p.wholesale_price FROM %i cl LEFT JOIN %i p ON (p.variant_id=cl.variant_id OR (cl.variant_id IS NULL AND p.sku=cl.sku)) WHERE cl.batch_id=%s ORDER BY cl.id', Stockland_DB::table( 'count_lines' ), Stockland_DB::table( 'products' ), $b['batch_id'] ), ARRAY_A );
 		$summary = array(
 			'lines'          => count( $lines ),
 			'system_qty'     => 0,
