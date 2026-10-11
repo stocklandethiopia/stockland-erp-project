@@ -232,7 +232,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 
 			$row = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $id ), ARRAY_A );
 			if ( 'Adjustment' === $p['return_type'] ) {
-				return rest_ensure_response( $row ); // protected above; retained for defensive compatibility
+				return rest_ensure_response( $row ); // Protected above; retained for defensive compatibility.
 			}
 
 			if ( false === Stockland_Ledger::post_return( $row, $user_id ) ) {
