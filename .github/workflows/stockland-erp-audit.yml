@@ -1,0 +1,346 @@
+name: Stockland ERP package and source gate
+
+on:
+  push:
+    branches: ["audit/**"]
+    paths:
+      - "stockland-erp-app/**"
+      - "audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip"
+      - ".github/workflows/stockland-erp-audit.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "stockland-erp-app/**"
+      - "audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip"
+      - "audit/vendor/bootstrap-5.3.8/bootstrap.min.css"
+      - ".github/workflows/stockland-erp-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import and verify authoritative 16.1.57 source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip"
+          expected="5892e9ebd45ca4989fe4c72ba495db28971abb251fb9d3df94cad971c2697ebf"
+          if [ -f "$archive" ]; then
+            actual="$(sha256sum "$archive" | awk '{print $1}')"
+            if [ "$actual" != "$expected" ]; then
+              echo "::error title=Package identity mismatch::Expected $expected but received $actual. Refusing to use a differently labelled candidate."
+              exit 1
+            fi
+            unzip -t "$archive"
+            if [ ! -f stockland-erp-app/stockland-inventory.php ]; then
+              unzip -oq "$archive" -d .
+            fi
+          elif [ ! -f stockland-erp-app/stockland-inventory.php ]; then
+            echo "::error title=Authoritative package required::Upload the canonical 16.1.57 ZIP to $archive. Expected SHA-256: $expected."
+            exit 1
+          fi
+          test -f stockland-erp-app/stockland-inventory.php
+          test -f stockland-erp-app/RELEASE_MANIFEST.json
+          test -f stockland-erp-app/tools/qa/run-static-qa.php
+          test -f stockland-erp-app/tools/qa/check-release-1657.php
+          echo "source_present=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify official Bootstrap 5.3.8 reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f audit/vendor/bootstrap-5.3.8/bootstrap.min.css
+          test "$(git hash-object audit/vendor/bootstrap-5.3.8/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          grep -q 'Bootstrap  v5.3.8' audit/vendor/bootstrap-5.3.8/bootstrap.min.css
+
+      - name: Integrate Bootstrap 5.3.8 and update source metadata
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp ../audit/vendor/bootstrap-5.3.8/bootstrap.min.css assets/bootstrap.min.css
+          test "$(git hash-object assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = Path("RELEASE_MANIFEST.json")
+          m = json.loads(manifest.read_text(encoding="utf-8"))
+          if m.get("release") != "16.1.57":
+              raise SystemExit("Refusing to package unexpected ERP release")
+          front = m.setdefault("frontend", {})
+          front["bootstrap_version"] = "5.3.8"
+          front["bootstrap_source_git_blob_sha1"] = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          front["bootstrap_sri_sha384"] = "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+          m.setdefault("quality", {})["bootstrap_css_upstream_verified"] = True
+          m["known_open_findings"] = [
+              x for x in m.get("known_open_findings", [])
+              if "Bootstrap CSS remains" not in x and "obtain and verify upstream v5.3.8" not in x
+          ]
+          note = "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest."
+          changes = m.setdefault("release_candidate_changes", [])
+          if note not in changes:
+              changes.append(note)
+          manifest.write_text(json.dumps(m, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          readme = Path("README.md")
+          if readme.exists():
+              text = readme.read_text(encoding="utf-8")
+              text = text.replace(
+                  "The bundled local Bootstrap CSS remains authentic 5.3.6; it has not been falsely relabelled as 5.3.8.",
+                  "This package uses the official local Bootstrap CSS 5.3.8 asset verified against its upstream Git blob and documented SRI; no CDN runtime dependency is added."
+              )
+              readme.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Rebuild custom CSS and verify release metadata
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/qa/rebuild-css.py
+          test "$(git hash-object assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
+          grep -q 'Bootstrap  v5.3.8' assets/bootstrap.min.css
+          python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
+
+      - name: Persist imported source on audit branch
+        id: commit-source
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("AUDIT/16.1.57-package-identity.md")
+          text = p.read_text(encoding="utf-8")
+          paragraphs = text.split("\n\n")
+          for i, paragraph in enumerate(paragraphs):
+              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "The canonical plugin source has been imported" in paragraph:
+                  paragraphs[i] = "The canonical plugin source has been imported from the hash-verified 105-entry candidate and its Bootstrap asset has been replaced with the authenticated upstream 5.3.8 file. Automated validation is running; a rebuilt installable ZIP is not certified until the tests finish successfully."
+          p.write_text("\n\n".join(paragraphs), encoding="utf-8")
+          PY
+          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Import authoritative 16.1.57 source and verified Bootstrap 5.3.8"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, dom, zip, fileinfo
+          coverage: none
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Lint complete PHP source
+        shell: bash
+        run: |
+          set -euo pipefail
+          find stockland-erp-app -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Validate and run Composer test suites
+        working-directory: stockland-erp-app
+        run: |
+          set -euo pipefail
+          composer validate --strict
+          composer install --prefer-dist --no-interaction --no-progress
+          # Apply only PHPCBF's mechanical formatting corrections to the three
+          # explicitly scoped production services. The subsequent PHPCS run is
+          # authoritative and still fails if any violations remain.
+          vendor/bin/phpcbf --standard=phpcs.xml.dist || true
+
+      - name: Persist mechanical PHP formatting on the audit branch
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add stockland-erp-app/includes/class-stockland-sequence.php stockland-erp-app/includes/class-stockland-money.php stockland-erp-app/includes/class-stockland-integrity.php
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Apply PHPCBF formatting to targeted ERP services"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
+      - name: Enforce production-service coding standard
+        working-directory: stockland-erp-app
+        run: composer lint:php
+
+      - name: Run PHPUnit regression suite after formatting
+        working-directory: stockland-erp-app
+        run: composer test
+
+      - name: Inventory full-source PHP coding-standard findings
+        id: full-source-phpcs
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="../full-source-phpcs-report.json"
+          set +e
+          vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist --report=json --report-file="$report"
+          phpcs_status=$?
+          set -e
+          if python3 - "$report" "$phpcs_status" <<'PY'
+          import collections
+          import json
+          import sys
+          from pathlib import Path
+
+          report_path = Path(sys.argv[1])
+          status = int(sys.argv[2])
+          try:
+              data = json.loads(report_path.read_text(encoding="utf-8"))
+          except (OSError, json.JSONDecodeError) as error:
+              print(f"PHPCS JSON report unavailable ({error}); using text-report fallback.")
+              sys.exit(2)
+          totals = data.get("totals", {})
+          files = data.get("files", {})
+          sources = collections.Counter()
+          file_totals = []
+          for name, result in files.items():
+              errors = result.get("errors", 0)
+              warnings = result.get("warnings", 0)
+              file_totals.append((errors + warnings, errors, warnings, name))
+              for message in result.get("messages", []):
+                  sources[message.get("source", "unknown")] += 1
+          print(
+              "FULL-SOURCE PHPCS INVENTORY (diagnostic, non-gating): "
+              f"exit={status}, errors={totals.get('errors', 0)}, "
+              f"warnings={totals.get('warnings', 0)}, "
+              f"fixable={totals.get('fixable', 0)}, files={len(files)}"
+          )
+          print("TOP FINDING RULES:")
+          for rule, count in sources.most_common(20):
+              print(f"{count:5d} {rule}")
+          print("TOP AFFECTED PHP FILES:")
+          for total, errors, warnings, name in sorted(file_totals, reverse=True)[:25]:
+              print(f"{total:5d} total ({errors} errors, {warnings} warnings) {name}")
+          PY
+          then
+            :
+          else
+            text_report="../full-source-phpcs-report.txt"
+            set +e
+            vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist --report=full --report-file="$text_report"
+            fallback_status=$?
+            set -e
+            echo "FULL-SOURCE PHPCS TEXT FALLBACK: exit=$fallback_status"
+            if [ -s "$text_report" ]; then
+              tail -n 220 "$text_report"
+            else
+              echo "No text report was produced; see the preceding PHPCS diagnostic output."
+            fi
+          fi
+          echo "phpcs_exit=$phpcs_status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload full-source PHPCS inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockland-erp-full-source-phpcs-inventory
+          path: |
+            full-source-phpcs-report.json
+            full-source-phpcs-report.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Remove CI-only Composer vendor tree and PHPUnit cache before runtime QA and packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Dependencies and PHPUnit caches are for lint/tests only. Never scan
+          # or ship them as Stockland plugin runtime code.
+          rm -rf stockland-erp-app/vendor stockland-erp-app/.phpunit.cache
+          test ! -d stockland-erp-app/vendor
+          test ! -d stockland-erp-app/.phpunit.cache
+
+      - name: Run ERP static/integrity QA and JS checks
+        working-directory: stockland-erp-app
+        run: |
+          set -euo pipefail
+          php tools/qa/run-static-qa.php
+          php tools/qa/smoke-integrity-scan.php
+          node --check assets/app.js
+          node --check assets/pwa.js
+
+      - name: Build checksummed install/update candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p audit/packages
+          package="audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          rm -f "$package" "$package.sha256"
+          zip -qr "$package" stockland-erp-app
+          unzip -t "$package"
+          sha256sum "$package" > "$package.sha256"
+          cat "$package.sha256"
+
+      - name: Update package identity evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          sha="$(sha256sum "$package" | awk '{print $1}')"
+          python3 - "$sha" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path("AUDIT/16.1.57-package-identity.md")
+          text = p.read_text(encoding="utf-8")
+          paragraphs = text.split("\n\n")
+          for i, paragraph in enumerate(paragraphs):
+              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
+                  paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip; its SHA-256 is recorded below after all package tests passed."
+          text = "\n\n".join(paragraphs)
+          if "\n## Rebuilt package " in text:
+              text = text.split("\n## Rebuilt package ", 1)[0]
+          text = text.rstrip()
+          text += (
+              "\n\n## Rebuilt package (verified after successful CI)\n\n"
+              "- Package: audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n"
+              "- SHA-256: " + sys.argv[1] + "\n"
+              "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\n"
+              "- Full-source inventory is diagnostic until its findings are resolved; the production-service coding-standard gate is separate.\n"
+              "- CI build/static checks passed; live WordPress/MariaDB staging certification remains separate.\n"
+          )
+          p.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Commit rebuilt package to audit branch
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip
+          rm -f audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip.sha256
+          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md audit/packages
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Build canonical 16.1.57 package with verified Bootstrap 5.3.8"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
+      - name: Upload built package for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockland-erp-16.1.57-bootstrap-5.3.8-candidate
+          path: |
+            audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip
+            audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
+          if-no-files-found: error
+          retention-days: 30

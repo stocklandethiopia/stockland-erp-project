@@ -1,0 +1,74 @@
+/* Stockland ERP 16.1.57 • Foundation, tokens and application root • Ordered source module. */
+/*
+ * Stockland Ethiopia ERP 16.1.44 — canonical frontend UI layer
+ * FRONTEND-ONLY RELEASE: layout, typography, spacing, accessibility and responsive behavior.
+ * No ERP business logic, REST contract, 49-table schema, ledger, POS or import workflow is changed here.
+ * Local Bootstrap 5 base + one Stockland semantic layer; no CDN dependency.
+ */
+/*
+ * Stockland Ethiopia ERP 16.1.44 — canonical frontend UI/UX layer
+ * Presentation layer only. Existing PHP hooks, REST payloads, IDs and data contracts remain intact.
+ * Bootstrap 5 is bundled separately; this file is the Stockland semantic layer, not another framework.
+ */
+:root{
+  --sl-bg:#eef2f7;
+  --sl-canvas:#f8fafc;
+  --sl-paper:#ffffff;
+  --sl-panel:#ffffff;
+  --sl-panel-soft:#f9fafb;
+  --sl-ink:#101828;
+  --sl-text:#344054;
+  --sl-muted:#667085;
+  --sl-muted-2:#98a2b3;
+  --sl-line:#e4e7ec;
+  --sl-line-strong:#d0d5dd;
+  --sl-navy:#0b1730;
+  --sl-navy-2:#123253;
+  --sl-cobalt:#295ff3;
+  --sl-cobalt-2:#214fd0;
+  --sl-teal:#087e8b;
+  --sl-emerald:#059669;
+  --sl-amber:#b45309;
+  --sl-red:#b42318;
+  --sl-violet:#6d28d9;
+  --sl-cyan:#0e7490;
+  --sl-success-soft:#e8f7f0;
+  --sl-info-soft:#eaf3ff;
+  --sl-warn-soft:#fff4df;
+  --sl-danger-soft:#fdeceb;
+  --sl-violet-soft:#f2edff;
+  --sl-cyan-soft:#e8f8fc;
+  --sl-radius:16px;
+  --sl-radius-sm:11px;
+  --sl-shadow:0 4px 16px rgba(16,24,40,.045);
+  --sl-shadow-lg:0 20px 55px rgba(16,24,40,.16);
+  --sl-header-h:76px;
+  --sl-sidebar-w:264px;
+  --sl-focus:0 0 0 3px rgba(37,99,235,.18);
+  --sl-font:Inter,"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0!important;padding:0!important;min-width:0!important}
+body.stockland-erp-page,
+body.stockland-erp-standalone{overflow-x:hidden!important;background:var(--sl-bg)!important;color:var(--sl-text)!important;font-family:var(--sl-font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body.stockland-erp-page{overflow:hidden}
+body.stockland-erp-page #wpadminbar{display:none!important}
+body.stockland-erp-page .site-header,
+body.stockland-erp-page .site-footer,
+body.stockland-erp-page header.wp-block-template-part,
+body.stockland-erp-page footer.wp-block-template-part,
+body.stockland-erp-page .wp-site-blocks>header,
+body.stockland-erp-page .wp-site-blocks>footer,
+body.stockland-erp-page .entry-header,
+body.stockland-erp-page .wp-block-post-title{display:none!important}
+body.stockland-erp-page .wp-site-blocks,
+body.stockland-erp-page .entry-content,
+body.stockland-erp-page .wp-block-post-content{margin:0!important;padding:0!important;max-width:none!important;width:100%!important}
+button,input,select,textarea{font:inherit}
+#stockland-app{position:fixed;inset:0;z-index:2147483000;width:100%;height:100dvh;max-width:100%;overflow:hidden;background:var(--sl-bg);color:var(--sl-text);font-family:var(--sl-font)}
+#stockland-app img{max-width:100%;height:auto}
+#stockland-app a{color:inherit}
+#stockland-app button,#stockland-app input,#stockland-app select,#stockland-app textarea{max-width:100%}
+#stockland-app button:focus-visible,#stockland-app a:focus-visible,#stockland-app input:focus-visible,#stockland-app select:focus-visible,#stockland-app textarea:focus-visible{outline:0;box-shadow:var(--sl-focus)!important}
+#stockland-app .sl-shell{height:100%;min-height:0;display:grid;grid-template-columns:var(--sl-sidebar-w) minmax(0,1fr);background:var(--sl-canvas)}
+#stockland-app .sl-main{min-width:0;min-height:0;height:100%;display:grid;grid-template-rows:var(--sl-header-h) minmax(0,1fr);background:var(--sl-canvas)}

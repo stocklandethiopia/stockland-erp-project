@@ -1,0 +1,12 @@
+{
+  "release": "16.1.57",
+  "description": "Six ordered source modules compile to the mobile-first Stockland stylesheet; cumulative 16.1.57 preserves responsive tablet/mobile navigation and desktop dashboard fixes.",
+  "modules": [
+    "01-foundation.css",
+    "02-shell-navigation.css",
+    "03-content-data-components.css",
+    "04-overlays-workflows.css",
+    "05-responsive-layout.css",
+    "06-operational-guards.css"
+  ]
+}

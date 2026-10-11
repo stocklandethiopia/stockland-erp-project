@@ -1,0 +1,415 @@
+{
+  "release": "16.1.57",
+  "classification": "Cumulative comprehensive corrective release candidate 16.1.57: explicit Management-preparation and Owner final-approval workflow for branch expenses, supplier invoices, finance payments, payroll and externally sourced purchase orders; read-only deep procurement/PLEDGER/GRNI/AP/GL integrity scanner integrated into the explicit deep health path; exact 49-table business schema preserved. Candidate only until disposable staging and live-host acceptance.",
+  "baseline": "Cumulative 16.1.53 full package (itself consolidating 16.1.48–16.1.52 UI, reports, procurement authority and ledger safeguards), merged with 16.1.54 health endpoint/UI behavior and 16.1.55 XLSX worksheet metadata fix. No business schema migration is introduced by these merges. Includes the 16.1.56 local candidate with corrective authority/workflow gate hardening; no new business tables.",
+  "schema_contract": {
+    "core_operations": 29,
+    "accounting_procurement": 16,
+    "hr_payroll": 4,
+    "total": 49,
+    "new_business_table": false,
+    "hr_schema_version": "16.1.3",
+    "migration_policy": "Protected Owner/Administrator System Control; add-only allow-listed HR columns, one HR table per setup batch; no historical payroll rewrite"
+  },
+  "runtime_rules": {
+    "no_demo_business_seed": true,
+    "no_ai_advisor_runtime": true,
+    "no_hub_runtime": true,
+    "no_cron_dependency": true,
+    "no_database_triggers": true,
+    "external_pos_api": false,
+    "product_master_creates_stock": false,
+    "internal_pos_rest": true,
+    "business_calendar_authority": true
+  },
+  "frontend": {
+    "standalone_shell": true,
+    "bootstrap_local": true,
+    "canonical_css": true,
+    "responsive_targets": [
+      320,
+      360,
+      390,
+      430,
+      768,
+      1024,
+      1280,
+      1440,
+      1920
+    ],
+    "mobile_drawer_open_state": true,
+    "sticky_page_action_bar": true,
+    "local_assets": true,
+    "body_appended_overlay_stacking": "fixed above fullscreen ERP root",
+    "service_worker_refresh": "versioned worker URL + update() on existing registration",
+    "tablet_menu_fix": "576–991px two-row header; action strip scrolls horizontally; hamburger opens touch-scrollable dialog; Escape/backdrop/selection cleanup reset body lock and aria-expanded; keyboard focus restoration/trap; dismiss overlay on desktop resize",
+    "bootstrap_version": "5.3.8",
+    "bootstrap_source_git_blob_sha1": "1d8bac41b3b586410aed1077d9abc05e169cb924",
+    "bootstrap_sri_sha384": "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+  },
+  "import_gateway": {
+    "formats": [
+      "XLSX"
+    ],
+    "max_file_mb": 8,
+    "max_rows_per_job": 5000,
+    "staged_before_post": true,
+    "product_master_is_catalog_only": true,
+    "daily_pos_is_branch_scoped": true,
+    "commit_revalidates_staged_business_rules": true,
+    "commit_locks_job_state": true,
+    "upload_error_and_container_validation": true,
+    "product_master_sku_contract": "1-64 letters/numbers/dot/underscore/hyphen",
+    "product_master_variant_ordering": "STYLE/SIMPLE rows are committed before VARIANT rows within each bounded chunk",
+    "daily_pos_math_centralized": true
+  },
+  "security": {
+    "rest_routes_explicit_permission_callback": true,
+    "csp_nonce": true,
+    "returns_capability_gate": true,
+    "server_side_location_scope": true,
+    "no_operational_hub_or_ai_endpoint": true,
+    "detailed_system_diagnostics": "WordPress administrator / ERP Owner / Management only",
+    "fatal_request_uri": "path only; query and fragment redacted on capture and read",
+    "rest_nonce_destination": "same configured REST API origin and namespace only"
+  },
+  "quality": {
+    "php_lint_local": true,
+    "javascript_syntax_local": true,
+    "static_qa_local": true,
+    "php_smoke_local": true,
+    "phpunit_configuration": true,
+    "ci_configuration": true,
+    "phpcs_wpcs_configuration": true,
+    "local_regression_tests": true,
+    "critical_workflow_qa": true,
+    "phpunit_suite_executed": false,
+    "phpcs_executed": false,
+    "browser_e2e_executed": false,
+    "live_database_integration_executed": false,
+    "sonarqube_semgrep_owasp_zap_executed": false,
+    "security_heuristic_scan_local": true,
+    "historical_php_syntax_review": "20 distinct plugin source trees across 16.1.28–16.1.39; zero PHP/JS syntax failures",
+    "security_hardening_qa_local": true,
+    "rest_origin_guard_qa_local": true,
+    "single_guarded_fetch_sink": true,
+    "live_certification": false,
+    "full_scope_phpcs_profile_prepared": true,
+    "full_scope_phpcs_profile_executed": false,
+    "statutory_payroll_math_qa": true,
+    "hr_schema_contract_qa": true,
+    "operational_ui_contract_qa_local": true,
+    "local_mocked_browser_menu_smoke_executed": true,
+    "local_mocked_browser_menu_test_widths": [
+      375,
+      576,
+      768,
+      900,
+      991,
+      992,
+      1024,
+      1100,
+      1280,
+      1440
+    ],
+    "authenticated_live_browser_e2e_executed": false,
+    "bootstrap_css_upstream_verified": true
+  },
+  "live_certification": false,
+  "runtime_diagnostics": {
+    "persistent_last_fatal_evidence": true,
+    "exact_file_and_line": true,
+    "route_stage_evidence": true,
+    "target_schema_column_evidence": true,
+    "minimal_runtime_endpoint": "/stockland/v16/system/runtime"
+  },
+  "inventory_report_controls": {
+    "shared_host_catalog_guard_variants": 2000,
+    "read_only": true,
+    "fatal_stage_evidence": true
+  },
+  "known_open_findings": [
+    "Database-level FOREIGN KEY constraints remain absent or unverified. Audit physical relationships/orphans on a staging clone and perform a controlled migration only after rollback testing.",
+    "Existing active employee compensation must be explicitly owner-classified after the additive HR migration. Until this is done, payroll_compensation_classification intentionally fails closed.",
+    "RETAINER_SERVICE records are kept visible but excluded from employee PAYE/pension generation. Their specific contract/payment and any applicable withholding treatment requires approved finance/legal SOP and separate verification.",
+    "No authenticated live database, browser transaction, or production deployment was performed in this build environment. Live health, Product Master, POS import, receiving, payroll, GL and rollback remain staging acceptance items.",
+    "SonarQube/Semgrep/OWASP ZAP, PHPCS/WPCS and Composer-backed PHPUnit outputs are not included as executed scans. Local deterministic QA is not a substitute for external tools.",
+    "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host."
+  ],
+  "release_candidate_changes": [
+    "Restricts detailed system health/runtime REST endpoints to native WordPress administrators and Stockland Owner/Management.",
+    "Stores request path without query string; sanitizes legacy saved fatal diagnostic records before returning them.",
+    "Routes every client REST request—including count preview, Daily POS preview and Product Master preview—through the guarded API helper; blocks destinations outside configured v1/v16 REST endpoints before adding the WordPress REST nonce.",
+    "Does not change the 49-table schema, DB version, business ledger contracts, import rules or scheduler-free execution model.",
+    "Adds a full-source PHPCS/WPCS audit profile and a repeatable runtime PHP heuristic gate; neither is misrepresented as a dependency-backed scan that ran in this offline environment.",
+    "Aligns System Health import schema evidence with physical DDL: import_jobs.source_sha256 and import_rows.source_row_number/status; no unnecessary rename or data rewrite is attempted.",
+    "Replaces the Product Master no-stock gate string-format dependency with checks for preview rejection, commit-time defense in depth and the physical-stock forbidden-field allowlist.",
+    "Adds an add-only, protected, one-table-per-setup-batch HR migration for effective-dated taxable/exempt allowance split, pensionable salary and payroll statutory calculation snapshots, while retaining the 49 business-table contract.",
+    "Implements the versioned Ethiopian monthly PAYE bracket formula and 7% employee / 11% employer pension arithmetic with exact two-decimal money arithmetic, validation, an explicit full-month boundary, and no retroactive rewrite of historical payroll.",
+    "Requires an owner record for exempt allowance legal basis and for pensionable salary that differs from base salary; a separate payroll readiness gate remains red until active employees are classified.",
+    "Audits and balances payroll journal postings and separates employee pension, employer pension, income-tax and other-deduction liabilities with account-type checks.",
+    "Excludes RETAINER_SERVICE from employee statutory payroll generation and reports exclusions rather than letting one service-contract record silently contaminate or block employee payroll.",
+    "Adds reproducible 30-assertion statutory payroll calculations and HR schema/health-gate contract tests; extends the bundled local QA entry point.",
+    "Adds mobile overflow containment for System Health evidence cards and target-schema diagnostics.",
+    "Aligns monthly employment-income schedule application with 2025-07-01 under Proclamation No. 1395/2025; historical posted payroll is not recalculated automatically.",
+    "Adds a six-module deterministic CSS source architecture with one minified local delivery bundle; modernizes the typography, color system, controls and card spacing; makes System Health title non-sticky and mobile report/import tables into labelled cards; keeps existing server-side Daily Inventory, Daily POS staging/release and Product Master no-stock workflow contracts unchanged.",
+    "Restores Reports & Analytics render path and menu visibility for report-authorized roles; no new permission is added. Report summary fails closed if a branch-scoped user has no valid assigned location.",
+    "Restores two-column dashboard layout for 992px–1399.98px desktop/laptop widths while preserving stacked tablet/mobile layouts.",
+    "Adds request-key and payload-fingerprint replay protection for purchase-order creation and goods receipts using existing notes fields and named locks; no schema expansion.",
+    "Audits PO/receipt lock boundaries against PLEDGER/GL: PO/header/item rows are locked, day/location locks are retained, and receipt replay requires an existing posted journal.",
+    "16.1.57: branch expenses are submitted as PENDING by Management or Branch Manager; only a separate active Owner can approve/reject; no GL journal is created until Owner approval; the transaction includes audit and actionable notifications.",
+    "16.1.57: Management prepares supplier invoices only against a separately Owner-approved Central Warehouse purchase order and posted receiving; Owner approval validates PO/invoice lines and clears GRNI to AP for the invoice total without duplicating input VAT.",
+    "16.1.57: manual supplier/customer finance payment requests are Management-prepared, idempotency-key protected and PENDING until Owner decision; row locks, allocation validation, audit and notifications protect posting.",
+    "16.1.57: payroll requires Management draft preparation/submission, independent Owner approval with statutory/component evidence and balanced GL posting, then separate Owner payment; notifications follow the transitions.",
+    "16.1.57: explicit System Health deep mode includes Stockland_Integrity::scan() SELECT-only reconciliation/orphan checks; SCAN_INCOMPLETE/unknown SQL results fail closed and the health report cannot mark live_ready unless the supplemental scan is clean.",
+    "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest."
+  ],
+  "payroll": {
+    "statutory_service": "Stockland_Payroll_Statutory",
+    "rule_version": "ET-PAYE-1395-2025-v1",
+    "tax_schedule": "Monthly ETB bands under income tax amendment schedule; statutory tax classification of each allowance must be decided by authorized employer/payroll adviser",
+    "employee_pension_rate": "7%",
+    "employer_pension_rate": "11%",
+    "model_period_boundary": "Full calendar months starting 2025-07-01 under Proclamation No. 1395/2025 general application clause for income derived as of July 1, 2025; historical posted payroll is not recalculated",
+    "legacy_policy": "Existing and previously posted payroll lines are not automatically recalculated; legacy drafts need explicit owner classification before approval",
+    "retainer_service_policy": "RETAINER_SERVICE excluded from employee PAYE/pension generation and surfaced in payroll notes/audit; its independent contractual/statutory withholding process must be separately approved",
+    "live_employee_compensation_classification_required": true,
+    "payroll_journal": "6200 payroll expense; 6210 employer pension expense; 2020 payroll payable; 2030 employee pension payable; 2031 income-tax payable; 2032 employer pension payable; 2033 other payroll deductions payable",
+    "posted_payroll_journal_requires": "All line-level rule versions present and gross/tax/pension/other deductions/net reconcile to the cent; account codes must be active and of the expected type"
+  },
+  "release_label": "16.1.57 comprehensive one-pack fresh install / in-place update candidate; honest quick health, explicit deep read-only integrity scan, approval-lane controls, idempotent transactions and 49-table contract preservation.",
+  "frontend_css_architecture": {
+    "source_modules": [
+      "01-foundation.css",
+      "02-shell-navigation.css",
+      "03-content-data-components.css",
+      "04-overlays-workflows.css",
+      "05-responsive-layout.css",
+      "06-operational-guards.css"
+    ],
+    "delivery": "assets/app.min.css",
+    "build_command": "python3 tools/qa/rebuild-css.py",
+    "delivery_strategy": "One local CSS network request; six maintainable ordered source modules",
+    "responsive_table_rule": "sl-responsive-cards tables must include data-label attributes for body cells",
+    "notes": "Visual direction is inspired by current business-app design patterns, with Stockland-specific brand and operational behavior. Existing REST routes, data hooks, ledger and schema are preserved."
+  },
+  "source_provenance": {
+    "base_package": "Stockland_ERP_16.1.42_AUDIT_CANDIDATE_PLUGIN.zip",
+    "historical_acceptance_reference": "STOCKLAND_ERP_16_1_27_RELEASE_TEST_REPORT.md",
+    "note": "The most recent uploaded historical series archive starts at 16.1.28. The original 16.1.27 ZIP was not in that archive, so this release was based on the newer cumulative source to avoid reintroducing later CAP fixes."
+  },
+  "corrective_actions": [
+    "Premium responsive interface refinements: readable two-line desktop navigation, high-contrast focus/hover/pressed actions, 44px touch targets, responsive forms/cards and accessible compact payroll editor.",
+    "Interactive Owner payroll compensation component editor with live statutory preview from server-provided PAYE bands, 7% employee pension and 11% employer pension, taxable-by-default allowance catalog and evidence-gated exemptions.",
+    "Income-tax amendment general application date recorded as 2025-07-01 for the amended monthly employment-income schedule; historical posted payroll is not recalculated automatically.",
+    "Add-only HR schema migration adds allowance_breakdown_json to compensation and payroll lines; posted payroll remains historical and is not automatically recalculated.",
+    "GL posting idempotency compares existing journal date/status/aggregated accounts and debit-credit composition instead of treating any reused source key as a valid retry.",
+    "Checked transaction-start results for POS, wholesale, day-close, payroll payment and import preview transactions so the application fails closed rather than continuing outside a transaction.",
+    "Source-level order/PLEDGER workflow traces retained for POS, Daily POS, wholesale, receiving and payroll. Real staging reconciliation remains a release gate.",
+    "16.1.53 menu/layout CAP: separate the 576–991px header into brand/menu and horizontally scrollable action rows; make menu close cleanly on Escape, overlay click, item selection and desktop resize; restore body scroll and keyboard focus consistently; fix dashboard quick-action heading/grid stacking; restore EXIT link contrast. Verified with 101/101 local mocked browser checks at ten viewports; no authenticated live browser or production DB test was executed."
+  ],
+  "model_period_boundary": "Full calendar months starting 2025-07-01 under the proclamation’s general application clause for income derived as of July 1, 2025. Existing posted payroll is not recalculated.",
+  "ui_only_release_16_1_48": {
+    "scope": "Presentation-only update; no database/schema migration",
+    "baseline": "16.1.44 source package",
+    "font": "Times New Roman across ERP screens, dialogs, forms, cards and controls",
+    "theme_schemes": [
+      "Stockland Sapphire",
+      "Emerald",
+      "Royal Violet",
+      "Copper"
+    ],
+    "theme_scope": "Main canvas, panel/sheet backgrounds, cards, controls, primary buttons, active states, focus rings, tables, navigation and theme picker",
+    "mobile_focus": [
+      "PO line items stack as one-column mobile cards",
+      "16px form controls to avoid mobile browser zoom",
+      "44-48px touch controls",
+      "responsive labelled table cards",
+      "full-width PO form actions on phones"
+    ],
+    "business_logic_changed": true,
+    "schema_changed": false,
+    "db_version_changed": false,
+    "rest_contract_changed": true,
+    "bootstrap_css": "Bundled official Bootstrap v5.3.6 retained. Offline environment could not retrieve upstream v5.3.8; no relabeling and no CDN dependency added.",
+    "staging_only": true
+  },
+  "procurement_controls": {
+    "external_po_creator": "Only active Stockland Management profile may create and submit a Central Warehouse external-supply PO; WordPress Administrator/settings capabilities alone do not authorize creation.",
+    "approval": "Independent active Owner profile approves; self-approval is blocked. Legacy APPROVED/PARTIALLY_RECEIVED records require Owner re-review before further receiving.",
+    "warehouse_receipt": "Only active Warehouse Manager at Central Warehouse may receive; Warehouse Employee cannot post external supply. Actual accepted quantities alone post; balance remains open on the same PO.",
+    "notifications": "Owner is notified on submission; Central Warehouse Manager on Owner approval; Owner and Management receive accepted-quantity/open-balance result after receipt.",
+    "atomicity": "PO and PO-item SELECT FOR UPDATE locks, location/business-day locks, stable request key/fingerprint, inventory ledger, GRN lines, balanced PLEDGER/GL journal, PO balance/status and audit are in one receiving transaction.",
+    "foreign_keys": "41 read-only procurement/order/ledger relationship and accounting-balance checks plus INFORMATION_SCHEMA FK inventory; SQL failures report SCAN_INCOMPLETE, no DDL/repair writes. No business DDL/FK changes; physical FK enforcement requires actual staging orphan review and a separate reviewed migration.",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "live_certification": false
+  },
+  "corrective_release_16_1_50": {
+    "role_separation": "Management can submit; Owner alone can approve/reject; Warehouse Manager alone can receive external supply.",
+    "destination": "External purchase orders are forced to Central Warehouse; branch allocation must use approved requisition/transfer workflows.",
+    "approval_state": "SUBMITTED -> OWNER_APPROVED; legacy APPROVED and PARTIALLY_RECEIVED may not be received until Owner re-review; no legacy one-step approve path.",
+    "receiving": "Only actual accepted quantities update the original PO quantities/stock; partial balance remains on original PO; stable request_key is mandatory and exact matching retries replay only after verifying the posted journal.",
+    "closure": "A PO cannot close until ordered quantities are fully received and all received quantities are matched to supplier invoice lines; failed or unknown verification blocks closure.",
+    "supplier_ap": "Supplier master, accounting bootstrap, invoices and supplier payments are available only to active Owner/Management profiles; invoices require PO-linked accepted stock and payments require exact posted AP invoice allocations.",
+    "notifications": "Role+location-scoped actionable notifications and post-receipt accepted/open balance notices.",
+    "ci": "Added procurement role/state/lock/ledger/schema gates and offline mocked integrity-scan tests; existing tests retained. Composer-backed PHPUnit/WPCS execution remains part of external CI because dependencies are not installed in this build environment.",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "live_certification": false
+  },
+  "corrective_release_16_1_53_menu_layout": {
+    "baseline": "16.1.44 cumulative line; carries forward procurement/PLEDGER safeguards from 16.1.52",
+    "tablet_header": "576-991px header uses a first row for brand/menu and a horizontally scrollable second row for controls; no button overlay or accidental vertical pile-up",
+    "mobile_navigation": "escape/backdrop/close/button item selection share a cleanup path; aria-expanded, body scroll lock, keyboard focus trap/restoration and desktop resize are handled",
+    "dashboard_quick_actions": "outer quick-action panel is block flow; title is above the two-column desktop action grid; single-column quick cards on phone-sized screens",
+    "exit_button": "contrasting navy fill and white label restored, including hover/focus states",
+    "browser_smoke": "101/101 checks passed in local Chromium with real bundled app.js and CSS, mocked read-only API, ten viewport widths; no JavaScript exceptions",
+    "live_site_accessed": false,
+    "live_database_changed": false,
+    "production_certified": false
+  },
+  "release_evidence_16_1_53": {
+    "static_qa": "PASS, including the full fresh-extraction suite",
+    "fresh_extraction_php_lint": "74/74",
+    "local_mocked_browser_checks": "101/101 passed",
+    "browser_test_viewports_css_px": [
+      375,
+      576,
+      768,
+      900,
+      991,
+      992,
+      1024,
+      1100,
+      1280,
+      1440
+    ],
+    "browser_page_exceptions": 0,
+    "browser_api": "Mocked read-only responses; no authenticated production API",
+    "live_site_accessed": false,
+    "live_database_changed": false,
+    "production_certified": false
+  },
+  "corrective_release_16_1_56": {
+    "baseline": "16.1.53 consolidated plugin + 16.1.54 quick health + 16.1.55 XLSX worksheet fix",
+    "fresh_install_and_update_one_pack": true,
+    "fresh_install_schema_setup": "Protected, bounded setup flow; must be verified on disposable WordPress staging",
+    "quick_health": "Read-only and explicitly not production certification; all ten deep gates remain separate",
+    "xlsx_patch": "Namespace-aware workbook/sheets and relationships XPath; root-absolute worksheet targets normalized",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "live_site_accessed": false,
+    "live_database_changed": false,
+    "production_certified": false
+  },
+  "release_evidence_16_1_56": {
+    "package_layout": "single stockland-erp-app folder; archive integrity verified",
+    "php_lint": "74/74 passed",
+    "javascript_syntax": "3/3 passed",
+    "bundled_static_qa": "PASS",
+    "sample_xlsx_ooxml": {
+      "available": true,
+      "zip_integrity": true,
+      "namespace_qualified_workbook": true,
+      "worksheet_count": 7,
+      "relationship_mappings": [
+        {
+          "name": "PRODUCT MASTER",
+          "rid": "rId1",
+          "target": "/xl/worksheets/sheet1.xml",
+          "normalized": "xl/worksheets/sheet1.xml",
+          "member_exists": true
+        },
+        {
+          "name": "TRANSFERS",
+          "rid": "rId2",
+          "target": "/xl/worksheets/sheet2.xml",
+          "normalized": "xl/worksheets/sheet2.xml",
+          "member_exists": true
+        },
+        {
+          "name": "RETAIL SALES",
+          "rid": "rId3",
+          "target": "/xl/worksheets/sheet3.xml",
+          "normalized": "xl/worksheets/sheet3.xml",
+          "member_exists": true
+        },
+        {
+          "name": "WHOLESALE SALES",
+          "rid": "rId4",
+          "target": "/xl/worksheets/sheet4.xml",
+          "normalized": "xl/worksheets/sheet4.xml",
+          "member_exists": true
+        },
+        {
+          "name": "RETURNS & ADJUSTMENTS",
+          "rid": "rId5",
+          "target": "/xl/worksheets/sheet5.xml",
+          "normalized": "xl/worksheets/sheet5.xml",
+          "member_exists": true
+        },
+        {
+          "name": "WAREHOUSE RECEIPTS",
+          "rid": "rId6",
+          "target": "/xl/worksheets/sheet6.xml",
+          "normalized": "xl/worksheets/sheet6.xml",
+          "member_exists": true
+        },
+        {
+          "name": "IMPORT RULES",
+          "rid": "rId7",
+          "target": "/xl/worksheets/sheet7.xml",
+          "normalized": "xl/worksheets/sheet7.xml",
+          "member_exists": true
+        }
+      ],
+      "all_targets_exist": true
+    },
+    "fresh_wordpress_install": "not tested; staging host unavailable",
+    "in_place_update_16_1_54": "not tested against exact live plugin bytes",
+    "php_xlsx_reader_e2e": "not run; required PHP extensions are unavailable in builder environment",
+    "deep_integrity_checks": "not run; live health report says deferred",
+    "live_site_accessed": false,
+    "live_database_changed": false,
+    "production_certified": false
+  },
+  "corrective_release_16_1_57": {
+    "baseline": "16.1.53 cumulative source + 16.1.54 honest quick health + 16.1.55 namespace-aware XLSX worksheet parser + 16.1.56 candidate hardening",
+    "fresh_install_and_in_place_update_one_pack": true,
+    "schema_contract": "49 business tables; no added business tables and no DB version change",
+    "approval_policy": {
+      "branch_expenses": "Management/Branch Manager submits; independent Owner approves or rejects; post to GL only after approval",
+      "hr_payroll": "Management prepares/submits; Owner independently approves/posts and separately pays",
+      "finance_payments": "Management prepares/idempotent request; Owner approves/rejects under row lock",
+      "supplier_invoice": "Management submission only against separately Owner-approved Central Warehouse PO and posted receipt; Owner approves AP/GRNI posting",
+      "external_procurement": "Management submission, independent Owner approval, Warehouse Manager quantity acceptance"
+    },
+    "accounting_model": "Receipt Dr inventory + input VAT / Cr GRNI; matched supplier invoice clears GRNI Dr / AP Cr for the validated total, with no duplicate tax debit; payment applies against posted invoice allocations",
+    "deep_health": "Explicit mode=deep now invokes read-only Stockland_Integrity::scan(); unknown queries and any integrity discrepancies fail the live_ready gate. Quick checks remain fast and explicitly uncertified.",
+    "live_site_accessed": false,
+    "live_database_changed": false,
+    "production_certified": false
+  },
+  "release_evidence_16_1_57": {
+    "local_static_qa": "PASS: all commands in tools/qa/run-static-qa.php, including 12 new comprehensive-release assertions.",
+    "schema_contract": "PASS statically: exact 49-table contract, no new business tables, unchanged database version",
+    "php_lint": "PASS: 75/75 PHP files linted with the available PHP CLI.",
+    "javascript_syntax": "PASS: 3/3 JavaScript files passed node --check.",
+    "css_source_bundle_consistency": "PASS via the bundled static QA runner",
+    "read_only_integrity_scanner": "Offline mock smoke passed; source query set is SELECT-only and error results fail closed; actual live rows were not scanned",
+    "procurement_pledger_gl": "Source/static checks pass for PO approval, central warehouse receipt, row locks, idempotency, receipt/inventory/GL/audit transaction, supplier invoice GRNI-to-AP clearing and payment allocation checks; live reconciliation still pending",
+    "hr_payroll": "Source/static checks pass for Management preparation/submission, Owner independent approval/payment, statutory rule version, compensation evidence, balanced payroll posting, audit and notifications",
+    "branch_expenses_customers": "Source/static checks pass for branch customer registration scope and pending expense approval; live role tests pending",
+    "fresh_wordpress_install": "not executed; no staging WordPress host in the build environment",
+    "in_place_update_from_16_1_54": "not executed against exact live plugin bytes",
+    "php_xlsx_reader_end_to_end": "not executed on live hosting; reader environment-specific extensions/hosting needed",
+    "live_database_deep_scan": "not executed; output can only be obtained from authenticated staging/live System Health deep audit",
+    "live_site_accessed": false,
+    "live_database_changed": false,
+    "production_certified": false,
+    "source_package": "Single plugin folder; exact plugin header/manifest version 16.1.57; expected 49-table business contract.",
+    "deep_mode_wiring": "PASS statically: explicit mode=deep invokes Stockland_Integrity::scan() and requires its clean, complete result for live_ready.",
+    "fresh_install_update_guide": "Separate handoff guide available alongside the ZIP; README.md remains bundled."
+  }
+}
