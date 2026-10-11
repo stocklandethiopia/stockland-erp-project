@@ -1,5 +1,10 @@
 <?php
 // phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+/**
+ * Management dashboard and read-only business reporting endpoints.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -10,13 +15,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  * sales, and returns tables — nothing is stored, exactly like the
  * original sheets being 100% formula cells. Requires
  * stockland_view_cost_and_profit (Management/Auditor only).
+ *
+ * @package Stockland_ERP
  */
 class Stockland_REST_Reports extends Stockland_REST_Base {
 
+	/**
+	 * Registers the dashboard report REST route.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers the management dashboard reporting endpoint.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -30,6 +47,12 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Computes company/branch reporting values from authoritative ERP records.
+	 *
+	 * @param WP_REST_Request $request REST request with report scope filters.
+	 * @return mixed REST response containing dashboard metrics or a WP_Error.
+	 */
 	public function get_dashboard( WP_REST_Request $request ) {
 		global $wpdb;
 		$locations    = Stockland_DB::table( 'locations' );
