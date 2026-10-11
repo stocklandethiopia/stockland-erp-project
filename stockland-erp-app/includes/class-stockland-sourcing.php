@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stock availability sourcing helpers for branch and warehouse workflows.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,9 +15,18 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Reads only authoritative Product Master, inventory ledger, active reservations,
  * branch sales and pending transfer receipts. It reports where stock can be
  * sought without creating or approving any ERP transaction.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_Sourcing {
-	public static function for_items( array $items, $requesting_location_id = 0 ) {
+	/**
+	 * Resolves safe sourcing options for requested SKU/variant quantities.
+	 *
+	 * @param array $items Requested SKU/variant lines.
+	 * @param int   $requesting_location_id Location requesting stock.
+	 * @return array Sourcing candidates and unresolved identity details.
+	 */
+		public static function for_items( array $items, $requesting_location_id = 0 ) {
 		global $wpdb;
 
 		$requesting_location_id = (int) $requesting_location_id;
@@ -259,7 +274,15 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
-	private static function load_products( $products_table, array $variant_ids, array $skus ) {
+	/**
+	 * Loads Product Master records for the supplied immutable IDs and SKU values.
+	 *
+	 * @param string $products_table Product Master table name.
+	 * @param array  $variant_ids Immutable Product Master variant IDs.
+	 * @param array  $skus SKU lookup keys.
+	 * @return array Product records keyed by variant/SKU identity.
+	 */
+		private static function load_products( $products_table, array $variant_ids, array $skus ) {
 		global $wpdb;
 		$where = array();
 		$args  = array();
@@ -295,7 +318,20 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
-	private static function batch_location_variant_values( $table, $products_table, array $location_ids, array $variant_ids, array $skus, $sum_field, $output_field, $extra = '' ) {
+	/**
+	 * Loads location/variant aggregate values using bounded identifier batches.
+	 *
+	 * @param string $table Source balance/reservation table.
+	 * @param string $products_table Product Master table name.
+	 * @param array  $location_ids Allowed location IDs.
+	 * @param array  $variant_ids Product Master variant IDs.
+	 * @param array  $skus SKU lookup keys.
+	 * @param string $sum_field Numeric source field to aggregate.
+	 * @param string $output_field Result field name.
+	 * @param string $extra Fixed internal SQL predicate fragment.
+	 * @return array Location/variant aggregate values.
+	 */
+		private static function batch_location_variant_values( $table, $products_table, array $location_ids, array $variant_ids, array $skus, $sum_field, $output_field, $extra = '' ) {
 		global $wpdb;
 		if ( ! $location_ids || ( ! $variant_ids && ! $skus ) ) {
 			return array();
@@ -338,7 +374,17 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
-	private static function branch_sales_30d( $sales_table, $products_table, $branch_id, array $variant_ids, array $skus ) {
+	/**
+	 * Aggregates recent branch sales by immutable Product Master identity.
+	 *
+	 * @param string $sales_table Sales source table.
+	 * @param string $products_table Product Master table name.
+	 * @param int    $branch_id Branch location identifier.
+	 * @param array  $variant_ids Product Master variant IDs.
+	 * @param array  $skus SKU lookup keys.
+	 * @return array Recent branch sales aggregates.
+	 */
+		private static function branch_sales_30d( $sales_table, $products_table, $branch_id, array $variant_ids, array $skus ) {
 		global $wpdb;
 		if ( $branch_id <= 0 || ( ! $variant_ids && ! $skus ) ) {
 			return array();
@@ -382,7 +428,17 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
-	private static function pending_branch_receipts( $transfer_table, $products_table, $branch_id, array $variant_ids, array $skus ) {
+	/**
+	 * Finds pending transfer receipts that may supply the requested branch.
+	 *
+	 * @param string $transfer_table Transfer source table.
+	 * @param string $products_table Product Master table name.
+	 * @param int    $branch_id Branch location identifier.
+	 * @param array  $variant_ids Product Master variant IDs.
+	 * @param array  $skus SKU lookup keys.
+	 * @return array Pending receipt quantities by product identity.
+	 */
+		private static function pending_branch_receipts( $transfer_table, $products_table, $branch_id, array $variant_ids, array $skus ) {
 		global $wpdb;
 		if ( $branch_id <= 0 || ( ! $variant_ids && ! $skus ) ) {
 			return array();
@@ -420,7 +476,14 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
-	private static function unavailable_rows( array $items, $message ) {
+	/**
+	 * Produces structured sourcing failures for unresolved request lines.
+	 *
+	 * @param array  $items Requested lines.
+	 * @param string $message Safe reason shown to the requester.
+	 * @return array Unavailable line details.
+	 */
+		private static function unavailable_rows( array $items, $message ) {
 		$out = array();
 		foreach ( $items as $item ) {
 			$out[] = array(
@@ -435,7 +498,14 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
-	private static function identity_unresolved_rows( array $items, array $products = array() ) {
+	/**
+	 * Marks requested lines that cannot be reconciled to Product Master identity.
+	 *
+	 * @param array $items Requested lines.
+	 * @param array $products Loaded Product Master records.
+	 * @return array Unresolved product identity rows.
+	 */
+		private static function identity_unresolved_rows( array $items, array $products = array() ) {
 		$out = array();
 		foreach ( $items as $item ) {
 			$requested  = max( 0, (float) ( $item['quantity_requested'] ?? $item['quantity'] ?? 0 ) );
