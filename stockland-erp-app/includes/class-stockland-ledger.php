@@ -65,15 +65,15 @@ class Stockland_Ledger {
 	/**
 	 * Record one idempotent stock movement and update the derived balance atomically.
 	 *
-	 * @param int         $location_id Operational location identifier.
-	 * @param string      $sku Product Master SKU.
-	 * @param string      $movement_type Canonical movement type.
-	 * @param float       $quantity_signed Signed stock quantity.
-	 * @param string      $reference_type Source document type.
-	 * @param int|string  $reference_id Source document identifier.
-	 * @param string      $transaction_date Effective movement date.
-	 * @param int|null    $created_by User responsible for the movement.
-	 * @param string      $source_line_id Stable source-line idempotency key.
+	 * @param int        $location_id Operational location identifier.
+	 * @param string     $sku Product Master SKU.
+	 * @param string     $movement_type Canonical movement type.
+	 * @param float      $quantity_signed Signed stock quantity.
+	 * @param string     $reference_type Source document type.
+	 * @param int|string $reference_id Source document identifier.
+	 * @param string     $transaction_date Effective movement date.
+	 * @param int|null   $created_by User responsible for the movement.
+	 * @param string     $source_line_id Stable source-line idempotency key.
 	 * @return int|false Ledger identifier, or false when the movement cannot be committed.
 	 */
 	public static function record( $location_id, $sku, $movement_type, $quantity_signed, $reference_type, $reference_id, $transaction_date, $created_by = null, $source_line_id = '' ) {

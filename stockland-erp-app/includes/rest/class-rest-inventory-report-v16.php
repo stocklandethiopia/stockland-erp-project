@@ -70,7 +70,7 @@ class Stockland_REST_Inventory_Report_V16 {
 			),
 			ARRAY_A
 		);
-		$map  = array();
+		$map = array();
 		foreach ( $rows as $row ) {
 			$loc                        = (int) $row['location_id'];
 			$qty                        = (float) $row['reserved_qty'];
