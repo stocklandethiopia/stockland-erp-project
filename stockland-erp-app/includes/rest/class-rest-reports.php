@@ -31,10 +31,10 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 
 	public function get_dashboard( WP_REST_Request $request ) {
 		global $wpdb;
-		$locations = Stockland_DB::table( 'locations' );
+		$locations    = Stockland_DB::table( 'locations' );
 		$transactions = Stockland_DB::table( 'transactions' );
-		$sales     = Stockland_DB::table( 'sales' );
-		$wholesale = Stockland_DB::table( 'wholesale_sales' );
+		$sales        = Stockland_DB::table( 'sales' );
+		$wholesale    = Stockland_DB::table( 'wholesale_sales' );
 
 		$stock_by_location = $wpdb->get_results(
 			$wpdb->prepare(
@@ -64,12 +64,12 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 
 		$wholesale_totals = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT COALESCE(SUM(sales_value),0) AS revenue,
+				'SELECT COALESCE(SUM(sales_value),0) AS revenue,
                     COALESCE(SUM(net_sales_excl_vat),0) AS net_sales,
                     COALESCE(SUM(gross_profit),0) AS gross_profit,
                     COALESCE(SUM(vat_amount),0) AS vat,
                     COALESCE(SUM(quantity),0) AS units_sold
-             FROM %i",
+             FROM %i',
 				$wholesale
 			),
 			ARRAY_A
@@ -77,9 +77,9 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 
 		$inventory_value = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0)
+				'SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0)
              FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b
-             JOIN %i p ON p.variant_id=b.variant_id",
+             JOIN %i p ON p.variant_id=b.variant_id',
 				$transactions,
 				Stockland_DB::table( 'products' )
 			)

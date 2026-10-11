@@ -239,7 +239,7 @@ class Stockland_REST_Inventory_Report_V16 {
 		if ( ! $location ) {
 			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", $locations_t ), ARRAY_A );
 		} else {
-			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE id=%d AND is_active=1 LIMIT 1", $locations_t, $location ), ARRAY_A );
+			$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type FROM %i WHERE id=%d AND is_active=1 LIMIT 1', $locations_t, $location ), ARRAY_A );
 		}
 		if ( empty( $locs ) ) {
 			return rest_ensure_response(
