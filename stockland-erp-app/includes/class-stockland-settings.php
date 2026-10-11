@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * edit the company's VAT/tax rate"). Every REST route that touches
  * settings must require the stockland_manage_settings capability,
  * which only the Management role has (see Stockland_Roles).
-	 */
+ */
 class Stockland_Settings {
 
 	/**
@@ -25,7 +25,7 @@ class Stockland_Settings {
 	 * @param mixed  $value New setting value.
 	 * @param int    $wp_user_id User performing the change.
 	 * @return true|WP_Error True when committed, or a structured failure.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When persistence or audit invariants fail.
 	 */
 	public static function update( $key, $value, $wp_user_id ) {
 		if ( ! user_can( $wp_user_id, 'stockland_manage_settings' ) ) {
