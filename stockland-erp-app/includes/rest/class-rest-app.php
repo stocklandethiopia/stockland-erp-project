@@ -1889,8 +1889,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login";
 		// SQL is a fixed assignment/location query with identifier placeholders.
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql uses fixed clauses and %i identifiers; each physical table name is passed as a separate prepare() argument.
 		$prepared_sql = $wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is a fixed source-defined SELECT template; all table identifiers use %i and are bound in the following arguments.
 			$sql,
 			$users_table,
 			$wpdb->users,
