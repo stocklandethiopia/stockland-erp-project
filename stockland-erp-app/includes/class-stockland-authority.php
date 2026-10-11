@@ -1,5 +1,13 @@
 <?php
 /**
+ * Authorization and location-scope services for Stockland ERP.
+ *
+ * Centralizes role capabilities, location access, and workflow authorization.
+ *
+ * @package StocklandERP
+ */
+
+/**
  * Stockland ERP authorization and location-scope rules.
  *
  * @package Stockland_ERP
