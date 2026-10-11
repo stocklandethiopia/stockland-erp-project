@@ -130,7 +130,7 @@ class Stockland_XLSX {
 	 * Resolves a workbook relationship target to its archive entry.
 	 *
 	 * @param string $name Relationship target name.
-	 * @return string Normalized archive path.
+	 * @return string|null Normalized archive path, or null when the entry cannot be read.
 	 */
 	private function get_from_name( $name ) {
 		if ( $this->zip ) {
@@ -162,7 +162,7 @@ class Stockland_XLSX {
 	 * Loads a bounded XML metadata entry from the workbook.
 	 *
 	 * @param string $name Archive entry name.
-	 * @return SimpleXMLElement|false Parsed XML or false on failure.
+	 * @return SimpleXMLElement|null Parsed XML, or null when the archive entry is unavailable.
 	 */
 	private function xml( $name ) {
 		$raw = $this->get_from_name( $name );
@@ -506,7 +506,9 @@ class Stockland_XLSX {
 			return array();
 		}
 		$all = array();
+		// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- OOXML uses the schema-defined SimpleXML element name sheetData.
 		foreach ( $x->sheetData->row as $row ) {
+		// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			$vals = array();
 			foreach ( $row->c as $c ) {
 				$vals[ $this->col( (string) $c['r'] ) ] = $this->value( $c );
