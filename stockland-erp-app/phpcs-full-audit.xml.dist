@@ -9,6 +9,10 @@
     <rule ref="WordPress-Extra"/>
     <rule ref="WordPress-Docs"/>
     <!-- Product-specific capabilities are registered by the ERP role map. -->
+    <!-- Keep legacy REST controller filenames for the loader; suppress only the filename-style sniff on those files. -->
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <exclude-pattern>*/includes/rest/class-rest-*.php</exclude-pattern>
+    </rule>
     <rule ref="WordPress.WP.Capabilities">
         <properties>
             <property name="custom_capabilities" type="array">

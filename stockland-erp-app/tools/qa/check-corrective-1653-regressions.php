@@ -17,6 +17,13 @@ $read   = function ( $p ) use ( $root ) {
 	$f = $root . '/' . $p;
 	return is_file( $f ) ? file_get_contents( $f ) : '';
 };
+$full_runtime_ruleset = $read( 'phpcs-full-audit.xml.dist' );
+$ok(
+	str_contains( $full_runtime_ruleset, '<rule ref="WordPress.Files.FileName.InvalidClassFileName">' )
+	&& str_contains( $full_runtime_ruleset, '<exclude-pattern>*/includes/rest/class-rest-*.php</exclude-pattern>' )
+	&& ! str_contains( $full_runtime_ruleset, '<exclude-pattern>*/includes/rest/*</exclude-pattern>' ),
+	'legacy REST filenames use a filename-sniff-only exclusion rather than excluding controller source'
+);
 $legacy_rest_files = array(
 	'class-rest-accounting.php',
 	'class-rest-app.php',
