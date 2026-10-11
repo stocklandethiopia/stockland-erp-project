@@ -7,6 +7,8 @@
  * Text Domain:       stockland-inventory
  * Requires PHP:      8.4
  * Requires at least: 6.8
+ *
+ * @package Stockland_ERP
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
