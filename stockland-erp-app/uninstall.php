@@ -1,5 +1,9 @@
 <?php
-/** Stockland ERP uninstall policy: operational data is preserved by default. */
+/**
+ * Stockland ERP uninstall policy: operational data is preserved by default.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
