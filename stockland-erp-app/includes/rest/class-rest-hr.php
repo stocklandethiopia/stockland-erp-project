@@ -177,20 +177,20 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$e = Stockland_DB::table( 'employees' );
 		$l = Stockland_DB::table( 'locations' );
 		if ( ! $with_comp ) {
-			return $wpdb->get_results( "SELECT e.*,l.location_name FROM {$e} e LEFT JOIN {$l} l ON l.id=e.branch_location_id ORDER BY e.status DESC,e.full_name", ARRAY_A );
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT e.*,l.location_name FROM %i e LEFT JOIN %i l ON l.id=e.branch_location_id ORDER BY e.status DESC,e.full_name', $e, $l ), ARRAY_A );
 		}
 		$c = Stockland_DB::table( 'employee_compensation' );
 		// Do not break the whole HR page during an add-only upgrade. Until the owner runs
 		// the protected HR schema migration, return a NULL alias and let Save explain the gap.
 		$gaps             = class_exists( 'Stockland_HR' ) ? Stockland_HR::upgrade_gaps() : array( 'employee_compensation.allowance_breakdown_json' );
 		$breakdown_select = in_array( 'employee_compensation.allowance_breakdown_json', $gaps, true ) ? 'NULL current_allowance_breakdown_json' : 'c.allowance_breakdown_json current_allowance_breakdown_json';
-		$sql              = "SELECT e.*,l.location_name,COALESCE(c.base_salary,0) current_base_salary,COALESCE(c.allowance_total,0) current_allowance_total,COALESCE(c.standard_deduction_total,0) current_deduction_total,c.taxable_allowance_total current_taxable_allowance_total,c.exempt_allowance_total current_exempt_allowance_total,c.pensionable_salary current_pensionable_salary,c.statutory_classification_status current_statutory_classification_status,c.statutory_classification_note current_statutory_classification_note,{$breakdown_select},c.effective_from compensation_effective_from FROM {$e} e LEFT JOIN {$l} l ON l.id=e.branch_location_id LEFT JOIN {$c} c ON c.id=(SELECT c2.id FROM {$c} c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) ORDER BY e.status DESC,e.full_name";
-		return $wpdb->get_results( $wpdb->prepare( $sql, current_time( 'Y-m-d' ) ), ARRAY_A );
+		$sql              = "SELECT e.*,l.location_name,COALESCE(c.base_salary,0) current_base_salary,COALESCE(c.allowance_total,0) current_allowance_total,COALESCE(c.standard_deduction_total,0) current_deduction_total,c.taxable_allowance_total current_taxable_allowance_total,c.exempt_allowance_total current_exempt_allowance_total,c.pensionable_salary current_pensionable_salary,c.statutory_classification_status current_statutory_classification_status,c.statutory_classification_note current_statutory_classification_note,{$breakdown_select},c.effective_from compensation_effective_from FROM %i e LEFT JOIN %i l ON l.id=e.branch_location_id LEFT JOIN %i c ON c.id=(SELECT c2.id FROM %i c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) ORDER BY e.status DESC,e.full_name";
+		return $wpdb->get_results( $wpdb->prepare( $sql, $e, $l, $c, $c, current_time( 'Y-m-d' ) ), ARRAY_A );
 	}
 	private function payroll_rows() {
 		global $wpdb;
 		$p = Stockland_DB::table( 'payroll_periods' );
-		return $wpdb->get_results( "SELECT p.*,u.display_name approved_by_name FROM {$p} p LEFT JOIN {$wpdb->users} u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100", ARRAY_A );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100', $p, $wpdb->users ), ARRAY_A );
 	}
 
 	public function employees( WP_REST_Request $r ) {
@@ -507,7 +507,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$rows
 		);
 		$ph    = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'payroll_lines' ) . " WHERE period_id IN({$ph}) ORDER BY period_id,employee_name", $ids ), ARRAY_A );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id IN(' . $ph . ') ORDER BY period_id,employee_name', array_merge( array( Stockland_DB::table( 'payroll_lines' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
 		$by    = array();
 		foreach ( $lines as $line ) {
 			$by[ (int) $line['period_id'] ][] = $line;}
