@@ -422,6 +422,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @return mixed The HR/payroll operation result.
 	 * @throws Exception When validation or transaction processing fails.
 	 * @throws RuntimeException When a database or money calculation invariant fails.
+	 * @throws InvalidArgumentException When a compensation amount is invalid.
 	 */
 	public function compensation_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -639,7 +640,6 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
 	 * @throws Exception When validation or transaction processing fails.
-	 * @throws RuntimeException When a database or transaction invariant fails.
 	 */
 	public function payroll_create( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -694,7 +694,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @param mixed $employee Value for the employee argument.
 	 * @param mixed $period Value for the period argument.
 	 * @return array Effective-dated compensation segments.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws Exception When compensation data cannot be selected or normalized.
+	 * @throws RuntimeException When the authoritative compensation query fails.
 	 */
 	private function compensation_segments( $employee, $period ) {
 		global $wpdb;
@@ -909,7 +910,6 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param int $period_id Payroll period ID.
 	 * @return mixed The HR/payroll operation result.
-	 * @throws Exception When payroll data cannot be read or validated.
 	 * @throws RuntimeException When payroll totals cannot be persisted.
 	 */
 	private function save_payroll_totals( $period_id ) {
