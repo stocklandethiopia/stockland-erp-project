@@ -29,10 +29,10 @@ foreach ( array( 'taxable_income', 'income_tax_rate', 'employee_pension_rate', '
 $check( strpos( $hr, 'HR schema migration failed' ) !== false && strpos( $hr, '__columns_metadata_query_failed__' ) !== false, 'HR migration does not fail closed on errors' );
 $check( strpos( $rest, 'Stockland_Payroll_Statutory::calculate' ) !== false && strpos( $rest, 'PAYROLL_APPROVE' ) !== false, 'Payroll REST does not use statutory service/audit' );
 $check( strpos( $rest, "'2033'" ) !== false && strpos( $rest, "'2030'" ) !== false, 'Payroll journal does not separate employee pension and other deductions' );
-$check( strpos( $acct, "array('2033','Other Payroll Deductions Payable','LIABILITY')" ) !== false, 'Other deduction liability account missing' );
-$check( strpos( $acct, "array('2030','Employee Pension Payable','LIABILITY')" ) !== false, 'Employee pension liability account missing' );
-$check( strpos( $acct, "strtoupper((string)\$row['account_type'])!==\$a[2]" ) !== false, 'Payroll GL posting does not verify account types' );
-$check( strpos( $app, "'source_sha256','source_system','status'" ) !== false && strpos( $app, "'source_row_number','status'" ) !== false, 'System Health does not check physical import schema names' );
+$check( 1 === preg_match( '/array\s*\(\s*\'2033\'\s*,\s*\'Other Payroll Deductions Payable\'\s*,\s*\'LIABILITY\'\s*\)/', $acct ), 'Other deduction liability account missing' );
+$check( 1 === preg_match( '/array\s*\(\s*\'2030\'\s*,\s*\'Employee Pension Payable\'\s*,\s*\'LIABILITY\'\s*\)/', $acct ), 'Employee pension liability account missing' );
+$check( 1 === preg_match( '/strtoupper\s*\(\s*\(string\)\s*\$row\[\'account_type\'\]\s*\)\s*!==\s*\$a\[2\]/', $acct ), 'Payroll GL posting does not verify account types' );
+$check( 1 === preg_match( '/\'source_sha256\'\s*,\s*\'source_system\'\s*,\s*\'status\'/ ', $app ) && 1 === preg_match( '/\'source_row_number\'\s*,\s*\'status\'/ ', $app ), 'System Health does not check physical import schema names' );
 $check( strpos( $app, "\$checks['payroll_statutory_model'] = false" ) === false, 'Payroll statutory health gate remains hard-coded false' );
 $check( strpos( $app, 'payroll_compensation_classification' ) !== false && strpos( $app, "UPPER(COALESCE(e.employment_type,''))<>'RETAINER_SERVICE'" ) !== false, 'HR readiness gate fails to separate service contracts' );
 $check( strpos( $js, 'Service contract — outside employee PAYE payroll' ) !== false, 'Retainer service is not clearly identified in employee UI' );
