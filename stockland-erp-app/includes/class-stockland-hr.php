@@ -358,11 +358,11 @@ class Stockland_HR {
 				$table_key = preg_replace( '/^' . preg_quote( $p . 'stock_', '/' ) . '/', '', $full );}
 			$wpdb->last_error = '';
 			$direct_sql       = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
-						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $direct_sql is derived from the fixed internal CREATE TABLE DDL list; binding the full DDL as a value is not valid SQL.
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE is generated from the fixed internal HR schema definition array; complete DDL cannot be passed as a data placeholder.
 			$result           = $wpdb->query( $direct_sql );
 			if ( false === $result ) {
-				$msg = 'HR table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
-throw new RuntimeException( $msg );}
+				throw new RuntimeException( 'HR table creation failed.' );
+			}
 			$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 			if ( ! $table_key || ! $exists ) {
 				throw new RuntimeException( 'HR table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
