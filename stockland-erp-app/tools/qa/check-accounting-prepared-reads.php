@@ -53,9 +53,17 @@ $cases = array(
 
 foreach ( $cases as $label => $case ) {
 	$start = strpos( $source, $case['start'] );
-	$end   = false === $start ? false : strpos( $source, $case['end'], $start + strlen( $case['start'] ) );
-	if ( false === $start || false === $end ) {
+	if ( false === $start ) {
 		fwrite( STDERR, 'FAIL: could not locate accounting ' . $label . " method.\n" );
+		exit( 1 );
+	}
+	$offset       = $start + strlen( $case['start'] );
+	$next_public  = strpos( $source, "\n\tpublic function ", $offset );
+	$next_private = strpos( $source, "\n\tprivate function ", $offset );
+	$ends         = array_filter( array( $next_public, $next_private ), 'is_int' );
+	$end          = $ends ? min( $ends ) : strpos( $source, "\n}", $offset );
+	if ( false === $end ) {
+		fwrite( STDERR, 'FAIL: could not determine end of accounting ' . $label . " method.\n" );
 		exit( 1 );
 	}
 	$method = substr( $source, $start, $end - $start );
