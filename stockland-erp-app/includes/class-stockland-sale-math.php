@@ -1,4 +1,10 @@
 <?php
+/**
+ * Authoritative POS and Daily POS price/VAT calculations.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -11,6 +17,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class Stockland_Sale_Math {
 
+	/**
+	 * Normalizes the VAT-inclusive or VAT-exclusive mode.
+	 *
+	 * @param mixed  $raw_mode Requested mode from a transaction.
+	 * @param string $vat_basis Configured fallback VAT basis.
+	 * @return string Canonical VAT mode.
+	 */
 	public static function normalize_mode( $raw_mode, $vat_basis = 'INCLUSIVE' ) {
 		$mode = strtoupper( trim( (string) $raw_mode ) );
 		if ( in_array( $mode, array( 'VAT_INCLUDED', 'INCLUSIVE' ), true ) ) {
@@ -22,6 +35,16 @@ final class Stockland_Sale_Math {
 		return strtoupper( (string) $vat_basis ) === 'EXCLUSIVE' ? 'WITHOUT_VAT' : 'VAT_INCLUDED';
 	}
 
+	/**
+	 * Calculates a sales line using exact ERP money arithmetic.
+	 *
+	 * @param mixed  $quantity Quantity sold.
+	 * @param mixed  $unit_price Unit price in ETB.
+	 * @param string $vat_mode VAT-inclusive or VAT-exclusive mode.
+	 * @param mixed  $vat_rate Central VAT rate as a decimal fraction.
+	 * @return array<string, string> Normalized totals and VAT breakdown.
+	 * @throws InvalidArgumentException When quantity, price or VAT rate is invalid.
+	 */
 	public static function calculate( $quantity, $unit_price, $vat_mode, $vat_rate ) {
 		$quantity = (float) $quantity;
 		if ( $quantity <= 0 ) {
@@ -61,6 +84,13 @@ final class Stockland_Sale_Math {
 		);
 	}
 
+	/**
+	 * Compares two monetary values at the ERP's minor-unit precision.
+	 *
+	 * @param mixed $left First monetary amount.
+	 * @param mixed $right Second monetary amount.
+	 * @return bool Whether both values have the same minor-unit amount.
+	 */
 	public static function same_money( $left, $right ) {
 		return Stockland_Money::minor( $left ) === Stockland_Money::minor( $right );
 	}

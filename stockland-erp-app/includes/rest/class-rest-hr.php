@@ -1,9 +1,10 @@
 <?php
+// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
 /**
  * Stockland ERP employee, compensation, and payroll REST endpoints.
  *
  * @package Stockland_ERP
- */
+	 */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -281,6 +282,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function employee_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -339,6 +341,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function employee_update( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -411,6 +414,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function compensation_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -627,6 +631,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_create( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -643,7 +648,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( $start !== $month_start || $end !== $month_end || substr( $start, 0, 7 ) !== $key ) {
 			return new WP_Error( 'payroll_month_required', 'Statutory PAYE is monthly: use period key YYYY-MM with the first and last date of that same calendar month.', array( 'status' => 400 ) );
 		}if ( $start < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
-			return new WP_Error( 'historical_tax_rule_unavailable', 'This statutory rule set must not be applied to historical periods before ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. Preserve prior payroll and use the historically applicable certified rule.', array( 'status' => 400 ) );
+			return new WP_Error( 'historical_tax_rule_unavailable', 'This monthly statutory calculator starts on ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. The law applies from ' . Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE . '; July 2025 crosses that boundary and requires separately approved split-period treatment. Preserve posted payroll; do not silently recalculate historical periods.', array( 'status' => 400 ) );
 		}if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE period_key=%s', Stockland_DB::table( 'payroll_periods' ), $key ) ) ) {
 			return new WP_Error( 'duplicate', 'Payroll period already exists.', array( 'status' => 409 ) );
 		}
@@ -681,6 +686,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @param mixed $employee Value for the employee argument.
 	 * @param mixed $period Value for the period argument.
 	 * @return array Effective-dated compensation segments.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function compensation_segments( $employee, $period ) {
 		global $wpdb;
@@ -730,7 +736,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$comp_status  = (string) ( $c['statutory_classification_status'] ?? '' );
 			$manager_safe = 'MANAGEMENT_PREPARED' === $comp_status && Stockland_Money::minor( $c['exempt_allowance_total'] ?? '0.00' ) === 0 && Stockland_Money::minor( Stockland_Money::subtract( $c['pensionable_salary'] ?? '0.00', $c['base_salary'] ?? '0.00' ) ) === 0;
 			if ( ( 'OWNER_CLASSIFIED' !== $comp_status && ! $manager_safe ) || null === $c['taxable_allowance_total'] || null === $c['exempt_allowance_total'] || null === $c['pensionable_salary'] ) {
-				throw new RuntimeException( 'Compensation effective ' . $c['effective_from'] . ' for ' . $employee['employee_id'] . ' is not owner-classified. Open HR → Set Compensation and explicitly classify taxable/exempt allowance and pensionable salary.' );
+				throw new RuntimeException( 'Compensation effective ' . esc_html( (string) $c['effective_from'] ) . ' for ' . esc_html( (string) $employee['employee_id'] ) . ' is not owner-classified. Open HR → Set Compensation and explicitly classify taxable/exempt allowance and pensionable salary.' );
 			}
 			$exempt           = Stockland_Money::decimal( Stockland_Money::minor( $c['exempt_allowance_total'] ) );
 			$basis            = trim( (string) ( $c['statutory_classification_note'] ?? '' ) );
@@ -740,7 +746,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}
 			if ( Stockland_Money::minor( $exempt ) > 0 ) {
 				if ( strlen( $basis ) < 20 ) {
-					throw new RuntimeException( 'Exempt allowance classification for ' . $employee['employee_id'] . ' requires a current 20+ character legal basis note.' );
+					throw new RuntimeException( 'Exempt allowance classification for ' . esc_html( (string) $employee['employee_id'] ) . ' requires a current 20+ character legal basis note.' );
 				}
 				$saved_exempt = '0.00';
 				foreach ( $saved_components as $component ) {
@@ -748,12 +754,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 						continue;
 					}
 					if ( empty( $component['owner_verified'] ) || strlen( trim( (string) ( $component['legal_basis'] ?? '' ) ) ) < 20 || strlen( trim( (string) ( $component['evidence_reference'] ?? '' ) ) ) < 4 ) {
-						throw new RuntimeException( 'Exempt allowance for ' . $employee['employee_id'] . ' lacks verified legal-basis/evidence snapshot. Re-save compensation through the Owner allowance editor.' );
+						throw new RuntimeException( 'Exempt allowance for ' . esc_html( (string) $employee['employee_id'] ) . ' lacks verified legal-basis/evidence snapshot. Re-save compensation through the Owner allowance editor.' );
 					}
 					$saved_exempt = Stockland_Money::add( $saved_exempt, $component['amount'] ?? '0.00' );
 				}
 				if ( Stockland_Money::minor( $saved_exempt ) !== Stockland_Money::minor( $exempt ) ) {
-					throw new RuntimeException( 'Exempt allowance snapshot does not match the amount for ' . $employee['employee_id'] . '. Re-save compensation through the Owner allowance editor.' );
+					throw new RuntimeException( 'Exempt allowance snapshot does not match the amount for ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation through the Owner allowance editor.' );
 				}
 			}
 			if ( ! $saved_components ) {
@@ -780,7 +786,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				}
 			}
 			if ( Stockland_Money::minor( $snapshot_taxable ) !== Stockland_Money::minor( $c['taxable_allowance_total'] ?? '0.00' ) || Stockland_Money::minor( $snapshot_exempt ) !== Stockland_Money::minor( $c['exempt_allowance_total'] ?? '0.00' ) ) {
-				throw new RuntimeException( 'Allowance component breakdown does not match saved compensation for ' . $employee['employee_id'] . '. Re-save compensation from Owner HR before payroll generation.' );
+				throw new RuntimeException( 'Allowance component breakdown does not match saved compensation for ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation from Owner HR before payroll generation.' );
 			}
 			$start_obj = new DateTimeImmutable( $from );
 			$end_obj   = new DateTimeImmutable( $to );
@@ -833,14 +839,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				$delta = $target - $actual;
 				if ( 0 !== $delta ) {
 					if ( null === $largest_key ) {
-						throw new RuntimeException( 'Allowance audit snapshot is missing the ' . $treatment . ' component needed to reconcile ' . $employee['employee_id'] . '. Re-save compensation through Owner HR.' );
+						throw new RuntimeException( 'Allowance audit snapshot is missing the ' . esc_html( (string) $treatment ) . ' component needed to reconcile ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation through Owner HR.' );
 					}
 					if ( abs( $delta ) > max( 5, count( $keys ) * 5 ) ) {
-						throw new RuntimeException( 'Allowance component rounding differs from the statutory aggregate by more than a safe rounding tolerance for ' . $employee['employee_id'] . '. Re-save compensation.' );
+						throw new RuntimeException( 'Allowance component rounding differs from the statutory aggregate by more than a safe rounding tolerance for ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation.' );
 					}
 					$adjusted = Stockland_Money::minor( Stockland_Money::add( $allowance_snapshots[ $largest_key ]['amount'], Stockland_Money::decimal( $delta ) ) );
 					if ( $adjusted < 0 ) {
-						throw new RuntimeException( 'Allowance evidence snapshot could not be reconciled without a negative component for ' . $employee['employee_id'] . '.' );
+						throw new RuntimeException( 'Allowance evidence snapshot could not be reconciled without a negative component for ' . esc_html( (string) $employee['employee_id'] ) . '.' );
 					}
 					$allowance_snapshots[ $largest_key ]['amount'] = Stockland_Money::decimal( $adjusted );
 				}
@@ -895,13 +901,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param int $period_id Payroll period ID.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function save_payroll_totals( $period_id ) {
 		global $wpdb;
 		$totals = $this->payroll_totals( $period_id );
 		$ok     = $wpdb->update( Stockland_DB::table( 'payroll_periods' ), $totals, array( 'id' => (int) $period_id ) );
 		if ( false === $ok ) {
-			throw new RuntimeException( $wpdb->last_error ? $wpdb->last_error : 'Payroll period totals could not be saved.' );
+			throw new RuntimeException( 'Payroll period totals could not be saved.' );
 		}
 		return $totals;
 	}
@@ -911,6 +918,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_generate( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -934,7 +942,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Payroll period must be a full calendar month with key YYYY-MM.' );
 			}
 			if ( $period['start_date'] < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
-				throw new Exception( 'The configured tax schedule must not be applied to historical periods before ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '.' );
+				throw new Exception( 'This monthly statutory calculator starts on ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. The law applies from ' . Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE . '; July 2025 requires separately approved split-period treatment. Existing posted payroll must remain unchanged.' );
 			}
 			$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $id ) );
 			if ( $existing > 0 ) {
@@ -1054,6 +1062,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_line_update( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -1208,6 +1217,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * Management submits a completed draft; only the Owner may approve/pay it.
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_submit( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -1261,6 +1271,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_approve( WP_REST_Request $r ) {
 		if ( ! $this->payroll_owner() ) {
@@ -1388,6 +1399,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_pay( WP_REST_Request $r ) {
 		if ( ! $this->payroll_owner() ) {

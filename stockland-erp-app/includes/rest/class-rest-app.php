@@ -1,4 +1,5 @@
 <?php
+// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
 /**
  * Stockland ERP REST application endpoints and operational handlers.
  *
@@ -8,11 +9,21 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+/**
+ * Authorized Stockland ERP REST operations, reporting and operational diagnostics.
+ *
+ * This controller scopes every business read/write to the active ERP authority
+ * profile and delegates ledger, stock, payroll and procurement transitions to
+ * their canonical services.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_App extends Stockland_REST_Base {
 	/**
 	 * Initializes the ERP REST controller and registers its route hooks.
 	 *
 	 * @return void Initializes the controller.
+
 	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
@@ -528,6 +539,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql     .= $this->append_scope_filter( 'v.location_id', $args, $scope );
 		$sql     .= ' ORDER BY v.location_id,p.sku';
 		$sql_args = array_merge( array( Stockland_DB::table( 'transactions' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'reservations' ) ), $args );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$stock    = $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 
 		$dashboard = $this->dashboard( $scope );
@@ -675,6 +687,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql   .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 100';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		return $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 	}
 
@@ -702,6 +715,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sales_where = ' AND branch_location_id=%d';
 			$sales_args  = $scope_ids;}
 			$rt_sql = "SELECT COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity_sold),0) units FROM %i WHERE posting_status='CLOSED'{$sales_where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$rt     = $wpdb->get_row( $wpdb->prepare( $rt_sql, array_merge( array( $sales ), $sales_args ) ), ARRAY_A );
 			// Wholesale sales are company-level in the current data model and are therefore
 			// included only for company-wide dashboards, not branch-scoped dashboards.
@@ -722,6 +736,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$inv_sql         .= ' WHERE b.location_id=%d';
 						$inv_args = array_merge( $inv_args, $scope_ids );}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$inv = (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, $inv_args ) );
 
 			$low_sql  = "SELECT COUNT(*) FROM %i p CROSS JOIN %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch')";
@@ -734,6 +749,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$low_sql         .= ' AND l.id=%d';
 						$low_args = array_merge( $low_args, $scope_ids );}
 			$low_sql .= " AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level)";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$low      = (int) $wpdb->get_var( $wpdb->prepare( $low_sql, $low_args ) );
 
 			$today       = 'Y-m-d';
@@ -742,6 +758,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$today_where = $sales_where;
 			$today_args  = array_merge( $today_args, $sales_args );
 			$today_sql   = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date=%s{$today_where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$today_sales = (float) $wpdb->get_var( $wpdb->prepare( $today_sql, array_merge( array( $sales ), $today_args ) ) );
 
 			$req_sql  = "SELECT COUNT(*) FROM %i WHERE status IN('Requested','Reviewed','Approved','Reserved','Picked')";
@@ -753,6 +770,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$req_sql         .= ' AND branch_location_id=%d';
 						$req_args = array_merge( $req_args, $scope_ids );}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$pending = (int) $wpdb->get_var( $wpdb->prepare( $req_sql, $req_args ) );
 
 			$approval_queue       = 0;
@@ -775,11 +793,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$pr_sql         .= ' AND (from_location_id=%d OR to_location_id=%d)';
 						$pr_args = array_merge( $pr_args, array( (int) $scope_ids[0], (int) $scope_ids[0] ) );}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 				$pending_branch_receipts = (int) $wpdb->get_var( $wpdb->prepare( $pr_sql, $pr_args ) );
 
 				$month_sql = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01'){$sales_where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 				$month     = (float) $wpdb->get_var( $wpdb->prepare( $month_sql, array_merge( array( $sales ), $sales_args ) ) );
 				$year_sql  = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND YEAR(sale_date)=YEAR(CURDATE()){$sales_where}";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 				$year      = (float) $wpdb->get_var( $wpdb->prepare( $year_sql, array_merge( array( $sales ), $sales_args ) ) );
 
 				$stock_sql  = "SELECT l.id,l.location_name,COALESCE(SUM(b.physical_stock),0) stock FROM %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.location_id=l.id WHERE l.location_type IN('Warehouse','Branch')";
@@ -792,6 +813,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$stock_sql         .= ' AND l.id=%d';
 						$stock_args = array_merge( $stock_args, $scope_ids );}
 				$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 				$stock_by_location = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 				$stock_total_sql  = 'SELECT COALESCE(SUM(b.physical_stock),0) FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b';
@@ -803,6 +825,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$stock_total_sql .= ' WHERE b.location_id=%d';
 				$stock_total_args = array_merge( $stock_total_args, array_map( 'intval', $scope_ids ) );
 			}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 				$stock_total = (float) $wpdb->get_var( $wpdb->prepare( $stock_total_sql, $stock_total_args ) );
 
 				return array(
@@ -871,6 +894,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$args = array_merge( $args, array_fill( 0, 9, $like ), array( $q, $q, $q ) );
 			}
 			$args[] = $limit;
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
@@ -989,8 +1013,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			switch ( $last ) {
 				case 'g':
 					$n *= 1024;
+				// Intentional fall-through: apply the next 1024 multiplier for smaller units.
 				case 'm':
 					$n *= 1024;
+				// Intentional fall-through: apply the final 1024 multiplier for bytes.
 				case 'k':
 					$n *= 1024; }
 			return (int) $n;
@@ -1156,8 +1182,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			switch ( $last ) {
 				case 'g':
 																																					$n *= 1024;
+				// Intentional fall-through: apply the next 1024 multiplier for smaller units.
 				case 'm':
 																																					$n *= 1024;
+				// Intentional fall-through: apply the final 1024 multiplier for bytes.
 				case 'k':
 																																					$n *= 1024;
 			}return (int) $n;
@@ -1538,7 +1566,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['product_master_contract'] = false;
 		if ( in_array( 'products', $found_keys, true ) ) {
 			$required_product_columns                      = array( 'variant_id', 'sku', 'product_name', 'product_type', 'parent_sku', 'brand', 'color', 'size', 'barcode', 'gtin', 'purchase_cost', 'retail_price', 'wholesale_price', 'branch_reorder_level', 'central_reorder_level', 'is_active' );
-			$product_cols                                  = $wpdb->get_col( 'SHOW COLUMNS FROM ' . Stockland_DB::table( 'products' ), 0 );
+			$product_cols                                  = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', Stockland_DB::table( 'products' ) ), 0 );
 			$checks['product_master_contract']             = empty( array_diff( $required_product_columns, (array) $product_cols ) );
 			$diagnostics['product_master_missing_columns'] = array_values( array_diff( $required_product_columns, (array) $product_cols ) );
 		}
@@ -1578,7 +1606,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 
 		if ( in_array( 'notifications', $found_keys, true ) ) {
-			$diagnostics['notification_rows'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'notifications' ) );
+			$diagnostics['notification_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'notifications' ) ) );
 		}
 		if ( in_array( 'import_jobs', $found_keys, true ) ) {
 			$diagnostics['import_job_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'import_jobs' ) ) );
@@ -1638,7 +1666,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					'missing_columns' => $need,
 				);
 				continue; }
-			$cols                                     = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table, 0 );
+			$cols                                     = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
 			$diagnostics['target_schema'][ $logical ] = array(
 				'table_present'   => true,
 				'missing_columns' => array_values( array_diff( $need, (array) $cols ) ),
@@ -1854,6 +1882,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
                  GROUP BY ul.wp_user_id
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$rows            = $wpdb->get_results(
 			$wpdb->prepare(
 				$sql,
@@ -1884,6 +1913,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * @param int    $wp_user_id WordPress user ID to update or validate.
 	 * @param string $role ERP role slug to assign or verify.
 	 * @param bool   $active Whether the ERP profile is active.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function apply_stockland_role( $wp_user_id, $role, $active = true ) {
 		$user = new WP_User( (int) $wp_user_id );
@@ -1978,6 +2008,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function create_user( WP_REST_Request $r ) {
 		$p     = $r->get_json_params();
@@ -2136,6 +2167,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function activate_existing_user( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2213,7 +2245,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return $rows;
 		}
 		global $wpdb;
-		$rows = $wpdb->get_results( 'SELECT id,location_name,location_type FROM ' . Stockland_DB::table( 'locations' ) . " WHERE is_active=1 AND location_type IN('Branch','Warehouse') ORDER BY id", ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Branch','Warehouse') ORDER BY id", Stockland_DB::table( 'locations' ) ), ARRAY_A );
 		return $rows;
 	}
 
@@ -2222,6 +2254,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function update_user( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2312,6 +2345,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function save_settings( WP_REST_Request $r ) {
 		$p       = $r->get_json_params();
@@ -2400,6 +2434,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
                     COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit,
                     COALESCE(SUM(quantity_sold),0) units
              FROM %i WHERE posting_status='CLOSED' AND sale_date BETWEEN %s AND %s" . $rt_scope;
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$rt     = $wpdb->get_row( $wpdb->prepare( $rt_sql, $rt_args ), ARRAY_A );
 
 		$wt = $scope ? array(
@@ -2435,6 +2470,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$branch_args[] = (int) $scope;
 		}
 		$branch_sql .= ' GROUP BY l.id ORDER BY retail_sales DESC';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$branch      = $wpdb->get_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
 
 		$top_sql  = "SELECT s.sku,p.product_name,COALESCE(SUM(s.quantity_sold),0) units,
@@ -2447,6 +2483,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$top_args[] = (int) $scope;
 		}
 		$top_sql .= ' GROUP BY s.sku,p.product_name ORDER BY units DESC LIMIT 10';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$top      = $wpdb->get_results( $wpdb->prepare( $top_sql, $top_args ), ARRAY_A );
 
 		$returns_sql  = 'SELECT COALESCE(SUM(quantity),0) units,COUNT(*) rows FROM %i WHERE return_date BETWEEN %s AND %s';
@@ -2455,6 +2492,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$returns_sql   .= ' AND location_id=%d';
 			$returns_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$returns = $wpdb->get_row( $wpdb->prepare( $returns_sql, $returns_args ), ARRAY_A );
 
 		$stock_sql  = "SELECT l.location_name,p.sku,p.product_name,p.brand,p.size,p.color,
@@ -2473,6 +2511,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$stock_args[] = (int) $scope;
 		}
 		$stock_sql .= ' ORDER BY l.location_name,p.sku';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$stock      = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 		$transfers_sql = 'SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,f.location_name from_location_name,to_l.location_name to_location_name,
@@ -2489,6 +2528,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$targs[]        = (int) $scope;
 		}
 		$transfers_sql .= ' ORDER BY t.created_at DESC LIMIT 500';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$transfer_rows  = $wpdb->get_results( $wpdb->prepare( $transfers_sql, $targs ), ARRAY_A );
 
 		$people_sql  = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,
@@ -2502,6 +2542,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$people_args[] = (int) $scope;
 		}
 		$people_sql .= ' GROUP BY l.id,s.staff_user_id,u.display_name ORDER BY revenue DESC LIMIT 200';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$people      = $wpdb->get_results( $wpdb->prepare( $people_sql, $people_args ), ARRAY_A );
 
 		$variance_sql  = "SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,
@@ -2520,6 +2561,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$variance_args[] = (int) $scope;
 		}
 		$variance_sql .= ' ORDER BY t.received_at DESC LIMIT 500';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$variances     = $wpdb->get_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
 
 		$count_sql = 'SELECT b.batch_id,b.count_date,b.status,l.location_name,b.uploaded_by,b.approved_by,
@@ -2535,6 +2577,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$cargs[]    = (int) $scope;
 		}
 		$count_sql    .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 200';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$count_batches = $wpdb->get_results( $wpdb->prepare( $count_sql, $cargs ), ARRAY_A );
 		if ( ! current_user_can( 'stockland_view_cost_and_profit' ) ) {
 			$rt['profit'] = 0;
@@ -2602,6 +2645,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$sales_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$sales = $wpdb->get_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
 
 		$transfer_sql  = 'SELECT t.transfer_id,t.sku,p.product_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty,t.from_location_id,t.to_location_id,f.location_name from_location_name,to_l.location_name to_location_name,t.status,t.received_at,u.display_name received_by_name
@@ -2616,6 +2660,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$transfer_args[] = (int) $scope;
 			$transfer_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$received = $wpdb->get_results( $wpdb->prepare( $transfer_sql, $transfer_args ), ARRAY_A );
 
 		$receipt_sql  = 'SELECT r.receipt_id,r.sku,p.product_name,r.quantity_received expected_qty,COALESCE(r.actual_quantity_received,0) actual_qty,r.supplier_source,r.status,r.received_at,u.display_name received_by_name
@@ -2624,6 +2669,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			LEFT JOIN %i u ON u.ID=r.received_by
 			WHERE r.receipt_date=%s' . $receipt_scope_sql . ' ORDER BY r.created_at DESC';
 		$receipt_args = array( Stockland_DB::table( 'receipts' ), Stockland_DB::table( 'products' ), $wpdb->users, $date );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$receipts     = $wpdb->get_results( $wpdb->prepare( $receipt_sql, $receipt_args ), ARRAY_A );
 
 		$summary_scope_sql = $scope ? ' AND s.branch_location_id=%d' : '';
@@ -2633,6 +2679,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$summary_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$summary = $wpdb->get_row( $wpdb->prepare( $summary_sql, $summary_args ), ARRAY_A );
 
 		$closing_scope_sql = $scope ? ' AND dc.branch_location_id=%d' : '';
@@ -2641,6 +2688,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$closing_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$closings = $wpdb->get_results( $wpdb->prepare( $closing_sql, $closing_args ), ARRAY_A );
 
 		return rest_ensure_response(
@@ -2698,6 +2746,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$sales_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$sales = $wpdb->get_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
 
 		$by_product_sql = "SELECT l.location_name,s.sku,s.variant_id,p.product_name,p.brand,p.color,p.size,p.size_system,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue,COALESCE(SUM(s.gross_profit),0) profit
@@ -2709,6 +2758,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$product_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$by_product = $wpdb->get_results( $wpdb->prepare( $by_product_sql, $product_args ), ARRAY_A );
 
 		$by_person_sql = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue
@@ -2720,6 +2770,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$person_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$by_person = $wpdb->get_results( $wpdb->prepare( $by_person_sql, $person_args ), ARRAY_A );
 
 		$variance_sql  = "SELECT t.transfer_id,f.location_name from_location_name,to_l.location_name to_location_name,t.sku,p.product_name,t.dispatched_qty,t.received_qty,t.variance_qty,t.receipt_reason,t.received_at
@@ -2733,6 +2784,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$variance_args[] = (int) $scope;
 			$variance_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$variance = $wpdb->get_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
 
 		$low_sql  = "SELECT l.location_name,p.sku,p.product_name,COALESCE(b.physical_stock,0) current_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level
@@ -2743,6 +2795,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $scope ) {
 			$low_args[] = (int) $scope;
 		}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$low = $wpdb->get_results( $wpdb->prepare( $low_sql, $low_args ), ARRAY_A );
 
 		return rest_ensure_response(
@@ -2785,6 +2838,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql   .= ' AND a.location_id=%d';
 			$args[] = $scope;
 		} $sql .= ' ORDER BY a.created_at DESC LIMIT 300';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
 	}
 	/**
@@ -2792,6 +2846,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function create_reconciliation( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2869,6 +2924,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function reconciliation_decision( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3078,6 +3134,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql   .= ' AND b.location_id=%d';
 			$args[] = $scope;}
 		$sql .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 100';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
 	}
 
@@ -3086,6 +3143,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function count_preview( WP_REST_Request $r ) {
 		// REST auth/nonce validation and the permission callback run before this handler.
@@ -3202,6 +3260,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function count_commit( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3353,6 +3412,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function count_decision( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3580,6 +3640,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql .= " AND e.location_id IN({$ph})";
 			$args = $scope;}
 		$sql .= ' ORDER BY e.id DESC LIMIT 50';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
 	}
 
@@ -3588,6 +3649,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function workflow_history( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3602,6 +3664,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql   .= ' AND e.location_id=%d';
 			$args[] = $scope;}
 		$sql .= ' ORDER BY e.id DESC LIMIT 500';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return rest_ensure_response( $rows );
 	}

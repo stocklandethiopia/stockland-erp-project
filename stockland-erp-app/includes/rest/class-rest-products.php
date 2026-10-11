@@ -1,4 +1,5 @@
 <?php
+// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,11 +10,21 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Model: STYLE/PRODUCT -> VARIANT SKU -> COLOR + SIZE + BARCODE/GTIN.
  * Each stockable color/size combination is its own SKU row so the existing
  * ledger remains compatible while inventory becomes dimension-aware.
- */
+	 */
 class Stockland_REST_Products extends Stockland_REST_Base {
+	/**
+	 * Registers Product Master route callbacks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) ); }
 
+	/**
+	 * Registers Product Master read, create, update and SKU-replacement routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -73,8 +84,20 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Sanitizes a scalar Product Master field as text.
+	 *
+	 * @param mixed $v Input value.
+	 * @return string Sanitized text.
+	 */
 	private function clean( $v ) {
 		return sanitize_text_field( (string) $v ); }
+	/**
+	 * Validates the ERP stock-keeping-unit format.
+	 *
+	 * @param string $sku Candidate SKU.
+	 * @return bool Whether the SKU matches the permitted format.
+	 */
 	private function valid_sku( $sku ) {
 		return (bool) preg_match( '/^STK-[A-Za-z0-9_-]{1,60}$/', (string) $sku ); }
 	/** Keep audit columns inside the existing 255-byte varchar contract without changing the schema.
@@ -91,6 +114,12 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 		return 'sha256:' . hash( 'sha256', $text ) . ' len:' . strlen( $text );
 	}
+	/**
+	 * Extracts and sanitizes Product Master variant dimensions from a request payload.
+	 *
+	 * @param array $p Product Master request payload.
+	 * @return array Sanitized dimension and identifier fields.
+	 */
 	private function dimension_data( $p ) {
 		return array(
 			'parent_sku'        => $this->clean( $p['parent_sku'] ?? '' ),
@@ -113,6 +142,14 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			'size_system'       => $this->clean( $p['size_system'] ?? '' ),
 		);
 	}
+	/**
+	 * Checks that a barcode/GTIN identifier is not assigned to another SKU.
+	 *
+	 * @param string $field Allowed identifier column.
+	 * @param mixed  $value Identifier value.
+	 * @param string $sku Current SKU to exclude during updates.
+	 * @return WP_Error|null Duplicate-identifier error, or null when unique.
+	 */
 	private function check_identifier_unique( $field, $value, $sku = '' ) {
 		if ( ! $value ) {
 			return null;
@@ -131,6 +168,12 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		return $hit ? new WP_Error( 'duplicate_identifier', ucfirst( $field ) . ' is already assigned to SKU ' . $hit . '. Each stockable variant must have a unique identifier.', array( 'status' => 409 ) ) : null;
 	}
 
+	/**
+	 * Lists Product Master records visible to the authorized current user.
+	 *
+	 * @param WP_REST_Request $request REST request with search and list filters.
+	 * @return mixed REST response containing products or a WP_Error.
+	 */
 	public function list_products( WP_REST_Request $request ) {
 		global $wpdb;
 		try {
@@ -200,6 +243,12 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 	}
 
+	/**
+	 * Returns the authoritative Product Master row for a SKU.
+	 *
+	 * @param WP_REST_Request $request REST request containing the SKU.
+	 * @return mixed REST response containing the product or a WP_Error.
+	 */
 	public function get_product( WP_REST_Request $request ) {
 		global $wpdb;
 		$sku     = sanitize_text_field( (string) $request['sku'] );
@@ -217,6 +266,13 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		return rest_ensure_response( $product );
 	}
 
+	/**
+	 * Creates a Product Master record without posting opening inventory.
+	 *
+	 * @param WP_REST_Request $request REST request containing product fields.
+	 * @return mixed REST response containing the saved product or a WP_Error.
+	 * @throws Exception When a validation or persistence invariant fails.
+	 */
 	public function create_product( WP_REST_Request $request ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'products' );
@@ -313,7 +369,13 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return rest_ensure_response( $saved );
 	}
 
-	/** Create a color × size matrix from one Style template without creating duplicate combinations. */
+	/**
+	 * Creates a color-by-size matrix from a Style template without duplicate combinations.
+	 *
+	 * @param WP_REST_Request $request REST request containing parent SKU, colors and sizes.
+	 * @return mixed Created variant matrix or WP_Error.
+	 * @throws Exception When validation or transaction processing fails.
+	 */
 	public function generate_variants( WP_REST_Request $request ) {
 		global $wpdb;
 		$p      = $request->get_json_params();
@@ -476,6 +538,13 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Updates a Product Master record while preserving immutable variant identity.
+	 *
+	 * @param WP_REST_Request $request REST request containing the SKU and changed fields.
+	 * @return mixed REST response containing the updated product or a WP_Error.
+	 * @throws Exception When validation, audit logging or persistence fails.
+	 */
 	public function update_product( WP_REST_Request $request ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'products' );
@@ -590,6 +659,13 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return new WP_Error( 'product_update_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Replaces an SKU only after verifying there are no open operational references.
+	 *
+	 * @param WP_REST_Request $request REST request containing variant ID and new SKU.
+	 * @return mixed REST response containing the replacement result or a WP_Error.
+	 * @throws Exception When an operational reference or persistence check fails.
+	 */
 	public function replace_sku( WP_REST_Request $request ) {
 		$p          = $request->get_json_params();
 		$variant_id = (int) $request['variant_id'];

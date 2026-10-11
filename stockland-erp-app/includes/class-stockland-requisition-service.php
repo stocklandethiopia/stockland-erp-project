@@ -1,9 +1,23 @@
 <?php
+/**
+ * Branch-scoped requisition creation and availability services.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 /** Canonical requisition creation service shared by the canonical v16 production endpoint. */
 class Stockland_Requisition_Service {
+	/**
+	 * Creates a branch-scoped requisition and records its audit event atomically.
+	 *
+	 * @param array $payload Sanitized requisition header and item payload.
+	 * @param int   $user_id WordPress user identifier of the requester.
+	 * @return mixed REST response or WP_Error describing validation/persistence failure.
+	 * @throws Exception When a requisition row, item or audit event cannot be persisted.
+	 */
 	public static function create( $payload, $user_id ) {
 		$user_id = (int) $user_id;
 		$profile = Stockland_Roles::get_profile( $user_id );
@@ -96,6 +110,12 @@ class Stockland_Requisition_Service {
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'requisition_create_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
+	/**
+	 * Returns a current availability snapshot for the requested requisition items.
+	 *
+	 * @param array $items Validated SKU, variant and quantity rows.
+	 * @return array Availability rows for the requested items.
+	 */
 	public static function availability_snapshot( $items ) {
 		global $wpdb;
 		$wh  = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
