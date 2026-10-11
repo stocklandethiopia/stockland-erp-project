@@ -1,5 +1,5 @@
 <?php
-// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
 /**
  * Returns, damage and stock-adjustment REST workflows.
  *
@@ -334,3 +334,5 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 			return new WP_Error( 'return_failed', $e->getMessage(), array( 'status' => 409 ) ); }
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.

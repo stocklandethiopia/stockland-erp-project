@@ -1,5 +1,5 @@
 <?php
-// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -82,3 +82,5 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 		return Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE receipt_id = %s', $table, $receipt_id ), ARRAY_A );
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.
