@@ -42,7 +42,7 @@ class Stockland_Product_Service {
 		$history  = Stockland_DB::table( 'product_sku_history' );
 		$owns     = false;
 		if ( $manage_transaction ) {
-			if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 				throw new Exception( 'Could not start SKU replacement transaction.' );
 			}
 			$owns = true;
@@ -56,7 +56,7 @@ class Stockland_Product_Service {
 				throw new Exception( 'Product variant was not found.' );
 			}
 			if ( (string) $old['sku'] === $new_sku ) {
-				if ( $owns && false === $wpdb->query( 'COMMIT' ) ) {
+				if ( $owns && false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 					throw new Exception( 'No-change SKU replacement verification commit failed.' );
 				} return $old; }
 			$collision = Stockland_DB::read_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s AND variant_id<>%d LIMIT 1', $products, $new_sku, $variant_id ) );
@@ -128,12 +128,12 @@ class Stockland_Product_Service {
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'SKU_REPLACE', $new_sku, null, $old['sku'], $new_sku, $reason, $reference ? $reference : ( 'VARIANT-' . $variant_id ) ) ) {
 				throw new Exception( 'Audit event could not be recorded; SKU replacement rolled back.' );
 			}
-			if ( $owns && false === $wpdb->query( 'COMMIT' ) ) {
+			if ( $owns && false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'SKU replacement commit failed.' );
 			}
 		} catch ( Throwable $e ) {
 			if ( $owns ) {
-				$wpdb->query( 'ROLLBACK' );
+				Stockland_DB::execute_query( 'ROLLBACK' );
 			} throw $e; }
 		return Stockland_DB::get_product_by_id( $variant_id );
 	}
