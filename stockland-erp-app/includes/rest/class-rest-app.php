@@ -9,6 +9,15 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+/**
+ * Authorized Stockland ERP REST operations, reporting and operational diagnostics.
+ *
+ * This controller scopes every business read/write to the active ERP authority
+ * profile and delegates ledger, stock, payroll and procurement transitions to
+ * their canonical services.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_App extends Stockland_REST_Base {
 	/**
 	 * Initializes the ERP REST controller and registers its route hooks.
