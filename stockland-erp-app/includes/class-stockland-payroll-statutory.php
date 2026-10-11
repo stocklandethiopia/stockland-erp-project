@@ -14,15 +14,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * legislation/directives change. Historical payroll rows are never recalculated.
  */
 final class Stockland_Payroll_Statutory {
-	const RULE_VERSION          = 'ET-PAYE-1395-2025-v1';
+	const RULE_VERSION          = 'ET-PAYE-1395-2025-v2';
 	const EMPLOYEE_PENSION_RATE = '0.07';
 	const EMPLOYER_PENSION_RATE = '0.11';
-	// Proclamation No. 1395/2025's general application clause applies to income derived
-	// as of 1 July 2025 (the publication date is separate from the tax effective date).
-	const LAW_EFFECTIVE_DATE = '2025-07-01';
-	// The amended monthly schedule is applied from the full July 2025 payroll period.
-	// Keep prior payroll snapshots unchanged; advisers must resolve any historical correction.
-	const EFFECTIVE_DATE = '2025-07-01';
+	// Proclamation No. 1395/2025, Effective Date clause 4(3), applies the other
+	// amendments to income derived as of 8 July 2025. The Gazette publication date
+	// (1 September 2025) is not the statutory application date.
+	const LAW_EFFECTIVE_DATE = '2025-07-08';
+	// July 2025 crosses the 8 July statutory boundary. This monthly calculator does
+	// not silently prorate or rewrite posted July payroll: hold that month for a
+	// separately approved split-period calculation. August is the first full month.
+	const EFFECTIVE_DATE = '2025-08-01';
 
 	/**
 	 * Server-authoritative component catalog for the compensation editor.
