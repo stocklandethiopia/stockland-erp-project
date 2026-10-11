@@ -397,10 +397,13 @@ jobs:
         run: |
           set -euo pipefail
           patch_file="$GITHUB_WORKSPACE/stockland-phpcbf-review/stockland-phpcbf-preview.patch"
-          test -s "$patch_file"
           cd "$GITHUB_WORKSPACE/stockland-erp-app"
-          patch --dry-run --batch --fuzz=0 -p1 < "$patch_file"
-          patch --batch --fuzz=0 -p1 < "$patch_file"
+          if [ -s "$patch_file" ]; then
+            patch --dry-run --batch --fuzz=0 -p1 < "$patch_file"
+            patch --batch --fuzz=0 -p1 < "$patch_file"
+          else
+            echo "PHPCBF reported no mechanical changes; continuing with syntax, unit and static QA."
+          fi
           find . -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           composer validate --strict
           composer install --prefer-dist --no-interaction --no-progress
