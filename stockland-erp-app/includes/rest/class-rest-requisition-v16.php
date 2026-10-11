@@ -1,13 +1,33 @@
 <?php
 // phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+/**
+ * Branch-scoped requisition REST endpoints and warehouse hand-off helpers.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Requisition workflow API for the v16 ERP frontend.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_Requisition_V16 {
 	const NS = 'stockland/v16';
+	/**
+	 * Registers requisition REST callbacks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) );}
+	/**
+	 * Registers requisition, notification and warehouse-action routes.
+	 *
+	 * @return void
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -102,17 +122,43 @@ class Stockland_REST_Requisition_V16 {
 			)
 		);
 	}
+	/**
+	 * Builds a standardized REST error response.
+	 *
+	 * @param string $code Stable error code.
+	 * @param string $msg Human-readable error message.
+	 * @param int    $status HTTP status code.
+	 * @return WP_Error Error response.
+	 */
 	private function deny( $code, $msg, $status = 403 ) {
 		return new WP_Error( $code, $msg, array( 'status' => $status ) );}
+	/**
+	 * Loads a requisition with its branch/location name.
+	 *
+	 * @param string $id Requisition identifier.
+	 * @return array|null Requisition row, or null when not found.
+	 */
 	private function req( $id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM %i r JOIN %i l ON l.id=r.branch_location_id WHERE r.requisition_id=%s', Stockland_DB::table( 'requisitions' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );}
+	/**
+	 * Verifies that a requisition is in a location/state visible to the current role.
+	 *
+	 * @param array $req Requisition row with status and branch location.
+	 * @return bool Whether the requisition is within the current user's view scope.
+	 */
 	private function scope_ok( $req ) {
 		if ( Stockland_Authority::company_scope() ) {
 			return true;
 		}if ( Stockland_Authority::can_warehouse_operate_requisition() ) {
 			return in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked', 'Received', 'Completed' ), true );
 		}return Stockland_Authority::can_access_location( (int) $req['branch_location_id'] );}
+	/**
+	 * Calculates central-warehouse availability and claimable quantities by item.
+	 *
+	 * @param array $items Requisition item rows.
+	 * @return array Availability, shortage and reorder-warning details.
+	 */
 	private function availability( $items ) {
 		$wh  = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		$out = array();
@@ -140,6 +186,11 @@ class Stockland_REST_Requisition_V16 {
 			);}
 		return $out;
 	}
+	/**
+	 * Lists requisitions visible to the current role and assigned locations.
+	 *
+	 * @return mixed REST response containing requisitions or a WP_Error.
+	 */
 	public function list() {
 		global $wpdb;
 		$p     = Stockland_Authority::profile();
@@ -206,9 +257,21 @@ class Stockland_REST_Requisition_V16 {
 		}unset( $row );
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Creates a branch-scoped requisition through the canonical service.
+	 *
+	 * @param WP_REST_Request $r REST request containing the requisition payload.
+	 * @return mixed REST response or a WP_Error.
+	 */
 	public function create( WP_REST_Request $r ) {
 		return Stockland_Requisition_Service::create( $r->get_json_params(), get_current_user_id() ); }
 
+	/**
+	 * Returns a requisition detail view after checking branch and role scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing the requisition identifier.
+	 * @return mixed REST response or a WP_Error.
+	 */
 	public function detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$req = $this->req( sanitize_text_field( $r['id'] ) );
@@ -270,6 +333,13 @@ class Stockland_REST_Requisition_V16 {
 			)
 		);
 	}
+	/**
+	 * Applies a role-authorized requisition review or approval decision.
+	 *
+	 * @param WP_REST_Request $r REST request containing decision and notes.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When a guarded workflow transaction fails.
+	 */
 	public function decision( WP_REST_Request $r ) {
 		global $wpdb;
 		$id       = sanitize_text_field( $r['id'] );
@@ -546,6 +616,13 @@ class Stockland_REST_Requisition_V16 {
 			return new WP_Error( 'requisition_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Applies a warehouse reservation or picking transition.
+	 *
+	 * @param WP_REST_Request $r REST request with requisition identifier and action.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When a guarded warehouse transaction fails.
+	 */
 	public function warehouse_action( WP_REST_Request $r ) {
 		global $wpdb;
 		$id      = sanitize_text_field( $r['id'] );
@@ -720,6 +797,12 @@ class Stockland_REST_Requisition_V16 {
 			return new WP_Error( 'warehouse_action_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Returns receipt/availability information without posting stock directly.
+	 *
+	 * @param WP_REST_Request $r REST request containing the requisition identifier.
+	 * @return mixed REST response or a WP_Error.
+	 */
 	public function receive_info( WP_REST_Request $r ) {
 		global $wpdb;
 		if ( ! Stockland_Authority::can_receive_requisition() ) {
