@@ -125,7 +125,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 					)
 				);
 				if ( false === $ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not create adjustment request.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create adjustment request.' );
 				}
 				if ( class_exists( 'Stockland_Workflow' ) && ! Stockland_Workflow::event(
 					'adjustment',
@@ -173,6 +173,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start return transaction.', array( 'status' => 500 ) );}
 		try {
+			$reference_sale_id = sanitize_text_field( $p['reference_sale_id'] ?? '' );
 			$wpdb->insert(
 				$table,
 				array(
@@ -183,7 +184,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 					'variant_id'        => (int) $product['variant_id'],
 					'quantity'          => (float) $p['quantity'],
 					'reason'            => sanitize_text_field( $p['reason'] ),
-					'reference_sale_id' => sanitize_text_field( $p['reference_sale_id'] ?? '' ) ?: null,
+					'reference_sale_id' => $reference_sale_id ? $reference_sale_id : null,
 					'created_by'        => $user_id,
 					'approver_id'       => user_can( $user_id, 'stockland_manage_products' ) ? $user_id : null,
 				)

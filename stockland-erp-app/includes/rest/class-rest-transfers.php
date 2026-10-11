@@ -150,14 +150,14 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					'quantity'            => $q,
 					'status'              => 'Requested',
 					'requested_by'        => get_current_user_id(),
-					'requisition_id'      => $req_id ?: null,
+					'requisition_id'      => $req_id ? $req_id : null,
 					'requisition_item_id' => $req_item_id,
 				)
 			);
 			if ( false === $ok ) {
 				throw new Exception( 'Could not create transfer.' );
 			}
-			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'TRANSFER_CREATE', $sku, $q, null, 'Requested', $req_id ?: null, $id ) ) {
+			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'TRANSFER_CREATE', $sku, $q, null, 'Requested', $req_id ? $req_id : null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; transfer was not committed.' );
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
@@ -268,7 +268,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 							'location_id'       => $source,
 							'sku'               => $sku,
 							'variant_id'        => (int) ( $current['variant_id'] ?? ( Stockland_DB::get_product( $sku )['variant_id'] ?? 0 ) ),
-							'requisition_id'    => $current['requisition_id'] ?: null,
+							'requisition_id'    => $current['requisition_id'] ? $current['requisition_id'] : null,
 							'quantity_reserved' => $qty,
 							'status'            => 'Active',
 							'transfer_id'       => $id,
@@ -424,7 +424,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				}
 			}
 			$audit_qty = 'Received' === $new ? ( isset( $received ) ? $received : $current['received_qty'] ) : $qty;
-			if ( ! Stockland_Audit::log( $user, (int) $current['to_location_id'], 'TRANSFER_STATUS_CHANGE', $sku, $audit_qty, $current['status'], $new, $current['requisition_id'] ?: null, $id ) ) {
+			if ( ! Stockland_Audit::log( $user, (int) $current['to_location_id'], 'TRANSFER_STATUS_CHANGE', $sku, $audit_qty, $current['status'], $new, $current['requisition_id'] ? $current['requisition_id'] : null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; transfer was not committed.' );
 			}
 			if ( ! empty( $current['requisition_id'] ) ) {

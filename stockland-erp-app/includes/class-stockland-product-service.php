@@ -54,7 +54,7 @@ class Stockland_Product_Service {
 				}
 			}
 			if ( false === $wpdb->update( $products, array( 'sku' => $new_sku ), array( 'variant_id' => $variant_id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Product SKU could not be changed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Product SKU could not be changed.' );
 			}
 			if ( false === $wpdb->insert(
 				$history,
@@ -65,17 +65,17 @@ class Stockland_Product_Service {
 					'effective_from' => current_time( 'mysql' ),
 					'reason'         => $reason,
 					'changed_by'     => get_current_user_id(),
-					'reference'      => $reference ?: null,
+					'reference'      => $reference ? $reference : null,
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'SKU history could not be recorded.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'SKU history could not be recorded.' );
 			}
 			if ( method_exists( 'Stockland_Ledger', 'rebuild_balance_for_variant' ) ) {
 				if ( false === Stockland_Ledger::rebuild_balance_for_variant( $variant_id, $new_sku ) ) {
 					throw new Exception( 'Derived balance could not be rebuilt after SKU replacement.' );
 				}
 			}
-			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'SKU_REPLACE', $new_sku, null, $old['sku'], $new_sku, $reason, $reference ?: ( 'VARIANT-' . $variant_id ) ) ) {
+			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'SKU_REPLACE', $new_sku, null, $old['sku'], $new_sku, $reason, $reference ? $reference : ( 'VARIANT-' . $variant_id ) ) ) {
 				throw new Exception( 'Audit event could not be recorded; SKU replacement rolled back.' );
 			}
 			if ( $owns && false === $wpdb->query( 'COMMIT' ) ) {

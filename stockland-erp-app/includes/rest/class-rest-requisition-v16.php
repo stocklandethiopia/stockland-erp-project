@@ -304,12 +304,12 @@ class Stockland_REST_Requisition_V16 {
 						'status'       => 'Reviewed',
 						'reviewed_by'  => get_current_user_id(),
 						'reviewed_at'  => current_time( 'mysql' ),
-						'review_notes' => $note ?: $locked['notes'],
+						'review_notes' => $note ? $note : $locked['notes'],
 					),
 					array( 'requisition_id' => $id )
 				);
 				if ( false === $ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Requisition review could not be saved.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition review could not be saved.' );
 				}
 				if ( ! Stockland_Workflow::event( 'requisition', $id, 'Requested', 'Reviewed', get_current_user_id(), $locked['branch_location_id'], array( 'review_note' => $note ) ) ) {
 					throw new Exception( 'Workflow event could not be recorded.' );
@@ -414,7 +414,7 @@ class Stockland_REST_Requisition_V16 {
 				foreach ( $items as $item ) {
 					$item_ok = $wpdb->update( Stockland_DB::table( 'requisition_items' ), array( 'quantity_approved' => $approved[ $item['id'] ] ), array( 'id' => $item['id'] ) );
 					if ( false === $item_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Approved quantity could not be saved for ' . $item['sku'] . '.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Approved quantity could not be saved for ' . $item['sku'] . '.' );
 					}
 				}
 			}
@@ -438,7 +438,7 @@ class Stockland_REST_Requisition_V16 {
 						array( 'requisition_id' => $id )
 					);
 					if ( false === $rej_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Requisition rejection state could not be saved.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition rejection state could not be saved.' );
 					}if ( ! Stockland_Workflow::event(
 						'requisition',
 						$id,
@@ -498,7 +498,7 @@ class Stockland_REST_Requisition_V16 {
 						array( 'requisition_id' => $id )
 					);
 					if ( false === $app_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Requisition approval state could not be saved.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition approval state could not be saved.' );
 					}if ( ! Stockland_Workflow::event(
 						'requisition',
 						$id,
@@ -605,7 +605,7 @@ class Stockland_REST_Requisition_V16 {
 							)
 						);
 						if ( false === $res_ok ) {
-							throw new Exception( $wpdb->last_error ?: 'Warehouse reservation could not be saved.' );
+							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Warehouse reservation could not be saved.' );
 						}
 						$tr_ok = $wpdb->update(
 							Stockland_DB::table( 'transfers' ),
@@ -618,12 +618,12 @@ class Stockland_REST_Requisition_V16 {
 							array( 'transfer_id' => $transfer['transfer_id'] )
 						);
 						if ( false === $tr_ok ) {
-							throw new Exception( $wpdb->last_error ?: 'Transfer reservation state could not be saved.' );
+							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Transfer reservation state could not be saved.' );
 						}
 					} elseif ( 'Reserved' === $transfer['status'] ) {
 						$tr_pickup_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'pickup_date' => $pickup ), array( 'transfer_id' => $transfer['transfer_id'] ) );
 						if ( false === $tr_pickup_ok ) {
-							throw new Exception( $wpdb->last_error ?: 'Transfer pickup date could not be saved.' );
+							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Transfer pickup date could not be saved.' );
 						}
 					}
 				}
@@ -638,7 +638,7 @@ class Stockland_REST_Requisition_V16 {
 					array( 'requisition_id' => $id )
 				);
 				if ( false === $res_req_ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Requisition reservation state could not be saved.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition reservation state could not be saved.' );
 				}
 				if ( ! Stockland_Workflow::event( 'requisition', $id, $req['status'], 'Reserved', get_current_user_id(), $req['branch_location_id'], array( 'pickup_date' => $pickup ) ) ) {
 					throw new Exception( 'Workflow event could not be recorded.' );
@@ -695,7 +695,7 @@ class Stockland_REST_Requisition_V16 {
 					array( 'requisition_id' => $id )
 				);
 				if ( false === $pick_req_ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Requisition pick state could not be saved.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition pick state could not be saved.' );
 				}
 				if ( ! Stockland_Workflow::event( 'requisition', $id, $req['status'], 'Picked', get_current_user_id(), $req['branch_location_id'], array( 'pickup_date' => $req['pickup_date'] ) ) ) {
 					throw new Exception( 'Workflow event could not be recorded.' );
@@ -806,14 +806,14 @@ class Stockland_REST_Requisition_V16 {
 					),
 					array( 'transfer_id' => $t['transfer_id'] )
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not save receipt for ' . $t['sku'] . '.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save receipt for ' . $t['sku'] . '.' );
 				}
 				$ri = (int) $t['requisition_item_id'];
 				if ( $ri ) {
 					$prior = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT quantity_received FROM ' . Stockland_DB::table( 'requisition_items' ) . ' WHERE id=%d FOR UPDATE', $ri ) );
 					$ok    = $wpdb->update( Stockland_DB::table( 'requisition_items' ), array( 'quantity_received' => $prior + $received ), array( 'id' => $ri ) );
 					if ( false === $ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Could not update requisition received quantity.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not update requisition received quantity.' );
 					}
 				}
 				$seen[ $t['transfer_id'] ] = true;
@@ -823,7 +823,7 @@ class Stockland_REST_Requisition_V16 {
 				throw new Exception( 'All requisition supply lines must be processed.' );
 			}
 			if ( false === $wpdb->update( Stockland_DB::table( 'requisitions' ), array( 'status' => 'Received' ), array( 'requisition_id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Requisition receipt state could not be saved.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition receipt state could not be saved.' );
 			}
 			if ( ! Stockland_Workflow::event(
 				'requisition',

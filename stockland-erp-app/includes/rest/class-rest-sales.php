@@ -241,7 +241,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 					'variant_id'           => (int) $product['variant_id'],
 					'size'                 => $product['size'],
 					'color'                => $product['color'],
-					'barcode'              => $product['barcode'] ?: ( $product['gtin'] ?? null ),
+					'barcode'              => $product['barcode'] ? $product['barcode'] : ( $product['gtin'] ?? null ),
 					'master_price_at_sale' => $master_price,
 					'selling_price'        => $selling_price,
 					'price_overridden'     => Stockland_Sale_Math::same_money( $selling_price, $master_price ) ? 0 : 1,
@@ -260,7 +260,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 				)
 			);
 			if ( ! $inserted ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not record POS sale.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not record POS sale.' );
 			}
 
 			$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sales_table} WHERE sale_id=%s LIMIT 1 FOR UPDATE", $sale_id ), ARRAY_A );
@@ -523,7 +523,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		global $wpdb;
 		$locations = Stockland_DB::table( 'locations' );
 		$name      = $wpdb->get_var( $wpdb->prepare( "SELECT location_name FROM {$locations} WHERE id = %d", $branch_location_id ) );
-		$prefix    = strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', $name ?: 'BR' ), 0, 3 ) );
+		$prefix    = strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', $name ? $name : 'BR' ), 0, 3 ) );
 		return Stockland_Sequence::next( 'SAL-' . sanitize_key( $prefix ), $sale_date );
 	}
 }

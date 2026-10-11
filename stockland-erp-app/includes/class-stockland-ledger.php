@@ -99,7 +99,7 @@ class Stockland_Ledger {
 			if ( Stockland_DB::table_exists( $balances ) ) {
 				$balance_ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
 				if ( false === $balance_ok ) {
-					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
 			}
 			if ( ! self::commit_unit_of_work( $owns_transaction, $savepoint ) ) {
@@ -248,7 +248,7 @@ class Stockland_Ledger {
 	public static function post_receipt_completed( $receipt, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $receipt['sku'], 'RECEIPT', abs( (float) $receipt['quantity_received'] ), 'receipt', $receipt['receipt_id'], $receipt['receipt_date'], $user_id, (string) $receipt['receipt_id'] );}
 	public static function post_sale_closed( $sale, $user_id ) {
-		return self::record( $sale['branch_location_id'], $sale['sku'], 'SALE', -abs( (float) $sale['quantity_sold'] ), 'sale', $sale['source_job_id'] ?? $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['source_row_number'] ?: (string) $sale['sale_id'] );}
+		return self::record( $sale['branch_location_id'], $sale['sku'], 'SALE', -abs( (float) $sale['quantity_sold'] ), 'sale', $sale['source_job_id'] ?? $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['source_row_number'] ? (string) $sale['source_row_number'] : (string) $sale['sale_id'] );}
 	public static function post_wholesale_sale( $sale, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $sale['sku'], 'WHOLESALE_SALE', -abs( (float) $sale['quantity'] ), 'wholesale_sale', $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['sale_id'] );}
 	public static function post_return( $ret, $user_id ) {

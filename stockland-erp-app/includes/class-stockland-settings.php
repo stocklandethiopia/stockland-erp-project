@@ -36,7 +36,7 @@ class Stockland_Settings {
 				)
 			);
 			if ( false === $ok ) {
-				throw new RuntimeException( $wpdb->last_error ?: 'Could not save the setting.' );
+				throw new RuntimeException( $wpdb->last_error ? $wpdb->last_error : 'Could not save the setting.' );
 			}
 			if ( ! Stockland_Audit::log( $wp_user_id, null, 'SETTING_CHANGE', null, null, $old_value, $value, 'Management setting update', $key ) ) {
 				throw new RuntimeException( 'Audit event could not be recorded; the setting was not committed.' );

@@ -155,7 +155,8 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
 				$args   = array_fill( 0, 9, $like );
 			}
-			$limit = min( 500, max( 1, (int) ( $request->get_param( 'limit' ) ?: 500 ) ) );
+			$requested_limit = $request->get_param( 'limit' );
+		$limit = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
 			// Exact SKU matches sort first; this makes a known SKU deterministic
 			// while retaining broad catalog search for partial SKU/name/dimension terms.
 			$exact = '' !== $q ? 'CASE WHEN sku = %s THEN 0 ELSE 1 END,' : '';
@@ -307,7 +308,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		if ( ! $colors || ! $sizes ) {
 			return new WP_Error( 'matrix_required', 'Provide at least one color and one size.', array( 'status' => 400 ) );
 		}
-		$prefix = $this->clean( $p['sku_prefix'] ?? ( $style['style_code'] ?: $parent ) );
+		$prefix = $this->clean( $p['sku_prefix'] ?? ( $style['style_code'] ? $style['style_code'] : $parent ) );
 		$prefix = strtoupper( trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9_-]+/', '-', $prefix ) ), '-_' ) );
 		if ( '' === $prefix ) {
 			$prefix = strtoupper( $parent );
@@ -339,7 +340,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					if ( ! $zname ) {
 						continue;
 					}
-					$safe_c = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $ccode ?: $cname ) ) ), '-' );
+					$safe_c = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $ccode ? $ccode : $cname ) ) ), '-' );
 					$safe_s = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $zcode ) ) ), '-' );
 					if ( '' === $safe_c || '' === $safe_s ) {
 						continue;
@@ -368,29 +369,29 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'product_name'          => $style['product_name'],
 						'product_type'          => 'VARIANT',
 						'parent_sku'            => $parent,
-						'style_code'            => $style['style_code'] ?: $parent,
-						'brand'                 => $style['brand'] ?: '',
-						'department'            => $style['department'] ?: '',
-						'sub_category'          => $style['sub_category'] ?: '',
-						'collection_name'       => $style['collection_name'] ?: '',
-						'season'                => $style['season'] ?: '',
-						'material'              => $style['material'] ?: '',
-						'fit'                   => $style['fit'] ?: '',
-						'country_of_origin'     => $style['country_of_origin'] ?: '',
-						'image_url'             => $style['image_url'] ?: '',
+						'style_code'            => $style['style_code'] ? $style['style_code'] : $parent,
+						'brand'                 => $style['brand'] ? $style['brand'] : '',
+						'department'            => $style['department'] ? $style['department'] : '',
+						'sub_category'          => $style['sub_category'] ? $style['sub_category'] : '',
+						'collection_name'       => $style['collection_name'] ? $style['collection_name'] : '',
+						'season'                => $style['season'] ? $style['season'] : '',
+						'material'              => $style['material'] ? $style['material'] : '',
+						'fit'                   => $style['fit'] ? $style['fit'] : '',
+						'country_of_origin'     => $style['country_of_origin'] ? $style['country_of_origin'] : '',
+						'image_url'             => $style['image_url'] ? $style['image_url'] : '',
 						'color'                 => $cname,
 						'color_code'            => $ccode,
 						'size'                  => $zname,
 						'size_code'             => $zcode,
-						'size_system'           => $p['size_system'] ?? ( $style['size_system'] ?: '' ),
-						'category'              => $style['category'] ?: '',
-						'gender'                => $style['gender'] ?: '',
-						'age_group'             => $style['age_group'] ?: '',
-						'unit'                  => $style['unit'] ?: 'PCS',
+						'size_system'           => $p['size_system'] ?? ( $style['size_system'] ? $style['size_system'] : '' ),
+						'category'              => $style['category'] ? $style['category'] : '',
+						'gender'                => $style['gender'] ? $style['gender'] : '',
+						'age_group'             => $style['age_group'] ? $style['age_group'] : '',
+						'unit'                  => $style['unit'] ? $style['unit'] : 'PCS',
 						'purchase_cost'         => $style['purchase_cost'],
 						'retail_price'          => $style['retail_price'],
 						'wholesale_price'       => $style['wholesale_price'],
-						'notes'                 => $style['notes'] ?: '',
+						'notes'                 => $style['notes'] ? $style['notes'] : '',
 						'branch_reorder_level'  => $style['branch_reorder_level'],
 						'central_reorder_level' => $style['central_reorder_level'],
 						'is_active'             => 1,
@@ -524,7 +525,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					throw new Exception( 'No-change Product Master verification commit failed.' );
 				} return rest_ensure_response( Stockland_DB::get_product( $sku ) ); }
 			if ( false === $wpdb->update( $table, $update, array( 'sku' => $sku ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Product Master update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Product Master update failed.' );
 			}
 			foreach ( $price_changes as $change ) {
 				if ( false === $wpdb->insert(
@@ -538,7 +539,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'changed_by' => $uid,
 					)
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Price history could not be recorded.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Price history could not be recorded.' );
 				}
 			}
 			if ( ! Stockland_Audit::log( $uid, null, 'PRODUCT_UPDATE', $sku, null, $this->audit_value( $current ), $this->audit_value( $update ), 'Product Master product updated', 'PRODUCT|' . $sku ) ) {

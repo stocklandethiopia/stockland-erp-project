@@ -233,7 +233,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}
 		try {
 			if ( false === $wpdb->insert( Stockland_DB::table( 'employees' ), $row ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not create employee.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create employee.' );
 			}
 			$id = (int) $wpdb->insert_id;
 			if ( ! Stockland_Audit::log( get_current_user_id(), $branch, 'HR_EMPLOYEE_CREATE', null, null, null, $code, $name, 'EMP' . $id ) ) {
@@ -287,7 +287,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}
 		try {
 			if ( false === $wpdb->update( Stockland_DB::table( 'employees' ), $data, array( 'id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Employee update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Employee update failed.' );
 			}
 			$wp_update = array( 'ID' => $id );
 			if ( array_key_exists( 'full_name', $data ) ) {
@@ -468,7 +468,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}
 		try {
 			if ( false === $wpdb->insert( Stockland_DB::table( 'employee_compensation' ), $row ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save compensation.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save compensation.' );
 			}
 			$details = array(
 				'taxable_allowance'   => $taxable,
@@ -552,7 +552,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				)
 			);
 			if ( false === $ok ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not create payroll period.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create payroll period.' );
 			}$id = (int) $wpdb->insert_id;
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'PAYROLL_PERIOD_CREATE', null, null, null, 'DRAFT', $key, 'PAY' . $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; payroll period was not committed.' );
@@ -771,7 +771,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$totals = $this->payroll_totals( $period_id );
 		$ok     = $wpdb->update( Stockland_DB::table( 'payroll_periods' ), $totals, array( 'id' => (int) $period_id ) );
 		if ( false === $ok ) {
-			throw new RuntimeException( $wpdb->last_error ?: 'Payroll period totals could not be saved.' );
+			throw new RuntimeException( $wpdb->last_error ? $wpdb->last_error : 'Payroll period totals could not be saved.' );
 		}
 		return $totals;
 	}
@@ -861,7 +861,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}
 			foreach ( $lines as $line ) {
 				if ( false === $wpdb->insert( Stockland_DB::table( 'payroll_lines' ), $line ) ) {
-					throw new Exception( $wpdb->last_error ?: 'Payroll line insert failed.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll line insert failed.' );
 				}
 			}
 			$totals = $this->save_payroll_totals( $id );
@@ -874,7 +874,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				$prior          = trim( (string) $period['notes'] );
 				$new_notes      = substr( trim( $prior . $exclusion_note ), 0, 500 );
 				if ( false === $wpdb->update( Stockland_DB::table( 'payroll_periods' ), array( 'notes' => $new_notes ), array( 'id' => $id ) ) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not record excluded service contracts on payroll period.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not record excluded service contracts on payroll period.' );
 				}
 			}
 			$audit_detail = wp_json_encode(
@@ -1024,7 +1024,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 					'period_id' => $pid,
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Payroll line could not be updated.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll line could not be updated.' );
 			}
 			$totals = $this->save_payroll_totals( $pid );
 			if ( ! Stockland_Audit::log( get_current_user_id(), $line['branch_location_id'], 'PAYROLL_LINE_UPDATE', null, $calc['net_pay'], $line['net_pay'], $calc['net_pay'], 'Statutory line re-calculated under ' . Stockland_Payroll_Statutory::RULE_VERSION . '; ' . $note, 'PAY' . $pid ) ) {
@@ -1078,7 +1078,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Payroll gross must be positive before submission.' );
 			}
 			if ( false === $wpdb->update( Stockland_DB::table( 'payroll_periods' ), array( 'status' => 'SUBMITTED' ), array( 'id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not submit payroll.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not submit payroll.' );
 			}
 			if ( ! Stockland_Audit::log( $uid, null, 'PAYROLL_SUBMIT', null, $totals['gross_total'], 'DRAFT', 'SUBMITTED', 'Payroll submitted for independent Owner approval under ' . Stockland_Payroll_Statutory::RULE_VERSION, 'PAY' . $id ) ) {
 				throw new Exception( 'Audit failed; payroll submission was rolled back.' );
@@ -1189,7 +1189,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			);
 			$pok           = $wpdb->update( Stockland_DB::table( 'payroll_periods' ), $period_update, array( 'id' => $id ) );
 			if ( false === $pok ) {
-				throw new Exception( $wpdb->last_error ?: 'Payroll approval state could not be saved.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll approval state could not be saved.' );
 			}
 			$audit_detail = wp_json_encode(
 				array(
@@ -1271,7 +1271,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				array( 'id' => $id )
 			);
 			if ( false === $pok ) {
-				throw new Exception( $wpdb->last_error ?: 'Payroll payment state could not be saved.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll payment state could not be saved.' );
 			}if ( ! Stockland_Audit::log( get_current_user_id(), null, 'PAYROLL_PAY', null, $amount, 'APPROVED', 'PAID', 'Owner posted payroll payment via ' . $method, 'PAY' . $id ) ) {
 				throw new Exception( 'Audit failed; payment was rolled back.' );
 			}if ( ! Stockland_Notifications::push_role( 'management', null, 'payroll_paid', 'Payroll payment completed', 'Payroll period ' . $period['period_key'] . ' paid by Owner via ' . $method . '.', 'payroll', $id, 'info' ) ) {

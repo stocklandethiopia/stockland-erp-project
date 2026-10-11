@@ -43,7 +43,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return $this->can( $cap ) ? true : new WP_Error( 'forbidden', 'You are not authorized for this accounting operation.', array( 'status' => 403 ) );
 	}
 	private function date( $v, $default = null ) {
-		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ?: current_time( 'Y-m-d' ) ) );
+		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ? $default : current_time( 'Y-m-d' ) ) );
 		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : null;
 	}
 	private function money( $v ) {
@@ -60,7 +60,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return (int) $id;
 		}
 		$cw = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
-		return $cw ?: 0;
+		return $cw ? $cw : 0;
 	}
 
 	public function routes() {
@@ -432,7 +432,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$ok = $wpdb->insert( Stockland_DB::table( 'suppliers' ), $data );
 				$id = (int) $wpdb->insert_id;}
 			if ( false === $ok ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save supplier.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save supplier.' );
 			}
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $new_opening, $old_opening ) ) !== 0 ) {
 				$journal = Stockland_Accounting::sync_opening_balance_journal( 'SUPPLIER', $id, $old_opening, $new_opening, get_current_user_id() );
@@ -530,7 +530,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$ok = $wpdb->insert( Stockland_DB::table( 'customers' ), $data );
 				$id = (int) $wpdb->insert_id;}
 			if ( false === $ok ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save customer.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save customer.' );
 			}
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $new_opening, $old_opening ) ) !== 0 ) {
 				$journal = Stockland_Accounting::sync_opening_balance_journal( 'CUSTOMER', $id, $old_opening, $new_opening, get_current_user_id() );
@@ -930,7 +930,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$data['status_note'] = '' !== $note ? $note : null;
 			}
 			if ( false === $wpdb->update( Stockland_DB::table( 'purchase_orders' ), $data, array( 'id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not update PO.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not update PO.' );
 			}
 			if ( ! Stockland_Audit::log( $uid, $po['location_id'], 'PO_STATUS', null, null, $from, $to, ( $action !== $to ? $action . ' — ' : '' ) . $note, $po['po_number'] ) ) {
 				throw new Exception( 'Audit event could not be recorded; purchase-order status was not committed.' );
@@ -1189,13 +1189,14 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$input_tax = Stockland_Money::add( $input_tax, $line_tax );
 				$grni      = Stockland_Money::add( $grni, Stockland_Money::add( $value, $line_tax ) );
 				++$count;
+				$received_variant_id = (int) ( $item['variant_id'] ?? 0 );
 				if ( false === $wpdb->insert(
 					Stockland_DB::table( 'purchase_receipt_items' ),
 					array(
 						'receipt_id'        => $rid,
 						'po_item_id'        => $item['id'],
 						'sku'               => $item['sku'],
-						'variant_id'        => (int) ( $item['variant_id'] ?? 0 ) ?: null,
+						'variant_id'        => $received_variant_id ? $received_variant_id : null,
 						'quantity_received' => $q,
 						'unit_cost'         => $item['unit_cost'],
 						'line_value'        => $value,
@@ -1399,7 +1400,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				array(
 					'invoice_number' => $invoice,
 					'supplier_id'    => $sid,
-					'po_id'          => $poid ?: null,
+					'po_id'          => $poid ? $poid : null,
 					'invoice_date'   => $date,
 					'due_date'       => $due,
 					'subtotal'       => $sub,
@@ -1410,7 +1411,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'created_by'     => get_current_user_id(),
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Supplier invoice failed' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Supplier invoice failed' );
 			}
 			$id             = (int) $wpdb->insert_id;
 			$line_sub_total = 0;
@@ -1456,12 +1457,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}
 				$line_sub_total = Stockland_Money::add( $line_sub_total, $ls );
 				$line_tax_total = Stockland_Money::add( $line_tax_total, $lt );
+				$invoice_line_sku = sanitize_text_field( $li['sku'] ?? ( $poid ? $po_item_ids[ $po_item_id ]['sku'] : '' ) );
 				if ( false === $wpdb->insert(
 					Stockland_DB::table( 'supplier_invoice_items' ),
 					array(
 						'invoice_id'    => $id,
-						'po_item_id'    => $po_item_id ?: null,
-						'sku'           => sanitize_text_field( $li['sku'] ?? ( $poid ? $po_item_ids[ $po_item_id ]['sku'] : '' ) ) ?: null,
+						'po_item_id'    => $po_item_id ? $po_item_id : null,
+						'sku'           => $invoice_line_sku ? $invoice_line_sku : null,
 						'description'   => $desc,
 						'quantity'      => $q,
 						'unit_cost'     => $uc,
@@ -1700,7 +1702,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'status'         => 'POSTED',
 					'notes'          => sanitize_text_field( $p['notes'] ?? '' ),
 					'source_type'    => $source_type,
-					'source_id'      => $source_id ?: $invoice,
+					'source_id'      => $source_id ? $source_id : $invoice,
 					'created_by'     => $user_id,
 				)
 			) ) {
@@ -1962,7 +1964,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'created_by'     => $uid,
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Expense submission failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense submission failed.' );
 			}
 			$id      = (int) $wpdb->insert_id;
 			$journal = null;
@@ -2115,7 +2117,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Expense status update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense status update failed.' );
 			}
 			$event = 'APPROVE' === $action ? 'BRANCH_EXPENSE_APPROVE' : 'BRANCH_EXPENSE_REJECT';
 			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Owner approved; GL journal ' . $journal, $row['expense_number'] ) ) {
@@ -2427,8 +2429,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'payment_number' => $num,
 					'payment_date'   => $date,
 					'payment_type'   => $type,
-					'supplier_id'    => $sid ?: null,
-					'customer_id'    => $cid ?: null,
+					'supplier_id'    => $sid ? $sid : null,
+					'customer_id'    => $cid ? $cid : null,
 					'amount'         => $amount,
 					'method'         => $method,
 					'reference'      => $reference,
@@ -2641,7 +2643,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Supplier invoice status update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Supplier invoice status update failed.' );
 			}
 			if ( 'APPROVE' === $action && $poid ) {
 				$remaining_unreceived = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
@@ -2794,7 +2796,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Payment status update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payment status update failed.' );
 			}
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'APPROVE' === $action ? 'FINANCE_PAYMENT_APPROVE' : 'FINANCE_PAYMENT_REJECT', null, $amount, 'PENDING', $next, 'REJECT' === $action ? $note : 'Owner approved; GL journal ' . $journal, 'PAY' . $id ) ) {
 				throw new Exception( 'Payment decision audit failed.' );

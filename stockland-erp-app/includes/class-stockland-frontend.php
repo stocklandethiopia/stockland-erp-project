@@ -193,7 +193,7 @@ class Stockland_Frontend {
 		$fingerprint = '0';
 		if ( is_file( $file ) ) {
 			$mtime       = @filemtime( $file );
-			$fingerprint = $mtime ?: substr( (string) @sha1_file( $file ), 0, 12 );}
+			$fingerprint = $mtime ? $mtime : substr( (string) @sha1_file( $file ), 0, 12 );}
 		return STOCKLAND_VERSION . '-' . preg_replace( '/[^0-9A-Za-z_-]/', '', $fingerprint );
 	}
 	private static function asset_url( $relative ) {

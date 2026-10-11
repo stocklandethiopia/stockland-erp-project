@@ -767,7 +767,8 @@ class Stockland_REST_Import_V16 {
 		global $wpdb;
 		try {
 			$file          = $this->uploaded_file( 'file' );
-			$business_date = sanitize_text_field( $r->get_param( 'business_date' ) ?: current_time( 'Y-m-d' ) );
+			$requested_business_date = $r->get_param( 'business_date' );
+			$business_date = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
 			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $business_date ) ) {
 				throw new Exception( 'Business date must be YYYY-MM-DD.' );
 			}
@@ -1092,7 +1093,7 @@ class Stockland_REST_Import_V16 {
 			);
 			if ( false === $ok ) {
 				Stockland_DB::release_day_lock( $lock );
-				return new WP_Error( 'daily_import_state_failed', $wpdb->last_error ?: 'Could not finalize import job.', array( 'status' => 409 ) );}
+				return new WP_Error( 'daily_import_state_failed', $wpdb->last_error ? $wpdb->last_error : 'Could not finalize import job.', array( 'status' => 409 ) );}
 			Stockland_DB::release_day_lock( $lock );
 			$verify = $wpdb->get_row( $wpdb->prepare( "SELECT status,processed_rows,valid_rows FROM {$jobs} WHERE id=%d", $id ), ARRAY_A );
 			if ( ! $verify || 'POSTED' !== $verify['status'] ) {
@@ -1204,7 +1205,7 @@ class Stockland_REST_Import_V16 {
 						array( 'id' => $row['id'] )
 					);
 					if ( false === $state_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Could not finalize already-posted import row ' . $row['row_number'] . '.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not finalize already-posted import row ' . $row['row_number'] . '.' );
 					}
 					$available[ $sku ] -= $q;
 					continue;
@@ -1239,7 +1240,7 @@ class Stockland_REST_Import_V16 {
 							'branch_location_id'  => $job['branch_location_id'],
 							'business_date'       => $job['business_date'],
 							'source_filename'     => $job['source_filename'],
-							'external_receipt_no' => $row['external_receipt_no'] ?: null,
+							'external_receipt_no' => $row['external_receipt_no'] ? $row['external_receipt_no'] : null,
 							'receipt_key'         => $receipt_key,
 							'source_system'       => 'THIRD_PARTY_POS',
 							'status'              => 'POSTING',
@@ -1247,7 +1248,7 @@ class Stockland_REST_Import_V16 {
 						)
 					);
 					if ( false === $batch_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Could not create receipt header for ' . $receipt . '.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create receipt header for ' . $receipt . '.' );
 					}
 					$batch_id = (int) $wpdb->insert_id;
 				} else {
@@ -1264,7 +1265,7 @@ class Stockland_REST_Import_V16 {
 						'quantity_sold'        => $q,
 						'size'                 => $prod['size'],
 						'color'                => $prod['color'],
-						'barcode'              => $prod['barcode'] ?: $prod['gtin'],
+						'barcode'              => $prod['barcode'] ? $prod['barcode'] : $prod['gtin'],
 						'master_price_at_sale' => $row['master_price'],
 						'selling_price'        => $price,
 						'price_overridden'     => Stockland_Sale_Math::same_money( $price, $row['master_price'] ) ? 0 : 1,
@@ -1285,7 +1286,7 @@ class Stockland_REST_Import_V16 {
 						'source_sale_group'    => (string) $batch_id,
 					)
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not create sale row ' . $row['row_number'] . '.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create sale row ' . $row['row_number'] . '.' );
 				}
 
 				if ( false === Stockland_Ledger::post_sale_closed(
@@ -1316,7 +1317,7 @@ class Stockland_REST_Import_V16 {
 					),
 					array( 'id' => $row['id'] )
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not mark imported row ' . $row['row_number'] . ' as posted.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not mark imported row ' . $row['row_number'] . ' as posted.' );
 				}
 				$batch_ids[ $batch_id ] = 1;
 				$available[ $sku ]     -= $q;
@@ -1381,7 +1382,7 @@ class Stockland_REST_Import_V16 {
 					),
 					array( 'id' => $bid )
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not finalize receipt header ' . $bid . '.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not finalize receipt header ' . $bid . '.' );
 				}
 			}
 			$new_processed = $offset + count( $rows );
@@ -1397,7 +1398,7 @@ class Stockland_REST_Import_V16 {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not update import job state.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not update import job state.' );
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Daily sales import commit failed.' );
@@ -1494,7 +1495,7 @@ class Stockland_REST_Import_V16 {
 					'job_id' => $job_id,
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save the staged row edit.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save the staged row edit.' );
 			}
 			$agg = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) total_rows,SUM(status='VALID') valid_rows,SUM(status='ERROR') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status='VALID' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status='VALID' THEN vat_amount ELSE 0 END),0) vat FROM " . Stockland_DB::table( 'import_rows' ) . ' WHERE job_id=%d', $job_id ), ARRAY_A );
 			if ( false === $wpdb->update(
@@ -1507,7 +1508,7 @@ class Stockland_REST_Import_V16 {
 				),
 				array( 'id' => $job_id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not refresh Daily POS job summary.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not refresh Daily POS job summary.' );
 			}
 			if ( ! Stockland_Audit::log( get_current_user_id(), $job['branch_location_id'], 'DAILY_POS_STAGE_EDIT', $sku, $qty, $row['selling_price'], $price, 'Staged Daily POS row edited before release', $job_id, get_current_user_id() ) ) {
 				throw new Exception( 'Audit event could not be recorded.' );
@@ -1649,16 +1650,16 @@ class Stockland_REST_Import_V16 {
 						array(
 							$this->import_sql_literal( $job_id, '%d' ),
 							$this->import_sql_literal( (int) $row['row_number'], '%d' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
 							'NULL',
 							$this->import_sql_literal( Stockland_Money::decimal( Stockland_Money::minor( $row['retail_price'] ) ), '%s' ),
 							$this->import_sql_literal( Stockland_Money::decimal( Stockland_Money::minor( $row['retail_price'] ) ), '%s' ),
 							$this->import_sql_literal( 'PRODUCT|' . $job_id . '|' . $row['row_number'], '%s' ),
 							$this->import_sql_literal( $row['payload'], '%s' ),
 							$this->import_sql_literal( $row['status'], '%s' ),
-							$this->import_sql_literal( $row['error'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['error'] ? $row['error'] : null, '%s' ),
 						)
 					) . ')';
 				} else {
@@ -1667,25 +1668,25 @@ class Stockland_REST_Import_V16 {
 						array(
 							$this->import_sql_literal( $job_id, '%d' ),
 							$this->import_sql_literal( (int) $row['row_number'], '%d' ),
-							$this->import_sql_literal( $row['external_receipt_no'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['source_code'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['mapped_sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['mapped_via'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['external_receipt_no'] ? $row['external_receipt_no'] : null, '%s' ),
+							$this->import_sql_literal( $row['source_code'] ? $row['source_code'] : null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['mapped_sku'] ? $row['mapped_sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['mapped_via'] ? $row['mapped_via'] : null, '%s' ),
 							$this->import_sql_literal( $row['variant_id'] ? ( (int) $row['variant_id'] ) : null, '%d' ),
 							$this->import_sql_literal( null === $row['quantity'] ? null : (float) $row['quantity'], '%f' ),
 							$this->import_sql_literal( null === $row['master_price'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['master_price'] ) ), '%s' ),
 							$this->import_sql_literal( null === $row['selling_price'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['selling_price'] ) ), '%s' ),
 							$this->import_sql_literal( null === $row['vat_rate'] ? null : (float) $row['vat_rate'], '%f' ),
 							$this->import_sql_literal( null === $row['vat_amount'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['vat_amount'] ) ), '%s' ),
-							$this->import_sql_literal( $row['vat_mode'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['vat_mode'] ? $row['vat_mode'] : null, '%s' ),
 							$this->import_sql_literal( null === $row['sales_total'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['sales_total'] ) ), '%s' ),
 							$this->import_sql_literal( null === $row['cost_basis'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['cost_basis'] ) ), '%s' ),
-							$this->import_sql_literal( $row['cost_basis_source'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['cost_basis_source'] ? $row['cost_basis_source'] : null, '%s' ),
 							$this->import_sql_literal( $row['source_key'], '%s' ),
 							$this->import_sql_literal( $row['payload'], '%s' ),
 							$this->import_sql_literal( $row['status'], '%s' ),
-							$this->import_sql_literal( $row['error_message'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['error_message'] ? $row['error_message'] : null, '%s' ),
 						)
 					) . ')';
 				}
@@ -1696,7 +1697,7 @@ class Stockland_REST_Import_V16 {
 				$sql = "INSERT INTO {$table} (job_id,source_row_number,external_receipt_no,source_code,sku,mapped_sku,mapped_via,variant_id,quantity,master_price,selling_price,vat_rate,vat_amount,vat_mode,sales_total,cost_basis,cost_basis_source,source_key,payload,status,error_message) VALUES " . implode( ',', $values );
 			}
 			if ( false === $wpdb->query( $sql ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not stage import rows.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not stage import rows.' );
 			}
 		}
 		return true;
@@ -2204,7 +2205,7 @@ class Stockland_REST_Import_V16 {
 					if ( ! $prior ) {
 						throw new Exception( 'SKU replacement source ' . $old_sku . ' was not found on Product Master row #' . $row['row_number'] . '.' );
 					}
-					Stockland_Product_Service::replace_sku( (int) $prior['variant_id'], $sku, $replace_reason ?: 'Product Master XLSX SKU replacement', 'PRODUCT_IMPORT|' . $job_id . '|' . $row['row_number'], false );
+					Stockland_Product_Service::replace_sku( (int) $prior['variant_id'], $sku, $replace_reason ? $replace_reason : 'Product Master XLSX SKU replacement', 'PRODUCT_IMPORT|' . $job_id . '|' . $row['row_number'], false );
 				}
 				$old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'products' ) . ' WHERE sku=%s LIMIT 1 FOR UPDATE', $sku ), ARRAY_A );
 				if ( $wpdb->last_error ) {
@@ -2455,7 +2456,8 @@ class Stockland_REST_Import_V16 {
 		);}
 	public function code_map_list( WP_REST_Request $r ) {
 		global $wpdb;
-		$source = sanitize_text_field( $r->get_param( 'source_system' ) ?: 'THIRD_PARTY_POS' );
+		$requested_source_system = $r->get_param( 'source_system' );
+		$source = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
 		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' m LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', $source ), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	public function code_map_save( WP_REST_Request $r ) {
@@ -2486,8 +2488,8 @@ class Stockland_REST_Import_V16 {
 			$args[] = $id;}
 		$existing_rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		foreach ( $existing_rows as $ex ) {
-			$ex_from = $ex['effective_from'] ?: null;
-			$ex_to   = $ex['effective_to'] ?: null;
+			$ex_from = $ex['effective_from'] ? $ex['effective_from'] : null;
+			$ex_to   = $ex['effective_to'] ? $ex['effective_to'] : null;
 			$before  = ( null !== $to && null !== $ex_from && $to < $ex_from );
 			$after   = ( null !== $ex_to && null !== $from && $ex_to < $from );
 			if ( ! $before && ! $after ) {

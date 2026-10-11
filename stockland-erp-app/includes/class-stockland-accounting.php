@@ -317,13 +317,13 @@ class Stockland_Accounting {
 				$result     = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; table keys are checked against the internal required-table allowlist above and no request values enter the statement.
 				$result     = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
-					$msg = 'Accounting/procurement table ' . ( $table_key ?: 'unknown' ) . ' could not be created';
+					$msg = 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( ! empty( $wpdb->last_error ) ) {
 						$msg .= ': ' . $wpdb->last_error;
 					}throw new RuntimeException( $msg );}
 				$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 				if ( ! $table_key || ! $exists ) {
-					throw new RuntimeException( 'Accounting/procurement table ' . ( $table_key ?: 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
+					throw new RuntimeException( 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
 				}
 				$batch_results[] = array(
 					'table'    => $table_key,
@@ -406,7 +406,7 @@ class Stockland_Accounting {
 		if ( Stockland_Money::minor( $delta ) === 0 ) {
 			return 0;
 		}
-		$journal_date = $journal_date ?: current_time( 'Y-m-d' );
+		$journal_date = $journal_date ? $journal_date : current_time( 'Y-m-d' );
 		$token        = substr( hash( 'sha256', uniqid( 'stockland_ob_', true ) ), 0, 10 );
 		$source_type  = 'SUPPLIER' === $party_type ? 'SUPPLIER_OPENING_BALANCE' : 'CUSTOMER_OPENING_BALANCE';
 		$source_id    = ( 'SUPPLIER' === $party_type ? 'SUP-OB-' : 'CUS-OB-' ) . $party_id . '-' . $token;

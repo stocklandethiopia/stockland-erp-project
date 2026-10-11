@@ -71,7 +71,7 @@ class Stockland_REST_Locations {
 				Stockland_DB::table( 'locations' ),
 				array(
 					'location_name'    => $name,
-					'branch_code'      => $code ?: null,
+					'branch_code'      => $code ? $code : null,
 					'location_type'    => $type,
 					'role_description' => $desc,
 					'is_active'        => 1,
@@ -135,7 +135,7 @@ class Stockland_REST_Locations {
 			return new WP_Error( 'transaction_failed', 'Could not start location update transaction.', array( 'status' => 500 ) );
 		}try {
 			if ( false === $wpdb->update( Stockland_DB::table( 'locations' ), $data, array( 'id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'No location change was saved.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'No location change was saved.' );
 			}if ( ! Stockland_Audit::log( get_current_user_id(), $id, 'LOCATION_UPDATE', null, null, $row['location_name'], wp_json_encode( $data ), 'Owner changed organization structure', 'LOCATION-' . $id, get_current_user_id() ) ) {
 				throw new Exception( 'Audit event could not be recorded; location was not committed.' );
 			}if ( false === $wpdb->query( 'COMMIT' ) ) {

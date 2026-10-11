@@ -851,7 +851,7 @@ class Stockland_Activator {
 			if ( $legacy_col && ! $new_col ) {
 				$renamed = $wpdb->query( "ALTER TABLE `{$import_rows_table}` CHANGE COLUMN `row_number` `source_row_number` INT UNSIGNED NOT NULL" );
 				if ( false === $renamed ) {
-					throw new RuntimeException( 'Could not migrate import_rows.row_number to source_row_number: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+					throw new RuntimeException( 'Could not migrate import_rows.row_number to source_row_number: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
 			}
 		}
@@ -876,14 +876,14 @@ class Stockland_Activator {
 				$result     = $wpdb->query( $direct_sql );
 				$db_error   = (string) $wpdb->last_error;
 				if ( false === $result ) {
-					$detail = 'Core table ' . ( $table_key ?: 'unknown' ) . ' could not be created';
+					$detail = 'Core table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( '' !== $db_error ) {
 						$detail .= ': ' . $db_error;
 					}
 					throw new RuntimeException( $detail );
 				}
 				if ( '' === $table_key || ! self::table_exists_static( $p . 'stock_' . $table_key ) ) {
-					$detail = 'Core table ' . ( $table_key ?: 'unknown' ) . ' was not physically verified after CREATE TABLE.';
+					$detail = 'Core table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.';
 					if ( '' !== $db_error ) {
 						$detail .= ' Database error: ' . $db_error;
 					}
@@ -1442,7 +1442,7 @@ class Stockland_Activator {
 		// intermediate states between dropping the legacy key and adding the invariant key.
 		$sql = "ALTER TABLE {$table} MODIFY variant_id BIGINT UNSIGNED NOT NULL, DROP PRIMARY KEY{$sku_clause}, ADD PRIMARY KEY  (variant_id)";
 		if ( false === $wpdb->query( $sql ) || $wpdb->last_error ) {
-			throw new RuntimeException( 'Could not enforce immutable variant_id primary key: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+			throw new RuntimeException( 'Could not enforce immutable variant_id primary key: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 		}
 	}
 
@@ -1531,7 +1531,7 @@ class Stockland_Activator {
 				$wpdb->last_error = '';
 				$ok               = $wpdb->query( "ALTER TABLE {$bal} ADD COLUMN variant_id BIGINT UNSIGNED NULL AFTER sku" );
 				if ( false === $ok || $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not add variant_id to stock_balances: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+					throw new RuntimeException( 'Could not add variant_id to stock_balances: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
 			}
 			if ( ! $has_col( $bal, 'physical_qty' ) ) {
@@ -1545,13 +1545,13 @@ class Stockland_Activator {
 				// Do not depend on column order on legacy MariaDB tables.
 				$ok = $wpdb->query( "ALTER TABLE {$bal} ADD COLUMN physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0" );
 				if ( false === $ok || $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not add physical_qty to stock_balances: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+					throw new RuntimeException( 'Could not add physical_qty to stock_balances: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
 				if ( $legacy_qty ) {
 					$wpdb->last_error = '';
 					$ok               = $wpdb->query( "UPDATE {$bal} SET physical_qty=COALESCE({$legacy_qty},0)" );
 					if ( false === $ok || $wpdb->last_error ) {
-						throw new RuntimeException( 'Could not preserve legacy balance quantity: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+						throw new RuntimeException( 'Could not preserve legacy balance quantity: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 					}
 				}
 			}
@@ -1559,7 +1559,7 @@ class Stockland_Activator {
 				$wpdb->last_error = '';
 				$ok               = $wpdb->query( "ALTER TABLE {$bal} ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" );
 				if ( false === $ok || $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not add updated_at to stock_balances: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+					throw new RuntimeException( 'Could not add updated_at to stock_balances: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
 			}
 			$unresolved = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$bal} b LEFT JOIN {$p}stock_products p ON p.sku=b.sku WHERE b.variant_id IS NULL AND p.variant_id IS NULL" );

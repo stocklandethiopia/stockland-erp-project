@@ -110,7 +110,7 @@ class Stockland_HR {
 			$wpdb->last_error = '';
 			$known            = $wpdb->get_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
 			if ( ! empty( $wpdb->last_error ) || ! is_array( $known ) ) {
-				throw new RuntimeException( 'Could not inspect HR columns for ' . $key . ': ' . ( $wpdb->last_error ?: 'metadata query failed' ) ); }
+				throw new RuntimeException( 'Could not inspect HR columns for ' . $key . ': ' . ( $wpdb->last_error ? $wpdb->last_error : 'metadata query failed' ) ); }
 			$missing = array_diff_key( $columns, array_flip( $known ) );
 			if ( ! $missing ) {
 				continue; }
@@ -124,7 +124,7 @@ class Stockland_HR {
 			$wpdb->last_error = '';
 			$result           = $wpdb->query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
 			if ( false === $result || ! empty( $wpdb->last_error ) ) {
-				$message  = $wpdb->last_error ?: 'ALTER TABLE failed';
+				$message  = $wpdb->last_error ? $wpdb->last_error : 'ALTER TABLE failed';
 				$errors[] = $key . ': ' . $message;
 				throw new RuntimeException( 'HR schema migration failed for ' . $key . ': ' . $message );
 			}
@@ -325,13 +325,13 @@ class Stockland_HR {
 			$direct_sql       = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 			$result           = $wpdb->query( $direct_sql );
 			if ( false === $result ) {
-				$msg = 'HR table ' . ( $table_key ?: 'unknown' ) . ' could not be created';
+				$msg = 'HR table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 				if ( ! empty( $wpdb->last_error ) ) {
 					$msg .= ': ' . $wpdb->last_error;
 				}throw new RuntimeException( $msg );}
 			$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 			if ( ! $table_key || ! $exists ) {
-				throw new RuntimeException( 'HR table ' . ( $table_key ?: 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
+				throw new RuntimeException( 'HR table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
 			}
 		}
 		$required   = self::table_keys();

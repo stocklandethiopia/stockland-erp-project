@@ -336,7 +336,7 @@ class Stockland_Roles {
 		global $wpdb;
 		$table = Stockland_DB::table( 'users' );
 		$row   = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d AND is_active=1', $table, (int) $wp_user_id ), ARRAY_A );
-		return $row ?: null;
+		return $row ? $row : null;
 	}
 
 	/** Authorized operational locations. Company-wide roles are intentionally

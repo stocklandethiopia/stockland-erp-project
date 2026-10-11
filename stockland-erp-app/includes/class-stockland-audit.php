@@ -73,7 +73,7 @@ class Stockland_Audit {
 					'reason'             => $reason_stored,
 					'reference'          => $reference_stored,
 					'approver_id'        => null !== $approver_id ? (int) $approver_id : null,
-					'previous_hash'      => $previous ?: null,
+					'previous_hash'      => $previous ? $previous : null,
 					'event_hash'         => $event_hash,
 					'hash_version'       => self::HASH_VERSION,
 				)

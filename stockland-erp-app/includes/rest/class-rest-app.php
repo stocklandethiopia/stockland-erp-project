@@ -773,7 +773,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( '' === $q ) {
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
-			$limit = min( 200, max( 1, (int) ( $request->get_param( 'limit' ) ?: 100 ) ) );
+			$requested_limit = $request->get_param( 'limit' );
+		$limit = min( 200, max( 1, (int) ( $requested_limit ? $requested_limit : 100 ) ) );
 			$args  = array();
 			$where = "is_active=1 AND product_type<>'STYLE'";
 			$order = 'sku ASC';
@@ -1340,12 +1341,23 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 		// Source/runtime boundary checks are deliberately narrow: only executable
 		// integration/scheduling/trigger primitives are forbidden in the final build.
-		$source_files     = array_merge(
-			glob( STOCKLAND_PLUGIN_DIR . '*.php' ) ?: array(),
-			glob( STOCKLAND_PLUGIN_DIR . 'includes/*.php' ) ?: array(),
-			glob( STOCKLAND_PLUGIN_DIR . 'includes/rest/*.php' ) ?: array(),
-			glob( STOCKLAND_PLUGIN_DIR . 'assets/*.js' ) ?: array()
-		);
+		$root_php_files  = glob( STOCKLAND_PLUGIN_DIR . '*.php' );
+		if ( ! $root_php_files ) {
+			$root_php_files = array();
+		}
+		$include_php_files = glob( STOCKLAND_PLUGIN_DIR . 'includes/*.php' );
+		if ( ! $include_php_files ) {
+			$include_php_files = array();
+		}
+		$rest_php_files = glob( STOCKLAND_PLUGIN_DIR . 'includes/rest/*.php' );
+		if ( ! $rest_php_files ) {
+			$rest_php_files = array();
+		}
+		$asset_js_files = glob( STOCKLAND_PLUGIN_DIR . 'assets/*.js' );
+		if ( ! $asset_js_files ) {
+			$asset_js_files = array();
+		}
+		$source_files = array_merge( $root_php_files, $include_php_files, $rest_php_files, $asset_js_files );
 		$integration_hits = array();
 		$scheduler_hits   = array();
 		$trigger_hits     = array();
@@ -1551,7 +1563,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	private function date_value( $v ) {
 		$d = $this->parse_import_date( $v );
-		return $d ?: current_time( 'Y-m-d' );
+		return $d ? $d : current_time( 'Y-m-d' );
 	}
 
 	private function normalize_location_ids( $role, $primary, $requested ) {
@@ -1622,7 +1634,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $ids ) {
 			return true;
 		}
-		$created      = (int) ( $created_by ?: get_current_user_id() );
+		$created      = (int) ( $created_by ? $created_by : get_current_user_id() );
 		$values       = array();
 		$placeholders = array();
 		foreach ( $ids as $index => $loc ) {
@@ -1788,7 +1800,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'is_active'          => 1,
 			);
 			if ( false === $wpdb->insert( Stockland_DB::table( 'users' ), $profile ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not create the Stockland user profile.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create the Stockland user profile.' );
 			}
 			if ( ! $this->sync_location_assignments( $id, $assignment['location_ids'], $assignment['branch_location_id'], get_current_user_id() ) ) {
 				throw new Exception( 'Could not save the user operational scope.' );
@@ -1935,10 +1947,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			);
 			if ( $existing ) {
 				if ( false === $wpdb->update( $stock_table, $data, array( 'wp_user_id' => $target ) ) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not activate the Stockland user profile.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not activate the Stockland user profile.' );
 				}
 			} elseif ( false === $wpdb->insert( $stock_table, array_merge( array( 'wp_user_id' => $target ), $data ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not create the Stockland user profile.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create the Stockland user profile.' );
 			}
 			if ( ! $this->sync_location_assignments( $target, $assignment['location_ids'], $assignment['branch_location_id'], get_current_user_id() ) ) {
 				throw new Exception( 'Could not save the user operational scope.' );
@@ -2102,8 +2114,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	}
 	public function reports_summary( WP_REST_Request $r ) {
 		global $wpdb;
-		$from = sanitize_text_field( $r->get_param( 'from' ) ?: date( 'Y-m-01', current_time( 'timestamp' ) ) );
-		$to   = sanitize_text_field( $r->get_param( 'to' ) ?: current_time( 'Y-m-d' ) );
+		$requested_from = $r->get_param( 'from' );
+		$from = sanitize_text_field( $requested_from ? $requested_from : date( 'Y-m-01', current_time( 'timestamp' ) ) );
+		$requested_to = $r->get_param( 'to' );
+		$to = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! $this->parse_import_date( $from ) || ! $this->parse_import_date( $to ) || $from > $to ) {
 			return new WP_Error( 'invalid_date_range', 'Use a valid From/To date range.', array( 'status' => 400 ) );
 		}
@@ -2271,7 +2285,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( is_wp_error( $scope ) ) {
 			return $scope;
 		}
-		$date = sanitize_text_field( $r->get_param( 'date' ) ?: current_time( 'Y-m-d' ) );
+		$requested_date = $r->get_param( 'date' );
+		$date = sanitize_text_field( $requested_date ? $requested_date : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			return new WP_Error( 'invalid_date', 'date must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}
@@ -2303,8 +2318,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	public function operations_overview( WP_REST_Request $r ) {
 		global $wpdb;
-		$from = sanitize_text_field( $r->get_param( 'from' ) ?: gmdate( 'Y-m-01' ) );
-		$to   = sanitize_text_field( $r->get_param( 'to' ) ?: current_time( 'Y-m-d' ) );
+		$requested_from = $r->get_param( 'from' );
+		$from = sanitize_text_field( $requested_from ? $requested_from : gmdate( 'Y-m-01' ) );
+		$requested_to = $r->get_param( 'to' );
+		$to = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ) {
 			return new WP_Error( 'invalid_date', 'from/to must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}
@@ -2687,7 +2704,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					'product_name'  => $product['product_name'],
 					'size'          => $product['size'],
 					'color'         => $product['color'],
-					'barcode'       => $product['barcode'] ?: $product['gtin'],
+					'barcode'       => $product['barcode'] ? $product['barcode'] : $product['gtin'],
 					'counted_qty'   => $qty,
 					'notes'         => sanitize_text_field( $row['Notes'] ?? '' ),
 				);

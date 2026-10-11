@@ -20,7 +20,7 @@ class Stockland_Authority {
 	const AUDITOR            = 'auditor';
 
 	public static function profile( $user_id = null ) {
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		return Stockland_Roles::get_profile( (int) $user_id );
 	}
 
@@ -30,7 +30,7 @@ class Stockland_Authority {
 	}
 
 	public static function is_owner( $user_id = null ) {
-		return self::role( $user_id ) === self::OWNER || user_can( $user_id ?: get_current_user_id(), 'stockland_owner' );
+		return self::role( $user_id ) === self::OWNER || user_can( $user_id ? $user_id : get_current_user_id(), 'stockland_owner' );
 	}
 
 	public static function is_management( $user_id = null ) {
@@ -49,7 +49,7 @@ class Stockland_Authority {
 	}
 
 	public static function location_ids( $user_id = null ) {
-		return Stockland_Roles::get_location_scope( $user_id ?: get_current_user_id() );
+		return Stockland_Roles::get_location_scope( $user_id ? $user_id : get_current_user_id() );
 	}
 
 	public static function can_view_warehouse_availability( $user_id = null ) {
@@ -79,12 +79,12 @@ class Stockland_Authority {
 	}
 
 	public static function can( $cap, $user_id = null ) {
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		return user_can( $user_id, $cap );
 	}
 
 	public static function can_daily_import( $user_id = null ) {
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		$r       = self::role( $user_id );
 		return in_array( $r, array( self::BRANCH_MANAGER, self::SALES_EMPLOYEE ), true )
 			&& user_can( $user_id, 'stockland_daily_import' );
@@ -104,19 +104,19 @@ class Stockland_Authority {
 
 	/** Management-only submission authority for financial/procurement records; Owner decides separately. */
 	public static function can_prepare_finance( $capability, $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, $capability );
 	}
 
 	/** Expenses may be submitted by Management or an assigned Branch Manager; Owner reviews them. */
 	public static function can_submit_expenses( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::MANAGEMENT, self::BRANCH_MANAGER ), true ) && user_can( $uid, 'stockland_manage_expenses' );
 	}
 
 	/** External procurement read access is limited to active Stockland operational roles. */
 	public static function can_view_external_purchase_orders( $user_id = null ) {
-		$uid  = $user_id ?: get_current_user_id();
+		$uid  = $user_id ? $user_id : get_current_user_id();
 		$role = self::role( $uid );
 		if ( self::OWNER === $role || self::MANAGEMENT === $role ) {
 			return user_can( $uid, 'stockland_view_financials' );
@@ -129,24 +129,24 @@ class Stockland_Authority {
 
 	/** Supplier/AP transactions are restricted to active Owner or Management profiles. */
 	public static function can_manage_external_supplier_finance( $capability = 'stockland_manage_payables', $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::OWNER, self::MANAGEMENT ), true )
 			&& user_can( $uid, $capability );
 	}
 
 	/** External procurement is deliberately role-separated: Management enters, Owner approves. */
 	public static function can_create_external_purchase_order( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, 'stockland_manage_purchase_orders' );
 	}
 
 	public static function can_approve_external_purchase_order( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_approve_purchase_orders' );
 	}
 
 	public static function can_receive_external_purchase_order( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::WAREHOUSE_MANAGER && user_can( $uid, 'stockland_receive_warehouse' );
 	}
 
@@ -179,7 +179,7 @@ class Stockland_Authority {
 
 
 	public static function can_view_returns( $user_id = null ) {
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		return (bool) self::profile( $user_id ) && (
 			self::company_scope( $user_id ) ||
 			user_can( $user_id, 'stockland_record_return' ) ||
@@ -188,7 +188,7 @@ class Stockland_Authority {
 	}
 
 	public static function can_view_integrity( $user_id = null ) {
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		return (bool) self::profile( $user_id ) && (
 			self::company_scope( $user_id ) || user_can( $user_id, 'stockland_view_audit_log' )
 		);
@@ -201,7 +201,7 @@ class Stockland_Authority {
 	 * accounts must not receive operational internals.
 	 */
 	public static function can_view_system_diagnostics( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		if ( $uid > 0 && user_can( $uid, 'manage_options' ) ) {
 			return true;
 		}
@@ -238,39 +238,39 @@ class Stockland_Authority {
 	/** HR review and compensation classification is available to Owner and Management.
 	 * Employee master entry itself is Management-only via can_prepare_hr(). */
 	public static function can_manage_hr( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::OWNER, self::MANAGEMENT ), true ) && user_can( $uid, 'stockland_manage_hr' );
 	}
 
 	public static function can_prepare_hr( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, 'stockland_manage_hr' );
 	}
 
 	public static function can_view_payroll( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::OWNER, self::MANAGEMENT ), true ) && user_can( $uid, 'stockland_view_payroll' );
 	}
 
 	public static function can_manage_payroll( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, 'stockland_manage_payroll' );
 	}
 
 	/** Owner-only final payroll approval/payment. Requires the active ERP Owner profile. */
 	public static function can_approve_payroll( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_manage_payroll' );
 	}
 
 	/** Owner-only final approval for posted financial commitments. */
 	public static function can_approve_expenses( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_manage_expenses' );
 	}
 
 	public static function can_approve_finance( $user_id = null ) {
-		$uid = $user_id ?: get_current_user_id();
+		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_view_financials' );
 	}
 
