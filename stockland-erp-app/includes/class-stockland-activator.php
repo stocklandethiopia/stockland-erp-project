@@ -1348,7 +1348,7 @@ class Stockland_Activator {
 	/**
 	 * Ensures the required Stockland operational locations exist without duplicating existing locations.
 	 *
-	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @param string $p WordPress table prefix.
 	 * @return void Ensures required operational locations exist.
 	 */
 	private static function seed_locations( $p ) {
@@ -1382,7 +1382,7 @@ class Stockland_Activator {
 	 * nothing here is invented, and Management can change any of them
 	 * post-activation via the settings screen (VAT rate, reorder levels).
 
-	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @param string $p WordPress table prefix.
 	 */
 	private static function backfill_location_codes( $p ) {
 		global $wpdb;
