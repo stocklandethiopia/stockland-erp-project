@@ -2286,8 +2286,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$stock_args[] = $scope;
 		}$stock_sql   .= ' ORDER BY l.location_name,p.sku';
 		$stock = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
-		$transfers_sql = 'SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,f.location_name from_location_name,to_l.location_name to_location_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty FROM ' . Stockland_DB::table( 'transfers' ) . ' t JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id WHERE t.transfer_date BETWEEN %s AND %s';
-		$targs         = array( $from, $to );
+		$transfers_sql = 'SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,f.location_name from_location_name,to_l.location_name to_location_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty FROM %i t JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) JOIN %i f ON f.id=t.from_location_id JOIN %i to_l ON to_l.id=t.to_location_id WHERE t.transfer_date BETWEEN %s AND %s';
+		$targs = array( Stockland_DB::table( 'transfers' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'locations' ), $from, $to );
 		if ( $scope ) {
 			$transfers_sql .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
 			$targs[]        = $scope;
@@ -2295,28 +2295,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}$transfers_sql .= ' ORDER BY t.created_at DESC LIMIT 500';
 		$transfer_rows   = $wpdb->get_results( $wpdb->prepare( $transfers_sql, $targs ), ARRAY_A );
 
-		$people_sql  = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,
-                    COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue
-             FROM {$sales} s JOIN {$loc} l ON l.id=s.branch_location_id
-             LEFT JOIN {$wpdb->users} u ON u.ID=s.staff_user_id
-             WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s";
-		$people_args = array( $from, $to );
+		$people_sql = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue FROM %i s JOIN %i l ON l.id=s.branch_location_id LEFT JOIN %i u ON u.ID=s.staff_user_id WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s";
+		$people_args = array( $sales, $loc, $wpdb->users, $from, $to );
 		if ( $scope ) {
 			$people_sql   .= ' AND s.branch_location_id=%d';
 			$people_args[] = $scope;}
 		$people_sql .= ' GROUP BY l.id,s.staff_user_id,u.display_name ORDER BY revenue DESC LIMIT 200';
 		$people      = $wpdb->get_results( $wpdb->prepare( $people_sql, $people_args ), ARRAY_A );
 
-		$variance_sql  = 'SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,
-                    f.location_name from_location_name,to_l.location_name to_location_name,
-                    t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty,t.receipt_reason,t.received_at
-             FROM ' . Stockland_DB::table( 'transfers' ) . ' t
-             JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku))
-             JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id
-             JOIN ' . Stockland_DB::table( 'locations' ) . " to_l ON to_l.id=t.to_location_id
-             WHERE t.transfer_date BETWEEN %s AND %s AND t.status IN('Received','Completed')
-               AND ABS(t.variance_qty)>0.00001";
-		$variance_args = array( $from, $to );
+		$variance_sql = "SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,f.location_name from_location_name,to_l.location_name to_location_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty,t.receipt_reason,t.received_at FROM %i t JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) JOIN %i f ON f.id=t.from_location_id JOIN %i to_l ON to_l.id=t.to_location_id WHERE t.transfer_date BETWEEN %s AND %s AND t.status IN('Received','Completed') AND ABS(t.variance_qty)>0.00001";
+		$variance_args = array( Stockland_DB::table( 'transfers' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'locations' ), $from, $to );
 		if ( $scope ) {
 			$variance_sql   .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
 			$variance_args[] = $scope;
@@ -2324,8 +2312,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$variance_sql .= ' ORDER BY t.received_at DESC LIMIT 500';
 		$variances     = $wpdb->get_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
 
-		$count_sql = 'SELECT b.batch_id,b.count_date,b.status,l.location_name,b.uploaded_by,b.approved_by,COUNT(cl.id) lines,SUM(CASE WHEN ABS(cl.variance_qty)>0.00001 THEN 1 ELSE 0 END) variance_lines,SUM(cl.counted_qty) counted_qty,SUM(cl.system_qty) system_qty,SUM(cl.variance_qty) variance_qty FROM ' . Stockland_DB::table( 'count_batches' ) . ' b JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=b.location_id LEFT JOIN ' . Stockland_DB::table( 'count_lines' ) . ' cl ON cl.batch_id=b.batch_id WHERE b.count_date BETWEEN %s AND %s';
-		$cargs     = array( $from, $to );
+		$count_sql = 'SELECT b.batch_id,b.count_date,b.status,l.location_name,b.uploaded_by,b.approved_by,COUNT(cl.id) lines,SUM(CASE WHEN ABS(cl.variance_qty)>0.00001 THEN 1 ELSE 0 END) variance_lines,SUM(cl.counted_qty) counted_qty,SUM(cl.system_qty) system_qty,SUM(cl.variance_qty) variance_qty FROM %i b JOIN %i l ON l.id=b.location_id LEFT JOIN %i cl ON cl.batch_id=b.batch_id WHERE b.count_date BETWEEN %s AND %s';
+		$cargs = array( Stockland_DB::table( 'count_batches' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'count_lines' ), $from, $to );
 		if ( $scope ) {
 			$count_sql .= ' AND b.location_id=%d';
 			$cargs[]    = $scope;
