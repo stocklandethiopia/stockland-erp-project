@@ -140,7 +140,7 @@ class Stockland_HR {
 			}
 			$wpdb->last_error = '';
 						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- DDL column definitions and AFTER clauses come only from required_columns()' fixed internal allowlist; SQL structure cannot be bound as a data value.
-			$result           = $wpdb->query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
+			$result           = Stockland_DB::execute_query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
 			if ( false === $result || ! empty( $wpdb->last_error ) ) {
 				$message  = 'ALTER TABLE failed';
 				$errors[] = $key . ': ' . $message;
@@ -359,7 +359,7 @@ class Stockland_HR {
 			$wpdb->last_error = '';
 			$direct_sql       = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE is generated from the fixed internal HR schema definition array; complete DDL cannot be passed as a data placeholder.
-			$result           = $wpdb->query( $direct_sql );
+			$result           = Stockland_DB::execute_query( $direct_sql );
 			if ( false === $result ) {
 				throw new RuntimeException( 'HR table creation failed.' );
 			}
@@ -389,7 +389,7 @@ class Stockland_HR {
 				}$fallback        = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $fallback is generated from the fixed internal CREATE TABLE DDL list and is used only for a missing allow-listed table.
-				$wpdb->query( $fallback );
+				Stockland_DB::execute_query( $fallback );
 				if ( ! empty( $wpdb->last_error ) ) {
 					throw new RuntimeException( 'HR table ' . esc_html( $key ) . ' could not be created.' );
 				}
