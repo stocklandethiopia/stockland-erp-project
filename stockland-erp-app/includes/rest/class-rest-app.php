@@ -2387,17 +2387,67 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'invalid_date', 'date must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}
 
-		$sales_where    = $scope ? $wpdb->prepare( ' AND s.branch_location_id=%d', $scope ) : '';
-		$transfer_where = $scope ? $wpdb->prepare( ' AND (t.from_location_id=%d OR t.to_location_id=%d)', $scope, $scope ) : '';
+		$sales_where    = $scope ? ' AND s.branch_location_id=%d' : '';
+		$transfer_where = $scope ? ' AND (t.from_location_id=%d OR t.to_location_id=%d)' : '';
 		$central        = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		$receipt_where  = $scope && (int) $scope !== $central ? ' AND 1=0' : '';
 
-		$sales         = $wpdb->get_results( $wpdb->prepare( 'SELECT s.sale_id,s.sale_date,s.branch_location_id,l.location_name,s.sku,p.product_name,s.quantity_sold,s.size,s.color,s.master_price_at_sale,s.selling_price,s.sales_total,s.vat_amount,s.net_sales_excl_vat,s.gross_profit,s.staff_user_id,u.display_name FROM ' . Stockland_DB::table( 'sales' ) . ' s JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=s.branch_location_id JOIN ' . Stockland_DB::table( 'products' ) . " p ON (p.variant_id=s.variant_id OR (s.variant_id IS NULL AND p.sku=s.sku)) LEFT JOIN {$wpdb->users} u ON u.ID=s.staff_user_id WHERE s.posting_status='CLOSED' AND s.sale_date=%s {$sales_where} ORDER BY s.sale_id DESC", $date ), ARRAY_A );
-		$received      = $wpdb->get_results( $wpdb->prepare( 'SELECT t.transfer_id,t.sku,p.product_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty,t.from_location_id,t.to_location_id,f.location_name from_location_name,to_l.location_name to_location_name,t.status,t.received_at,u.display_name received_by_name FROM ' . Stockland_DB::table( 'transfers' ) . ' t JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id JOIN ' . Stockland_DB::table( 'locations' ) . " to_l ON to_l.id=t.to_location_id LEFT JOIN {$wpdb->users} u ON u.ID=t.received_by WHERE t.received_at IS NOT NULL AND DATE(t.received_at)=%s {$transfer_where} ORDER BY t.received_at DESC", $date ), ARRAY_A );
-		$receipts      = $wpdb->get_results( $wpdb->prepare( 'SELECT r.receipt_id,r.sku,p.product_name,r.quantity_received expected_qty,COALESCE(r.actual_quantity_received,0) actual_qty,r.supplier_source,r.status,r.received_at,u.display_name received_by_name FROM ' . Stockland_DB::table( 'receipts' ) . ' r JOIN ' . Stockland_DB::table( 'products' ) . " p ON (p.variant_id=r.variant_id OR (r.variant_id IS NULL AND p.sku=r.sku)) LEFT JOIN {$wpdb->users} u ON u.ID=r.received_by WHERE r.receipt_date=%s {$receipt_where} ORDER BY r.created_at DESC", $date ), ARRAY_A );
-		$summary       = $wpdb->get_row( $wpdb->prepare( 'SELECT COUNT(*) sale_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit FROM ' . Stockland_DB::table( 'sales' ) . " s WHERE posting_status='CLOSED' AND sale_date=%s {$sales_where}", $date ), ARRAY_A );
-		$closing_where = $scope ? $wpdb->prepare( ' AND dc.branch_location_id=%d', $scope ) : '';
-		$closings      = $wpdb->get_results( $wpdb->prepare( 'SELECT dc.branch_location_id,l.location_name,dc.status,dc.closed_at,dc.closed_by,dc.total_sales,dc.total_vat,dc.total_gross_profit FROM ' . Stockland_DB::table( 'daily_closings' ) . ' dc JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=dc.branch_location_id WHERE dc.business_date=%s {$closing_where} ORDER BY l.location_name", $date ), ARRAY_A );
+		$sales_args = array( Stockland_DB::table( 'sales' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'products' ), $wpdb->users, $date );
+		if ( $scope ) {
+			$sales_args[] = (int) $scope;
+		}
+		$sales = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT s.sale_id,s.sale_date,s.branch_location_id,l.location_name,s.sku,p.product_name,s.quantity_sold,s.size,s.color,s.master_price_at_sale,s.selling_price,s.sales_total,s.vat_amount,s.net_sales_excl_vat,s.gross_profit,s.staff_user_id,u.display_name FROM %i s JOIN %i l ON l.id=s.branch_location_id JOIN %i p ON (p.variant_id=s.variant_id OR (s.variant_id IS NULL AND p.sku=s.sku)) LEFT JOIN %i u ON u.ID=s.staff_user_id WHERE s.posting_status='CLOSED' AND s.sale_date=%s {$sales_where} ORDER BY s.sale_id DESC",
+				$sales_args
+			),
+			ARRAY_A
+		);
+		$received_args = array( Stockland_DB::table( 'transfers' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'locations' ), $wpdb->users, $date );
+		if ( $scope ) {
+			$received_args[] = (int) $scope;
+			$received_args[] = (int) $scope;
+		}
+		$received = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT t.transfer_id,t.sku,p.product_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty,t.from_location_id,t.to_location_id,f.location_name from_location_name,to_l.location_name to_location_name,t.status,t.received_at,u.display_name received_by_name FROM %i t JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) JOIN %i f ON f.id=t.from_location_id JOIN %i to_l ON to_l.id=t.to_location_id LEFT JOIN %i u ON u.ID=t.received_by WHERE t.received_at IS NOT NULL AND DATE(t.received_at)=%s {$transfer_where} ORDER BY t.received_at DESC",
+				$received_args
+			),
+			ARRAY_A
+		);
+		$receipts = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT r.receipt_id,r.sku,p.product_name,r.quantity_received expected_qty,COALESCE(r.actual_quantity_received,0) actual_qty,r.supplier_source,r.status,r.received_at,u.display_name received_by_name FROM %i r JOIN %i p ON (p.variant_id=r.variant_id OR (r.variant_id IS NULL AND p.sku=r.sku)) LEFT JOIN %i u ON u.ID=r.received_by WHERE r.receipt_date=%s {$receipt_where} ORDER BY r.created_at DESC",
+				Stockland_DB::table( 'receipts' ),
+				Stockland_DB::table( 'products' ),
+				$wpdb->users,
+				$date
+			),
+			ARRAY_A
+		);
+		$summary_args = array( Stockland_DB::table( 'sales' ), $date );
+		if ( $scope ) {
+			$summary_args[] = (int) $scope;
+		}
+		$summary = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT COUNT(*) sale_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit FROM %i s WHERE posting_status='CLOSED' AND sale_date=%s {$sales_where}",
+				$summary_args
+			),
+			ARRAY_A
+		);
+		$closing_where = $scope ? ' AND dc.branch_location_id=%d' : '';
+		$closing_args = array( Stockland_DB::table( 'daily_closings' ), Stockland_DB::table( 'locations' ), $date );
+		if ( $scope ) {
+			$closing_args[] = (int) $scope;
+		}
+		$closings = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT dc.branch_location_id,l.location_name,dc.status,dc.closed_at,dc.closed_by,dc.total_sales,dc.total_vat,dc.total_gross_profit FROM %i dc JOIN %i l ON l.id=dc.branch_location_id WHERE dc.business_date=%s {$closing_where} ORDER BY l.location_name",
+				$closing_args
+			),
+			ARRAY_A
+		);
 		return rest_ensure_response(
 			array(
 				'date'              => $date,
