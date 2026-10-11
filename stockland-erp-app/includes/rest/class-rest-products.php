@@ -308,6 +308,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		try {
 			Stockland_Notifications::notify_product_master( 'CREATED', $saved );} catch ( Throwable $ignore ) {
 				// Notification delivery is best-effort after the database transaction commits.
+				do_action( 'stockland_erp_notification_delivery_failed', 'product_master_created' );
 			}
 			return rest_ensure_response( $saved );
 	}
@@ -462,6 +463,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					)
 				);} catch ( Throwable $ignore ) {
 				// Notification delivery is best-effort and must not undo committed variant data.
+				do_action( 'stockland_erp_notification_delivery_failed', 'product_variants_created' );
 				}
 		}
 		return rest_ensure_response(
@@ -580,6 +582,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			try {
 				Stockland_Notifications::notify_product_master( 'UPDATED', $saved );} catch ( Throwable $ignore ) {
 				// Notification delivery is best-effort after the product update commits.
+				do_action( 'stockland_erp_notification_delivery_failed', 'product_master_updated' );
 				}
 				return rest_ensure_response( $saved );
 		} catch ( Throwable $e ) {
