@@ -132,7 +132,7 @@ class FakeWPDB {
 	public function query( $sql ) {
 		return true; }
 	public function get_row( $sql, $output = ARRAY_A ) {
-		if ( stripos( $sql, 'FROM wp_stock_sales' ) || stripos( $sql, 'FROM `wp_stock_sales`' ) !== false ) {
+		if ( false !== stripos( $sql, 'FROM wp_stock_sales' ) || false !== stripos( $sql, 'FROM `wp_stock_sales`' ) ) {
 			if ( preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
 				return $this->sales[ $m[1] ] ?? null;
 			}
@@ -187,7 +187,7 @@ class FakeWPDB {
 		return null;
 	}
 	public function get_var( $sql ) {
-		if ( stripos( $sql, 'FROM wp_stock_sales' ) || stripos( $sql, 'FROM `wp_stock_sales`' ) !== false && preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
+		if ( ( false !== stripos( $sql, 'FROM wp_stock_sales' ) || false !== stripos( $sql, 'FROM `wp_stock_sales`' ) ) && preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
 			return isset( $this->sales[ $m[1] ] ) ? $m[1] : null;
 		}
 		return null;
