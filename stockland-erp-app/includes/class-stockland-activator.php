@@ -1174,9 +1174,11 @@ class Stockland_Activator {
 			// This is additive and idempotent; no user loses their existing branch.
 			if ( self::table_exists_static( $p . 'stock_user_locations' ) ) {
 				$wpdb->query(
-					"INSERT IGNORE INTO {$p}stock_user_locations (wp_user_id,location_id,is_primary,is_active,created_by)
-                    SELECT wp_user_id,branch_location_id,1,is_active,NULL FROM {$p}stock_users
-                    WHERE branch_location_id IS NOT NULL"
+					$wpdb->prepare(
+						'INSERT IGNORE INTO %i (wp_user_id,location_id,is_primary,is_active,created_by) SELECT wp_user_id,branch_location_id,1,is_active,NULL FROM %i WHERE branch_location_id IS NOT NULL',
+						$p . 'stock_user_locations',
+						$p . 'stock_users'
+					)
 				);
 			}
 		}
@@ -1364,7 +1366,8 @@ class Stockland_Activator {
 		foreach ( $locations as $loc ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					$wpdb->prepare( 'INSERT IGNORE INTO %i (location_name, location_type, role_description) VALUES (%s,%s,%s)', $p . 'stock_locations', $name, $type, $description ),
+					'INSERT IGNORE INTO %i (location_name, location_type, role_description) VALUES (%s,%s,%s)',
+					$p . 'stock_locations',
 					$loc[0],
 					$loc[1],
 					$loc[2]
