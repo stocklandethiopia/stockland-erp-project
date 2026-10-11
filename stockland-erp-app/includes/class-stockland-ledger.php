@@ -3,7 +3,7 @@
  * Immutable inventory ledger and derived stock-balance operations.
  *
  * @package Stockland_ERP
-	 */
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
