@@ -23,7 +23,8 @@ class Stockland_DB {
 		$table = self::table( 'locations' );
 		return $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT id FROM {$table} WHERE location_name = %s",
+				"SELECT id FROM %i WHERE location_name = %s",
+				$table,
 				$location_name
 			)
 		);
