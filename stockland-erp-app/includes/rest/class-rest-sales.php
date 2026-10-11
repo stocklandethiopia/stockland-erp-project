@@ -21,7 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  *    Stockland_Ledger::post_sale_closed().
  *  - Once a sale is CLOSED it cannot be edited through this controller —
  *    corrections must go through /returns as an Adjustment (section 7/15).
- */
+	 * @throws Exception When validation, migration or transaction processing fails.
+	 */
 class Stockland_REST_Sales extends Stockland_REST_Base {
 
 	public function __construct() {
