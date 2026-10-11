@@ -51,7 +51,7 @@ class Stockland_Product_Service {
 			// The lock must be acquired while the transaction is active. A SELECT ...
 			// FOR UPDATE issued before START TRANSACTION is not a reliable serialization
 			// boundary on MariaDB/MySQL.
-			$old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE variant_id=%d FOR UPDATE', $products, $variant_id ), ARRAY_A );
+			$old = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE variant_id=%d FOR UPDATE', $products, $variant_id ), ARRAY_A );
 			if ( ! $old ) {
 				throw new Exception( 'Product variant was not found.' );
 			}
@@ -59,7 +59,7 @@ class Stockland_Product_Service {
 				if ( $owns && false === $wpdb->query( 'COMMIT' ) ) {
 					throw new Exception( 'No-change SKU replacement verification commit failed.' );
 				} return $old; }
-			$collision = $wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s AND variant_id<>%d LIMIT 1', $products, $new_sku, $variant_id ) );
+			$collision = Stockland_DB::read_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s AND variant_id<>%d LIMIT 1', $products, $new_sku, $variant_id ) );
 			if ( $collision ) {
 				throw new Exception( 'The new SKU is already assigned to another variant.' );
 			}
@@ -84,16 +84,16 @@ class Stockland_Product_Service {
 				}
 				switch ( $name ) {
 					case 'reservations':
-						$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status IN('Active','Reserved')", $table, $variant_id ) );
+						$count = Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status IN('Active','Reserved')", $table, $variant_id ) );
 						break;
 					case 'transfers':
-						$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status NOT IN('Rejected','Cancelled','Completed','Received')", $table, $variant_id ) );
+						$count = Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status NOT IN('Rejected','Cancelled','Completed','Received')", $table, $variant_id ) );
 						break;
 					case 'requisitions':
-						$count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_approved IS NOT NULL AND COALESCE(quantity_received,0)<COALESCE(quantity_approved,0)', $table, $variant_id ) );
+						$count = Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_approved IS NOT NULL AND COALESCE(quantity_received,0)<COALESCE(quantity_approved,0)', $table, $variant_id ) );
 						break;
 					case 'purchase_orders':
-						$count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_received<quantity_ordered', $table, $variant_id ) );
+						$count = Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_received<quantity_ordered', $table, $variant_id ) );
 						break;
 					default:
 						// Unknown internal check keys must fail closed instead of executing dynamic SQL.
