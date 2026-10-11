@@ -8,9 +8,24 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+/**
+ * REST endpoint for Central Warehouse wholesale sales.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_Wholesale extends Stockland_REST_Base {
+	/**
+	 * Registers the wholesale sales endpoint.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
+	/**
+	 * Registers the wholesale creation route and its permission gate.
+	 *
+	 * @return void
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -23,6 +38,12 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			)
 		);
 	}
+	/**
+	 * Posts an authorized wholesale transaction against Central Warehouse stock.
+	 *
+	 * @param WP_REST_Request $request REST request containing SKU, quantity, price and date.
+	 * @return WP_REST_Response|WP_Error Posted transaction response or a validation/persistence error.
+	 */
 	public function create( WP_REST_Request $request ) {
 		$p    = $request->get_json_params();
 		$sku  = sanitize_text_field( $p['sku'] ?? '' );
