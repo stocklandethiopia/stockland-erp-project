@@ -26,16 +26,16 @@ class Stockland_Audit {
 	 * The canonical payload mirrors the stored representation so chain verification
 	 * remains stable across database decimal/string coercion.
 	 *
-	 * @param int         $user_id Actor user identifier.
-	 * @param int|null    $branch_location_id Optional branch/location identifier.
-	 * @param string      $action Audit action code.
-	 * @param mixed       $sku Related SKU when applicable.
-	 * @param mixed       $quantity Quantity when applicable.
-	 * @param mixed       $old_value Previous value.
-	 * @param mixed       $new_value New value.
-	 * @param mixed       $reason Business reason or details.
-	 * @param mixed       $reference Related entity/reference.
-	 * @param int|null    $approver_id Optional approving user identifier.
+	 * @param int $user_id Actor user identifier.
+	 * @param int|null $branch_location_id Optional branch/location identifier.
+	 * @param string $action Audit action code.
+	 * @param mixed $sku Related SKU when applicable.
+	 * @param mixed $quantity Quantity when applicable.
+	 * @param mixed $old_value Previous value.
+	 * @param mixed $new_value New value.
+	 * @param mixed $reason Business reason or details.
+	 * @param mixed $reference Related entity/reference.
+	 * @param int|null $approver_id Optional approving user identifier.
 	 * @return bool Whether the audit event was inserted.
 	 */
 	public static function log(
