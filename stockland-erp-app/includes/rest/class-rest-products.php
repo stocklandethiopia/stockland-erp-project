@@ -156,7 +156,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 				$args   = array_fill( 0, 9, $like );
 			}
 			$requested_limit = $request->get_param( 'limit' );
-		$limit = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
+			$limit           = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
 			// Exact SKU matches sort first; this makes a known SKU deterministic
 			// while retaining broad catalog search for partial SKU/name/dimension terms.
 			$exact = '' !== $q ? 'CASE WHEN sku = %s THEN 0 ELSE 1 END,' : '';

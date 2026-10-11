@@ -766,9 +766,9 @@ class Stockland_REST_Import_V16 {
 	public function daily_preview( WP_REST_Request $r ) {
 		global $wpdb;
 		try {
-			$file          = $this->uploaded_file( 'file' );
+			$file                    = $this->uploaded_file( 'file' );
 			$requested_business_date = $r->get_param( 'business_date' );
-			$business_date = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
+			$business_date           = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
 			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $business_date ) ) {
 				throw new Exception( 'Business date must be YYYY-MM-DD.' );
 			}
@@ -2457,8 +2457,8 @@ class Stockland_REST_Import_V16 {
 	public function code_map_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_source_system = $r->get_param( 'source_system' );
-		$source = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
-		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' m LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', $source ), ARRAY_A );
+		$source                  = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
+		$rows                    = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' m LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', $source ), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	public function code_map_save( WP_REST_Request $r ) {
 		global $wpdb;

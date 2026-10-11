@@ -774,10 +774,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
 			$requested_limit = $request->get_param( 'limit' );
-		$limit = min( 200, max( 1, (int) ( $requested_limit ? $requested_limit : 100 ) ) );
-			$args  = array();
-			$where = "is_active=1 AND product_type<>'STYLE'";
-			$order = 'sku ASC';
+			$limit           = min( 200, max( 1, (int) ( $requested_limit ? $requested_limit : 100 ) ) );
+			$args            = array();
+			$where           = "is_active=1 AND product_type<>'STYLE'";
+			$order           = 'sku ASC';
 			if ( '' !== $q ) {
 				$like   = '%' . $wpdb->esc_like( $q ) . '%';
 				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
@@ -1341,7 +1341,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 		// Source/runtime boundary checks are deliberately narrow: only executable
 		// integration/scheduling/trigger primitives are forbidden in the final build.
-		$root_php_files  = glob( STOCKLAND_PLUGIN_DIR . '*.php' );
+		$root_php_files = glob( STOCKLAND_PLUGIN_DIR . '*.php' );
 		if ( ! $root_php_files ) {
 			$root_php_files = array();
 		}
@@ -1357,7 +1357,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $asset_js_files ) {
 			$asset_js_files = array();
 		}
-		$source_files = array_merge( $root_php_files, $include_php_files, $rest_php_files, $asset_js_files );
+		$source_files     = array_merge( $root_php_files, $include_php_files, $rest_php_files, $asset_js_files );
 		$integration_hits = array();
 		$scheduler_hits   = array();
 		$trigger_hits     = array();
@@ -2115,9 +2115,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function reports_summary( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
-		$from = sanitize_text_field( $requested_from ? $requested_from : date( 'Y-m-01', current_time( 'timestamp' ) ) );
-		$requested_to = $r->get_param( 'to' );
-		$to = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
+		$from           = sanitize_text_field( $requested_from ? $requested_from : date( 'Y-m-01', current_time( 'timestamp' ) ) );
+		$requested_to   = $r->get_param( 'to' );
+		$to             = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! $this->parse_import_date( $from ) || ! $this->parse_import_date( $to ) || $from > $to ) {
 			return new WP_Error( 'invalid_date_range', 'Use a valid From/To date range.', array( 'status' => 400 ) );
 		}
@@ -2286,7 +2286,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return $scope;
 		}
 		$requested_date = $r->get_param( 'date' );
-		$date = sanitize_text_field( $requested_date ? $requested_date : current_time( 'Y-m-d' ) );
+		$date           = sanitize_text_field( $requested_date ? $requested_date : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			return new WP_Error( 'invalid_date', 'date must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}
@@ -2319,9 +2319,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function operations_overview( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
-		$from = sanitize_text_field( $requested_from ? $requested_from : gmdate( 'Y-m-01' ) );
-		$requested_to = $r->get_param( 'to' );
-		$to = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
+		$from           = sanitize_text_field( $requested_from ? $requested_from : gmdate( 'Y-m-01' ) );
+		$requested_to   = $r->get_param( 'to' );
+		$to             = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ) {
 			return new WP_Error( 'invalid_date', 'from/to must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}

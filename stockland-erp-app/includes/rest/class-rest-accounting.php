@@ -1455,8 +1455,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 						throw new Exception( 'Supplier invoice SKU, unit cost and tax must match the approved PO. Request an Owner-reviewed PO amendment for price/tax differences before posting.' );
 					}
 				}
-				$line_sub_total = Stockland_Money::add( $line_sub_total, $ls );
-				$line_tax_total = Stockland_Money::add( $line_tax_total, $lt );
+				$line_sub_total   = Stockland_Money::add( $line_sub_total, $ls );
+				$line_tax_total   = Stockland_Money::add( $line_tax_total, $lt );
 				$invoice_line_sku = sanitize_text_field( $li['sku'] ?? ( $poid ? $po_item_ids[ $po_item_id ]['sku'] : '' ) );
 				if ( false === $wpdb->insert(
 					Stockland_DB::table( 'supplier_invoice_items' ),

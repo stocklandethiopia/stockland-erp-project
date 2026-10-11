@@ -172,7 +172,7 @@ class Stockland_REST_Inventory_Report_V16 {
 	private function daily_inventory_impl( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_business_date = $r->get_param( 'business_date' );
-		$date = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
+		$date                    = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			return new WP_Error( 'invalid_date', 'business_date must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}
