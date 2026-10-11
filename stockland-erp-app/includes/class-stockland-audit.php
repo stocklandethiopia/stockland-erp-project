@@ -53,12 +53,12 @@ class Stockland_Audit {
 		global $wpdb;
 		$table     = Stockland_DB::table( 'audit_logs' );
 		$lock_name = 'stockland_audit_chain';
-		$locked    = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,10)', $lock_name ) );
+		$locked    = Stockland_DB::read_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,10)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
 			return false;
 		}
 		try {
-			$previous         = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT event_hash FROM %i ORDER BY id DESC LIMIT 1', $table ) );
+			$previous         = (string) Stockland_DB::read_var( $wpdb->prepare( 'SELECT event_hash FROM %i ORDER BY id DESC LIMIT 1', $table ) );
 			$stamp            = current_time( 'mysql' );
 			$action_stored    = self::stored_action( $action );
 			$sku_stored       = self::stored_text( $sku );
@@ -104,7 +104,7 @@ class Stockland_Audit {
 			);
 			return false !== $ok;
 		} finally {
-			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			Stockland_DB::read_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
 	}
 
@@ -329,7 +329,7 @@ class Stockland_Audit {
 	public static function verify_chain() {
 		global $wpdb;
 		$table         = Stockland_DB::table( 'audit_logs' );
-		$rows          = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id ASC', $table ), ARRAY_A );
+		$rows          = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id ASC', $table ), ARRAY_A );
 		$previous      = '';
 		$checked       = 0;
 		$legacy        = 0;
