@@ -897,7 +897,7 @@ class Stockland_Activator {
 					if ( '' !== $db_error ) {
 						$detail .= ' Database error: ' . esc_html( $db_error );
 					}
-					throw new RuntimeException( $detail );
+					throw new RuntimeException( esc_html( $detail ) );
 				}
 				$batch_results[] = array(
 					'table'    => $table_key,
@@ -959,7 +959,7 @@ class Stockland_Activator {
 			if ( $delta_errors ) {
 				$detail .= ' | Database error: ' . esc_html( implode( ' | ', array_unique( $delta_errors ) ) );
 			}
-			throw new RuntimeException( $detail );
+			throw new RuntimeException( esc_html( $detail ) );
 		}
 
 		if ( ! $fresh_namespace ) {
