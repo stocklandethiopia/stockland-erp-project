@@ -44,6 +44,7 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $request REST request containing SKU, quantity, price and date.
 	 * @return WP_REST_Response|WP_Error Posted transaction response or a validation/persistence error.
+	 * @throws Exception When stock, ledger or audit writes cannot be committed atomically.
 	 */
 	public function create( WP_REST_Request $request ) {
 		$p    = $request->get_json_params();
