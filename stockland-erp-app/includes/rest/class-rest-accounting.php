@@ -20,7 +20,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * Registers accounting and procurement routes for the ERP REST controller.
 	 *
 	 * @return void Registers controller hooks.
-	 * @throws Exception When validation or database transaction processing fails.
+
 	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
@@ -475,6 +475,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function supplier_save( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_suppliers' );
@@ -612,6 +613,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function customer_save( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_customers' );
@@ -783,6 +785,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function purchase_order_create( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_create_external_purchase_order() ) {
@@ -995,6 +998,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function purchase_order_status( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1139,6 +1143,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function purchase_order_receive( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_receive_external_purchase_order() ) {
@@ -1508,6 +1513,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function supplier_invoice_create( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_prepare_finance( 'stockland_manage_payables' ) ) {
@@ -1794,6 +1800,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * @param int   $user_id WordPress user ID associated with the transaction.
 	 * @param mixed $invoice_total Total amount of the invoice.
 	 * @return int|WP_Error|false The payment identifier, or an error/failure result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function insert_customer_payment_in_transaction( $p, $user_id, $invoice_total = 0 ) {
 		global $wpdb;
@@ -1865,6 +1872,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * @param mixed $source_type Value for the source type argument.
 	 * @param mixed $source_id Value for the source id argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function create_customer_invoice( $p, $user_id, $source_type = 'MANUAL', $source_id = null ) {
 		global $wpdb;
@@ -2124,6 +2132,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function expense_create( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_expenses' );
@@ -2319,6 +2328,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function expense_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_expenses() ) {
@@ -2471,6 +2481,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * @param mixed $p Validated payment, invoice, or party values.
 	 * @param int   $user_id WordPress user ID associated with the transaction.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function record_internal_customer_payment( $p, $user_id ) {
 		global $wpdb;
@@ -2612,6 +2623,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payment_create( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_payments' );
@@ -2849,6 +2861,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * Owner approves/rejects a Management-entered supplier invoice; the posted AP journal is created in the same transaction.
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function supplier_invoice_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_finance() ) {
@@ -3018,6 +3031,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * Owner-only posting of a previously submitted Finance payment. Supplier allocations are revalidated under row locks.
 	 *
 	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payment_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_finance() ) {
