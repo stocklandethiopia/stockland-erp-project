@@ -68,9 +68,12 @@ class Stockland_XLSX {
 		if ( $size > self::MAX_FILE_BYTES ) {
 			throw new Exception( 'XLSX file is too large. Maximum allowed size is 8 MB.' );
 		}
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Binary signature validation needs a native stream before ZipArchive parses the upload.
 		$fh        = fopen( $file, 'rb' );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Read only the four-byte binary XLSX signature from the temporary upload.
 		$signature = $fh ? fread( $fh, 4 ) : false;
 		if ( $fh ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close the short-lived native stream opened for binary signature validation.
 			fclose( $fh );
 		}
 		if ( "PK\x03\x04" !== $signature && "PK\x05\x06" !== $signature && "PK\x07\x08" !== $signature ) {
@@ -221,6 +224,7 @@ class Stockland_XLSX {
 				$reader = XMLReader::fromStream( $stream, null, LIBXML_NONET | LIBXML_COMPACT );
 				$count  = 0;
 				while ( $reader->read() ) {
+					// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API exposes the documented nodeType/localName properties.
 					if ( XMLReader::ELEMENT === $reader->nodeType && 'si' === $reader->localName ) {
 						if ( ++$count > self::MAX_SHARED_STRINGS ) {
 							throw new Exception( 'XLSX contains too many shared strings.' );
@@ -242,7 +246,9 @@ class Stockland_XLSX {
 					}
 				}
 				$reader->close();
-				fclose( $stream );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- ZipArchive returns a native resource handle that must be closed directly.
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- ZipArchive returns a native resource handle that must be closed directly.
+			fclose( $stream );
 				return;
 			}
 		}
@@ -393,11 +399,13 @@ class Stockland_XLSX {
 				if ( ! $temp_xml ) {
 					throw new Exception( 'Could not create a temporary XLSX worksheet file on this host.' );
 				}
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- XMLReader fallback requires a local file path, so worksheet XML is streamed to a temporary file.
 				$out = fopen( $temp_xml, 'wb' );
 				if ( ! $out ) {
 					throw new Exception( 'Could not open temporary XLSX worksheet file.' );
 				}
 				stream_copy_to_stream( $stream, $out );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close the temporary worksheet output stream before XMLReader opens the path.
 				fclose( $out );
 				$reader = XMLReader::open( $temp_xml, null, LIBXML_NONET | LIBXML_COMPACT );
 				if ( false === $reader ) {
@@ -406,8 +414,8 @@ class Stockland_XLSX {
 			}
 			$nodes = 0;
 			while ( $reader->read() ) {
-				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API defines nodeType/localName in camelCase.
-			if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
+				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API exposes the documented nodeType/localName properties.
+				if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
 					continue;
 				}
 				if ( ++$nodes > $max_physical_rows ) {
