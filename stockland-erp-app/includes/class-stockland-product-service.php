@@ -11,6 +11,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Canonical Product Master domain service.  All SKU replacement paths delegate here. */
 class Stockland_Product_Service {
+	/**
+	 * Replaces a variant SKU only when operational references permit it.
+	 *
+	 * All writes, SKU-history evidence, ledger balance rebuild and audit event
+	 * remain part of the same transaction when this service owns the transaction.
+	 *
+	 * @param int    $variant_id Immutable Product Master variant identifier.
+	 * @param string $new_sku New SKU to assign.
+	 * @param string $reason Business justification for the SKU replacement.
+	 * @param string $reference Optional supporting document/reference.
+	 * @param bool   $manage_transaction Whether this service should start/commit its own transaction.
+	 * @return array|false Saved Product Master product row, or false if it cannot be re-read.
+	 * @throws Exception When validation, active references, ledger rebuild, audit logging or persistence fails.
+	 */
 	public static function replace_sku( $variant_id, $new_sku, $reason, $reference = '', $manage_transaction = true ) {
 		global $wpdb;
 		$variant_id = (int) $variant_id;
