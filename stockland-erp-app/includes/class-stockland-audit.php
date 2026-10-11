@@ -34,7 +34,7 @@ class Stockland_Audit {
 			return false;
 		}
 		try {
-			$previous         = (string) $wpdb->get_var( "SELECT event_hash FROM {$table} ORDER BY id DESC LIMIT 1" );
+			$previous         = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT event_hash FROM %i ORDER BY id DESC LIMIT 1', $table ) );
 			$stamp            = current_time( 'mysql' );
 			$action_stored    = self::stored_action( $action );
 			$sku_stored       = self::stored_text( $sku );
@@ -250,7 +250,7 @@ class Stockland_Audit {
 	public static function verify_chain() {
 		global $wpdb;
 		$table         = Stockland_DB::table( 'audit_logs' );
-		$rows          = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY id ASC", ARRAY_A );
+		$rows          = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id ASC', $table ), ARRAY_A );
 		$previous      = '';
 		$checked       = 0;
 		$legacy        = 0;
