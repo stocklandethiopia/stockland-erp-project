@@ -23,7 +23,7 @@ class Stockland_DB {
 		$table = self::table( 'locations' );
 		return $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT id FROM %i WHERE location_name = %s",
+				'SELECT id FROM %i WHERE location_name = %s',
 				$table,
 				$location_name
 			)
@@ -35,7 +35,7 @@ class Stockland_DB {
 		$table = self::table( 'settings' );
 		$value = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT setting_value FROM %i WHERE setting_key = %s",
+				'SELECT setting_value FROM %i WHERE setting_key = %s',
 				$table,
 				$key
 			)
@@ -58,7 +58,7 @@ class Stockland_DB {
 		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM %i WHERE sku = %s AND is_active = 1",
+				'SELECT * FROM %i WHERE sku = %s AND is_active = 1',
 				$table,
 				$sku
 			),
@@ -94,10 +94,10 @@ class Stockland_DB {
 		if ( self::table_exists( $maps ) ) {
 			$mapped = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT live_sku FROM %i WHERE source_system=%s AND external_code=%s AND is_active=1
+					'SELECT live_sku FROM %i WHERE source_system=%s AND external_code=%s AND is_active=1
                  AND (effective_from IS NULL OR effective_from<=%s)
                  AND (effective_to IS NULL OR effective_to>=%s)
-                 ORDER BY effective_from DESC, id DESC LIMIT 1",
+                 ORDER BY effective_from DESC, id DESC LIMIT 1',
 					$maps,
 					$source_system,
 					$external_code,
@@ -128,7 +128,7 @@ class Stockland_DB {
 		if ( $product && ! empty( $product['variant_id'] ) ) {
 			return (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))',
 					$tx,
 					(int) $location_id,
 					(int) $product['variant_id'],
@@ -138,7 +138,7 @@ class Stockland_DB {
 		}
 		return (float) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND sku=%s",
+				'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND sku=%s',
 				$tx,
 				(int) $location_id,
 				$sku
@@ -152,7 +152,7 @@ class Stockland_DB {
 		$table = self::table( 'daily_closings' );
 		if ( (string) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s LIMIT 1",
+				'SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s LIMIT 1',
 				$table,
 				(int) $location_id,
 				$business_date
