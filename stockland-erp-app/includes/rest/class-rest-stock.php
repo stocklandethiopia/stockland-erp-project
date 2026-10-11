@@ -1,5 +1,10 @@
 <?php
 // phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+/**
+ * Read-only stock and reorder-status REST endpoints.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -7,13 +12,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Read-only stock endpoints. Always derives stock from the immutable transaction ledger and active reservations, never a stored balance
  * column — see Stockland_Ledger. Branch-scoped per section 13.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_REST_Stock extends Stockland_REST_Base {
 
+	/**
+	 * Registers stock and reorder-status route hooks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers stock and reorder-status read routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -38,6 +55,12 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Returns ledger-derived stock for the user's authorized location.
+	 *
+	 * @param WP_REST_Request $request REST request containing location and product filters.
+	 * @return mixed REST response with stock rows or a WP_Error.
+	 */
 	public function get_stock( WP_REST_Request $request ) {
 		$location_id = $this->resolve_branch_for_user( $request->get_param( 'location_id' ) );
 		if ( is_wp_error( $location_id ) ) {
@@ -82,6 +105,12 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 	}
 
 	/** Mirrors REORDER ACTIONS sheet: Current Stock vs Reorder Level, per location. */
+	/**
+	 * Returns ledger-derived reorder alerts for the authorized location scope.
+	 *
+	 * @param WP_REST_Request $request REST request containing optional location filters.
+	 * @return mixed REST response with reorder rows or a WP_Error.
+	 */
 	public function get_reorder_status( WP_REST_Request $request ) {
 		$location_id = $this->resolve_branch_for_user( $request->get_param( 'location_id' ) );
 		if ( is_wp_error( $location_id ) ) {
