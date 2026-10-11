@@ -82,6 +82,7 @@ class Stockland_Activator {
 	 * progress. This keeps first-run requests short on constrained shared hosting.
 
 	 * @param int $batch_size Maximum number of schema objects to process in this activation batch.
+	 * @throws RuntimeException When a required schema object cannot be created or verified.
 	 */
 	public static function activate( $batch_size = 0 ) {
 		$batch_size = max( 0, (int) $batch_size );
@@ -106,7 +107,7 @@ class Stockland_Activator {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 		$charset_collate = $wpdb->get_charset_collate();
-		$p               = $wpdb->prefix; // usually 'wp_'
+		$p               = $wpdb->prefix; // Usually `wp_`.
 
 		// Migration helpers must exist before the legacy finalization section uses them.
 		// A previous release defined these closures only inside apply_schema_1600_migrations(),
@@ -857,9 +858,9 @@ class Stockland_Activator {
 				)
 			);
 			if ( $legacy_col && ! $new_col ) {
-				$renamed = $wpdb->query( "ALTER TABLE `{$import_rows_table}` CHANGE COLUMN `row_number` `source_row_number` INT UNSIGNED NOT NULL" );
+				$renamed = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i CHANGE COLUMN %i %i INT UNSIGNED NOT NULL', $import_rows_table, 'row_number', 'source_row_number' ) );
 				if ( false === $renamed ) {
-					throw new RuntimeException( 'Could not migrate import_rows.row_number to source_row_number: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
+					throw new RuntimeException( 'Could not migrate import_rows.row_number to source_row_number.' );
 				}
 			}
 		}
@@ -881,19 +882,20 @@ class Stockland_Activator {
 				// dbDelta(), whose parser is intentionally strict and whose result is not
 				// proof that the physical table exists. Each table is verified immediately.
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is built from the fixed Core schema array and the trusted WordPress prefix; SQL structure cannot be bound as a data value.
 				$result     = $wpdb->query( $direct_sql );
 				$db_error   = (string) $wpdb->last_error;
 				if ( false === $result ) {
-					$detail = 'Core table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
+					$detail = 'Core table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( '' !== $db_error ) {
-						$detail .= ': ' . $db_error;
+						$detail .= ': ' . esc_html( $db_error );
 					}
 					throw new RuntimeException( $detail );
 				}
 				if ( '' === $table_key || ! self::table_exists_static( $p . 'stock_' . $table_key ) ) {
-					$detail = 'Core table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.';
+					$detail = 'Core table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.';
 					if ( '' !== $db_error ) {
-						$detail .= ' Database error: ' . $db_error;
+						$detail .= ' Database error: ' . esc_html( $db_error );
 					}
 					throw new RuntimeException( $detail );
 				}
@@ -934,6 +936,7 @@ class Stockland_Activator {
 				// not replace dbDelta for upgrades.
 				$fallback_sql     = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fallback CREATE TABLE DDL is derived from the same fixed Core schema allowlist; no request data is included.
 				$result           = $wpdb->query( $fallback_sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
@@ -952,9 +955,9 @@ class Stockland_Activator {
 					'errors'              => array_values( array_unique( $delta_errors ) ),
 				);
 			}
-			$detail = 'Core ERP schema is incomplete: ' . implode( ', ', $missing_core_tables );
+			$detail = 'Core ERP schema is incomplete: ' . esc_html( implode( ', ', $missing_core_tables ) );
 			if ( $delta_errors ) {
-				$detail .= ' | Database error: ' . implode( ' | ', array_unique( $delta_errors ) );
+				$detail .= ' | Database error: ' . esc_html( implode( ' | ', array_unique( $delta_errors ) ) );
 			}
 			throw new RuntimeException( $detail );
 		}
@@ -1465,11 +1468,11 @@ class Stockland_Activator {
 		if ( $is_variant_pk ) {
 			return;
 		}
-		$dup_sku = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} GROUP BY sku HAVING COUNT(*)>1 LIMIT 1" );
+		$dup_sku = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i GROUP BY sku HAVING COUNT(*)>1 LIMIT 1', $table ) );
 		if ( $dup_sku > 0 ) {
 			throw new RuntimeException( 'Cannot enforce variant-first Product Master identity: duplicate SKU values exist. Resolve duplicates before continuing.' );
 		}
-		$dup_vid = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT variant_id FROM {$table} GROUP BY variant_id HAVING COUNT(*)>1) x" );
+		$dup_vid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM (SELECT variant_id FROM %i GROUP BY variant_id HAVING COUNT(*)>1) x', $table ) );
 		if ( $dup_vid > 0 ) {
 			throw new RuntimeException( 'Cannot enforce variant-first Product Master identity: duplicate variant_id values exist.' );
 		}
@@ -1482,8 +1485,9 @@ class Stockland_Activator {
 		// MariaDB/MySQL DDL is still not transactional, but this removes avoidable
 		// intermediate states between dropping the legacy key and adding the invariant key.
 		$sql = "ALTER TABLE {$table} MODIFY variant_id BIGINT UNSIGNED NOT NULL, DROP PRIMARY KEY{$sku_clause}, ADD PRIMARY KEY  (variant_id)";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only unbound fragment is a fixed internal index clause selected from schema metadata; the table identifier is validated by the plugin-owned Product Master schema.
 		if ( false === $wpdb->query( $sql ) || $wpdb->last_error ) {
-			throw new RuntimeException( 'Could not enforce immutable variant_id primary key: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
+			throw new RuntimeException( 'Could not enforce immutable variant_id primary key.' );
 		}
 	}
 
@@ -1574,9 +1578,9 @@ class Stockland_Activator {
 			// it does not reset or reseed business data.
 			if ( ! $has_col( $bal, 'variant_id' ) ) {
 				$wpdb->last_error = '';
-				$ok               = $wpdb->query( "ALTER TABLE {$bal} ADD COLUMN variant_id BIGINT UNSIGNED NULL AFTER sku" );
+				$ok               = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $bal, 'variant_id', 'sku' ) );
 				if ( false === $ok || $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not add variant_id to stock_balances: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
+					throw new RuntimeException( 'Could not add variant_id to stock_balances.' );
 				}
 			}
 			if ( ! $has_col( $bal, 'physical_qty' ) ) {
@@ -1588,30 +1592,30 @@ class Stockland_Activator {
 				}
 				$wpdb->last_error = '';
 				// Do not depend on column order on legacy MariaDB tables.
-				$ok = $wpdb->query( "ALTER TABLE {$bal} ADD COLUMN physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0" );
+				$ok = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DECIMAL(14,2) NOT NULL DEFAULT 0', $bal, 'physical_qty' ) );
 				if ( false === $ok || $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not add physical_qty to stock_balances: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
+					throw new RuntimeException( 'Could not add physical_qty to stock_balances.' );
 				}
 				if ( $legacy_qty ) {
 					$wpdb->last_error = '';
-					$ok               = $wpdb->query( "UPDATE {$bal} SET physical_qty=COALESCE({$legacy_qty},0)" );
+					$ok               = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET physical_qty=COALESCE(%i,0)', $bal, $legacy_qty ) );
 					if ( false === $ok || $wpdb->last_error ) {
-						throw new RuntimeException( 'Could not preserve legacy balance quantity: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
+						throw new RuntimeException( 'Could not preserve legacy balance quantity.' );
 					}
 				}
 			}
 			if ( ! $has_col( $bal, 'updated_at' ) ) {
 				$wpdb->last_error = '';
-				$ok               = $wpdb->query( "ALTER TABLE {$bal} ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" );
+				$ok               = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP', $bal, 'updated_at' ) );
 				if ( false === $ok || $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not add updated_at to stock_balances: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
+					throw new RuntimeException( 'Could not add updated_at to stock_balances.' );
 				}
 			}
-			$unresolved = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$bal} b LEFT JOIN {$p}stock_products p ON p.sku=b.sku WHERE b.variant_id IS NULL AND p.variant_id IS NULL" );
+			$unresolved = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i b LEFT JOIN %i p ON p.sku=b.sku WHERE b.variant_id IS NULL AND p.variant_id IS NULL', $bal, $p . 'stock_products' ) );
 			if ( $unresolved > 0 ) {
 				throw new RuntimeException( 'Cannot migrate stock_balances: ' . $unresolved . ' derived balance row(s) have no matching Product Master variant.' );
 			}
-			$wpdb->query( "UPDATE {$bal} b INNER JOIN {$p}stock_products p ON p.sku=b.sku SET b.variant_id=p.variant_id WHERE b.variant_id IS NULL" );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i b INNER JOIN %i p ON p.sku=b.sku SET b.variant_id=p.variant_id WHERE b.variant_id IS NULL', $bal, $p . 'stock_products' ) );
 			$pk_cols        = $wpdb->get_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $bal ), ARRAY_A );
 			$has_variant_pk = ( is_array( $pk_cols ) && count( $pk_cols ) === 2 && ( ( $pk_cols[0]['COLUMN_NAME'] ?? '' ) === 'location_id' ) && ( ( $pk_cols[1]['COLUMN_NAME'] ?? '' ) === 'variant_id' ) );
 			if ( ! $has_variant_pk ) {
@@ -1621,46 +1625,43 @@ class Stockland_Activator {
 				// A previous interrupted upgrade may have left only the disposable staging
 				// table behind. Remove that stale stage before rebuilding it; the live table
 				// and timestamped rollback snapshot are never touched by this cleanup.
-				$wpdb->query( "DROP TABLE IF EXISTS {$stage}" );
+				$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $stage ) );
 				if ( $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not clear stale balance migration stage: ' . $wpdb->last_error );
+					throw new RuntimeException( 'Could not clear stale balance migration stage.' );
 				}
 				$wpdb->query(
-					"CREATE TABLE {$stage} (
+					$wpdb->prepare( "CREATE TABLE %i (
                     location_id BIGINT UNSIGNED NOT NULL,
                     sku VARCHAR(64) NOT NULL,
                     variant_id BIGINT UNSIGNED NOT NULL,
                     physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     PRIMARY KEY  (location_id,variant_id), KEY sku (sku), KEY location_sku (location_id,sku)
-                ) ENGINE=InnoDB {$wpdb->get_charset_collate()}"
+                ) ENGINE=InnoDB {$wpdb->get_charset_collate()}", $stage )
 				);
 				if ( $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not create staged balance read model: ' . $wpdb->last_error );
+					throw new RuntimeException( 'Could not create staged balance read model.' );
 				}
 				$wpdb->query(
-					"INSERT INTO {$stage}(location_id,sku,variant_id,physical_qty,updated_at)
-                    SELECT b.location_id,MAX(p.sku),p.variant_id,SUM(b.physical_qty),MAX(b.updated_at)
-                    FROM {$bal} b JOIN {$p}stock_products p ON p.variant_id=b.variant_id OR p.sku=b.sku
-                    GROUP BY b.location_id,p.variant_id"
+					$wpdb->prepare( 'INSERT INTO %i(location_id,sku,variant_id,physical_qty,updated_at) SELECT b.location_id,MAX(p.sku),p.variant_id,SUM(b.physical_qty),MAX(b.updated_at) FROM %i b JOIN %i p ON p.variant_id=b.variant_id OR p.sku=b.sku GROUP BY b.location_id,p.variant_id', $stage, $bal, $p . 'stock_products' )
 				);
 				if ( $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not populate staged balance read model: ' . $wpdb->last_error );
+					throw new RuntimeException( 'Could not populate staged balance read model.' );
 				}
-				$source_total = (float) $wpdb->get_var( "SELECT COALESCE(SUM(physical_qty),0) FROM {$bal}" );
-				$stage_total  = (float) $wpdb->get_var( "SELECT COALESCE(SUM(physical_qty),0) FROM {$stage}" );
+				$source_total = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(physical_qty),0) FROM %i', $bal ) );
+				$stage_total  = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(physical_qty),0) FROM %i', $stage ) );
 				if ( abs( $source_total - $stage_total ) > 0.00001 ) {
 					throw new RuntimeException( 'Derived balance reconciliation failed before cutover. Live read model was preserved.' );
 				}
 				// Atomic metadata cutover; the old read model remains as a rollback snapshot.
-				$wpdb->query( "RENAME TABLE {$bal} TO {$backup}, {$stage} TO {$bal}" );
+				$wpdb->query( $wpdb->prepare( 'RENAME TABLE %i TO %i, %i TO %i', $bal, $backup, $stage, $bal ) );
 				if ( $wpdb->last_error ) {
-					throw new RuntimeException( 'Could not cut over staged balance read model: ' . $wpdb->last_error );
+					throw new RuntimeException( 'Could not cut over staged balance read model.' );
 				}
 				update_option( 'stockland_balance_rollback_snapshot', $backup, false );
 			}
 			if ( ! $has_index( $bal, 'location_sku' ) ) {
-				$wpdb->query( "ALTER TABLE {$bal} ADD KEY location_sku (location_id,sku)" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $bal, 'location_sku', 'location_id', 'sku' ) );
 			}
 		}
 
