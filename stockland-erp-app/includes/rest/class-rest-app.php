@@ -2624,9 +2624,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function count_preview( WP_REST_Request $r ) {
 		// REST auth/nonce validation and the permission callback run before this handler.
 		// PHPCS cannot infer the registered REST request lifecycle from this callback.
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated WordPress REST route; not a standalone form handler.
 		// Validate the upload structure, PHP upload error, normalized path and uploaded-file provenance.
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each consumed field is type-checked and normalized below; tmp_name is then verified with is_uploaded_file().
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The registered REST route validates nonce/auth and permission before this callback; each consumed field is normalized, and tmp_name is verified with is_uploaded_file().
 		$upload     = isset( $_FILES['file'] ) && is_array( $_FILES['file'] ) ? $_FILES['file'] : array();
 		$tmp_name   = isset( $upload['tmp_name'] ) && is_string( $upload['tmp_name'] ) ? sanitize_text_field( wp_unslash( $upload['tmp_name'] ) ) : '';
 		$file_name  = isset( $upload['name'] ) && is_string( $upload['name'] ) ? sanitize_file_name( wp_unslash( $upload['name'] ) ) : '';
