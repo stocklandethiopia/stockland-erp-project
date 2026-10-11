@@ -51,19 +51,15 @@ class Stockland_Product_Service {
 			$checks = array(
 				'reservations'    => array(
 					'table' => 'reservations',
-					'sql'   => "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status IN('Active','Reserved')",
 				),
 				'transfers'       => array(
 					'table' => 'transfers',
-					'sql'   => "SELECT COUNT(*) FROM %i WHERE variant_id=%d AND status NOT IN('Rejected','Cancelled','Completed','Received')",
 				),
 				'requisitions'    => array(
 					'table' => 'requisition_items',
-					'sql'   => 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_approved IS NOT NULL AND COALESCE(quantity_received,0)<COALESCE(quantity_approved,0)',
 				),
 				'purchase_orders' => array(
 					'table' => 'purchase_order_items',
-					'sql'   => 'SELECT COUNT(*) FROM %i WHERE variant_id=%d AND quantity_received<quantity_ordered',
 				),
 			);
 			foreach ( $checks as $name => $check ) {
