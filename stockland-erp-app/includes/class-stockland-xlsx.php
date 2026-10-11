@@ -391,7 +391,7 @@ class Stockland_XLSX {
 			$nodes = 0;
 			while ( $reader->read() ) {
 				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API defines nodeType/localName in camelCase.
-			if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
+				if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
 					continue;
 				}
 				if ( ++$nodes > $max_physical_rows ) {
