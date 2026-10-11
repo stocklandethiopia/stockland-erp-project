@@ -1406,7 +1406,7 @@ class Stockland_Activator {
 			if ( $exists ) {
 				$candidate = $prefix . str_pad( (string) ( (int) $row['id'] ), 4, '0', STR_PAD_LEFT );
 			}
-			$wpdb->update( $p . 'stock_locations', array( 'branch_code' => $candidate ), array( 'id' => (int) $row['id'] ), array( '%s' ), array( '%d' ) );
+			Stockland_DB::update_record( $p . 'stock_locations', array( 'branch_code' => $candidate ), array( 'id' => (int) $row['id'] ), array( '%s' ), array( '%d' ) );
 		}
 	}
 
