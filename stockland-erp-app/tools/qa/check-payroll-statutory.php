@@ -47,7 +47,7 @@ try {
 		'deduction_total'     => '6900.00',
 		'net_pay'             => '14600.00',
 		'employer_cost_total' => '23700.00',
-		'tax_rule_version'    => 'ET-PAYE-1395-2025-v1',
+		'tax_rule_version'    => 'ET-PAYE-1395-2025-v2',
 		'statutory_status'    => 'CALCULATED',
 	);
 	foreach ( $want as $k => $v ) {
@@ -76,8 +76,8 @@ if ( Stockland_Payroll_Statutory::EMPLOYEE_PENSION_RATE !== '0.07' || Stockland_
 } else {
 	++$pass;
 }
-if ( Stockland_Payroll_Statutory::EFFECTIVE_DATE !== '2025-07-01' ) {
-	$fail[] = 'Proclamation employment-income application-date contract mismatch';
+if ( Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE !== '2025-07-08' || Stockland_Payroll_Statutory::EFFECTIVE_DATE !== '2025-08-01' ) {
+	$fail[] = 'Proclamation effective date / first-full-month guard mismatch';
 } else {
 	++$pass;
 }
