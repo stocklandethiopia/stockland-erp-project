@@ -2227,7 +2227,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		global $wpdb;
 		$target = (int) $r['id'];
 		$p      = $r->get_json_params();
-		$row    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'users' ) . ' WHERE wp_user_id=%d', $target ), ARRAY_A );
+		$row    = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE wp_user_id=%d', 'users', $target), ARRAY_A );
 		if ( ! $row ) {
 			return new WP_Error( 'not_found', 'Stockland user not found.', array( 'status' => 404 ) );
 		}
@@ -2245,7 +2245,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$active = isset( $p['is_active'] ) ? (bool) $p['is_active'] : (bool) $row['is_active'];
 		if ( 'management' === $row['role'] && ! $active ) {
-			$remaining = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'users' ) . " WHERE role='management' AND is_active=1 AND wp_user_id<>%d", $target ) );
+			$remaining = (int) $wpdb->get_var( $wpdb->prepare('SELECT COUNT(*) FROM %i WHERE role=\'management\' AND is_active=1 AND wp_user_id<>%d', 'users', $target) );
 			if ( $remaining < 1 ) {
 				return new WP_Error( 'last_management', 'At least one active Management user must remain.', array( 'status' => 409 ) );
 			}
@@ -2859,7 +2859,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Reconciliation commit failed.' );
 			}
-			return rest_ensure_response( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'adjustments' ) . ' WHERE adjustment_id=%s', $id ), ARRAY_A ) );
+			return rest_ensure_response( $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE adjustment_id=%s', 'adjustments', $id), ARRAY_A ) );
 		} catch ( Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
@@ -2879,7 +2879,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! in_array( $decision, array( 'Approved', 'Rejected' ), true ) ) {
 			return new WP_Error( 'invalid_decision', 'Decision must be Approved or Rejected.', array( 'status' => 400 ) );
 		}
-		$peek = $wpdb->get_row( $wpdb->prepare( 'SELECT location_id FROM ' . Stockland_DB::table( 'adjustments' ) . ' WHERE id=%d', $id ), ARRAY_A );
+		$peek = $wpdb->get_row( $wpdb->prepare('SELECT location_id FROM %i WHERE id=%d', 'adjustments', $id), ARRAY_A );
 		if ( ! $peek ) {
 			return new WP_Error( 'not_found', 'Adjustment request not found.', array( 'status' => 404 ) );
 		}
@@ -2891,7 +2891,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start adjustment decision transaction.', array( 'status' => 500 ) );}
 		try {
-			$a = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'adjustments' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$a = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d FOR UPDATE', 'adjustments', $id), ARRAY_A );
 			if ( ! $a ) {
 				throw new Exception( 'Adjustment request not found.' );
 			}
@@ -3362,7 +3362,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! in_array( $decision, array( 'Approved', 'Rejected' ), true ) ) {
 			return new WP_Error( 'invalid_decision', 'Decision must be Approved or Rejected.', array( 'status' => 400 ) );
 		}
-		$b = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_batches' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+		$b = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d FOR UPDATE', 'count_batches', $id), ARRAY_A );
 		if ( ! $b ) {
 			return new WP_Error( 'not_found', 'Physical count batch not found.', array( 'status' => 404 ) );
 		}
@@ -3380,7 +3380,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count decision transaction.', array( 'status' => 500 ) );}
 		try {
-			$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_batches' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$batch = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d FOR UPDATE', 'count_batches', $id), ARRAY_A );
 			if ( ! $batch || 'Pending' !== $batch['status'] ) {
 				throw new Exception( 'Physical count is no longer pending.' );
 			}

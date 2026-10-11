@@ -1696,7 +1696,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! $job_id || ! $row_id ) {
 				throw new Exception( 'job_id and row_id are required.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . ' WHERE id=%d LIMIT 1', $job_id ), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d LIMIT 1', 'import_jobs', $job_id), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Import job not found.' );
 			}
@@ -1761,7 +1761,7 @@ class Stockland_REST_Import_V16 {
 			) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save the staged row edit.' );
 			}
-			$agg = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) total_rows,SUM(status='VALID') valid_rows,SUM(status='ERROR') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status='VALID' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status='VALID' THEN vat_amount ELSE 0 END),0) vat FROM " . Stockland_DB::table( 'import_rows' ) . ' WHERE job_id=%d', $job_id ), ARRAY_A );
+			$agg = $wpdb->get_row( $wpdb->prepare('SELECT COUNT(*) total_rows,SUM(status=\'VALID\') valid_rows,SUM(status=\'ERROR\') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN vat_amount ELSE 0 END),0) vat FROM %i WHERE job_id=%d', 'import_rows', $job_id), ARRAY_A );
 			if ( false === $wpdb->update(
 				Stockland_DB::table( 'import_jobs' ),
 				array(
@@ -2789,7 +2789,7 @@ class Stockland_REST_Import_V16 {
 		global $wpdb;
 		$requested_source_system = $r->get_param( 'source_system' );
 		$source                  = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
-		$rows                    = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' m LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', $source ), ARRAY_A );
+		$rows                    = $wpdb->get_results( $wpdb->prepare('SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM %i m LEFT JOIN %i p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', 'product_code_maps', $source, 'products'), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	/**
 	 * Creates or updates an external product-code mapping after validation.
@@ -2898,7 +2898,7 @@ class Stockland_REST_Import_V16 {
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start code-mapping deactivation.', array( 'status' => 500 ) );
 		}try {
-			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d FOR UPDATE', 'product_code_maps', $id), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Mapping not found.' );
 			}$ok = $wpdb->update(
