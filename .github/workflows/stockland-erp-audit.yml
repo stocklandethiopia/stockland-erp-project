@@ -19,6 +19,10 @@ on:
       - ".github/workflows/stockland-erp-audit.yml"
   workflow_dispatch:
 
+concurrency:
+  group: stockland-erp-audit-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
