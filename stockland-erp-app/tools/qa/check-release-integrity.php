@@ -6,7 +6,7 @@ $root                               = dirname( __DIR__, 2 );
 $version                            = '16.1.57';
 $checks                             = array();
 $checks['plugin_version']           = str_contains( file_get_contents( $root . '/stockland-inventory.php' ), "Version:           {$version}" );
-$checks['frontend_route_version']   = str_contains( file_get_contents( $root . '/includes/class-stockland-frontend.php' ), "ROUTE_VERSION = '{$version}'" );
+$checks['frontend_route_version']   = 1 === preg_match( '/ROUTE_VERSION\\s*=\\s*[\'\"]' . preg_quote( $version, '/' ) . '[\'\"]/', file_get_contents( $root . '/includes/class-stockland-frontend.php' ) );
 $checks['no_legacy_ui_switch']      = ! preg_match( '/view_(?:legacy_ui|modern_saas)/', file_get_contents( $root . '/includes/class-stockland-frontend.php' ) );
 $checks['no_advisor_endpoint']      = ! preg_match( '/inventory\/advisor|ai\/suggest|loadAdvisor/', file_get_contents( $root . '/assets/app.js' ) );
 $checks['bootstrap_local']          = is_file( $root . '/assets/bootstrap.min.css' );
