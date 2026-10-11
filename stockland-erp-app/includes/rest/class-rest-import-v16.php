@@ -2047,7 +2047,7 @@ class Stockland_REST_Import_V16 {
 	 * @return WP_REST_Response|WP_Error Product Master preview or a REST error.
 	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
-	public function product_preview( WP_REST_Request $r ) {
+	public function product_preview( WP_REST_Request $r ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- REST route callbacks retain the WP_REST_Request signature for WordPress dispatch compatibility.
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
 		global $wpdb;
 		try {
