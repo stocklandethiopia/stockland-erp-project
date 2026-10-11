@@ -643,7 +643,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( $start !== $month_start || $end !== $month_end || substr( $start, 0, 7 ) !== $key ) {
 			return new WP_Error( 'payroll_month_required', 'Statutory PAYE is monthly: use period key YYYY-MM with the first and last date of that same calendar month.', array( 'status' => 400 ) );
 		}if ( $start < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
-			return new WP_Error( 'historical_tax_rule_unavailable', 'This statutory rule set must not be applied to historical periods before ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. Preserve prior payroll and use the historically applicable certified rule.', array( 'status' => 400 ) );
+			return new WP_Error( 'historical_tax_rule_unavailable', 'This monthly statutory calculator starts on ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. The law applies from ' . Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE . '; July 2025 crosses that boundary and requires separately approved split-period treatment. Preserve posted payroll; do not silently recalculate historical periods.', array( 'status' => 400 ) );
 		}if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE period_key=%s', Stockland_DB::table( 'payroll_periods' ), $key ) ) ) {
 			return new WP_Error( 'duplicate', 'Payroll period already exists.', array( 'status' => 409 ) );
 		}
@@ -934,7 +934,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Payroll period must be a full calendar month with key YYYY-MM.' );
 			}
 			if ( $period['start_date'] < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
-				throw new Exception( 'The configured tax schedule must not be applied to historical periods before ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '.' );
+				throw new Exception( 'This monthly statutory calculator starts on ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. The law applies from ' . Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE . '; July 2025 requires separately approved split-period treatment. Existing posted payroll must remain unchanged.' );
 			}
 			$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $id ) );
 			if ( $existing > 0 ) {
