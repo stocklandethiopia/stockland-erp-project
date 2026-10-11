@@ -382,14 +382,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $uid <= 0 ) {
 			return false;
 		}
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT id,role,is_active FROM {$table} WHERE wp_user_id=%d LIMIT 1", $uid ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT id,role,is_active FROM %i WHERE wp_user_id=%d LIMIT 1', $table, $uid ), ARRAY_A );
 		if ( ! $row ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$table} (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $uid ) );
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $table, $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
 			}
 		} elseif ( 1 !== (int) $row['is_active'] || 'owner' !== (string) $row['role'] ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $uid ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE %i SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $table, $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
 			}
@@ -467,8 +467,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$location_table = Stockland_DB::table( 'locations' );
 		$central_id     = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( Stockland_Authority::company_scope() ) {
-			$locs             = $wpdb->get_results( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE is_active=1 ORDER BY id", ARRAY_A );
-			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE id=%d LIMIT 1", $central_id ), ARRAY_A ) : null;
+			$locs             = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 ORDER BY id', $location_table ), ARRAY_A );
+			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
 		} else {
 			$allowed = array_values( array_unique( array_filter( array_map( 'intval', $scope ) ) ) );
 			// Do not inject Central Warehouse into the ordinary operational location
@@ -478,14 +478,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$locs = array();
 			} else {
 				$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
-				$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE is_active=1 AND id IN({$ph}) ORDER BY id", $allowed ), ARRAY_A );
+				$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
 			}
 			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE id=%d LIMIT 1", $central_id ), ARRAY_A ) : null;
 		}
 		$product_cols = current_user_can( 'stockland_view_cost_and_profit' )
 			? 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level'
 			: 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level';
-		$products     = $wpdb->get_results( "SELECT {$product_cols} FROM " . Stockland_DB::table( 'products' ) . " WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", ARRAY_A );
+		$products     = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $product_cols . ' FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku', Stockland_DB::table( 'products' ) ), ARRAY_A );
 
 		$args  = array();
 		$sql   = 'SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
@@ -823,7 +823,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function audit( WP_REST_Request $r ) {
 		global $wpdb;
 		$t    = Stockland_DB::table( 'audit_logs' );
-		$rows = $wpdb->get_results( "SELECT a.*,u.display_name,l.location_name FROM {$t} a LEFT JOIN {$wpdb->users} u ON u.ID=a.user_id LEFT JOIN " . Stockland_DB::table( 'locations' ) . ' l ON l.id=a.branch_location_id ORDER BY a.action_time DESC LIMIT 500', ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT a.*,u.display_name,l.location_name FROM %i a LEFT JOIN %i u ON u.ID=a.user_id LEFT JOIN %i l ON l.id=a.branch_location_id ORDER BY a.action_time DESC LIMIT 500', $t, $wpdb->users, Stockland_DB::table( 'locations' ) ), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	/** Minimal read-only endpoint that remains usable even when a larger health query fails. */
 	public function runtime_diagnostics() {
