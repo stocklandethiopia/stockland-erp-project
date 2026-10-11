@@ -64,15 +64,13 @@ class Stockland_REST_Inventory_Report_V16 {
 		$ph   = implode( ',', array_fill( 0, count( $location_ids ), '%d' ) );
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT location_id,COALESCE(variant_id,0) variant_id,sku,COALESCE(SUM(quantity_reserved),0) reserved_qty
-             FROM {$t}
-             WHERE location_id IN({$ph}) AND status='Active'
-             GROUP BY location_id,COALESCE(variant_id,0),sku",
-				$location_ids
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only repeated %d placeholders; every location ID is passed separately to prepare().
+				'SELECT location_id,COALESCE(variant_id,0) variant_id,sku,COALESCE(SUM(quantity_reserved),0) reserved_qty FROM %i WHERE location_id IN(' . $ph . ") AND status='Active' GROUP BY location_id,COALESCE(variant_id,0),sku",
+				array_merge( array( $t ), array_map( 'intval', $location_ids ) )
 			),
 			ARRAY_A
 		);
-		$map  = array();
+		$map = array();
 		foreach ( $rows as $row ) {
 			$loc                        = (int) $row['location_id'];
 			$qty                        = (float) $row['reserved_qty'];
@@ -99,15 +97,18 @@ class Stockland_REST_Inventory_Report_V16 {
 			$wpdb->prepare(
 				"SELECT b.variant_id,b.sku,
                     COALESCE(b.physical_qty,0)-COALESCE(r.reserved_qty,0) available_qty
-             FROM {$bal} b
-             INNER JOIN {$prod} p ON p.variant_id=b.variant_id
+             FROM %i b
+             INNER JOIN %i p ON p.variant_id=b.variant_id
              LEFT JOIN (
                  SELECT COALESCE(variant_id,0) variant_id,sku,SUM(quantity_reserved) reserved_qty
-                 FROM {$res}
+                 FROM %i
                  WHERE location_id=%d AND status='Active'
                  GROUP BY COALESCE(variant_id,0),sku
              ) r ON (r.variant_id=b.variant_id OR (r.variant_id=0 AND r.sku=b.sku))
              WHERE b.location_id=%d AND p.is_active=1 AND p.product_type<>'STYLE'",
+				$bal,
+				$prod,
+				$res,
 				$warehouse_id,
 				$warehouse_id
 			),
@@ -129,8 +130,7 @@ class Stockland_REST_Inventory_Report_V16 {
 		global $wpdb;
 		$p    = Stockland_DB::table( 'products' );
 		$rows = $wpdb->get_results(
-			"SELECT variant_id,sku,product_name,unit,purchase_cost,retail_price,branch_reorder_level,central_reorder_level
-             FROM {$p} WHERE is_active=1 AND product_type<>'STYLE' ORDER BY product_name,sku",
+			$wpdb->prepare( "SELECT variant_id,sku,product_name,unit,purchase_cost,retail_price,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY product_name,sku", $p ),
 			ARRAY_A
 		);
 		if ( $wpdb->last_error ) {
@@ -171,7 +171,8 @@ class Stockland_REST_Inventory_Report_V16 {
 
 	private function daily_inventory_impl( WP_REST_Request $r ) {
 		global $wpdb;
-		$date = sanitize_text_field( $r->get_param( 'business_date' ) ?: current_time( 'Y-m-d' ) );
+		$requested_business_date = $r->get_param( 'business_date' );
+		$date                    = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			return new WP_Error( 'invalid_date', 'business_date must be YYYY-MM-DD.', array( 'status' => 400 ) );
 		}
@@ -215,7 +216,7 @@ class Stockland_REST_Inventory_Report_V16 {
 					)
 				);
 			}
-			$present = array_map( 'strval', (array) $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table, 0 ) );
+			$present = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 ) );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland Daily Inventory schema inspection failed for ' . $table . ': ' . $wpdb->last_error );
 				return new WP_Error( 'daily_inventory_schema_check_failed', 'Daily Inventory could not verify its database schema safely. Open System Health before retrying.', array( 'status' => 500 ) );
@@ -237,9 +238,9 @@ class Stockland_REST_Inventory_Report_V16 {
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_locations' );
 		if ( ! $location ) {
-			$locs = $wpdb->get_results( "SELECT id,location_name,location_type FROM {$locations_t} WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", ARRAY_A );
+			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", $locations_t ), ARRAY_A );
 		} else {
-			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM {$locations_t} WHERE id=%d AND is_active=1 LIMIT 1", $location ), ARRAY_A );
+			$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type FROM %i WHERE id=%d AND is_active=1 LIMIT 1', $locations_t, $location ), ARRAY_A );
 		}
 		if ( empty( $locs ) ) {
 			return rest_ensure_response(
@@ -316,8 +317,8 @@ class Stockland_REST_Inventory_Report_V16 {
                 SUM(CASE WHEN t.transaction_date=%s AND t.movement_type='RETURN_IN' THEN t.quantity_signed ELSE 0 END) returns_in_qty,
                 SUM(CASE WHEN t.transaction_date=%s AND t.movement_type IN('DAMAGE_LOSS','LOSS') THEN -t.quantity_signed ELSE 0 END) loss_qty,
                 SUM(CASE WHEN t.transaction_date=%s AND t.movement_type='ADJUSTMENT' THEN t.quantity_signed ELSE 0 END) adjustment_qty
-            FROM {$tx_t} t
-            INNER JOIN {$products_t} p ON p.variant_id=t.variant_id
+            FROM %i t
+            INNER JOIN %i p ON p.variant_id=t.variant_id
             WHERE t.location_id IN({$loc_ph})
               AND t.variant_id IS NOT NULL
               AND t.transaction_date<=%s
@@ -326,7 +327,8 @@ class Stockland_REST_Inventory_Report_V16 {
             GROUP BY t.location_id,t.variant_id,p.sku";
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_ledger' );
 		$movement_rows = $wpdb->get_results(
-			$wpdb->prepare( $movement_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date ), $loc_ids, array( $date ) ) ),
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $movement_select is a fixed SQL template; its generated IN placeholders are paired with integer-only location values in prepare().
+			$wpdb->prepare( $movement_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date, $tx_t, $products_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ),
 			ARRAY_A
 		);
 		if ( $wpdb->last_error ) {
@@ -357,8 +359,8 @@ class Stockland_REST_Inventory_Report_V16 {
                 SUM(CASE WHEN t.transaction_date=%s AND t.movement_type='RETURN_IN' THEN t.quantity_signed ELSE 0 END) returns_in_qty,
                 SUM(CASE WHEN t.transaction_date=%s AND t.movement_type IN('DAMAGE_LOSS','LOSS') THEN -t.quantity_signed ELSE 0 END) loss_qty,
                 SUM(CASE WHEN t.transaction_date=%s AND t.movement_type='ADJUSTMENT' THEN t.quantity_signed ELSE 0 END) adjustment_qty
-            FROM {$tx_t} t
-            INNER JOIN {$products_t} p ON p.sku=t.sku
+            FROM %i t
+            INNER JOIN %i p ON p.sku=t.sku
             WHERE t.location_id IN({$loc_ph})
               AND t.variant_id IS NULL
               AND t.transaction_date<=%s
@@ -367,7 +369,8 @@ class Stockland_REST_Inventory_Report_V16 {
             GROUP BY t.location_id,p.variant_id,p.sku";
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_legacy_ledger' );
 		$legacy_rows = $wpdb->get_results(
-			$wpdb->prepare( $legacy_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date ), $loc_ids, array( $date ) ) ),
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $legacy_select is a fixed SQL template; its generated IN placeholders are paired with integer-only location values in prepare().
+			$wpdb->prepare( $legacy_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date, $tx_t, $products_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ),
 			ARRAY_A
 		);
 		if ( $wpdb->last_error ) {
@@ -397,7 +400,8 @@ class Stockland_REST_Inventory_Report_V16 {
 		$reserved_map = $this->grouped_reservations_for_locations( $loc_ids );
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_balances' );
-		$balance_rows = $wpdb->get_results( $wpdb->prepare( "SELECT location_id,variant_id,sku,physical_qty FROM {$bal_t} WHERE location_id IN({$loc_ph})", $loc_ids ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- The only dynamic SQL fragment is a %d placeholder list generated from authorized, integer-cast location IDs; table uses %i.
+		$balance_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id,variant_id,sku,physical_qty FROM %i WHERE location_id IN(' . $loc_ph . ')', array_merge( array( $bal_t ), array_map( 'intval', $loc_ids ) ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			error_log( 'Stockland Daily Inventory balance query: ' . $wpdb->last_error );
 			return new WP_Error( 'daily_inventory_balance_query_failed', 'Current inventory balance could not be loaded safely.', array( 'status' => 500 ) );}
@@ -406,7 +410,8 @@ class Stockland_REST_Inventory_Report_V16 {
 			$balance_map[ (int) $row['location_id'] . '|v:' . (int) $row['variant_id'] ] = (float) $row['physical_qty'];}
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_sales' );
-		$sales_rows = $wpdb->get_results( $wpdb->prepare( "SELECT branch_location_id,variant_id,sku,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(net_sales_excl_vat),0) net_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs,COALESCE(SUM(gross_profit),0) gross_profit,COUNT(*) sale_lines FROM {$sales_t} WHERE branch_location_id IN({$loc_ph}) AND sale_date=%s GROUP BY branch_location_id,variant_id,sku", array_merge( $loc_ids, array( $date ) ) ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- The only dynamic SQL fragment is a %d placeholder list generated from authorized, integer-cast location IDs; table and date use %i/%s.
+		$sales_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT branch_location_id,variant_id,sku,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(net_sales_excl_vat),0) net_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs,COALESCE(SUM(gross_profit),0) gross_profit,COUNT(*) sale_lines FROM %i WHERE branch_location_id IN(' . $loc_ph . ') AND sale_date=%s GROUP BY branch_location_id,variant_id,sku', array_merge( array( $sales_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			error_log( 'Stockland Daily Inventory sales query: ' . $wpdb->last_error );
 			return new WP_Error( 'daily_inventory_sales_query_failed', 'Daily sales summary could not be loaded safely.', array( 'status' => 500 ) );}

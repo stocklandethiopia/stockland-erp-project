@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP import, mapping, workbook validation, and commit endpoints.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,26 +26,71 @@ class Stockland_REST_Import_V16 {
 	// A 5,000-row cap leaves headroom for WordPress, XML/shared-string buffers and DB payloads.
 	const MAX_IMPORT_ROWS = 5000;
 
+	/**
+	 * Initializes the import controller and registers its dependencies.
+	 *
+	 * @return void Initializes import hooks and route registration.
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
+	/**
+	 * Builds a standard forbidden response for an unauthorized import operation.
+	 *
+	 * @param mixed $code Value for the code argument.
+	 * @param mixed $message Value for the message argument.
+	 * @param mixed $status Value for the status argument.
+	 * @return WP_Error A forbidden REST response.
+	 */
 	private function deny( $code, $message, $status = 403 ) {
 		return new WP_Error( $code, $message, array( 'status' => $status ) ); }
+	/**
+	 * Checks permission to use branch Daily POS Import.
+	 *
+	 * @return bool Whether the user may run a daily POS import.
+	 */
 	public function capability_daily() {
 		$p    = Stockland_Authority::profile();
 		$role = is_array( $p ) ? (string) ( $p['role'] ?? '' ) : '';
 		return ( in_array( $role, array( 'branch_manager', 'sales_employee' ), true ) && Stockland_Authority::can_daily_import() ) ? true : $this->deny( 'forbidden', 'Only an assigned Sales Employee or Branch Manager may upload and stage branch Daily POS Excel data; only a Branch Manager may release it.' ); }
+	/**
+	 * Checks permission to manage central Product Master imports.
+	 *
+	 * @return bool Whether the user may import Product Master data.
+	 */
 	public function capability_product() {
 		return Stockland_Authority::can_product_import() ? true : $this->deny( 'forbidden', 'Only Management or Owner may import the Product Master.' ); }
 
+	/**
+	 * Checks the role allowed to commit a daily import.
+	 *
+	 * @return bool Whether the user may commit a daily import.
+	 */
 	public function capability_daily_commit() {
 		return Stockland_Authority::can_daily_commit() ? true : $this->deny( 'forbidden', 'Only an assigned Branch Manager may post the branch daily POS import.' ); }
+	/**
+	 * Checks permission to maintain import mapping configuration.
+	 *
+	 * @return bool Whether the user may manage mappings.
+	 */
 	public function capability_mappings() {
 		return Stockland_Authority::can_manage_import_mappings() ? true : $this->deny( 'forbidden', 'Only Management or Owner may manage import mappings.' ); }
+	/**
+	 * Builds a stable signature for an uploaded worksheet header set.
+	 *
+	 * @param array $headers Source worksheet headers.
+	 * @return string A stable signature for the normalized header list.
+	 */
 	private function header_signature( $headers ) {
 		$n = array_map( array( $this, 'norm' ), (array) $headers );
 		$n = array_values( array_unique( array_filter( $n ) ) );
 		sort( $n, SORT_STRING );
 		return hash( 'sha256', implode( '|', $n ) ); }
+	/**
+	 * Returns known header aliases for supported import templates.
+	 *
+	 * @param mixed $type Value for the type argument.
+	 * @return mixed The operation result.
+	 */
 	private function aliases( $type ) {
 		if ( 'PRODUCT_MASTER' === $type ) {
 			return array(
@@ -92,11 +143,18 @@ class Stockland_REST_Import_V16 {
 			'customer'      => array( 'customer', 'customer_name', 'client', 'buyer' ),
 		);
 	}
+	/**
+	 * Automatically maps recognized import headers to internal fields.
+	 *
+	 * @param array $headers Source worksheet headers.
+	 * @param mixed $type Value for the type argument.
+	 * @return mixed The operation result.
+	 */
 	private function auto_map_headers( $headers, $type ) {
-		$aliases     = $this->aliases( $type );
-		$normHeaders = array();
+		$aliases      = $this->aliases( $type );
+		$norm_headers = array();
 		foreach ( (array) $headers as $h ) {
-			$normHeaders[ $this->norm( $h ) ] = (string) $h;}
+			$norm_headers[ $this->norm( $h ) ] = (string) $h;}
 		$mapping    = array();
 		$confidence = array();
 		foreach ( $aliases as $field => $list ) {
@@ -104,30 +162,30 @@ class Stockland_REST_Import_V16 {
 			$score = 0;
 			foreach ( $list as $a ) {
 				$na = $this->norm( $a );
-				if ( isset( $normHeaders[ $na ] ) ) {
-					$hit   = $normHeaders[ $na ];
+				if ( isset( $norm_headers[ $na ] ) ) {
+					$hit   = $norm_headers[ $na ];
 					$score = 100;
 					break;}
 			}
 			if ( ! $hit ) {
 				foreach ( $list as $a ) {
-					$na          = $this->norm( $a );
-					$aliasTokens = array_values( array_filter( explode( '_', $na ) ) );
-					foreach ( $normHeaders as $nh => $original ) {
-						$headerTokens = array_values( array_filter( explode( '_', $nh ) ) );
+					$na           = $this->norm( $a );
+					$alias_tokens = array_values( array_filter( explode( '_', $na ) ) );
+					foreach ( $norm_headers as $nh => $original ) {
+						$header_tokens = array_values( array_filter( explode( '_', $nh ) ) );
 						// Fuzzy matching is deliberately conservative: multi-word aliases only match the same token set,
 						// while single-word aliases must appear as a whole header token. This prevents VAT->VAT mode,
 						// Name->Brand, etc. false positives.
-						if ( count( $aliasTokens ) > 1 ) {
-							$aTokens = $aliasTokens;
-							$hTokens = $headerTokens;
-							sort( $aTokens );
-							sort( $hTokens );
-							if ( $aTokens === $hTokens ) {
+						if ( count( $alias_tokens ) > 1 ) {
+							$a_tokens = $alias_tokens;
+							$h_tokens = $header_tokens;
+							sort( $a_tokens );
+							sort( $h_tokens );
+							if ( $a_tokens === $h_tokens ) {
 								$hit   = $original;
 								$score = 90;
 								break 2;}
-						} elseif ( count( $aliasTokens ) === 1 && strlen( $aliasTokens[0] ) >= 3 && in_array( $aliasTokens[0], $headerTokens, true ) ) {
+						} elseif ( count( $alias_tokens ) === 1 && strlen( $alias_tokens[0] ) >= 3 && in_array( $alias_tokens[0], $header_tokens, true ) ) {
 							$hit   = $original;
 							$score = 80;
 							break 2;
@@ -163,6 +221,13 @@ class Stockland_REST_Import_V16 {
 			'headers'    => array_values( (array) $headers ),
 		);
 	}
+	/**
+	 * Validates import mapping fields and required source columns.
+	 *
+	 * @param mixed $found Value for the found argument.
+	 * @param mixed $type Value for the type argument.
+	 * @return true|WP_Error True for a valid mapping or an error.
+	 */
 	private function validate_mapping_contract( $found, $type ) {
 		$mapping  = is_array( $found['mapping'] ?? null ) ? $found['mapping'] : array();
 		$headers  = array_values( (array) ( $found['headers'] ?? array() ) );
@@ -211,12 +276,20 @@ class Stockland_REST_Import_V16 {
 		}
 		return true;
 	}
+	/**
+	 * Returns the saved import profile for the requested import type.
+	 *
+	 * @param mixed $type Value for the type argument.
+	 * @param mixed $source_system Value for the source system argument.
+	 * @param mixed $signature Value for the signature argument.
+	 * @return array|false The saved import profile, or false when unavailable.
+	 */
 	private function get_profile( $type, $source_system, $signature ) {
 		global $wpdb;
 		$t = Stockland_DB::table( 'import_profiles' );
 		if ( ! Stockland_DB::table_exists( $t ) ) {
 			return null;
-		}$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE import_type=%s AND source_system=%s AND header_signature=%s AND is_active=1 LIMIT 1", $type, $source_system, $signature ), ARRAY_A );
+		}$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE import_type=%s AND source_system=%s AND header_signature=%s AND is_active=1 LIMIT 1', $t, $type, $source_system, $signature ), ARRAY_A );
 		if ( ! $row ) {
 			return null;
 		}$map = json_decode( (string) $row['mapping_json'], true );
@@ -224,6 +297,16 @@ class Stockland_REST_Import_V16 {
 			'id'      => (int) $row['id'],
 			'mapping' => $map,
 		) : null;}
+	/**
+	 * Validates and persists an import profile for an authorized operator.
+	 *
+	 * @param mixed $type Value for the type argument.
+	 * @param mixed $source_system Value for the source system argument.
+	 * @param array $headers Source worksheet headers.
+	 * @param array $mapping Mapping fields to validate or save.
+	 * @param mixed $name Value for the name argument.
+	 * @return mixed The operation result.
+	 */
 	private function save_profile( $type, $source_system, $headers, $mapping, $name = 'Learned mapping' ) {
 		global $wpdb;
 		$t = Stockland_DB::table( 'import_profiles' );
@@ -231,7 +314,7 @@ class Stockland_REST_Import_V16 {
 			return null;
 		}$sig     = $this->header_signature( $headers );
 		$json     = wp_json_encode( $mapping );
-		$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t} WHERE import_type=%s AND source_system=%s AND header_signature=%s LIMIT 1", $type, $source_system, $sig ) );
+		$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE import_type=%s AND source_system=%s AND header_signature=%s LIMIT 1', $t, $type, $source_system, $sig ) );
 		$data     = array(
 			'import_type'      => $type,
 			'source_system'    => $source_system,
@@ -248,6 +331,14 @@ class Stockland_REST_Import_V16 {
 		}$data['created_by'] = get_current_user_id();
 		$wpdb->insert( $t, $data );
 		return (int) $wpdb->insert_id;}
+	/**
+	 * Scans an uploaded workbook and validates its workbook structure.
+	 *
+	 * @param mixed $xlsx Value for the xlsx argument.
+	 * @param mixed $type Value for the type argument.
+	 * @param mixed $source_system Value for the source system argument.
+	 * @return mixed The operation result.
+	 */
 	private function scan_workbook( $xlsx, $type, $source_system ) {
 		Stockland_Runtime_Diagnostics::stage( 'PRODUCT_MASTER' === $type ? 'product_master_scan' : 'daily_pos_scan' );
 		foreach ( $xlsx->sheet_names() as $sheet ) {
@@ -348,6 +439,13 @@ class Stockland_REST_Import_V16 {
 		throw new Exception( 'PRODUCT_MASTER' === $type ? 'No Product Master worksheet could be mapped automatically. Required columns include Code/SKU and Name/Product Name.' : 'No daily POS worksheet could be mapped automatically. Required columns include SKU/product code and selling price or line total.' );
 	}
 
+	/**
+	 * Streams a worksheet row as an associative array without loading the entire workbook.
+	 *
+	 * @param mixed $values Value for the values argument.
+	 * @param array $headers Source worksheet headers.
+	 * @return mixed The operation result.
+	 */
 	private function stream_assoc_row( $values, $headers ) {
 		$has = false;
 		$r   = array();
@@ -363,11 +461,26 @@ class Stockland_REST_Import_V16 {
 		}
 		return $has ? $r : null;
 	}
+	/**
+	 * Reads and normalizes a value using the configured source-to-field mapping.
+	 *
+	 * @param array  $row Source row to inspect or normalize.
+	 * @param array  $mapping Mapping fields to validate or save.
+	 * @param string $field Internal field name.
+	 * @return mixed The operation result.
+	 */
 	private function mapped_value( $row, $mapping, $field ) {
 		if ( empty( $mapping[ $field ] ) ) {
 			return null;
 		}$h = $mapping[ $field ];
 		return array_key_exists( $h, $row ) ? $row[ $h ] : null;}
+	/**
+	 * Finds a source column by exact normalized header match.
+	 *
+	 * @param array $row Source row to inspect or normalize.
+	 * @param mixed $wanted Value for the wanted argument.
+	 * @return mixed The operation result.
+	 */
 	private function find_exact_source( $row, $wanted ) {
 		$target = $this->norm( $wanted );
 		foreach ( (array) $row as $k => $v ) {
@@ -380,6 +493,12 @@ class Stockland_REST_Import_V16 {
 		}
 		return null;
 	}
+	/**
+	 * Normalizes the source active/inactive state into the ERP representation.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @return string|false The normalized active state, or false when invalid.
+	 */
 	private function parse_active_state( $v ) {
 		if ( null === $v || trim( (string) $v ) === '' ) {
 			return null;
@@ -389,6 +508,12 @@ class Stockland_REST_Import_V16 {
 		}if ( in_array( $x, array( 'inactive', 'disabled', 'no', 'n', '0', 'false', 'closed' ), true ) ) {
 			return 0;
 		}return null;}
+	/**
+	 * Parses a source date-time value into the supported date representation.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @return string|false The normalized source date-time, or false when invalid.
+	 */
 	private function parse_datetime( $v ) {
 		if ( null === $v || '' === $v ) {
 			return null;
@@ -396,6 +521,14 @@ class Stockland_REST_Import_V16 {
 			return gmdate( 'Y-m-d H:i:s', strtotime( '1899-12-30 + ' . ( (int) $v ) . ' days' ) );
 		}$ts = strtotime( (string) $v );
 		return false === $ts ? null : gmdate( 'Y-m-d H:i:s', $ts );}
+	/**
+	 * Determines whether a worksheet row is blank or should be ignored.
+	 *
+	 * @param array $row Source row to inspect or normalize.
+	 * @param array $mapping Mapping fields to validate or save.
+	 * @param mixed $type Value for the type argument.
+	 * @return bool Whether the source row can be safely ignored.
+	 */
 	private function ignorable_row( $row, $mapping, $type ) {
 		$values = array();
 		foreach ( (array) $mapping as $field => $header ) {
@@ -422,6 +555,13 @@ class Stockland_REST_Import_V16 {
 		}
 		return 0 === $nonempty;
 	}
+	/**
+	 * Finds product master records that already own the supplied identifiers.
+	 *
+	 * @param mixed $barcodes Value for the barcodes argument.
+	 * @param mixed $gtins Value for the gtins argument.
+	 * @return mixed The operation result.
+	 */
 	private function product_identifier_owners( $barcodes, $gtins ) {
 		global $wpdb;
 		$owners = array(
@@ -445,8 +585,9 @@ class Stockland_REST_Import_V16 {
 					continue;
 				}
 				$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-				$sql          = "SELECT sku,{$field} FROM " . Stockland_DB::table( 'products' ) . " WHERE {$field} IN({$placeholders}) AND {$field}<>''";
-				$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $chunk ), ARRAY_A );
+				$sql          = "SELECT sku,%i FROM %i WHERE %i IN({$placeholders}) AND %i<>''";
+				$sql_args     = array_merge( array( $field, Stockland_DB::table( 'products' ), $field, $field ), $chunk );
+				$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not verify Product Master ' . $field . ' uniqueness.' );
 				}
@@ -461,10 +602,23 @@ class Stockland_REST_Import_V16 {
 		return $owners;
 	}
 
+	/**
+	 * Resolves a supplier/POS external code through configured mapping data.
+	 *
+	 * @param string $source Value for the source argument.
+	 * @param mixed  $external Value for the external argument.
+	 * @param mixed  $as_of_date Value for the as of date argument.
+	 * @return array|false The resolved mapping, or false when no safe mapping exists.
+	 */
 	private function resolve_external_code( $source, $external, $as_of_date = null ) {
 		$live = Stockland_DB::resolve_live_sku( $source, $external, $as_of_date );
 		return array( $live, $live && $live === $external ? 'LIVE_SKU' : ( $live ? 'CODE_MAP' : null ) );}
 
+	/**
+	 * Registers import preview, commit, mapping, and job REST routes.
+	 *
+	 * @return void Registers import REST routes.
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -576,6 +730,12 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Validates an uploaded file and returns its safe temporary path and metadata.
+	 *
+	 * @param mixed $key Value for the key argument.
+	 * @return array|WP_Error Validated upload metadata or a REST error.
+	 */
 	private function uploaded_file( $key = 'file' ) {
 		// Import endpoints are registered WordPress REST callbacks; REST auth/nonce and
 			// permission checks run before this upload validator is called.
@@ -623,11 +783,24 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Normalizes a string for stable import matching.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @return mixed The operation result.
+	 */
 	private function norm( $v ) {
 		$v = strtolower( trim( (string) $v ) );
 		$v = preg_replace( '/[^a-z0-9]+/', '_', $v );
 		return trim( $v, '_' );
 	}
+	/**
+	 * Finds a row or field by the provided normalized search criteria.
+	 *
+	 * @param array $row Source row to inspect or normalize.
+	 * @param mixed $names Value for the names argument.
+	 * @return mixed The operation result.
+	 */
 	private function find( $row, $names ) {
 		foreach ( $names as $n ) {
 			$nn = $this->norm( $n );
@@ -639,6 +812,13 @@ class Stockland_REST_Import_V16 {
 		}
 		return null;
 	}
+	/**
+	 * Returns a validated import date or a safe default.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @param mixed $fallback Value for the fallback argument.
+	 * @return string|false A normalized date or false when invalid.
+	 */
 	private function date_value( $v, $fallback ) {
 		if ( is_numeric( $v ) && (float) $v > 20000 && (float) $v < 60000 ) {
 			$ts = gmdate( 'Y-m-d', strtotime( '1899-12-30 + ' . ( (int) $v ) . ' days' ) );
@@ -652,6 +832,12 @@ class Stockland_REST_Import_V16 {
 		}
 		return $fallback;
 	}
+	/**
+	 * Normalizes a monetary source value.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @return string A normalized monetary value.
+	 */
 	private function money( $v ) {
 		if ( null === $v || '' === $v ) {
 			return null;
@@ -659,6 +845,12 @@ class Stockland_REST_Import_V16 {
 		$v = str_replace( array( ',', 'ETB', 'Birr' ), '', (string) $v );
 		return is_numeric( $v ) ? Stockland_Money::decimal( Stockland_Money::minor( $v ) ) : null;
 	}
+	/**
+	 * Normalizes a quantity value from an import row.
+	 *
+	 * @param mixed $v Value for the v argument.
+	 * @return float|false A normalized quantity or false when invalid.
+	 */
 	private function qty( $v ) {
 		if ( null === $v || '' === $v ) {
 			return null;
@@ -666,6 +858,13 @@ class Stockland_REST_Import_V16 {
 		$v = str_replace( ',', '', (string) $v );
 		return is_numeric( $v ) ? (float) $v : null;
 	}
+	/**
+	 * Maps a source VAT indicator to the ERP VAT mode.
+	 *
+	 * @param mixed $raw_mode Value for the raw mode argument.
+	 * @param mixed $basis Value for the basis argument.
+	 * @return mixed The operation result.
+	 */
 	private function map_vat_mode( $raw_mode, $basis ) {
 		$raw = strtoupper( trim( (string) $raw_mode ) );
 		if ( in_array( $raw, array( 'VAT_INCLUDED', 'INCLUSIVE', 'INCLUDED', 'VAT INCLUSIVE', 'TAX INCLUDED' ), true ) ) {
@@ -676,6 +875,13 @@ class Stockland_REST_Import_V16 {
 		}
 		return strtoupper( (string) $basis ) === 'EXCLUSIVE' ? 'WITHOUT_VAT' : 'VAT_INCLUDED';
 	}
+	/**
+	 * Reads worksheet rows through the selected streaming reader.
+	 *
+	 * @param mixed $xlsx Value for the xlsx argument.
+	 * @param mixed $needles Value for the needles argument.
+	 * @return iterable|WP_Error Rows streamed from the workbook or an error.
+	 */
 	private function sheet_rows( $xlsx, $needles ) {
 		$r = $xlsx->rows_by_headers( $needles, 10 );
 		if ( empty( $r['rows'] ) ) {
@@ -683,6 +889,12 @@ class Stockland_REST_Import_V16 {
 		}
 		return $r;
 	}
+	/**
+	 * Resolves the authorized branch assigned to the current user.
+	 *
+	 * @param mixed $requested Value for the requested argument.
+	 * @return int|WP_Error Authorized branch ID or a REST error.
+	 */
 	private function branch_for_user( $requested ) {
 		$p = Stockland_Authority::profile();
 		if ( ! $p ) {
@@ -705,13 +917,25 @@ class Stockland_REST_Import_V16 {
 			}return $id;}
 		return (int) $allowed[0];
 	}
+	/**
+	 * Verifies or resolves a branch before processing daily sales data.
+	 *
+	 * @param mixed $id Value for the id argument.
+	 * @return int|WP_Error Validated branch ID or an error.
+	 */
 	private function ensure_branch( $id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE id=%d AND is_active=1', $id ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 		if ( ! $row || 'Branch' !== $row['location_type'] ) {
 			throw new Exception( 'The selected sales branch is not an active retail branch.' );
 		} return $row;
 	}
+	/**
+	 * Returns recognized quantity-related source headers.
+	 *
+	 * @param array $row Source row to inspect or normalize.
+	 * @return mixed The operation result.
+	 */
 	private function qty_headers( $row ) {
 		foreach ( array( 'qty', 'quantity', 'units', 'units_sold', 'qty_sold', 'sold_qty' ) as $n ) {
 			$v = $this->find( $row, array( $n ) );
@@ -721,6 +945,14 @@ class Stockland_REST_Import_V16 {
 		} return false;
 	}
 
+	/**
+	 * Validates one staged daily POS row before it can be committed.
+	 *
+	 * @param mixed $job Value for the job argument.
+	 * @param array $row Source row to inspect or normalize.
+	 * @param mixed $product Value for the product argument.
+	 * @return mixed The operation result.
+	 */
 	private function validate_staged_daily_row( $job, $row, $product ) {
 		$q = $this->qty( $row['quantity'] ?? null );
 		if ( null === $q || $q <= 0 ) {
@@ -763,11 +995,18 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Previews a branch Daily POS Import and records row-level validation results.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return WP_REST_Response|WP_Error Daily import preview or a REST error.
+	 */
 	public function daily_preview( WP_REST_Request $r ) {
 		global $wpdb;
 		try {
-			$file          = $this->uploaded_file( 'file' );
-			$business_date = sanitize_text_field( $r->get_param( 'business_date' ) ?: current_time( 'Y-m-d' ) );
+			$file                    = $this->uploaded_file( 'file' );
+			$requested_business_date = $r->get_param( 'business_date' );
+			$business_date           = sanitize_text_field( $requested_business_date ? $requested_business_date : current_time( 'Y-m-d' ) );
 			if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $business_date ) ) {
 				throw new Exception( 'Business date must be YYYY-MM-DD.' );
 			}
@@ -778,11 +1017,11 @@ class Stockland_REST_Import_V16 {
 				throw new Exception( 'This branch day is already closed.' );
 			}$hash      = hash_file( 'sha256', $file['path'] );
 			$import_key = hash( 'sha256', 'DAILY_POS|' . $branch . '|' . $business_date . '|' . $hash );
-			$old        = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . ' WHERE import_key=%s LIMIT 1', $import_key ), ARRAY_A );
+			$old        = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE import_key=%s LIMIT 1', Stockland_DB::table( 'import_jobs' ), $import_key ), ARRAY_A );
 			if ( $old && 'CANCELLED' !== $old['status'] ) {
 				throw new Exception( 'This exact POS file for this branch/date was already staged/imported as job #' . $old['id'] . '. Reuse that job instead of uploading it again.' );
 			}
-			$cross = $wpdb->get_row( $wpdb->prepare( 'SELECT id,branch_location_id,business_date,status FROM ' . Stockland_DB::table( 'import_jobs' ) . " WHERE source_sha256=%s AND import_type='DAILY_SALES' AND status<>'CANCELLED' ORDER BY id DESC LIMIT 1", $hash ), ARRAY_A );
+			$cross = $wpdb->get_row( $wpdb->prepare( "SELECT id,branch_location_id,business_date,status FROM %i WHERE source_sha256=%s AND import_type='DAILY_SALES' AND status<>'CANCELLED' ORDER BY id DESC LIMIT 1", Stockland_DB::table( 'import_jobs' ), $hash ), ARRAY_A );
 			if ( $cross && ( (int) $cross['branch_location_id'] !== $branch || (string) $cross['business_date'] !== $business_date ) ) {
 				throw new Exception( 'This POS file hash is already associated with another branch/date (job #' . $cross['id'] . '). Verify the source file before reusing it.' );
 			}
@@ -1004,6 +1243,12 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'daily_import_preview_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Lists Daily POS Import jobs permitted to the current user.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return WP_REST_Response|WP_Error Authorized import job list or a REST error.
+	 */
 	public function daily_jobs( WP_REST_Request $r ) {
 		global $wpdb;
 		$company   = Stockland_Authority::company_scope();
@@ -1016,14 +1261,21 @@ class Stockland_REST_Import_V16 {
 			}$ph    = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 			$where .= " AND j.branch_location_id IN({$ph})";
 			$args   = $scope_ids;}
-		$sql = 'SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM ' . Stockland_DB::table( 'import_jobs' ) . ' j LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=j.branch_location_id LEFT JOIN ' . $wpdb->users . " u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$sql      = "SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id LEFT JOIN %i u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
+		$sql_args = array_merge( array( Stockland_DB::table( 'import_jobs' ), Stockland_DB::table( 'locations' ), $wpdb->users ), $args );
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A ) );
 	}
 
+	/**
+	 * Returns row and status details for a permitted import job.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return WP_REST_Response|WP_Error Import job details or a REST error.
+	 */
 	public function job_detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$id  = (int) $r['id'];
-		$job = $wpdb->get_row( $wpdb->prepare( 'SELECT j.*,l.location_name FROM ' . Stockland_DB::table( 'import_jobs' ) . ' j LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=j.branch_location_id WHERE j.id=%d', $id ), ARRAY_A );
+		$job = $wpdb->get_row( $wpdb->prepare( 'SELECT j.*,l.location_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id WHERE j.id=%d', Stockland_DB::table( 'import_jobs' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 		if ( ! $job ) {
 			return $this->deny( 'not_found', 'Import job not found.', 404 );
 		}
@@ -1033,7 +1285,7 @@ class Stockland_REST_Import_V16 {
 				return $this->deny( 'forbidden', 'This import job is outside your authorized operational scope.' );
 			}
 		}
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT source_row_number AS row_number,external_receipt_no,sku,mapped_sku,variant_id AS destination_variant_id,quantity,selling_price,sales_total,vat_amount,status,error_message,posted_sale_id FROM ' . Stockland_DB::table( 'import_rows' ) . ' WHERE job_id=%d ORDER BY source_row_number LIMIT 200', $id ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT source_row_number AS row_number,external_receipt_no,sku,mapped_sku,variant_id AS destination_variant_id,quantity,selling_price,sales_total,vat_amount,status,error_message,posted_sale_id FROM %i WHERE job_id=%d ORDER BY source_row_number LIMIT 200', Stockland_DB::table( 'import_rows' ), $id ), ARRAY_A );
 		return rest_ensure_response(
 			array(
 				'job'  => $job,
@@ -1041,6 +1293,12 @@ class Stockland_REST_Import_V16 {
 			)
 		);
 	}
+	/**
+	 * Commits validated Daily POS sales rows transactionally to the ERP ledger.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return WP_REST_Response|WP_Error Commit result or a REST error.
+	 */
 	public function daily_commit( WP_REST_Request $r ) {
 		global $wpdb;
 		$id         = (int) ( $r->get_json_params()['job_id'] ?? 0 );
@@ -1048,7 +1306,7 @@ class Stockland_REST_Import_V16 {
 		$rows_table = Stockland_DB::table( 'import_rows' );
 		$sales      = Stockland_DB::table( 'sales' );
 		$batches    = Stockland_DB::table( 'sale_batches' );
-		$job        = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$jobs} WHERE id=%d LIMIT 1", $id ), ARRAY_A );
+		$job        = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d LIMIT 1', $jobs, $id ), ARRAY_A );
 		if ( ! $job ) {
 			return $this->deny( 'not_found', 'Import job not found.', 404 );
 		}
@@ -1078,7 +1336,7 @@ class Stockland_REST_Import_V16 {
 		}
 		$chunk  = self::DAILY_CHUNK;
 		$offset = (int) $job['processed_rows'];
-		$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM {$rows_table} WHERE job_id=%d AND status='VALID' ORDER BY source_row_number LIMIT %d", $id, $chunk ), ARRAY_A );
+		$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM %i WHERE job_id=%d AND status='VALID' ORDER BY source_row_number LIMIT %d", $rows_table, $id, $chunk ), ARRAY_A );
 		if ( empty( $rows ) ) {
 			$ok = $wpdb->update(
 				$jobs,
@@ -1092,9 +1350,9 @@ class Stockland_REST_Import_V16 {
 			);
 			if ( false === $ok ) {
 				Stockland_DB::release_day_lock( $lock );
-				return new WP_Error( 'daily_import_state_failed', $wpdb->last_error ?: 'Could not finalize import job.', array( 'status' => 409 ) );}
+				return new WP_Error( 'daily_import_state_failed', $wpdb->last_error ? $wpdb->last_error : 'Could not finalize import job.', array( 'status' => 409 ) );}
 			Stockland_DB::release_day_lock( $lock );
-			$verify = $wpdb->get_row( $wpdb->prepare( "SELECT status,processed_rows,valid_rows FROM {$jobs} WHERE id=%d", $id ), ARRAY_A );
+			$verify = $wpdb->get_row( $wpdb->prepare( 'SELECT status,processed_rows,valid_rows FROM %i WHERE id=%d', $jobs, $id ), ARRAY_A );
 			if ( ! $verify || 'POSTED' !== $verify['status'] ) {
 				return new WP_Error( 'daily_import_state_unverified', 'Import completion could not be verified after commit.', array( 'status' => 409 ) );
 			}
@@ -1115,7 +1373,7 @@ class Stockland_REST_Import_V16 {
 			// Re-read and lock the job inside the transaction. The day-level named lock
 			// serializes branch/date operations; this row lock also prevents stale job-state
 			// reads from causing a second commit after another request advances the same job.
-			$locked_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$jobs} WHERE id=%d AND import_type='DAILY_SALES' LIMIT 1 FOR UPDATE", $id ), ARRAY_A );
+			$locked_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND import_type='DAILY_SALES' LIMIT 1 FOR UPDATE", $jobs, $id ), ARRAY_A );
 			if ( ! $locked_job ) {
 				throw new Exception( 'Daily sales import job disappeared before commit.' );
 			}
@@ -1182,13 +1440,13 @@ class Stockland_REST_Import_V16 {
 				}
 
 				$sale_id  = 'D' . $id . '-' . $row['row_number'];
-				$existing = $wpdb->get_var( $wpdb->prepare( "SELECT sale_id FROM {$sales} WHERE sale_id=%s OR (source_job_id=%d AND source_row_number=%d) LIMIT 1", $sale_id, $id, (int) $row['row_number'] ) );
+				$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT sale_id FROM %i WHERE sale_id=%s OR (source_job_id=%d AND source_row_number=%d) LIMIT 1', $sales, $sale_id, $id, (int) $row['row_number'] ) );
 				if ( $existing ) {
-					$existing_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sales} WHERE sale_id=%s LIMIT 1 FOR UPDATE", $existing ), ARRAY_A );
+					$existing_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE', $sales, $existing ), ARRAY_A );
 					if ( ! $existing_row || 'CLOSED' !== $existing_row['posting_status'] ) {
 						throw new Exception( 'Existing sale for imported row ' . $row['row_number'] . ' is not a verified CLOSED transaction.' );
 					}
-					$ledger_ok = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'transactions' ) . " WHERE reference_type='sale' AND reference_id=%s AND source_line_id=%s AND movement_type='SALE' LIMIT 1", $existing, (string) $row['row_number'] ) );
+					$ledger_ok = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE reference_type='sale' AND reference_id=%s AND source_line_id=%s AND movement_type='SALE' LIMIT 1", Stockland_DB::table( 'transactions' ), $existing, (string) $row['row_number'] ) );
 					if ( ! $ledger_ok ) {
 						throw new Exception( 'Existing sale ' . $existing . ' has no matching inventory ledger entry. The import was not silently marked complete.' );
 					}
@@ -1204,7 +1462,7 @@ class Stockland_REST_Import_V16 {
 						array( 'id' => $row['id'] )
 					);
 					if ( false === $state_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Could not finalize already-posted import row ' . $row['row_number'] . '.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not finalize already-posted import row ' . $row['row_number'] . '.' );
 					}
 					$available[ $sku ] -= $q;
 					continue;
@@ -1218,7 +1476,8 @@ class Stockland_REST_Import_V16 {
 				if ( '' !== $external_receipt ) {
 					$cross_job_batch = $wpdb->get_row(
 						$wpdb->prepare(
-							"SELECT id,job_id,status FROM {$batches} WHERE branch_location_id=%d AND business_date=%s AND source_system=%s AND external_receipt_no=%s LIMIT 1 FOR UPDATE",
+							'SELECT id,job_id,status FROM %i WHERE branch_location_id=%d AND business_date=%s AND source_system=%s AND external_receipt_no=%s LIMIT 1 FOR UPDATE',
+							$batches,
 							(int) $job['branch_location_id'],
 							$job['business_date'],
 							'THIRD_PARTY_POS',
@@ -1230,7 +1489,7 @@ class Stockland_REST_Import_V16 {
 						throw new Exception( 'External receipt ' . $external_receipt . ' is already posted for this branch and business date in import job #' . (int) $cross_job_batch['job_id'] . '. Verify the POS export before releasing this job.' );
 					}
 				}
-				$batch = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$batches} WHERE job_id=%d AND receipt_key=%s FOR UPDATE", $id, $receipt_key ), ARRAY_A );
+				$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE job_id=%d AND receipt_key=%s FOR UPDATE', $batches, $id, $receipt_key ), ARRAY_A );
 				if ( ! $batch ) {
 					$batch_ok = $wpdb->insert(
 						$batches,
@@ -1239,7 +1498,7 @@ class Stockland_REST_Import_V16 {
 							'branch_location_id'  => $job['branch_location_id'],
 							'business_date'       => $job['business_date'],
 							'source_filename'     => $job['source_filename'],
-							'external_receipt_no' => $row['external_receipt_no'] ?: null,
+							'external_receipt_no' => $row['external_receipt_no'] ? $row['external_receipt_no'] : null,
 							'receipt_key'         => $receipt_key,
 							'source_system'       => 'THIRD_PARTY_POS',
 							'status'              => 'POSTING',
@@ -1247,7 +1506,7 @@ class Stockland_REST_Import_V16 {
 						)
 					);
 					if ( false === $batch_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Could not create receipt header for ' . $receipt . '.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create receipt header for ' . $receipt . '.' );
 					}
 					$batch_id = (int) $wpdb->insert_id;
 				} else {
@@ -1264,7 +1523,7 @@ class Stockland_REST_Import_V16 {
 						'quantity_sold'        => $q,
 						'size'                 => $prod['size'],
 						'color'                => $prod['color'],
-						'barcode'              => $prod['barcode'] ?: $prod['gtin'],
+						'barcode'              => $prod['barcode'] ? $prod['barcode'] : $prod['gtin'],
 						'master_price_at_sale' => $row['master_price'],
 						'selling_price'        => $price,
 						'price_overridden'     => Stockland_Sale_Math::same_money( $price, $row['master_price'] ) ? 0 : 1,
@@ -1285,7 +1544,7 @@ class Stockland_REST_Import_V16 {
 						'source_sale_group'    => (string) $batch_id,
 					)
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not create sale row ' . $row['row_number'] . '.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create sale row ' . $row['row_number'] . '.' );
 				}
 
 				if ( false === Stockland_Ledger::post_sale_closed(
@@ -1316,7 +1575,7 @@ class Stockland_REST_Import_V16 {
 					),
 					array( 'id' => $row['id'] )
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not mark imported row ' . $row['row_number'] . ' as posted.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not mark imported row ' . $row['row_number'] . ' as posted.' );
 				}
 				$batch_ids[ $batch_id ] = 1;
 				$available[ $sku ]     -= $q;
@@ -1365,7 +1624,7 @@ class Stockland_REST_Import_V16 {
 				}
 			}
 			foreach ( array_keys( $batch_ids ) as $bid ) {
-				$agg = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) row_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs FROM {$sales} WHERE source_sale_group=%s", (string) $bid ), ARRAY_A );
+				$agg = $wpdb->get_row( $wpdb->prepare( 'SELECT COUNT(*) row_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs FROM %i WHERE source_sale_group=%s', $sales, (string) $bid ), ARRAY_A );
 				if ( ! $agg ) {
 					throw new Exception( 'Could not reconcile receipt header ' . $bid . '.' );
 				}
@@ -1381,7 +1640,7 @@ class Stockland_REST_Import_V16 {
 					),
 					array( 'id' => $bid )
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not finalize receipt header ' . $bid . '.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not finalize receipt header ' . $bid . '.' );
 				}
 			}
 			$new_processed = $offset + count( $rows );
@@ -1397,13 +1656,13 @@ class Stockland_REST_Import_V16 {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not update import job state.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not update import job state.' );
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Daily sales import commit failed.' );
 			}
 			Stockland_DB::release_day_lock( $lock );
-			$verify = $wpdb->get_row( $wpdb->prepare( "SELECT status,processed_rows,valid_rows FROM {$jobs} WHERE id=%d", $id ), ARRAY_A );
+			$verify = $wpdb->get_row( $wpdb->prepare( 'SELECT status,processed_rows,valid_rows FROM %i WHERE id=%d', $jobs, $id ), ARRAY_A );
 			if ( ! $verify || (string) $verify['status'] !== $status || (int) $verify['processed_rows'] !== $new_processed ) {
 				return new WP_Error( 'daily_import_state_unverified', 'Import committed but its final state could not be verified.', array( 'status' => 409 ) );
 			}
@@ -1422,6 +1681,12 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'daily_import_commit_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Edits a permitted daily import row before final commit.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	public function daily_edit_row( WP_REST_Request $r ) {
 		global $wpdb;
 		try {
@@ -1431,7 +1696,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! $job_id || ! $row_id ) {
 				throw new Exception( 'job_id and row_id are required.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . ' WHERE id=%d LIMIT 1', $job_id ), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d LIMIT 1', 'import_jobs', $job_id ), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Import job not found.' );
 			}
@@ -1445,7 +1710,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! in_array( $job['status'], array( 'READY', 'PARTIAL' ), true ) || (int) $job['processed_rows'] > 0 ) {
 				throw new Exception( 'Only unreleased Daily POS rows can be edited.' );
 			}
-			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_rows' ) . ' WHERE id=%d AND job_id=%d LIMIT 1', $row_id, $job_id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND job_id=%d LIMIT 1', 'import_rows', $row_id, $job_id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Import row not found.' );
 			}
@@ -1494,9 +1759,9 @@ class Stockland_REST_Import_V16 {
 					'job_id' => $job_id,
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save the staged row edit.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save the staged row edit.' );
 			}
-			$agg = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) total_rows,SUM(status='VALID') valid_rows,SUM(status='ERROR') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status='VALID' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status='VALID' THEN vat_amount ELSE 0 END),0) vat FROM " . Stockland_DB::table( 'import_rows' ) . ' WHERE job_id=%d', $job_id ), ARRAY_A );
+			$agg = $wpdb->get_row( $wpdb->prepare( 'SELECT COUNT(*) total_rows,SUM(status=\'VALID\') valid_rows,SUM(status=\'ERROR\') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN vat_amount ELSE 0 END),0) vat FROM %i WHERE job_id=%d', 'import_rows', $job_id ), ARRAY_A );
 			if ( false === $wpdb->update(
 				Stockland_DB::table( 'import_jobs' ),
 				array(
@@ -1507,7 +1772,7 @@ class Stockland_REST_Import_V16 {
 				),
 				array( 'id' => $job_id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not refresh Daily POS job summary.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not refresh Daily POS job summary.' );
 			}
 			if ( ! Stockland_Audit::log( get_current_user_id(), $job['branch_location_id'], 'DAILY_POS_STAGE_EDIT', $sku, $qty, $row['selling_price'], $price, 'Staged Daily POS row edited before release', $job_id, get_current_user_id() ) ) {
 				throw new Exception( 'Audit event could not be recorded.' );
@@ -1525,7 +1790,11 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'daily_edit_row_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
-	/** Batch-read Product Master identities so large imports avoid one SQL lookup per workbook row. */
+	/**
+	 * Batch-read Product Master identities so large imports avoid one SQL lookup per workbook row.
+	 *
+	 * @param array $skus Normalized SKU values to check.
+	 */
 	private function product_lookup_bulk( $skus ) {
 		global $wpdb;
 		$skus = array_values(
@@ -1545,9 +1814,10 @@ class Stockland_REST_Import_V16 {
 			if ( ! $chunk ) {
 				continue;
 			}
-			$ph   = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$sql  = 'SELECT variant_id,sku,product_name,product_type,parent_sku,retail_price,purchase_cost,wholesale_price,is_active FROM ' . Stockland_DB::table( 'products' ) . " WHERE sku IN({$ph})";
-			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $chunk ), ARRAY_A );
+			$ph  = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
+			$sql = "SELECT variant_id,sku,product_name,product_type,parent_sku,retail_price,purchase_cost,wholesale_price,is_active FROM %i WHERE sku IN({$ph})";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic SQL fragment is a %s placeholder list built from unique sanitized SKU strings; the table name is bound as %i.
+			$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( Stockland_DB::table( 'products' ) ), $chunk ) ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new Exception( 'Could not batch-read Product Master identities.' );
 			}
@@ -1558,7 +1828,12 @@ class Stockland_REST_Import_V16 {
 		return $out;
 	}
 
-	/** Batch-resolve third-party POS codes and their live Product Master rows for mass uploads. */
+	/**
+	 * Batch-resolve third-party POS codes and their live Product Master rows for mass uploads.
+	 *
+	 * @param array  $codes Normalized external codes to check.
+	 * @param string $business_date Branch business date for the POS import.
+	 */
 	private function daily_resolution_bulk( $codes, $business_date ) {
 		global $wpdb;
 		$codes       = array_values(
@@ -1584,13 +1859,14 @@ class Stockland_REST_Import_V16 {
 				continue;
 			}
 			$ph   = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$args = array( 'THIRD_PARTY_POS' );
+			$args = array( $maps, 'THIRD_PARTY_POS' );
 			foreach ( $chunk as $c ) {
 				$args[] = $c;
 			}$args[] = $business_date;
 			$args[]  = $business_date;
-			$sql     = "SELECT external_code,live_sku,effective_from,id FROM {$maps} WHERE source_system=%s AND external_code IN({$ph}) AND is_active=1 AND (effective_from IS NULL OR effective_from<=%s) AND (effective_to IS NULL OR effective_to>=%s) ORDER BY external_code ASC,effective_from DESC,id DESC";
-			$rows    = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+			$sql     = "SELECT external_code,live_sku,effective_from,id FROM %i WHERE source_system=%s AND external_code IN({$ph}) AND is_active=1 AND (effective_from IS NULL OR effective_from<=%s) AND (effective_to IS NULL OR effective_to>=%s) ORDER BY external_code ASC,effective_from DESC,id DESC";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic SQL fragment is a %s placeholder list built from sanitized POS codes; the table uses %i and dates/system code use %s.
+			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new Exception( 'Could not batch-read POS code mappings.' );
 			}
@@ -1624,7 +1900,12 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
-	/** Stage validated import rows in bounded multi-row INSERTs to avoid one SQL round trip per row. */
+	/**
+	 * Stage validated import rows in bounded multi-row INSERTs to avoid one SQL round trip per row.
+	 *
+	 * @param mixed  $value Source value to normalize or validate.
+	 * @param string $format Expected date/value format.
+	 */
 	private function import_sql_literal( $value, $format = '%s' ) {
 		global $wpdb;
 		if ( null === $value ) {
@@ -1632,6 +1913,14 @@ class Stockland_REST_Import_V16 {
 		}
 		return $wpdb->prepare( $format, $value );
 	}
+	/**
+	 * Stages validated import rows for deterministic transaction processing.
+	 *
+	 * @param int   $job_id Import job ID.
+	 * @param array $rows Rows to validate or stage.
+	 * @param mixed $type Value for the type argument.
+	 * @return mixed The operation result.
+	 */
 	private function stage_import_rows( $job_id, $rows, $type ) {
 		global $wpdb;
 		$job_id = (int) $job_id;
@@ -1649,16 +1938,16 @@ class Stockland_REST_Import_V16 {
 						array(
 							$this->import_sql_literal( $job_id, '%d' ),
 							$this->import_sql_literal( (int) $row['row_number'], '%d' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
 							'NULL',
 							$this->import_sql_literal( Stockland_Money::decimal( Stockland_Money::minor( $row['retail_price'] ) ), '%s' ),
 							$this->import_sql_literal( Stockland_Money::decimal( Stockland_Money::minor( $row['retail_price'] ) ), '%s' ),
 							$this->import_sql_literal( 'PRODUCT|' . $job_id . '|' . $row['row_number'], '%s' ),
 							$this->import_sql_literal( $row['payload'], '%s' ),
 							$this->import_sql_literal( $row['status'], '%s' ),
-							$this->import_sql_literal( $row['error'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['error'] ? $row['error'] : null, '%s' ),
 						)
 					) . ')';
 				} else {
@@ -1667,25 +1956,25 @@ class Stockland_REST_Import_V16 {
 						array(
 							$this->import_sql_literal( $job_id, '%d' ),
 							$this->import_sql_literal( (int) $row['row_number'], '%d' ),
-							$this->import_sql_literal( $row['external_receipt_no'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['source_code'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['mapped_sku'] ?: null, '%s' ),
-							$this->import_sql_literal( $row['mapped_via'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['external_receipt_no'] ? $row['external_receipt_no'] : null, '%s' ),
+							$this->import_sql_literal( $row['source_code'] ? $row['source_code'] : null, '%s' ),
+							$this->import_sql_literal( $row['sku'] ? $row['sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['mapped_sku'] ? $row['mapped_sku'] : null, '%s' ),
+							$this->import_sql_literal( $row['mapped_via'] ? $row['mapped_via'] : null, '%s' ),
 							$this->import_sql_literal( $row['variant_id'] ? ( (int) $row['variant_id'] ) : null, '%d' ),
 							$this->import_sql_literal( null === $row['quantity'] ? null : (float) $row['quantity'], '%f' ),
 							$this->import_sql_literal( null === $row['master_price'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['master_price'] ) ), '%s' ),
 							$this->import_sql_literal( null === $row['selling_price'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['selling_price'] ) ), '%s' ),
 							$this->import_sql_literal( null === $row['vat_rate'] ? null : (float) $row['vat_rate'], '%f' ),
 							$this->import_sql_literal( null === $row['vat_amount'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['vat_amount'] ) ), '%s' ),
-							$this->import_sql_literal( $row['vat_mode'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['vat_mode'] ? $row['vat_mode'] : null, '%s' ),
 							$this->import_sql_literal( null === $row['sales_total'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['sales_total'] ) ), '%s' ),
 							$this->import_sql_literal( null === $row['cost_basis'] ? null : Stockland_Money::decimal( Stockland_Money::minor( $row['cost_basis'] ) ), '%s' ),
-							$this->import_sql_literal( $row['cost_basis_source'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['cost_basis_source'] ? $row['cost_basis_source'] : null, '%s' ),
 							$this->import_sql_literal( $row['source_key'], '%s' ),
 							$this->import_sql_literal( $row['payload'], '%s' ),
 							$this->import_sql_literal( $row['status'], '%s' ),
-							$this->import_sql_literal( $row['error_message'] ?: null, '%s' ),
+							$this->import_sql_literal( $row['error_message'] ? $row['error_message'] : null, '%s' ),
 						)
 					) . ')';
 				}
@@ -1696,18 +1985,30 @@ class Stockland_REST_Import_V16 {
 				$sql = "INSERT INTO {$table} (job_id,source_row_number,external_receipt_no,source_code,sku,mapped_sku,mapped_via,variant_id,quantity,master_price,selling_price,vat_rate,vat_amount,vat_mode,sales_total,cost_basis,cost_basis_source,source_key,payload,status,error_message) VALUES " . implode( ',', $values );
 			}
 			if ( false === $wpdb->query( $sql ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not stage import rows.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not stage import rows.' );
 			}
 		}
 		return true;
 	}
 
+	/**
+	 * Normalizes Product Master input rows without creating sales or stock.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	private function product_rows( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_upload_read' );
 		$file  = $this->uploaded_file( 'file' );
 		$xlsx  = new Stockland_XLSX( $file['path'] );
 		$found = $this->scan_workbook( $xlsx, 'PRODUCT_MASTER', 'STOCKLAND_MASTER' );
 		return array( $file, $found );}
+	/**
+	 * Previews central Product Master changes and validation outcomes.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return WP_REST_Response|WP_Error Product Master preview or a REST error.
+	 */
 	public function product_preview( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
 		global $wpdb;
@@ -1727,7 +2028,7 @@ class Stockland_REST_Import_V16 {
 				throw new Exception( 'Product Master import exceeds ' . self::MAX_IMPORT_ROWS . ' rows. Split the workbook.' );
 			}$hash    = hash_file( 'sha256', $file['path'] );
 			$job_key  = hash( 'sha256', $hash . '|PRODUCT_MASTER' );
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . ' WHERE import_key=%s LIMIT 1', $job_key ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE import_key=%s LIMIT 1', Stockland_DB::table( 'import_jobs' ), $job_key ), ARRAY_A );
 			if ( $existing && 'CANCELLED' !== $existing['status'] ) {
 				return rest_ensure_response(
 					array(
@@ -2003,11 +2304,18 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'product_import_preview_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Builds tracking rows for external identifiers and destination variants.
+	 *
+	 * @param int $job_id Import job ID.
+	 * @return mixed The operation result.
+	 */
 	private function destination_tracking_rows( $job_id ) {
 		global $wpdb;
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT source_row_number AS row_number,COALESCE(mapped_sku,sku) AS sku,variant_id,status FROM ' . Stockland_DB::table( 'import_rows' ) . " WHERE job_id=%d AND status='POSTED' ORDER BY source_row_number LIMIT %d",
+				"SELECT source_row_number AS row_number,COALESCE(mapped_sku,sku) AS sku,variant_id,status FROM %i WHERE job_id=%d AND status='POSTED' ORDER BY source_row_number LIMIT %d",
+				Stockland_DB::table( 'import_rows' ),
 				(int) $job_id,
 				self::MAX_IMPORT_ROWS
 			),
@@ -2015,6 +2323,12 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Commits authorized Product Master changes without creating sales or stock movements.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return WP_REST_Response|WP_Error Product Master commit result or a REST error.
+	 */
 	public function product_commit( WP_REST_Request $r ) {
 		if ( ! $this->capability_product() ) {
 			return $this->deny( 'forbidden', 'Only Management or Owner may import Product Master.' );
@@ -2025,7 +2339,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! $job_id ) {
 				throw new Exception( 'Product import job ID is required. Preview the workbook first.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . " WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1", $job_id ), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1", Stockland_DB::table( 'import_jobs' ), $job_id ), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Product import job not found.' );
 			}
@@ -2060,7 +2374,7 @@ class Stockland_REST_Import_V16 {
 				); }
 			$mapping = array();
 			if ( ! empty( $job['mapping_profile_id'] ) ) {
-				$profile = $wpdb->get_row( $wpdb->prepare( 'SELECT mapping_json FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE id=%d LIMIT 1', (int) $job['mapping_profile_id'] ), ARRAY_A );
+				$profile = $wpdb->get_row( $wpdb->prepare( 'SELECT mapping_json FROM %i WHERE id=%d LIMIT 1', Stockland_DB::table( 'import_profiles' ), (int) $job['mapping_profile_id'] ), ARRAY_A );
 				if ( $profile && ! empty( $profile['mapping_json'] ) ) {
 					$mapping = json_decode( (string) $profile['mapping_json'], true );
 				}
@@ -2068,7 +2382,7 @@ class Stockland_REST_Import_V16 {
 					$mapping = array();
 				}
 			}
-			$candidate_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT *,source_row_number AS row_number FROM ' . Stockland_DB::table( 'import_rows' ) . " WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", $job_id, self::MAX_IMPORT_ROWS ), ARRAY_A );
+			$candidate_rows = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM %i WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", Stockland_DB::table( 'import_rows' ), $job_id, self::MAX_IMPORT_ROWS ), ARRAY_A );
 			$rows           = array();
 			$variant_rows   = array();
 			foreach ( (array) $candidate_rows as $candidate ) {
@@ -2101,7 +2415,7 @@ class Stockland_REST_Import_V16 {
 				}
 			}
 			if ( empty( $rows ) ) {
-				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT *,source_row_number AS row_number FROM ' . Stockland_DB::table( 'import_rows' ) . " WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", $job_id, self::PRODUCT_CHUNK ), ARRAY_A );
+				$rows = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM %i WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", Stockland_DB::table( 'import_rows' ), $job_id, self::PRODUCT_CHUNK ), ARRAY_A );
 			}
 			if ( empty( $rows ) ) {
 				$wpdb->update(
@@ -2134,7 +2448,7 @@ class Stockland_REST_Import_V16 {
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 				throw new Exception( 'Could not start Product Master import transaction.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . " WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1 FOR UPDATE", $job_id ), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1 FOR UPDATE", Stockland_DB::table( 'import_jobs' ), $job_id ), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Product import job disappeared before commit.' );
 			}
@@ -2204,9 +2518,9 @@ class Stockland_REST_Import_V16 {
 					if ( ! $prior ) {
 						throw new Exception( 'SKU replacement source ' . $old_sku . ' was not found on Product Master row #' . $row['row_number'] . '.' );
 					}
-					Stockland_Product_Service::replace_sku( (int) $prior['variant_id'], $sku, $replace_reason ?: 'Product Master XLSX SKU replacement', 'PRODUCT_IMPORT|' . $job_id . '|' . $row['row_number'], false );
+					Stockland_Product_Service::replace_sku( (int) $prior['variant_id'], $sku, $replace_reason ? $replace_reason : 'Product Master XLSX SKU replacement', 'PRODUCT_IMPORT|' . $job_id . '|' . $row['row_number'], false );
 				}
-				$old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'products' ) . ' WHERE sku=%s LIMIT 1 FOR UPDATE', $sku ), ARRAY_A );
+				$old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s LIMIT 1 FOR UPDATE', Stockland_DB::table( 'products' ), $sku ), ARRAY_A );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not read existing Product Master row ' . $sku . '.' );
 				}
@@ -2303,7 +2617,7 @@ class Stockland_REST_Import_V16 {
 					if ( '' === $identifier_value ) {
 						continue;
 					}
-					$hit = $wpdb->get_row( $wpdb->prepare( 'SELECT sku,variant_id FROM ' . Stockland_DB::table( 'products' ) . " WHERE {$identifier}=%s AND sku<>%s LIMIT 1 FOR UPDATE", $identifier_value, $sku ), ARRAY_A );
+					$hit = $wpdb->get_row( $wpdb->prepare( 'SELECT sku,variant_id FROM %i WHERE %i=%s AND sku<>%s LIMIT 1 FOR UPDATE', Stockland_DB::table( 'products' ), $identifier, $identifier_value, $sku ), ARRAY_A );
 					if ( $hit && (string) $hit['sku'] !== $old_sku ) {
 						throw new Exception( ucfirst( $identifier ) . ' ' . $identifier_value . ' is already assigned to SKU ' . $hit['sku'] . '. Import aborted before committing this row.' );
 					}
@@ -2430,12 +2744,24 @@ class Stockland_REST_Import_V16 {
 			}return new WP_Error( 'product_import_commit_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Lists import mappings visible to authorized managers.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	public function mapping_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( 'SELECT id,import_type,source_system,profile_name,header_signature,mapping_json,mapping_version,is_active,created_by,updated_by,created_at,updated_at FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE is_active=1 ORDER BY updated_at DESC LIMIT 100', ARRAY_A );
 		foreach ( $rows as &$x ) {
 			$x['mapping'] = json_decode( (string) $x['mapping_json'], true );
 		}return rest_ensure_response( $rows );}
+	/**
+	 * Validates and saves an import mapping.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	public function mapping_save( WP_REST_Request $r ) {
 		$p       = $r->get_json_params();
 		$type    = sanitize_key( $p['import_type'] ?? 'DAILY_SALES' );
@@ -2453,11 +2779,24 @@ class Stockland_REST_Import_V16 {
 				'message'          => 'Import mapping saved. Future matching files will reuse this profile automatically.',
 			)
 		);}
+	/**
+	 * Lists external product-code mappings permitted to the current user.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	public function code_map_list( WP_REST_Request $r ) {
 		global $wpdb;
-		$source = sanitize_text_field( $r->get_param( 'source_system' ) ?: 'THIRD_PARTY_POS' );
-		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' m LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', $source ), ARRAY_A );
+		$requested_source_system = $r->get_param( 'source_system' );
+		$source                  = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
+		$rows                    = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM %i m LEFT JOIN %i p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', 'product_code_maps', $source, 'products' ), ARRAY_A );
 		return rest_ensure_response( $rows );}
+	/**
+	 * Creates or updates an external product-code mapping after validation.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	public function code_map_save( WP_REST_Request $r ) {
 		global $wpdb;
 		$p        = $r->get_json_params();
@@ -2486,8 +2825,8 @@ class Stockland_REST_Import_V16 {
 			$args[] = $id;}
 		$existing_rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		foreach ( $existing_rows as $ex ) {
-			$ex_from = $ex['effective_from'] ?: null;
-			$ex_to   = $ex['effective_to'] ?: null;
+			$ex_from = $ex['effective_from'] ? $ex['effective_from'] : null;
+			$ex_to   = $ex['effective_to'] ? $ex['effective_to'] : null;
 			$before  = ( null !== $to && null !== $ex_from && $to < $ex_from );
 			$after   = ( null !== $ex_to && null !== $from && $ex_to < $from );
 			if ( ! $before && ! $after ) {
@@ -2515,7 +2854,7 @@ class Stockland_REST_Import_V16 {
 		}
 		try {
 			if ( $id ) {
-				$current = $wpdb->get_row( $wpdb->prepare( "SELECT id FROM {$maps} WHERE id=%d LIMIT 1 FOR UPDATE", $id ), ARRAY_A );
+				$current = $wpdb->get_row( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d LIMIT 1 FOR UPDATE', $maps, $id ), ARRAY_A );
 				if ( ! $current ) {
 					throw new Exception( 'Mapping not found.' );
 				}
@@ -2524,7 +2863,7 @@ class Stockland_REST_Import_V16 {
 					throw new Exception( 'Could not update mapping.' );
 				}$existing = $id;
 			} else {
-				$same_open = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$maps} WHERE source_system=%s AND external_code=%s AND effective_from IS NULL AND effective_to IS NULL AND is_active=1 LIMIT 1 FOR UPDATE", $source, $external ) );
+				$same_open = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE source_system=%s AND external_code=%s AND effective_from IS NULL AND effective_to IS NULL AND is_active=1 LIMIT 1 FOR UPDATE', $maps, $source, $external ) );
 				if ( $same_open ) {
 					$ok = $wpdb->update( $maps, $data, array( 'id' => (int) $same_open ) );
 					if ( false === $ok ) {
@@ -2547,13 +2886,19 @@ class Stockland_REST_Import_V16 {
 			$wpdb->query( 'ROLLBACK' );
 			return $this->deny( 'mapping_write_failed', $e->getMessage(), 409 );}
 	}
+	/**
+	 * Deletes an unused external code mapping when authorization and reference checks allow it.
+	 *
+	 * @param WP_REST_Request $r REST request with import parameters.
+	 * @return mixed The operation result.
+	 */
 	public function code_map_delete( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = (int) $r['id'];
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start code-mapping deactivation.', array( 'status' => 500 ) );
 		}try {
-			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'product_code_maps', $id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Mapping not found.' );
 			}$ok = $wpdb->update(

@@ -1,9 +1,19 @@
 <?php
+/**
+ * Immutable inventory ledger and derived stock-balance operations.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Immutable stock ledger choke point.  Every movement is line-addressable and idempotent. */
+/**
+ * Immutable stock ledger choke point; each movement is line-addressable and idempotent.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_Ledger {
 	/** Begin an atomic unit; use a savepoint when called inside a caller-owned transaction. */
 	private static function begin_unit_of_work( &$owns_transaction, &$savepoint ) {
@@ -20,6 +30,13 @@ class Stockland_Ledger {
 		$savepoint = 'sl_ledger_' . wp_rand( 100000, 999999 );
 		return false !== $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
 	}
+	/**
+	 * Roll back the owned transaction or restore the caller's savepoint.
+	 *
+	 * @param bool   $owns_transaction Whether this method started the transaction.
+	 * @param string $savepoint Savepoint name for a nested unit of work.
+	 * @return void
+	 */
 	private static function rollback_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
 		if ( $owns_transaction ) {
@@ -29,6 +46,13 @@ class Stockland_Ledger {
 			$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
 			$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
 	}
+	/**
+	 * Commit the owned transaction or release a nested savepoint.
+	 *
+	 * @param bool   $owns_transaction Whether this method started the transaction.
+	 * @param string $savepoint Savepoint name for a nested unit of work.
+	 * @return bool True when commit/release succeeds.
+	 */
 	private static function commit_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
 		$ok = $owns_transaction ? $wpdb->query( 'COMMIT' ) : $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
@@ -38,6 +62,20 @@ class Stockland_Ledger {
 		self::rollback_unit_of_work( $owns_transaction, $savepoint );
 		return false;
 	}
+	/**
+	 * Record one idempotent stock movement and update the derived balance atomically.
+	 *
+	 * @param int        $location_id Operational location identifier.
+	 * @param string     $sku Product Master SKU.
+	 * @param string     $movement_type Canonical movement type.
+	 * @param float      $quantity_signed Signed stock quantity.
+	 * @param string     $reference_type Source document type.
+	 * @param int|string $reference_id Source document identifier.
+	 * @param string     $transaction_date Effective movement date.
+	 * @param int|null   $created_by User responsible for the movement.
+	 * @param string     $source_line_id Stable source-line idempotency key.
+	 * @return int|false Ledger identifier, or false when the movement cannot be committed.
+	 */
 	public static function record( $location_id, $sku, $movement_type, $quantity_signed, $reference_type, $reference_id, $transaction_date, $created_by = null, $source_line_id = '' ) {
 		global $wpdb;
 		$table          = Stockland_DB::table( 'transactions' );
@@ -99,7 +137,7 @@ class Stockland_Ledger {
 			if ( Stockland_DB::table_exists( $balances ) ) {
 				$balance_ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
 				if ( false === $balance_ok ) {
-					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
+					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
 			}
 			if ( ! self::commit_unit_of_work( $owns_transaction, $savepoint ) ) {
@@ -111,6 +149,13 @@ class Stockland_Ledger {
 			return false;}
 	}
 
+	/**
+	 * Recalculate all location balances for a Product Master variant from the ledger.
+	 *
+	 * @param int         $variant_id Product variant identifier.
+	 * @param string|null $new_sku Replacement SKU to persist in derived balances, if any.
+	 * @return bool True when the derived balances are rebuilt successfully.
+	 */
 	public static function rebuild_balance_for_variant( $variant_id, $new_sku = null ) {
 		global $wpdb;
 		$variant_id = (int) $variant_id;
@@ -161,6 +206,13 @@ class Stockland_Ledger {
 			self::rollback_unit_of_work( $owns_transaction, $savepoint );
 			return false;}
 	}
+	/**
+	 * Recalculate one location/SKU balance from immutable ledger movements.
+	 *
+	 * @param int    $location_id Operational location identifier.
+	 * @param string $sku Product Master SKU.
+	 * @return bool True when the derived balance is rebuilt successfully.
+	 */
 	public static function rebuild_balance( $location_id, $sku ) {
 		global $wpdb;
 		$bal = Stockland_DB::table( 'balances' );
@@ -212,12 +264,33 @@ class Stockland_Ledger {
 			return false;}
 	}
 
+	/**
+	 * Post the outbound ledger movement for a dispatched transfer.
+	 *
+	 * @param array $transfer Transfer record.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Ledger movement identifier, or false on failure.
+	 */
 	public static function post_transfer_dispatched( $transfer, $user_id ) {
 		$line = (string) ( $transfer['transfer_id'] . '-OUT' );
 		return self::record( $transfer['from_location_id'], $transfer['sku'], 'TRANSFER_OUT', -abs( (float) ( $transfer['dispatched_qty'] ?? $transfer['quantity'] ) ), 'transfer', $transfer['transfer_id'], $transfer['transfer_date'], $user_id, $line );}
+	/**
+	 * Post the inbound ledger movement for a received transfer.
+	 *
+	 * @param array $transfer Transfer record.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Ledger movement identifier, or false on failure.
+	 */
 	public static function post_transfer_received( $transfer, $user_id ) {
 		$line = (string) ( $transfer['transfer_id'] . '-IN' );
 		return self::record( $transfer['to_location_id'], $transfer['sku'], 'TRANSFER_IN', abs( (float) ( $transfer['received_qty'] ?? $transfer['quantity'] ) ), 'transfer', $transfer['transfer_id'], $transfer['transfer_date'], $user_id, $line );}
+	/**
+	 * Post dispatch and receipt movements within one unit of work.
+	 *
+	 * @param array $transfer Completed transfer record.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Inbound movement identifier, or false when either leg fails.
+	 */
 	public static function post_transfer_completed( $transfer, $user_id ) {
 		$t                   = $transfer;
 		$t['dispatched_qty'] = (float) ( $t['dispatched_qty'] ?? $t['quantity'] );
@@ -245,12 +318,42 @@ class Stockland_Ledger {
 			return false;}
 	}
 
+	/**
+	 * Post a completed warehouse receipt to the immutable ledger.
+	 *
+	 * @param array $receipt Completed receipt record.
+	 * @param int   $warehouse_location_id Receiving warehouse identifier.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Ledger movement identifier, or false on failure.
+	 */
 	public static function post_receipt_completed( $receipt, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $receipt['sku'], 'RECEIPT', abs( (float) $receipt['quantity_received'] ), 'receipt', $receipt['receipt_id'], $receipt['receipt_date'], $user_id, (string) $receipt['receipt_id'] );}
+	/**
+	 * Post a closed branch sale to the immutable ledger.
+	 *
+	 * @param array $sale Closed sale line.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Ledger movement identifier, or false on failure.
+	 */
 	public static function post_sale_closed( $sale, $user_id ) {
-		return self::record( $sale['branch_location_id'], $sale['sku'], 'SALE', -abs( (float) $sale['quantity_sold'] ), 'sale', $sale['source_job_id'] ?? $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['source_row_number'] ?: (string) $sale['sale_id'] );}
+		return self::record( $sale['branch_location_id'], $sale['sku'], 'SALE', -abs( (float) $sale['quantity_sold'] ), 'sale', $sale['source_job_id'] ?? $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['source_row_number'] ? (string) $sale['source_row_number'] : (string) $sale['sale_id'] );}
+	/**
+	 * Post a wholesale sale as an outbound warehouse movement.
+	 *
+	 * @param array $sale Wholesale sale line.
+	 * @param int   $warehouse_location_id Fulfilling warehouse identifier.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Ledger movement identifier, or false on failure.
+	 */
 	public static function post_wholesale_sale( $sale, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $sale['sku'], 'WHOLESALE_SALE', -abs( (float) $sale['quantity'] ), 'wholesale_sale', $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['sale_id'] );}
+	/**
+	 * Post a return, damage or adjustment movement to the ledger.
+	 *
+	 * @param array $ret Return or adjustment record.
+	 * @param int   $user_id User responsible for posting.
+	 * @return int|false Ledger movement identifier, or false on failure.
+	 */
 	public static function post_return( $ret, $user_id ) {
 		$sign = ( 'Return' === $ret['return_type'] ) ? 1 : -1;
 		if ( 'Adjustment' === $ret['return_type'] && isset( $ret['adjustment_sign'] ) ) {

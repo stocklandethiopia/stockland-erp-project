@@ -78,17 +78,17 @@ class Stockland_XLSX {
 			}
 			$this->pcl = new PclZip( $file );
 		}
-		$this->loadShared();
-		$this->loadSheets();
+		$this->load_shared();
+		$this->load_sheets();
 	}
 
 	public function __destruct() {
 		if ( $this->zip instanceof ZipArchive ) {
-			@$this->zip->close();
+			$this->zip->close();
 		}
 	}
 
-	private function getFromName( $name ) {
+	private function get_from_name( $name ) {
 		if ( $this->zip ) {
 			$v = $this->zip->getFromName( $name );
 			return false === $v ? null : $v;
@@ -97,7 +97,7 @@ class Stockland_XLSX {
 		return ( is_array( $r ) && isset( $r[0]['content'] ) ) ? $r[0]['content'] : null;
 	}
 
-	private function entrySize( $name ) {
+	private function entry_size( $name ) {
 		if ( ! $this->zip ) {
 			return null;
 		}
@@ -109,7 +109,7 @@ class Stockland_XLSX {
 	}
 
 	private function xml( $name ) {
-		$raw = $this->getFromName( $name );
+		$raw = $this->get_from_name( $name );
 		if ( null === $raw ) {
 			return null;
 		}
@@ -130,7 +130,7 @@ class Stockland_XLSX {
 			libxml_use_internal_errors( $previous ); }
 	}
 
-	private function textParts( $node ) {
+	private function text_parts( $node ) {
 		$parts   = array();
 		$matches = $node->xpath( './/*[local-name()="t"]' );
 		foreach ( (array) $matches as $t ) {
@@ -139,11 +139,11 @@ class Stockland_XLSX {
 		return implode( '', $parts );
 	}
 
-	private function loadShared() {
+	private function load_shared() {
 		if ( ! $this->zip && ! $this->pcl ) {
 			return;
 		}
-		$size = $this->entrySize( 'xl/sharedStrings.xml' );
+		$size = $this->entry_size( 'xl/sharedStrings.xml' );
 		if ( null !== $size && $size > self::MAX_SHARED_XML_BYTES ) {
 			throw new Exception( 'XLSX shared strings section is too large for the hosting safety limit.' );
 		}
@@ -167,7 +167,7 @@ class Stockland_XLSX {
 							if ( false === $si ) {
 								throw new Exception( 'Invalid shared string XML in workbook.' );
 							}
-							$this->shared[] = $this->textParts( $si );
+							$this->shared[] = $this->text_parts( $si );
 						} finally {
 							libxml_clear_errors();
 							libxml_use_internal_errors( $previous ); }
@@ -187,11 +187,11 @@ class Stockland_XLSX {
 			if ( ++$count > self::MAX_SHARED_STRINGS ) {
 				throw new Exception( 'XLSX contains too many shared strings.' );
 			}
-			$this->shared[] = $this->textParts( $si );
+			$this->shared[] = $this->text_parts( $si );
 		}
 	}
 
-	private function loadSheets() {
+	private function load_sheets() {
 		$wb   = $this->xml( 'xl/workbook.xml' );
 		$rels = $this->xml( 'xl/_rels/workbook.xml.rels' );
 		if ( ! $wb || ! $rels ) {
@@ -201,9 +201,9 @@ class Stockland_XLSX {
 		// OOXML workbook and relationships parts normally use default XML namespaces.
 		// SimpleXML direct property access may therefore return empty children on valid
 		// Excel files. Use local-name() XPath to recognize standard namespace-qualified XML.
-		$map               = array();
-		$relationshipNodes = $rels->xpath( '//*[local-name()="Relationship"]' );
-		foreach ( (array) $relationshipNodes as $r ) {
+		$map                = array();
+		$relationship_nodes = $rels->xpath( '//*[local-name()="Relationship"]' );
+		foreach ( (array) $relationship_nodes as $r ) {
 			$target = (string) $r['Target'];
 			if ( '' === $target ) {
 				continue;
@@ -217,11 +217,11 @@ class Stockland_XLSX {
 			$map[ (string) $r['Id'] ] = $target;
 		}
 
-		$sheetNodes = $wb->xpath( '//*[local-name()="sheets"]/*[local-name()="sheet"]' );
-		if ( empty( $sheetNodes ) ) {
+		$sheet_nodes = $wb->xpath( '//*[local-name()="sheets"]/*[local-name()="sheet"]' );
+		if ( empty( $sheet_nodes ) ) {
 			throw new Exception( 'Invalid XLSX structure: no worksheet is present.' );
 		}
-		foreach ( (array) $sheetNodes as $s ) {
+		foreach ( (array) $sheet_nodes as $s ) {
 			$name  = (string) $s['name'];
 			$attrs = $s->attributes( 'http://schemas.openxmlformats.org/officeDocument/2006/relationships' );
 			$rid   = isset( $attrs['id'] ) ? (string) $attrs['id'] : '';
@@ -252,7 +252,7 @@ class Stockland_XLSX {
 			return $this->shared[ (int) $v ] ?? '';
 		}
 		if ( 'inlineStr' === $t ) {
-			return $this->textParts( $c->is );
+			return $this->text_parts( $c->is );
 		}
 		if ( 'b' === $t ) {
 			return ( '1' === (string) $v ) ? '1' : '0';
@@ -275,7 +275,7 @@ class Stockland_XLSX {
 			throw new Exception( 'Worksheet not found: ' . $sheet );
 		}
 		$path = $this->sheets[ $sheet ];
-		$size = $this->entrySize( $path );
+		$size = $this->entry_size( $path );
 		if ( null !== $size && $size > self::MAX_SHEET_XML_BYTES ) {
 			throw new Exception( 'Worksheet ' . $sheet . ' exceeds the XLSX uncompressed safety limit. Split the workbook.' );
 		}
@@ -347,7 +347,7 @@ class Stockland_XLSX {
 		} finally {
 			fclose( $stream );
 			if ( $temp_xml && is_file( $temp_xml ) ) {
-				@unlink( $temp_xml );
+				wp_delete_file( $temp_xml );
 			}
 		}
 	}

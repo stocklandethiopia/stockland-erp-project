@@ -1,20 +1,44 @@
 <?php
+/**
+ * Captures and redacts fatal runtime diagnostics for System Control.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Stores a bounded, redacted summary of the latest fatal runtime failure.
+ *
+ * @package Stockland_ERP
+ */
 final class Stockland_Runtime_Diagnostics {
-	const OPTION          = 'stockland_runtime_fatal_v1';
-	const MAX_TEXT        = 1200;
+	const OPTION   = 'stockland_runtime_fatal_v1';
+	const MAX_TEXT = 1200;
+
+	/** Current lifecycle stage used to contextualize fatal diagnostics. */
 	private static $stage = 'plugin_boot';
 
+	/** Register the shutdown handler that captures fatal PHP errors. */
 	public static function boot() {
 		register_shutdown_function( array( __CLASS__, 'capture_fatal' ) );
 	}
+	/**
+	 * Set the lifecycle stage used in any subsequent fatal diagnostic.
+	 *
+	 * @param string $name Lifecycle stage identifier.
+	 * @return void
+	 */
 	public static function stage( $name ) {
 		$name        = sanitize_key( (string) $name );
 		self::$stage = substr( '' !== $name ? $name : 'unknown', 0, 80 );
 	}
+	/** Capture the last fatal PHP error and persist its redacted metadata.
+	 *
+	 * @return void
+	 */
 	public static function capture_fatal() {
 		$last = error_get_last();
 		if ( ! is_array( $last ) ) {
@@ -55,6 +79,10 @@ final class Stockland_Runtime_Diagnostics {
 		}
 		error_log( 'Stockland ERP FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri . ' persistence_failed=' . ( $persistence_failed ? 'yes' : 'no' ) );
 	}
+	/** Retrieve the last fatal diagnostic after redacting legacy request data.
+	 *
+	 * @return array<string, mixed> Redacted diagnostic record or an empty array.
+	 */
 	public static function last_fatal() {
 		$v = get_option( self::OPTION, array() );
 		if ( ! is_array( $v ) ) {
@@ -72,7 +100,12 @@ final class Stockland_Runtime_Diagnostics {
 		}
 		return $v;
 	}
-	/** Return a bounded path without query or fragment data. */
+	/**
+	 * Return a bounded request path without query or fragment data.
+	 *
+	 * @param string $uri Raw request URI.
+	 * @return string Redacted request path.
+	 */
 	private static function request_path( $uri ) {
 		$raw_uri = (string) $uri;
 		$path    = function_exists( 'wp_parse_url' )
@@ -84,6 +117,11 @@ final class Stockland_Runtime_Diagnostics {
 		$path = preg_replace( '/[\x00-\x1F\x7F]/', '', $path );
 		return self::clean( $path, 300 );
 	}
+	/**
+	 * Collect read-only runtime and database capability checks.
+	 *
+	 * @return array<string, mixed> Environment diagnostics safe for System Control.
+	 */
 	public static function environment() {
 		global $wpdb;
 		$e = array(
@@ -110,6 +148,13 @@ final class Stockland_Runtime_Diagnostics {
 		}
 		return $e;
 	}
+	/**
+	 * Remove control characters and local filesystem path details from text.
+	 *
+	 * @param string $s Raw diagnostic text.
+	 * @param int    $max Maximum number of characters to retain.
+	 * @return string Sanitized, bounded diagnostic text.
+	 */
 	private static function clean( $s, $max = self::MAX_TEXT ) {
 		$s = str_replace( array( "\0", "\r", "\n" ), ' ', (string) $s );
 		if ( defined( 'ABSPATH' ) && ABSPATH !== '' ) {

@@ -48,7 +48,8 @@ final class Stockland_REST_Calendar extends Stockland_REST_Base {
 
 	public function month( WP_REST_Request $r ) {
 		try {
-			$month = sanitize_text_field( $r->get_param( 'month' ) ?: current_time( 'Y-m' ) );
+			$requested_month = $r->get_param( 'month' );
+			$month           = sanitize_text_field( $requested_month ? $requested_month : current_time( 'Y-m' ) );
 			return rest_ensure_response( Stockland_Business_Calendar::month( $month ) );
 		} catch ( Throwable $e ) {
 			return new WP_Error( 'calendar_read_failed', $e->getMessage(), array( 'status' => 400 ) );

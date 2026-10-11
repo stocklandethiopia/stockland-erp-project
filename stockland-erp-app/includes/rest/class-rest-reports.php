@@ -31,54 +31,73 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 
 	public function get_dashboard( WP_REST_Request $request ) {
 		global $wpdb;
-		$locations = Stockland_DB::table( 'locations' );
-		$balance   = '(SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM ' . Stockland_DB::table( 'transactions' ) . ' WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id)';
-		$sales     = Stockland_DB::table( 'sales' );
-		$wholesale = Stockland_DB::table( 'wholesale_sales' );
+		$locations    = Stockland_DB::table( 'locations' );
+		$transactions = Stockland_DB::table( 'transactions' );
+		$sales        = Stockland_DB::table( 'sales' );
+		$wholesale    = Stockland_DB::table( 'wholesale_sales' );
 
 		$stock_by_location = $wpdb->get_results(
-			"SELECT l.location_name, COALESCE(SUM(b.physical_stock), 0) AS current_stock
-             FROM {$locations} l
-             LEFT JOIN {$balance} b ON b.location_id = l.id
+			$wpdb->prepare(
+				"SELECT l.location_name, COALESCE(SUM(b.physical_stock), 0) AS current_stock
+             FROM %i l
+             LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.location_id = l.id
              WHERE l.location_type IN ('Warehouse','Branch')
              GROUP BY l.id, l.location_name",
+				$locations,
+				$transactions
+			),
 			ARRAY_A
 		);
 
 		$retail_totals = $wpdb->get_row(
-			"SELECT COALESCE(SUM(sales_total),0) AS revenue,
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(sales_total),0) AS revenue,
                     COALESCE(SUM(net_sales_excl_vat),0) AS net_sales,
                     COALESCE(SUM(gross_profit),0) AS gross_profit,
                     COALESCE(SUM(vat_amount),0) AS vat,
                     COALESCE(SUM(quantity_sold),0) AS units_sold
-             FROM {$sales} WHERE posting_status = 'CLOSED'",
+             FROM %i WHERE posting_status = 'CLOSED'",
+				$sales
+			),
 			ARRAY_A
 		);
 
 		$wholesale_totals = $wpdb->get_row(
-			"SELECT COALESCE(SUM(sales_value),0) AS revenue,
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(sales_value),0) AS revenue,
                     COALESCE(SUM(net_sales_excl_vat),0) AS net_sales,
                     COALESCE(SUM(gross_profit),0) AS gross_profit,
                     COALESCE(SUM(vat_amount),0) AS vat,
                     COALESCE(SUM(quantity),0) AS units_sold
-             FROM {$wholesale}",
+             FROM %i',
+				$wholesale
+			),
 			ARRAY_A
 		);
 
 		$inventory_value = $wpdb->get_var(
-			"SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0)
-             FROM {$balance} b
-             JOIN " . Stockland_DB::table( 'products' ) . ' p ON p.variant_id=b.variant_id'
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0)
+             FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b
+             JOIN %i p ON p.variant_id=b.variant_id',
+				$transactions,
+				Stockland_DB::table( 'products' )
+			)
 		);
 
 		$reorder_count = $wpdb->get_var(
-			'SELECT COUNT(*) FROM (
-                SELECT p.sku FROM ' . Stockland_DB::table( 'products' ) . " p
-                CROSS JOIN {$locations} l
-                LEFT JOIN {$balance} b ON b.variant_id = p.variant_id AND b.location_id = l.id
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM (
+                SELECT p.sku FROM %i p
+                CROSS JOIN %i l
+                LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id = p.variant_id AND b.location_id = l.id
                 WHERE l.location_type IN ('Warehouse','Branch')
                   AND COALESCE(b.physical_stock,0) <= IF(l.location_type='Warehouse', p.central_reorder_level, p.branch_reorder_level)
-             ) t"
+             ) t",
+				Stockland_DB::table( 'products' ),
+				$locations,
+				$transactions
+			)
 		);
 
 		return rest_ensure_response(

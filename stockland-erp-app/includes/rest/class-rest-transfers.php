@@ -51,12 +51,17 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			$wpdb->prepare(
 				'SELECT t.*,f.location_name from_location_name,to_l.location_name to_location_name,
                     COALESCE(p.product_name,t.sku) product_name,r.branch_location_id AS requisition_branch_location_id
-             FROM ' . Stockland_DB::table( 'transfers' ) . ' t
-             JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id
-             JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id
-             LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)
-             LEFT JOIN ' . Stockland_DB::table( 'requisitions' ) . ' r ON r.requisition_id=t.requisition_id
+             FROM %i t
+             JOIN %i f ON f.id=t.from_location_id
+             JOIN %i to_l ON to_l.id=t.to_location_id
+             LEFT JOIN %i p ON p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)
+             LEFT JOIN %i r ON r.requisition_id=t.requisition_id
              WHERE t.transfer_id=%s',
+				Stockland_DB::table( 'transfers' ),
+				Stockland_DB::table( 'locations' ),
+				Stockland_DB::table( 'locations' ),
+				Stockland_DB::table( 'products' ),
+				Stockland_DB::table( 'requisitions' ),
 				$id
 			),
 			ARRAY_A
@@ -68,12 +73,17 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		$profile = Stockland_Roles::get_profile( get_current_user_id() );
 		$sql     = 'SELECT t.*,f.location_name from_location_name,to_l.location_name to_location_name,
                      COALESCE(p.product_name,t.sku) product_name
-              FROM ' . Stockland_DB::table( 'transfers' ) . ' t
-              JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id
-              JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id
-              LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)
+              FROM %i t
+              JOIN %i f ON f.id=t.from_location_id
+              JOIN %i to_l ON to_l.id=t.to_location_id
+              LEFT JOIN %i p ON p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)
               WHERE 1=1';
-		$args    = array();
+		$args    = array(
+			Stockland_DB::table( 'transfers' ),
+			Stockland_DB::table( 'locations' ),
+			Stockland_DB::table( 'locations' ),
+			Stockland_DB::table( 'products' ),
+		);
 		if ( ! current_user_can( 'stockland_view_all_branches' ) ) {
 			$allowed = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
 			if ( empty( $allowed ) ) {
@@ -87,7 +97,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				$args[] = $id;}
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 500';
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
 
 	public function create_transfer( WP_REST_Request $r ) {
@@ -99,14 +109,14 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		$req_id      = sanitize_text_field( $p['requisition_id'] ?? '' );
 		$req_item_id = isset( $p['requisition_item_id'] ) ? (int) $p['requisition_item_id'] : null;
 
-		if ( ! $from || ! $to || $from === $to || ! $sku || $q <= 0 ) {
+		if ( ! $from || ! $to || $to === $from || ! $sku || $q <= 0 ) {
 			return new WP_Error( 'invalid', 'Invalid transfer.', array( 'status' => 400 ) );
 		}
 
-		if ( $to === (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+		if ( (int) Stockland_DB::get_location_id( 'Central Warehouse' ) === $to ) {
 			return new WP_Error( 'invalid_destination', 'Transfers cannot be received back into Central Warehouse through a branch transfer.', array( 'status' => 400 ) );
 		}
-		if ( ! current_user_can( 'stockland_view_all_branches' ) && $from !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+		if ( ! current_user_can( 'stockland_view_all_branches' ) && (int) Stockland_DB::get_location_id( 'Central Warehouse' ) !== $from ) {
 			return new WP_Error( 'forbidden', 'Branch users cannot move stock out of arbitrary locations.', array( 'status' => 403 ) );
 		}
 
@@ -119,7 +129,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			global $wpdb;
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT requisition_id FROM ' . Stockland_DB::table( 'requisitions' ) . ' WHERE requisition_id=%s',
+					'SELECT requisition_id FROM %i WHERE requisition_id=%s',
+					Stockland_DB::table( 'requisitions' ),
 					$req_id
 				)
 			);
@@ -150,14 +161,14 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					'quantity'            => $q,
 					'status'              => 'Requested',
 					'requested_by'        => get_current_user_id(),
-					'requisition_id'      => $req_id ?: null,
+					'requisition_id'      => $req_id ? $req_id : null,
 					'requisition_item_id' => $req_item_id,
 				)
 			);
 			if ( false === $ok ) {
 				throw new Exception( 'Could not create transfer.' );
 			}
-			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'TRANSFER_CREATE', $sku, $q, null, 'Requested', $req_id ?: null, $id ) ) {
+			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'TRANSFER_CREATE', $sku, $q, null, 'Requested', $req_id ? $req_id : null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; transfer was not committed.' );
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
@@ -249,7 +260,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			Stockland_DB::release_location_locks( $location_locks['locks'] );
 			return new WP_Error( 'transaction_failed', 'Could not start transfer state transaction.', array( 'status' => 500 ) );}
 		try {
-			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'transfers' ) . ' WHERE transfer_id=%s FOR UPDATE', $id ), ARRAY_A );
+			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE transfer_id=%s FOR UPDATE', Stockland_DB::table( 'transfers' ), $id ), ARRAY_A );
 			if ( ! $current ) {
 				throw new Exception( 'Transfer disappeared during processing.' );
 			}
@@ -260,7 +271,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( Stockland_DB::get_available_stock( $source, $sku ) < $qty ) {
 					throw new Exception( 'Insufficient available source stock for ' . $sku . '. Available quantity is ' . Stockland_DB::get_available_stock( $source, $sku ) . '.' );
 				}
-				$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'reservations' ) . " WHERE transfer_id=%s AND status='Active' LIMIT 1", $id ) );
+				$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE transfer_id=%s AND status='Active' LIMIT 1", Stockland_DB::table( 'reservations' ), $id ) );
 				if ( ! $existing ) {
 					$res_ok = $wpdb->insert(
 						Stockland_DB::table( 'reservations' ),
@@ -268,7 +279,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 							'location_id'       => $source,
 							'sku'               => $sku,
 							'variant_id'        => (int) ( $current['variant_id'] ?? ( Stockland_DB::get_product( $sku )['variant_id'] ?? 0 ) ),
-							'requisition_id'    => $current['requisition_id'] ?: null,
+							'requisition_id'    => $current['requisition_id'] ? $current['requisition_id'] : null,
 							'quantity_reserved' => $qty,
 							'status'            => 'Active',
 							'transfer_id'       => $id,
@@ -296,7 +307,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( $dispatch <= 0 || $dispatch > $qty ) {
 					throw new Exception( 'Dispatched quantity must be greater than zero and cannot exceed requested quantity (' . $qty . ').' );
 				}
-				$active_reserved = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_reserved),0) FROM ' . Stockland_DB::table( 'reservations' ) . " WHERE transfer_id=%s AND status='Active'", $id ) );
+				$active_reserved = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), $id ) );
 				if ( $active_reserved + 0.00001 < $dispatch ) {
 					throw new Exception( 'Active warehouse reservation is missing or smaller than the dispatch quantity. Reserve the transfer before picking.' );
 				}
@@ -309,7 +320,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, $user ) ) {
 					throw new Exception( 'Source stock ledger could not be posted.' );
 				}
-				$released = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'reservations' ) . " SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", current_time( 'mysql' ), $id ) );
+				$released = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $id ) );
 				if ( false === $released ) {
 					throw new Exception( 'Could not release the active warehouse reservation.' );
 				}
@@ -371,7 +382,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					throw new Exception( 'Could not save transfer receipt.' );
 				}
 				if ( ! empty( $current['requisition_id'] ) ) {
-					$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisition_items' ) . ' WHERE id=%d', (int) $current['requisition_item_id'] ), ARRAY_A );
+					$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'requisition_items' ), (int) $current['requisition_item_id'] ), ARRAY_A );
 					if ( $items ) {
 						$item        = $items[0];
 						$newreceived = (float) $item['quantity_received'] + $received;
@@ -391,7 +402,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				}
 			} else {
 				if ( in_array( $new, array( 'Rejected', 'Cancelled' ), true ) ) {
-					$released = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'reservations' ) . " SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", current_time( 'mysql' ), $id ) );
+					$released = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $id ) );
 					if ( false === $released ) {
 						throw new Exception( 'Could not release the active warehouse reservation.' );
 					}
@@ -424,7 +435,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				}
 			}
 			$audit_qty = 'Received' === $new ? ( isset( $received ) ? $received : $current['received_qty'] ) : $qty;
-			if ( ! Stockland_Audit::log( $user, (int) $current['to_location_id'], 'TRANSFER_STATUS_CHANGE', $sku, $audit_qty, $current['status'], $new, $current['requisition_id'] ?: null, $id ) ) {
+			if ( ! Stockland_Audit::log( $user, (int) $current['to_location_id'], 'TRANSFER_STATUS_CHANGE', $sku, $audit_qty, $current['status'], $new, $current['requisition_id'] ? $current['requisition_id'] : null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; transfer was not committed.' );
 			}
 			if ( ! empty( $current['requisition_id'] ) ) {
@@ -460,7 +471,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		global $wpdb;
 		$statuses = $wpdb->get_col(
 			$wpdb->prepare(
-				'SELECT status FROM ' . Stockland_DB::table( 'transfers' ) . ' WHERE requisition_id=%s',
+				'SELECT status FROM %i WHERE requisition_id=%s',
+				Stockland_DB::table( 'transfers' ),
 				$requisition_id
 			)
 		);
@@ -476,7 +488,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		}
 		$req = $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT status FROM ' . Stockland_DB::table( 'requisitions' ) . ' WHERE requisition_id=%s',
+				'SELECT status FROM %i WHERE requisition_id=%s',
+				Stockland_DB::table( 'requisitions' ),
 				$requisition_id
 			),
 			ARRAY_A

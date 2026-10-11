@@ -105,7 +105,7 @@ class Stockland_REST_Requisition_V16 {
 		return new WP_Error( $code, $msg, array( 'status' => $status ) );}
 	private function req( $id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM ' . Stockland_DB::table( 'requisitions' ) . ' r JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=r.branch_location_id WHERE r.requisition_id=%s', $id ), ARRAY_A );}
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM %i r JOIN %i l ON l.id=r.branch_location_id WHERE r.requisition_id=%s', Stockland_DB::table( 'requisitions' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );}
 	private function scope_ok( $req ) {
 		if ( Stockland_Authority::company_scope() ) {
 			return true;
@@ -155,8 +155,9 @@ class Stockland_REST_Requisition_V16 {
 		}
 		if ( Stockland_Authority::can_warehouse_operate_requisition() ) {
 			$where = " AND r.status IN('Approved','Reserved','Picked','Received','Completed')";}
-		$sql  = 'SELECT r.requisition_id,r.branch_location_id,r.requested_by,r.date_requested,r.status,r.notes,r.reviewed_at,r.management_decision,r.owner_decision,r.approval_mode,r.created_at,l.location_name,u.display_name requester_name,COUNT(ri.id) item_count,COALESCE(SUM(ri.quantity_requested),0) requested_units,COALESCE(SUM(ri.quantity_approved),0) approved_units FROM ' . Stockland_DB::table( 'requisitions' ) . ' r JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=r.branch_location_id LEFT JOIN ' . $wpdb->users . ' u ON u.ID=r.requested_by LEFT JOIN ' . Stockland_DB::table( 'requisition_items' ) . " ri ON ri.requisition_id=r.requisition_id WHERE 1=1 {$where} GROUP BY r.requisition_id ORDER BY r.created_at DESC LIMIT 300";
-		$rows = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		$sql  = "SELECT r.requisition_id,r.branch_location_id,r.requested_by,r.date_requested,r.status,r.notes,r.reviewed_at,r.management_decision,r.owner_decision,r.approval_mode,r.created_at,l.location_name,u.display_name requester_name,COUNT(ri.id) item_count,COALESCE(SUM(ri.quantity_requested),0) requested_units,COALESCE(SUM(ri.quantity_approved),0) approved_units FROM %i r JOIN %i l ON l.id=r.branch_location_id LEFT JOIN %i u ON u.ID=r.requested_by LEFT JOIN %i ri ON ri.requisition_id=r.requisition_id WHERE 1=1 {$where} GROUP BY r.requisition_id ORDER BY r.created_at DESC LIMIT 300";
+		$args = array_merge( array( Stockland_DB::table( 'requisitions' ), Stockland_DB::table( 'locations' ), $wpdb->users, Stockland_DB::table( 'requisition_items' ) ), $args );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		foreach ( $rows as &$row ) {
 			$actions = array();
 			$st      = $row['status'];
@@ -215,7 +216,7 @@ class Stockland_REST_Requisition_V16 {
 		}if ( ! $this->scope_ok( $req ) ) {
 			return $this->deny( 'forbidden', 'This requisition is outside your branch scope.' );
 		}
-		$items        = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.brand,p.color,p.size FROM ' . Stockland_DB::table( 'requisition_items' ) . ' ri LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s ORDER BY ri.id', $req['requisition_id'] ), ARRAY_A );
+		$items        = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.brand,p.color,p.size FROM %i ri LEFT JOIN %i p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s ORDER BY ri.id', Stockland_DB::table( 'requisition_items' ), Stockland_DB::table( 'products' ), $req['requisition_id'] ), ARRAY_A );
 		$availability = $this->availability( $items );
 		$map          = array();
 		foreach ( $availability as $g ) {
@@ -257,7 +258,10 @@ class Stockland_REST_Requisition_V16 {
 
 				'transfers'               => $wpdb->get_results(
 					$wpdb->prepare(
-						'SELECT t.*,l.location_name from_location_name,to_l.location_name to_location_name FROM ' . Stockland_DB::table( 'transfers' ) . ' t JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=t.from_location_id JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id WHERE t.requisition_id=%s ORDER BY t.created_at',
+						'SELECT t.*,l.location_name from_location_name,to_l.location_name to_location_name FROM %i t JOIN %i l ON l.id=t.from_location_id JOIN %i to_l ON to_l.id=t.to_location_id WHERE t.requisition_id=%s ORDER BY t.created_at',
+						Stockland_DB::table( 'transfers' ),
+						Stockland_DB::table( 'locations' ),
+						Stockland_DB::table( 'locations' ),
 						$req['requisition_id']
 					),
 					ARRAY_A
@@ -291,7 +295,7 @@ class Stockland_REST_Requisition_V16 {
 				return new WP_Error( 'transaction_failed', 'Could not start the requisition review transaction.', array( 'status' => 500 ) );
 			}
 			try {
-				$locked = $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM ' . Stockland_DB::table( 'requisitions' ) . ' r JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=r.branch_location_id WHERE r.requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
+				$locked = $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM %i r JOIN %i l ON l.id=r.branch_location_id WHERE r.requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 				if ( ! $locked ) {
 					throw new Exception( 'Requisition disappeared during review.' );
 				}
@@ -304,12 +308,12 @@ class Stockland_REST_Requisition_V16 {
 						'status'       => 'Reviewed',
 						'reviewed_by'  => get_current_user_id(),
 						'reviewed_at'  => current_time( 'mysql' ),
-						'review_notes' => $note ?: $locked['notes'],
+						'review_notes' => $note ? $note : $locked['notes'],
 					),
 					array( 'requisition_id' => $id )
 				);
 				if ( false === $ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Requisition review could not be saved.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition review could not be saved.' );
 				}
 				if ( ! Stockland_Workflow::event( 'requisition', $id, 'Requested', 'Reviewed', get_current_user_id(), $locked['branch_location_id'], array( 'review_note' => $note ) ) ) {
 					throw new Exception( 'Workflow event could not be recorded.' );
@@ -354,7 +358,7 @@ class Stockland_REST_Requisition_V16 {
 			// Serialize approval decisions on the requisition itself. The prior build
 			// checked status before opening the transaction and could therefore approve
 			// stale Reviewed state from two concurrent requests.
-			$locked_req = $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM ' . Stockland_DB::table( 'requisitions' ) . ' r JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=r.branch_location_id WHERE r.requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
+			$locked_req = $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM %i r JOIN %i l ON l.id=r.branch_location_id WHERE r.requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 			if ( ! $locked_req ) {
 				throw new Exception( 'Requisition disappeared during approval.' );
 			}
@@ -374,7 +378,7 @@ class Stockland_REST_Requisition_V16 {
 			$req  = $locked_req;
 			$mode = 'ONE_OF';
 
-			$items        = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisition_items' ) . ' WHERE requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
+			$items        = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
 			$availability = $this->availability( $items );
 			$by           = array();
 			foreach ( $availability as $x ) {
@@ -414,7 +418,7 @@ class Stockland_REST_Requisition_V16 {
 				foreach ( $items as $item ) {
 					$item_ok = $wpdb->update( Stockland_DB::table( 'requisition_items' ), array( 'quantity_approved' => $approved[ $item['id'] ] ), array( 'id' => $item['id'] ) );
 					if ( false === $item_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Approved quantity could not be saved for ' . $item['sku'] . '.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Approved quantity could not be saved for ' . $item['sku'] . '.' );
 					}
 				}
 			}
@@ -438,7 +442,7 @@ class Stockland_REST_Requisition_V16 {
 						array( 'requisition_id' => $id )
 					);
 					if ( false === $rej_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Requisition rejection state could not be saved.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition rejection state could not be saved.' );
 					}if ( ! Stockland_Workflow::event(
 						'requisition',
 						$id,
@@ -456,12 +460,12 @@ class Stockland_REST_Requisition_V16 {
 						throw new Exception( 'Audit event could not be recorded.' );
 					}
 				} else {
-					$lines_to_create = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.size,p.color,p.barcode,p.gtin,p.variant_id FROM ' . Stockland_DB::table( 'requisition_items' ) . ' ri JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s AND ri.quantity_approved>0', $id ), ARRAY_A );
+					$lines_to_create = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.size,p.color,p.barcode,p.gtin,p.variant_id FROM %i ri JOIN %i p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s AND ri.quantity_approved>0', Stockland_DB::table( 'requisition_items' ), Stockland_DB::table( 'products' ), $id ), ARRAY_A );
 					foreach ( $lines_to_create as $item ) {
 						$q = (float) $item['quantity_approved'];
 						if ( $q <= 0 ) {
 							continue;
-						}$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT transfer_id FROM ' . Stockland_DB::table( 'transfers' ) . " WHERE requisition_item_id=%d AND status NOT IN('Rejected','Cancelled','Completed') LIMIT 1", (int) $item['id'] ) );
+						}$exists = $wpdb->get_var( $wpdb->prepare( "SELECT transfer_id FROM %i WHERE requisition_item_id=%d AND status NOT IN('Rejected','Cancelled','Completed') LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'] ) );
 						if ( $exists ) {
 							continue;
 						}$transfer_id = Stockland_Sequence::next( 'TRF-', current_time( 'Y-m-d' ) );
@@ -498,7 +502,7 @@ class Stockland_REST_Requisition_V16 {
 						array( 'requisition_id' => $id )
 					);
 					if ( false === $app_ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Requisition approval state could not be saved.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition approval state could not be saved.' );
 					}if ( ! Stockland_Workflow::event(
 						'requisition',
 						$id,
@@ -522,7 +526,7 @@ class Stockland_REST_Requisition_V16 {
 			}
 			Stockland_DB::release_day_lock( $wh_lock );
 			if ( $final && ! $reject ) {
-				$lines   = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.sku,ri.quantity_approved,p.product_name FROM ' . Stockland_DB::table( 'requisition_items' ) . ' ri JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s AND ri.quantity_approved>0', $id ), ARRAY_A );
+				$lines   = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.sku,ri.quantity_approved,p.product_name FROM %i ri JOIN %i p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s AND ri.quantity_approved>0', Stockland_DB::table( 'requisition_items' ), Stockland_DB::table( 'products' ), $id ), ARRAY_A );
 				$summary = array_map(
 					function ( $x ) {
 								return $x['sku'] . ' × ' . $x['quantity_approved'] . ' — ' . $x['product_name'];
@@ -570,8 +574,8 @@ class Stockland_REST_Requisition_V16 {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start warehouse requisition action.', array( 'status' => 500 ) );}
 		try {
-			$req    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisitions' ) . ' WHERE requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
-			$items  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisition_items' ) . ' WHERE requisition_id=%s ORDER BY id', $id ), ARRAY_A );
+			$req    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
+			$items  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
 			$pickup = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
 			if ( 'reserve' === $action ) {
 				if ( ! $pickup ) {
@@ -582,7 +586,7 @@ class Stockland_REST_Requisition_V16 {
 					if ( $qty <= 0 ) {
 						continue;
 					}
-					$transfer = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'transfers' ) . " WHERE requisition_item_id=%d AND requisition_id=%s AND status NOT IN('Rejected','Cancelled','Completed') ORDER BY created_at LIMIT 1", (int) $item['id'], $id ), ARRAY_A );
+					$transfer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status NOT IN('Rejected','Cancelled','Completed') ORDER BY created_at LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
 						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
 					}
@@ -605,7 +609,7 @@ class Stockland_REST_Requisition_V16 {
 							)
 						);
 						if ( false === $res_ok ) {
-							throw new Exception( $wpdb->last_error ?: 'Warehouse reservation could not be saved.' );
+							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Warehouse reservation could not be saved.' );
 						}
 						$tr_ok = $wpdb->update(
 							Stockland_DB::table( 'transfers' ),
@@ -618,12 +622,12 @@ class Stockland_REST_Requisition_V16 {
 							array( 'transfer_id' => $transfer['transfer_id'] )
 						);
 						if ( false === $tr_ok ) {
-							throw new Exception( $wpdb->last_error ?: 'Transfer reservation state could not be saved.' );
+							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Transfer reservation state could not be saved.' );
 						}
 					} elseif ( 'Reserved' === $transfer['status'] ) {
 						$tr_pickup_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'pickup_date' => $pickup ), array( 'transfer_id' => $transfer['transfer_id'] ) );
 						if ( false === $tr_pickup_ok ) {
-							throw new Exception( $wpdb->last_error ?: 'Transfer pickup date could not be saved.' );
+							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Transfer pickup date could not be saved.' );
 						}
 					}
 				}
@@ -638,7 +642,7 @@ class Stockland_REST_Requisition_V16 {
 					array( 'requisition_id' => $id )
 				);
 				if ( false === $res_req_ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Requisition reservation state could not be saved.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition reservation state could not be saved.' );
 				}
 				if ( ! Stockland_Workflow::event( 'requisition', $id, $req['status'], 'Reserved', get_current_user_id(), $req['branch_location_id'], array( 'pickup_date' => $pickup ) ) ) {
 					throw new Exception( 'Workflow event could not be recorded.' );
@@ -653,17 +657,17 @@ class Stockland_REST_Requisition_V16 {
 					throw new Exception( 'Reserve the requisition before picking.' );
 				}
 				foreach ( $items as $item ) {
-					$transfer = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'transfers' ) . " WHERE requisition_item_id=%d AND requisition_id=%s AND status='Reserved' LIMIT 1", (int) $item['id'], $id ), ARRAY_A );
+					$transfer = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status='Reserved' LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
 						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
-					}$active = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_reserved),0) FROM ' . Stockland_DB::table( 'reservations' ) . " WHERE transfer_id=%s AND status='Active'", $transfer['transfer_id'] ) );
+					}$active = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), $transfer['transfer_id'] ) );
 					if ( $active < (float) $transfer['quantity'] ) {
 						throw new Exception( 'Active reservation missing for ' . $transfer['sku'] . '.' );
 					}$dispatch = (float) $transfer['quantity'];
 					$cur       = $transfer;
 					if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, get_current_user_id() ) ) {
 						throw new Exception( 'Warehouse ledger could not post the pick for ' . $transfer['sku'] . '.' );
-					}$released = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'reservations' ) . " SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", current_time( 'mysql' ), $transfer['transfer_id'] ) );
+					}$released = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $transfer['transfer_id'] ) );
 					if ( false === $released ) {
 						throw new Exception( 'Warehouse reservation could not be released.' );
 					}$tr_pick_ok = $wpdb->update(
@@ -695,7 +699,7 @@ class Stockland_REST_Requisition_V16 {
 					array( 'requisition_id' => $id )
 				);
 				if ( false === $pick_req_ok ) {
-					throw new Exception( $wpdb->last_error ?: 'Requisition pick state could not be saved.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition pick state could not be saved.' );
 				}
 				if ( ! Stockland_Workflow::event( 'requisition', $id, $req['status'], 'Picked', get_current_user_id(), $req['branch_location_id'], array( 'pickup_date' => $req['pickup_date'] ) ) ) {
 					throw new Exception( 'Workflow event could not be recorded.' );
@@ -752,13 +756,13 @@ class Stockland_REST_Requisition_V16 {
 			Stockland_DB::release_location_locks( $locks['locks'] );
 			return new WP_Error( 'transaction_failed', 'Could not start the branch receipt transaction.', array( 'status' => 500 ) );}
 		try {
-			$locked = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'requisitions' ) . ' WHERE requisition_id=%s FOR UPDATE', $id ), ARRAY_A );
+			$locked = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
 			if ( ! $locked ) {
 				throw new Exception( 'Requisition disappeared during receipt.' );
 			}if ( 'Picked' !== $locked['status'] ) {
 				throw new Exception( 'Only a Picked requisition can be received. Current state: ' . $locked['status'] . '.' );
 			}
-			$transfers = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'transfers' ) . ' WHERE requisition_id=%s ORDER BY created_at FOR UPDATE', $id ), ARRAY_A );
+			$transfers = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY created_at FOR UPDATE', Stockland_DB::table( 'transfers' ), $id ), ARRAY_A );
 			if ( ! $transfers ) {
 				throw new Exception( 'No warehouse supply lines exist for this requisition.' );
 			}
@@ -806,14 +810,14 @@ class Stockland_REST_Requisition_V16 {
 					),
 					array( 'transfer_id' => $t['transfer_id'] )
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Could not save receipt for ' . $t['sku'] . '.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save receipt for ' . $t['sku'] . '.' );
 				}
 				$ri = (int) $t['requisition_item_id'];
 				if ( $ri ) {
-					$prior = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT quantity_received FROM ' . Stockland_DB::table( 'requisition_items' ) . ' WHERE id=%d FOR UPDATE', $ri ) );
+					$prior = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT quantity_received FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'requisition_items' ), $ri ) );
 					$ok    = $wpdb->update( Stockland_DB::table( 'requisition_items' ), array( 'quantity_received' => $prior + $received ), array( 'id' => $ri ) );
 					if ( false === $ok ) {
-						throw new Exception( $wpdb->last_error ?: 'Could not update requisition received quantity.' );
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not update requisition received quantity.' );
 					}
 				}
 				$seen[ $t['transfer_id'] ] = true;
@@ -823,7 +827,7 @@ class Stockland_REST_Requisition_V16 {
 				throw new Exception( 'All requisition supply lines must be processed.' );
 			}
 			if ( false === $wpdb->update( Stockland_DB::table( 'requisitions' ), array( 'status' => 'Received' ), array( 'requisition_id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Requisition receipt state could not be saved.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Requisition receipt state could not be saved.' );
 			}
 			if ( ! Stockland_Workflow::event(
 				'requisition',

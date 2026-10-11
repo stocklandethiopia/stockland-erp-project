@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP database reads, product resolution, inventory availability, and transaction locks.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -13,28 +19,49 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Stockland_DB {
 
+	/**
+	 * Builds the physical table name using the active WordPress database prefix.
+	 *
+	 * @param string $name Logical table name from the plugin's internal table contract.
+	 * @return string The fully prefixed Stockland table name.
+	 */
 	public static function table( $name ) {
 		global $wpdb;
 		return $wpdb->prefix . 'stock_' . $name;
 	}
 
+	/**
+	 * Looks up the database ID for a Stockland location name.
+	 *
+	 * @param string $location_name Stockland location name to resolve.
+	 * @return int|string|null The matching location ID, or null when no match exists.
+	 */
 	public static function get_location_id( $location_name ) {
 		global $wpdb;
 		$table = self::table( 'locations' );
 		return $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT id FROM {$table} WHERE location_name = %s",
+				'SELECT id FROM %i WHERE location_name = %s',
+				$table,
 				$location_name
 			)
 		);
 	}
 
+	/**
+	 * Reads a centrally stored ERP setting and returns the supplied default when it is absent.
+	 *
+	 * @param string $key Setting key or advisory-lock key.
+	 * @param mixed  $default Value returned if the setting is absent.
+	 * @return mixed The stored setting value or supplied default.
+	 */
 	public static function get_setting( $key, $default = null ) {
 		global $wpdb;
 		$table = self::table( 'settings' );
 		$value = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT setting_value FROM {$table} WHERE setting_key = %s",
+				'SELECT setting_value FROM %i WHERE setting_key = %s',
+				$table,
 				$key
 			)
 		);
@@ -46,23 +73,39 @@ class Stockland_DB {
 		return (float) self::get_setting( 'vat_rate', '0.15' );
 	}
 
+	/**
+	 * Returns the current VAT calculation basis.
+	 *
+	 * @return string The current VAT basis.
+	 */
 	public static function get_vat_basis() {
 		return self::get_setting( 'vat_basis', 'INCLUSIVE' );
 	}
 
-	/** Current Product Master row. This is the DEFAULT price a new sale must start from (rule #3). */
+	/**
+	 * Current Product Master row. This is the DEFAULT price a new sale must start from (rule #3).
+	 *
+	 * @param string $sku Exact Stockland SKU.
+	 */
 	public static function get_product( $sku ) {
 		global $wpdb;
 		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE sku = %s AND is_active = 1",
+				'SELECT * FROM %i WHERE sku = %s AND is_active = 1',
+				$table,
 				$sku
 			),
 			ARRAY_A
 		);
 	}
 
+	/**
+	 * Checks whether a table exists in the current WordPress database schema.
+	 *
+	 * @param string $table_name Fully qualified table name to test.
+	 * @return bool Whether the table exists.
+	 */
 	public static function table_exists( $table_name ) {
 		global $wpdb;
 		return (bool) $wpdb->get_var(
@@ -74,7 +117,13 @@ class Stockland_DB {
 		);
 	}
 
-	/** Resolve an external POS/ERP code to the current live SKU. */
+	/**
+	 * Resolve an external POS/ERP code to the current live SKU.
+	 *
+	 * @param string $source_system Source-system identifier for external product codes.
+	 * @param string $external_code External POS/ERP product identifier.
+	 * @param string $as_of_date Optional effective date in YYYY-MM-DD form.
+	 */
 	public static function resolve_live_sku( $source_system, $external_code, $as_of_date = null ) {
 		global $wpdb;
 		$source_system = sanitize_text_field( (string) $source_system );
@@ -91,10 +140,11 @@ class Stockland_DB {
 		if ( self::table_exists( $maps ) ) {
 			$mapped = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT live_sku FROM {$maps} WHERE source_system=%s AND external_code=%s AND is_active=1
+					'SELECT live_sku FROM %i WHERE source_system=%s AND external_code=%s AND is_active=1
                  AND (effective_from IS NULL OR effective_from<=%s)
                  AND (effective_to IS NULL OR effective_to>=%s)
-                 ORDER BY effective_from DESC, id DESC LIMIT 1",
+                 ORDER BY effective_from DESC, id DESC LIMIT 1',
+					$maps,
 					$source_system,
 					$external_code,
 					$as_of,
@@ -111,12 +161,25 @@ class Stockland_DB {
 		return self::get_product( $external_code ) ? $external_code : null;
 	}
 
+	/**
+	 * Resolves an external code and returns its live SKU if a safe mapping exists.
+	 *
+	 * @param string $source_system Source-system identifier for external product codes.
+	 * @param string $external_code External POS/ERP product identifier.
+	 * @param string $as_of_date Optional effective date in YYYY-MM-DD form.
+	 * @return string|null The resolved active SKU, or null.
+	 */
 	public static function get_product_by_external_code( $source_system, $external_code, $as_of_date = null ) {
 		$sku = self::resolve_live_sku( $source_system, $external_code, $as_of_date );
 		return $sku ? $sku : null;
 	}
 
-	/** Physical stock is always re-derived from immutable ledger identity. */
+	/**
+	 * Physical stock is always re-derived from immutable ledger identity.
+	 *
+	 * @param int    $location_id Authorized operational location ID.
+	 * @param string $sku Exact Stockland SKU.
+	 */
 	public static function get_physical_stock( $location_id, $sku ) {
 		global $wpdb;
 		$tx      = self::table( 'transactions' );
@@ -124,7 +187,8 @@ class Stockland_DB {
 		if ( $product && ! empty( $product['variant_id'] ) ) {
 			return (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_signed),0) FROM {$tx} WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))',
+					$tx,
 					(int) $location_id,
 					(int) $product['variant_id'],
 					$sku
@@ -133,20 +197,27 @@ class Stockland_DB {
 		}
 		return (float) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COALESCE(SUM(quantity_signed),0) FROM {$tx} WHERE location_id=%d AND sku=%s",
+				'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND sku=%s',
+				$tx,
 				(int) $location_id,
 				$sku
 			)
 		);
 	}
 
-	/** Return true when a branch/warehouse business day is explicitly closed. */
+	/**
+	 * Return true when a branch/warehouse business day is explicitly closed.
+	 *
+	 * @param int    $location_id Authorized operational location ID.
+	 * @param string $business_date Business date in YYYY-MM-DD form.
+	 */
 	public static function is_day_closed( $location_id, $business_date ) {
 		global $wpdb;
 		$table = self::table( 'daily_closings' );
 		if ( (string) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT status FROM {$table} WHERE branch_location_id=%d AND business_date=%s LIMIT 1",
+				'SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s LIMIT 1',
+				$table,
 				(int) $location_id,
 				$business_date
 			)
@@ -166,7 +237,12 @@ class Stockland_DB {
 		return false;
 	}
 
-	/** Acquire a MySQL named lock without requiring SUPER/TRIGGER privileges. */
+	/**
+	 * Acquire a MySQL named lock without requiring SUPER/TRIGGER privileges.
+	 *
+	 * @param string $key Setting key or advisory-lock key.
+	 * @param int    $timeout Maximum seconds to wait for the advisory lock.
+	 */
 	public static function acquire_named_lock( $key, $timeout = 10 ) {
 		global $wpdb;
 		$raw = sanitize_key( (string) $key );
@@ -183,6 +259,12 @@ class Stockland_DB {
 		);
 	}
 
+	/**
+	 * Releases a previously acquired MySQL advisory lock.
+	 *
+	 * @param array|null $lock Lock descriptor returned by an acquire method.
+	 * @return void Releases the given lock when a valid lock name is present.
+	 */
 	public static function release_named_lock( $lock ) {
 		global $wpdb;
 		if ( is_array( $lock ) && ! empty( $lock['name'] ) ) {
@@ -190,16 +272,34 @@ class Stockland_DB {
 		}
 	}
 
-	/** Serialize financial operations for one location/business date. */
+	/**
+	 * Serialize financial operations for one location/business date.
+	 *
+	 * @param int    $location_id Authorized operational location ID.
+	 * @param string $business_date Business date in YYYY-MM-DD form.
+	 * @param int    $timeout Maximum seconds to wait for the advisory lock.
+	 */
 	public static function acquire_day_lock( $location_id, $business_date, $timeout = 10 ) {
 		return self::acquire_named_lock( 'day_' . (int) $location_id . '_' . preg_replace( '/[^0-9]/', '', (string) $business_date ), $timeout );
 	}
 
+	/**
+	 * Releases the advisory lock returned by acquire_day_lock().
+	 *
+	 * @param array|null $lock Lock descriptor returned by an acquire method.
+	 * @return void Releases the location/date lock.
+	 */
 	public static function release_day_lock( $lock ) {
 		self::release_named_lock( $lock );
 	}
 
-	/** Acquire one or more location/date locks in deterministic order to avoid deadlocks. */
+	/**
+	 * Acquire one or more location/date locks in deterministic order to avoid deadlocks.
+	 *
+	 * @param int[]  $locations Location IDs to lock in numeric order.
+	 * @param string $business_date Business date in YYYY-MM-DD form.
+	 * @param int    $timeout Maximum seconds to wait for the advisory lock.
+	 */
 	public static function acquire_location_locks( $locations, $business_date, $timeout = 10 ) {
 		$ids = array_values( array_unique( array_map( 'intval', (array) $locations ) ) );
 		sort( $ids, SORT_NUMERIC );
@@ -219,34 +319,56 @@ class Stockland_DB {
 			'locks' => $locks,
 		);
 	}
+	/**
+	 * Releases each advisory lock in a collection.
+	 *
+	 * @param mixed $locks Value for the locks argument.
+	 * @return void Releases the provided locks.
+	 */
 	public static function release_day_locks( $locks ) {
 		foreach ( (array) $locks as $lock ) {
 			self::release_day_lock( $lock );
 		}
 	}
 
-	/** Compatibility cleanup for accounting/procurement transaction locks. */
+	/**
+	 * Compatibility cleanup for accounting/procurement transaction locks.
+	 *
+	 * @param mixed $locks Value for the locks argument.
+	 */
 	public static function release_location_locks( $locks ) {
 		self::release_day_locks( $locks );
 	}
 
 	/** Resolve an exact barcode or GTIN to a stockable product variant. */
-	/** Resolve an active product by immutable internal variant identity. */
+	/**
+	 * Resolve an active product by immutable internal variant identity.
+	 *
+	 * @param int $variant_id Immutable Product Master variant ID.
+	 */
 	public static function get_product_by_id( $variant_id ) {
 		global $wpdb;
 		$variant_id = (int) $variant_id;
 		if ( $variant_id <= 0 ) {
 			return null;
 		}
+		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM ' . self::table( 'products' ) . ' WHERE variant_id=%d AND is_active=1 LIMIT 1',
+				'SELECT * FROM %i WHERE variant_id=%d AND is_active=1 LIMIT 1',
+				$table,
 				$variant_id
 			),
 			ARRAY_A
 		);
 	}
 
+	/**
+	 * Resolves an exact barcode or GTIN to an active stockable product.
+	 *
+	 * @param string $code Barcode or GTIN identifier.
+	 * @return array|false|null The matching active stockable product row, or null when invalid or not found.
+	 */
 	public static function get_product_by_identifier( $code ) {
 		global $wpdb;
 		$code = sanitize_text_field( (string) $code );
@@ -256,7 +378,8 @@ class Stockland_DB {
 		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
+				"SELECT * FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
+				$table,
 				$code,
 				$code
 			),
@@ -264,6 +387,13 @@ class Stockland_DB {
 		);
 	}
 
+	/**
+	 * Returns physical stock less active reservations, preserving legacy SKU-only reservation rows.
+	 *
+	 * @param int    $location_id Authorized operational location ID.
+	 * @param string $sku Exact Stockland SKU.
+	 * @return float Available quantity after active reservations, never below zero.
+	 */
 	public static function get_available_stock( $location_id, $sku ) {
 		global $wpdb;
 		$res      = self::table( 'reservations' );
@@ -274,7 +404,8 @@ class Stockland_DB {
 			// reservations. A legacy row must still reduce live availability.
 			$reserved = (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_reserved),0) FROM {$res} WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					$res,
 					(int) $location_id,
 					(int) $product['variant_id'],
 					(string) $product['sku']
@@ -283,7 +414,8 @@ class Stockland_DB {
 		} else {
 			$reserved = (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_reserved),0) FROM {$res} WHERE location_id=%d AND sku=%s AND status='Active'",
+					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND sku=%s AND status='Active'",
+					$res,
 					(int) $location_id,
 					$sku
 				)

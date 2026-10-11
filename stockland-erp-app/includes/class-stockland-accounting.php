@@ -314,16 +314,16 @@ class Stockland_Accounting {
 			$wpdb->last_error = '';
 			if ( $batch_mode ) {
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
-				$result     = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; table keys are checked against the internal required-table allowlist above and no request values enter the statement.
-				$result     = $wpdb->query( $direct_sql );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This CREATE TABLE statement is generated only from the class-owned schema array; table keys are verified against the internal allowlist and no request data enters the DDL.
+				$result = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
-					$msg = 'Accounting/procurement table ' . ( $table_key ?: 'unknown' ) . ' could not be created';
+					$msg = 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( ! empty( $wpdb->last_error ) ) {
 						$msg .= ': ' . $wpdb->last_error;
 					}throw new RuntimeException( $msg );}
 				$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 				if ( ! $table_key || ! $exists ) {
-					throw new RuntimeException( 'Accounting/procurement table ' . ( $table_key ?: 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
+					throw new RuntimeException( 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
 				}
 				$batch_results[] = array(
 					'table'    => $table_key,
@@ -406,7 +406,7 @@ class Stockland_Accounting {
 		if ( Stockland_Money::minor( $delta ) === 0 ) {
 			return 0;
 		}
-		$journal_date = $journal_date ?: current_time( 'Y-m-d' );
+		$journal_date = $journal_date ? $journal_date : current_time( 'Y-m-d' );
 		$token        = substr( hash( 'sha256', uniqid( 'stockland_ob_', true ) ), 0, 10 );
 		$source_type  = 'SUPPLIER' === $party_type ? 'SUPPLIER_OPENING_BALANCE' : 'CUSTOMER_OPENING_BALANCE';
 		$source_id    = ( 'SUPPLIER' === $party_type ? 'SUP-OB-' : 'CUS-OB-' ) . $party_id . '-' . $token;
@@ -490,7 +490,7 @@ class Stockland_Accounting {
 		foreach ( $suppliers as $row ) {
 			$id      = (int) $row['id'];
 			$desired = Stockland_Money::decimal( Stockland_Money::minor( $row['opening_balance'] ) );
-			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.credit-l.debit),0) FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' AND l.supplier_id=%d AND j.source_type='SUPPLIER_OPENING_BALANCE'", $id ) ) ) );
+			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.credit-l.debit),0) FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' AND l.supplier_id=%d AND j.source_type='SUPPLIER_OPENING_BALANCE'", $gll, $glj, $id ) ) ) );
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'SUPPLIER', $id, $posted, $desired, get_current_user_id() );
 				if ( false === $jid ) {
@@ -506,11 +506,11 @@ class Stockland_Accounting {
 		if ( 0 === $remaining ) {
 			return true;
 		}
-		$customers = $wpdb->get_results( "SELECT id,opening_balance FROM {$cus} WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT {$remaining}", ARRAY_A );
+		$customers = $wpdb->get_results( $wpdb->prepare( 'SELECT id,opening_balance FROM %i WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT %d', $cus, $remaining ), ARRAY_A );
 		foreach ( $customers as $row ) {
 			$id      = (int) $row['id'];
 			$desired = Stockland_Money::decimal( Stockland_Money::minor( $row['opening_balance'] ) );
-			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.debit-l.credit),0) FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' AND l.customer_id=%d AND j.source_type='CUSTOMER_OPENING_BALANCE'", $id ) ) ) );
+			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.debit-l.credit),0) FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' AND l.customer_id=%d AND j.source_type='CUSTOMER_OPENING_BALANCE'", $gll, $glj, $id ) ) ) );
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'CUSTOMER', $id, $posted, $desired, get_current_user_id() );
 				if ( false === $jid ) {
@@ -715,7 +715,7 @@ class Stockland_Accounting {
 			array( '2033', 'Other Payroll Deductions Payable', 'LIABILITY' ),
 		);
 		foreach ( $accounts as $a ) {
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}stock_gl_accounts (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)", $a[0], $a[1], $a[2] ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $p . 'stock_gl_accounts', $a[0], $a[1], $a[2] ) );
 		}
 	}
 
@@ -760,7 +760,7 @@ class Stockland_Accounting {
 
 	private static function seed_walkin_customer( $p ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}stock_customers (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)", 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)', $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
 	}
 
 	/** Idempotently ensure statutory payroll accounts exist during an Owner-approved payroll posting. */
@@ -892,7 +892,7 @@ class Stockland_Accounting {
 		$in_transaction = (int) $wpdb->get_var( 'SELECT @@session.in_transaction' ) === 1;
 		$savepoint      = 'stockland_gl_' . wp_rand( 100000, 999999 );
 		if ( $in_transaction ) {
-			if ( false === $wpdb->query( "SAVEPOINT {$savepoint}" ) ) {
+			if ( false === $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) ) ) {
 				return false;
 			}
 		} elseif ( false === $wpdb->query( 'START TRANSACTION' ) ) {
@@ -940,7 +940,7 @@ class Stockland_Accounting {
 			if ( ! Stockland_Audit::log( $user_id, null, 'GL_POST', null, $sum_d, null, null, $memo, $num ) ) {
 				throw new Exception( 'Audit failed' );}
 			if ( $in_transaction ) {
-				if ( false === $wpdb->query( "RELEASE SAVEPOINT {$savepoint}" ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) ) ) {
 					throw new Exception( 'Could not release accounting savepoint.' );
 				}
 			} elseif ( false === $wpdb->query( 'COMMIT' ) ) {
@@ -949,8 +949,8 @@ class Stockland_Accounting {
 			return $jid;
 		} catch ( Throwable $e ) {
 			if ( $in_transaction ) {
-				$wpdb->query( "ROLLBACK TO SAVEPOINT {$savepoint}" );
-				$wpdb->query( "RELEASE SAVEPOINT {$savepoint}" );
+				$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
+				$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
 			} else {
 				$wpdb->query( 'ROLLBACK' );
 			}

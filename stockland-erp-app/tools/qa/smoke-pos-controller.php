@@ -106,10 +106,31 @@ class FakeWPDB {
 	public $insert_id  = 0;
 	public $sales      = array();
 	public function prepare( $query, ...$args ) {
-		foreach ( $args as $arg ) {
-			$value = is_numeric( $arg ) ? (string) $arg : "'" . str_replace( "'", "''", (string) $arg ) . "'";
-			$query = preg_replace( '/%[sd]/', $value, $query, 1 );
-		}
+		$arg_index = 0;
+		$query = preg_replace_callback(
+			'/%(%)|%([sidf])/',
+			static function ( $matches ) use ( &$arg_index, $args ) {
+				if ( '%' === $matches[1] ) {
+					return '%';
+				}
+				if ( ! array_key_exists( $arg_index, $args ) ) {
+					return $matches[0];
+				}
+				$value = $args[ $arg_index++ ];
+				if ( 'i' === $matches[2] ) {
+					// Keep identifiers readable for this in-memory query matcher.
+					return preg_replace( '/[^A-Za-z0-9_]/', '', (string) $value );
+				}
+				if ( 'd' === $matches[2] ) {
+					return (string) (int) $value;
+				}
+				if ( 'f' === $matches[2] ) {
+					return (string) (float) $value;
+				}
+				return "'" . str_replace( "'", "''", (string) $value ) . "'";
+			},
+			$query
+		);
 		return $query;
 	}
 	public function query( $sql ) {

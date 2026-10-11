@@ -118,9 +118,16 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return null;
 		}
 		global $wpdb;
-		$t   = Stockland_DB::table( 'products' );
-		$sql = "SELECT sku FROM {$t} WHERE {$field}=%s AND sku<>%s LIMIT 1";
-		$hit = $wpdb->get_var( $wpdb->prepare( $sql, $value, $sku ) );
+		$table = Stockland_DB::table( 'products' );
+		$hit   = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT sku FROM %i WHERE %i = %s AND sku <> %s LIMIT 1',
+				$table,
+				$field,
+				$value,
+				$sku
+			)
+		);
 		return $hit ? new WP_Error( 'duplicate_identifier', ucfirst( $field ) . ' is already assigned to SKU ' . $hit . '. Each stockable variant must have a unique identifier.', array( 'status' => 409 ) ) : null;
 	}
 
@@ -131,9 +138,9 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			if ( ! Stockland_DB::table_exists( $table ) ) {
 				return new WP_Error( 'product_master_unavailable', 'Product Master table is not available. Complete the verified 49-table ERP setup first.', array( 'status' => 503 ) );
 			}
-			$can    = current_user_can( 'stockland_view_cost_and_profit' );
-			$manage = current_user_can( 'stockland_manage_products' );
-			$cost   = $can ? 'purchase_cost' : 'NULL AS purchase_cost';
+			$can              = current_user_can( 'stockland_view_cost_and_profit' );
+			$manage           = current_user_can( 'stockland_manage_products' );
+			$include_inactive = $manage && (string) $request->get_param( 'include_inactive' ) === '1';
 
 			// Product Master is the catalog authority. Do not make inventory status
 			// or the transactional bootstrap list the source of catalog search.
@@ -142,29 +149,46 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			// Inactive rows are visible only to users who manage Product Master, so
 			// an authorized catalog administrator can find and repair an old SKU
 			// without exposing inactive products to ordinary operational users.
-			$include_inactive = $manage && (string) $request->get_param( 'include_inactive' ) === '1';
-			$where            = $include_inactive ? '1=1' : 'is_active=1';
-			$args             = array();
-			// In-place compatibility: accept both the newer q contract and the legacy search contract.
 			$q = trim( (string) $request->get_param( 'q' ) );
 			if ( '' === $q ) {
+				// In-place compatibility: accept both the newer q contract and the legacy search contract.
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
-			if ( '' !== $q ) {
-				$like   = '%' . $wpdb->esc_like( $q ) . '%';
-				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
-				$args   = array_fill( 0, 9, $like );
-			}
-			$limit = min( 500, max( 1, (int) ( $request->get_param( 'limit' ) ?: 500 ) ) );
-			// Exact SKU matches sort first; this makes a known SKU deterministic
-			// while retaining broad catalog search for partial SKU/name/dimension terms.
-			$exact = '' !== $q ? 'CASE WHEN sku = %s THEN 0 ELSE 1 END,' : '';
-			if ( '' !== $q ) {
-				array_unshift( $args, $q );
-			}
-			$sql    = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,{$cost},retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active FROM {$table} WHERE {$where} ORDER BY {$exact} COALESCE(parent_sku,sku), color, size, sku LIMIT %d";
-			$args[] = $limit;
-			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+
+			$like            = '%' . $wpdb->esc_like( $q ) . '%';
+			$requested_limit = $request->get_param( 'limit' );
+			$limit           = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
+
+			/*
+			 * Keep this SQL template static so every data value is bound in SQL
+			 * placeholder order. The nine LIKE values precede the exact-SKU sort
+			 * values; prepending the exact-SKU value breaks search parameter binding.
+			 */
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,CASE WHEN %d = 1 THEN purchase_cost ELSE NULL END AS purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active
+					FROM %i
+					WHERE (%d = 1 OR is_active = 1)
+						AND (%s = \'\' OR (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s))
+					ORDER BY CASE WHEN %s <> \'\' AND sku = %s THEN 0 ELSE 1 END, COALESCE(parent_sku,sku), color, size, sku
+					LIMIT %d',
+					array_merge(
+						array(
+							$can ? 1 : 0,
+							$table,
+							$include_inactive ? 1 : 0,
+							$q,
+						),
+						array_fill( 0, 9, $like ),
+						array(
+							$q,
+							$q,
+							$limit,
+						)
+					)
+				),
+				ARRAY_A
+			);
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland Product Master search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'product_master_query_failed', 'Product Master search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );
@@ -182,7 +206,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		$manage  = current_user_can( 'stockland_manage_products' );
 		$table   = Stockland_DB::table( 'products' );
 		$product = $manage && (string) $request->get_param( 'include_inactive' ) === '1'
-			? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE sku=%s LIMIT 1", $sku ), ARRAY_A )
+			? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s LIMIT 1', $table, $sku ), ARRAY_A )
 			: Stockland_DB::get_product( $sku );
 		if ( ! $product ) {
 			return new WP_Error( 'not_found', 'SKU not found in Product Master.', array( 'status' => 404 ) );
@@ -283,6 +307,8 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 		try {
 			Stockland_Notifications::notify_product_master( 'CREATED', $saved );} catch ( Throwable $ignore ) {
+				// Notification delivery is best-effort after the database transaction commits.
+				do_action( 'stockland_erp_notification_delivery_failed', 'product_master_created' );
 			}
 			return rest_ensure_response( $saved );
 	}
@@ -307,7 +333,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		if ( ! $colors || ! $sizes ) {
 			return new WP_Error( 'matrix_required', 'Provide at least one color and one size.', array( 'status' => 400 ) );
 		}
-		$prefix = $this->clean( $p['sku_prefix'] ?? ( $style['style_code'] ?: $parent ) );
+		$prefix = $this->clean( $p['sku_prefix'] ?? ( $style['style_code'] ? $style['style_code'] : $parent ) );
 		$prefix = strtoupper( trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9_-]+/', '-', $prefix ) ), '-_' ) );
 		if ( '' === $prefix ) {
 			$prefix = strtoupper( $parent );
@@ -339,7 +365,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					if ( ! $zname ) {
 						continue;
 					}
-					$safe_c = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $ccode ?: $cname ) ) ), '-' );
+					$safe_c = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $ccode ? $ccode : $cname ) ) ), '-' );
 					$safe_s = trim( preg_replace( '/-+/', '-', preg_replace( '/[^A-Za-z0-9]+/', '-', strtoupper( $zcode ) ) ), '-' );
 					if ( '' === $safe_c || '' === $safe_s ) {
 						continue;
@@ -359,7 +385,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					if ( isset( $used[ $sku ] ) ) {
 						continue;
 					} $used[ $sku ] = 1;
-					$existing       = $wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM ' . Stockland_DB::table( 'products' ) . ' WHERE sku=%s FOR UPDATE', $sku ) );
+					$existing       = $wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
 					if ( $existing ) {
 						$skipped[] = $sku;
 						continue;}
@@ -368,29 +394,29 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'product_name'          => $style['product_name'],
 						'product_type'          => 'VARIANT',
 						'parent_sku'            => $parent,
-						'style_code'            => $style['style_code'] ?: $parent,
-						'brand'                 => $style['brand'] ?: '',
-						'department'            => $style['department'] ?: '',
-						'sub_category'          => $style['sub_category'] ?: '',
-						'collection_name'       => $style['collection_name'] ?: '',
-						'season'                => $style['season'] ?: '',
-						'material'              => $style['material'] ?: '',
-						'fit'                   => $style['fit'] ?: '',
-						'country_of_origin'     => $style['country_of_origin'] ?: '',
-						'image_url'             => $style['image_url'] ?: '',
+						'style_code'            => $style['style_code'] ? $style['style_code'] : $parent,
+						'brand'                 => $style['brand'] ? $style['brand'] : '',
+						'department'            => $style['department'] ? $style['department'] : '',
+						'sub_category'          => $style['sub_category'] ? $style['sub_category'] : '',
+						'collection_name'       => $style['collection_name'] ? $style['collection_name'] : '',
+						'season'                => $style['season'] ? $style['season'] : '',
+						'material'              => $style['material'] ? $style['material'] : '',
+						'fit'                   => $style['fit'] ? $style['fit'] : '',
+						'country_of_origin'     => $style['country_of_origin'] ? $style['country_of_origin'] : '',
+						'image_url'             => $style['image_url'] ? $style['image_url'] : '',
 						'color'                 => $cname,
 						'color_code'            => $ccode,
 						'size'                  => $zname,
 						'size_code'             => $zcode,
-						'size_system'           => $p['size_system'] ?? ( $style['size_system'] ?: '' ),
-						'category'              => $style['category'] ?: '',
-						'gender'                => $style['gender'] ?: '',
-						'age_group'             => $style['age_group'] ?: '',
-						'unit'                  => $style['unit'] ?: 'PCS',
+						'size_system'           => $p['size_system'] ?? ( $style['size_system'] ? $style['size_system'] : '' ),
+						'category'              => $style['category'] ? $style['category'] : '',
+						'gender'                => $style['gender'] ? $style['gender'] : '',
+						'age_group'             => $style['age_group'] ? $style['age_group'] : '',
+						'unit'                  => $style['unit'] ? $style['unit'] : 'PCS',
 						'purchase_cost'         => $style['purchase_cost'],
 						'retail_price'          => $style['retail_price'],
 						'wholesale_price'       => $style['wholesale_price'],
-						'notes'                 => $style['notes'] ?: '',
+						'notes'                 => $style['notes'] ? $style['notes'] : '',
 						'branch_reorder_level'  => $style['branch_reorder_level'],
 						'central_reorder_level' => $style['central_reorder_level'],
 						'is_active'             => 1,
@@ -436,6 +462,8 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'created_skus'  => $created,
 					)
 				);} catch ( Throwable $ignore ) {
+				// Notification delivery is best-effort and must not undo committed variant data.
+				do_action( 'stockland_erp_notification_delivery_failed', 'product_variants_created' );
 				}
 		}
 		return rest_ensure_response(
@@ -457,7 +485,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start Product Master update transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$current = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE sku=%s FOR UPDATE", $sku ), ARRAY_A );
+			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s FOR UPDATE', $table, $sku ), ARRAY_A );
 			if ( ! $current ) {
 				$wpdb->query( 'ROLLBACK' );
 				return new WP_Error( 'not_found', 'SKU not found.', array( 'status' => 404 ) );}
@@ -524,7 +552,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					throw new Exception( 'No-change Product Master verification commit failed.' );
 				} return rest_ensure_response( Stockland_DB::get_product( $sku ) ); }
 			if ( false === $wpdb->update( $table, $update, array( 'sku' => $sku ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Product Master update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Product Master update failed.' );
 			}
 			foreach ( $price_changes as $change ) {
 				if ( false === $wpdb->insert(
@@ -538,7 +566,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'changed_by' => $uid,
 					)
 				) ) {
-					throw new Exception( $wpdb->last_error ?: 'Price history could not be recorded.' );
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Price history could not be recorded.' );
 				}
 			}
 			if ( ! Stockland_Audit::log( $uid, null, 'PRODUCT_UPDATE', $sku, null, $this->audit_value( $current ), $this->audit_value( $update ), 'Product Master product updated', 'PRODUCT|' . $sku ) ) {
@@ -553,6 +581,8 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			}
 			try {
 				Stockland_Notifications::notify_product_master( 'UPDATED', $saved );} catch ( Throwable $ignore ) {
+				// Notification delivery is best-effort after the product update commits.
+				do_action( 'stockland_erp_notification_delivery_failed', 'product_master_updated' );
 				}
 				return rest_ensure_response( $saved );
 		} catch ( Throwable $e ) {

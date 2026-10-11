@@ -24,13 +24,13 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit-source:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -48,9 +48,6 @@ jobs:
               exit 1
             fi
             unzip -t "$archive"
-            if [ ! -f stockland-erp-app/stockland-inventory.php ]; then
-              unzip -oq "$archive" -d .
-            fi
           elif [ ! -f stockland-erp-app/stockland-inventory.php ]; then
             echo "::error title=Authoritative package required::Upload the canonical 16.1.57 ZIP to $archive. Expected SHA-256: $expected."
             exit 1
@@ -117,31 +114,6 @@ jobs:
           grep -q 'Bootstrap  v5.3.8' assets/bootstrap.min.css
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
-      - name: Persist imported source on audit branch
-        id: commit-source
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("AUDIT/16.1.57-package-identity.md")
-          text = p.read_text(encoding="utf-8")
-          paragraphs = text.split("\n\n")
-          for i, paragraph in enumerate(paragraphs):
-              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "The canonical plugin source has been imported" in paragraph:
-                  paragraphs[i] = "The canonical plugin source has been imported from the hash-verified 105-entry candidate and its Bootstrap asset has been replaced with the authenticated upstream 5.3.8 file. Automated validation is running; a rebuilt installable ZIP is not certified until the tests finish successfully."
-          p.write_text("\n\n".join(paragraphs), encoding="utf-8")
-          PY
-          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Import authoritative 16.1.57 source and verified Bootstrap 5.3.8"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
-
-
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -150,7 +122,7 @@ jobs:
           coverage: none
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -166,26 +138,52 @@ jobs:
           set -euo pipefail
           composer validate --strict
           composer install --prefer-dist --no-interaction --no-progress
-          # First apply only token-aware, mechanical PHPCBF corrections across
-          # the full PHP audit profile. No business logic is intentionally edited
-          # by this formatter; all regression/static checks run afterwards.
-          # PHPCBF may leave non-fixable findings; full-source PHPCS is authoritative.
-          vendor/bin/phpcbf --standard=phpcs-full-audit.xml.dist || true
-          # Retain the stricter production-service profile as a separate step.
-          vendor/bin/phpcbf --standard=phpcs.xml.dist || true
+          # Scan and test the committed source as-is; formatting changes belong in a reviewed source commit.
 
-      - name: Persist mechanical PHP formatting on the audit branch
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
+      - name: Generate review-only PHPCBF patch on a disposable copy
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          git add -u -- stockland-erp-app
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Apply full-source PHPCBF formatting fixes"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
+          preview="$RUNNER_TEMP/stockland-phpcbf-preview"
+          report="$RUNNER_TEMP/stockland-phpcbf-preview-report.json"
+          patch="$RUNNER_TEMP/stockland-phpcbf-preview.patch"
+          rm -rf "$preview"
+          mkdir -p "$preview"
+          cp -a stockland-erp-app/. "$preview/"
+          rm -rf "$preview/vendor" "$preview/.phpunit.cache"
+          git -C "$preview" init --quiet
+          git -C "$preview" config user.name "Stockland PHPCBF Preview"
+          git -C "$preview" config user.email "stockland-phpcbf-preview@users.noreply.github.com"
+          git -C "$preview" add -A
+          git -C "$preview" commit --quiet -m "Disposable pre-format source snapshot"
+          set +e
+          (
+            cd "$preview"
+            "$GITHUB_WORKSPACE/stockland-erp-app/vendor/bin/phpcbf" \
+              --standard=phpcs-full-audit.xml.dist \
+              --report=json \
+              --report-file="$report" stockland-inventory.php uninstall.php includes templates
+          )
+          phpcbf_status=$?
+          set -e
+          git -C "$preview" diff --binary > "$patch"
+          echo "PHPCBF preview exit: $phpcbf_status (unfixable findings can remain)."
+          git -C "$preview" diff --stat
+          echo "Patch bytes: $(wc -c < "$patch")"
+          echo "This step does not modify the checked-out repository or the candidate package."
+
+      - name: Upload review-only PHPCBF patch
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v6
+        with:
+          name: stockland-phpcbf-review-patch
+          path: |
+            ${{ runner.temp }}/stockland-phpcbf-preview.patch
+            ${{ runner.temp }}/stockland-phpcbf-preview-report.json
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Enforce production-service coding standard
         working-directory: stockland-erp-app
@@ -260,7 +258,7 @@ jobs:
           echo "phpcs_exit=$phpcs_status" >> "$GITHUB_OUTPUT"
 
       - name: Upload full-source PHPCS inventory
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stockland-erp-full-source-phpcs-inventory
           path: |
@@ -319,8 +317,13 @@ jobs:
               if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
                   paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip; its SHA-256 is recorded for this candidate build; the full-runtime PHPCS/WPCS and live staging gates remain independent."
           text = "\n\n".join(paragraphs)
-          if "\n## Rebuilt package " in text:
-              text = text.split("\n## Rebuilt package ", 1)[0]
+          markers = [
+              "\n## Rebuilt candidate package (automated build evidence)",
+              "\n## Rebuilt package ",
+          ]
+          positions = [text.find(marker) for marker in markers if text.find(marker) >= 0]
+          if positions:
+              text = text[:min(positions)]
           text = text.rstrip()
           text += (
               "\n\n## Rebuilt candidate package (automated build evidence)\n\n"
@@ -333,23 +336,8 @@ jobs:
           p.write_text(text, encoding="utf-8")
           PY
 
-      - name: Commit rebuilt package to audit branch
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip
-          rm -f audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip.sha256
-          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md audit/packages
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Build canonical 16.1.57 package with verified Bootstrap 5.3.8"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
-
       - name: Upload built package for review
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stockland-erp-16.1.57-bootstrap-5.3.8-candidate
           path: |
@@ -365,9 +353,114 @@ jobs:
           PHPCS_EXIT: ${{ steps.full-source-phpcs.outputs.phpcs_exit }}
         run: |
           set -euo pipefail
-          if [[ "${PHPCS_EXIT:-2}" =~ ^[0-9]+$ ]] && [[ "$PHPCS_EXIT" -eq 0 ]]; then
+          if [[ "${PHPCS_EXIT:-}" == "0" ]]; then
             echo "PASS: full-runtime PHPCS/WPCS reported zero findings."
           else
             echo "::error::Full-runtime PHPCS/WPCS returned ${PHPCS_EXIT:-missing}. The candidate is for review only; fix the findings before release."
             exit 1
           fi
+
+  persist-runtime-formatting:
+    name: Apply tested mechanical formatting on isolated audit branch
+    if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/audit/')
+    needs: audit-source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up PHP for post-format tests
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, dom, zip, fileinfo
+          coverage: none
+
+      - name: Set up Node for static QA
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Download the source-gate PHPCBF preview artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: stockland-phpcbf-review-patch
+          path: stockland-phpcbf-review
+
+      - name: Apply patch and prove post-format safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch_file="$GITHUB_WORKSPACE/stockland-phpcbf-review/stockland-phpcbf-preview.patch"
+          cd "$GITHUB_WORKSPACE/stockland-erp-app"
+          if [ -s "$patch_file" ]; then
+            patch --dry-run --batch --fuzz=0 -p1 < "$patch_file"
+            patch --batch --fuzz=0 -p1 < "$patch_file"
+          else
+            echo "PHPCBF reported no mechanical changes; continuing with syntax, unit and static QA."
+          fi
+          find . -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          composer validate --strict
+          composer install --prefer-dist --no-interaction --no-progress
+          composer lint:php
+          composer test
+          rm -rf vendor .phpunit.cache
+          test ! -d vendor
+          test ! -d .phpunit.cache
+          php tools/qa/run-static-qa.php
+          cd "$GITHUB_WORKSPACE"
+          git diff --check
+          git add -- \
+            stockland-erp-app/includes/class-stockland-authority.php \
+            stockland-erp-app/includes/class-stockland-product-service.php \
+            stockland-erp-app/includes/class-stockland-sourcing.php \
+            stockland-erp-app/includes/class-stockland-ledger.php \
+            stockland-erp-app/includes/rest/class-rest-inventory-report-v16.php \
+            stockland-erp-app/includes/rest/class-rest-accounting.php \
+            stockland-erp-app/includes/rest/class-rest-app.php \
+            stockland-erp-app/includes/rest/class-rest-hr.php \
+            stockland-erp-app/includes/rest/class-rest-import-v16.php \
+            stockland-erp-app/includes/rest/class-rest-products.php \
+            stockland-erp-app/includes/rest/class-rest-sales.php \
+            stockland-erp-app/includes/rest/class-rest-stock.php
+          git diff --cached --check
+          staged="$(git diff --cached --name-only)"
+          if [ -z "$staged" ]; then
+            echo "No formatter changes to commit."
+            exit 0
+          fi
+          while IFS= read -r changed; do
+            case "$changed" in
+              stockland-erp-app/includes/class-stockland-authority.php|stockland-erp-app/includes/class-stockland-product-service.php|stockland-erp-app/includes/class-stockland-sourcing.php|stockland-erp-app/includes/class-stockland-ledger.php|stockland-erp-app/includes/rest/class-rest-inventory-report-v16.php|stockland-erp-app/includes/rest/class-rest-accounting.php|stockland-erp-app/includes/rest/class-rest-app.php|stockland-erp-app/includes/rest/class-rest-hr.php|stockland-erp-app/includes/rest/class-rest-import-v16.php|stockland-erp-app/includes/rest/class-rest-products.php|stockland-erp-app/includes/rest/class-rest-sales.php|stockland-erp-app/includes/rest/class-rest-stock.php) ;;
+              *) echo "::error::Unexpected staged file: $changed"; exit 1 ;;
+            esac
+          done <<EOF
+          $staged
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Apply tested mechanical PHPCBF formatting"
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo "Formatter-only commit pushed to isolated branch at $(git rev-parse HEAD)."
+
+      - name: Dispatch a fresh full-source audit for the new commit
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          payload="$(printf '{"ref":"%s"}' "$GITHUB_REF_NAME")"
+          curl --silent --show-error --fail-with-body \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/stockland-erp-audit.yml/dispatches" \
+            -d "$payload"
+          echo "Fresh audit dispatch requested for branch $GITHUB_REF_NAME."

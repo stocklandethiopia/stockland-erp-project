@@ -43,7 +43,7 @@ class Stockland_REST_Locations {
 	}
 	public function list() {
 		global $wpdb;
-		return rest_ensure_response( $wpdb->get_results( 'SELECT id,location_name,branch_code,location_type,role_description,is_active FROM ' . Stockland_DB::table( 'locations' ) . " ORDER BY (location_type='Warehouse') DESC, location_name", ARRAY_A ) );}
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,branch_code,location_type,role_description,is_active FROM %i ORDER BY (location_type='Warehouse') DESC, location_name", Stockland_DB::table( 'locations' ) ), ARRAY_A ) );}
 	public function create( WP_REST_Request $r ) {
 		global $wpdb;
 		$p    = $r->get_json_params();
@@ -53,14 +53,14 @@ class Stockland_REST_Locations {
 		$code = sanitize_key( $p['branch_code'] ?? '' );
 		if ( '' === $name ) {
 			return new WP_Error( 'invalid', 'Location name is required.', array( 'status' => 400 ) );
-		}$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE location_name=%s LIMIT 1', $name ) );
+		}$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE location_name=%s LIMIT 1', Stockland_DB::table( 'locations' ), $name ) );
 		if ( $exists ) {
 			return new WP_Error( 'duplicate', 'A location with this name already exists.', array( 'status' => 409 ) );
 		}if ( 'Branch' === $type && '' === $code ) {
-			$next = (int) $wpdb->get_var( 'SELECT COALESCE(MAX(id),0)+1 FROM ' . Stockland_DB::table( 'locations' ) );
+			$next = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(id),0)+1 FROM %i', Stockland_DB::table( 'locations' ) ) );
 			$code = 'BR' . str_pad( (string) $next, 3, '0', STR_PAD_LEFT );
 		}if ( '' !== $code ) {
-			$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE branch_code=%s LIMIT 1', $code ) );
+			$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE branch_code=%s LIMIT 1', Stockland_DB::table( 'locations' ), $code ) );
 			if ( $dup ) {
 				return new WP_Error( 'duplicate_code', 'This branch/location code is already in use.', array( 'status' => 409 ) );
 			}
@@ -71,7 +71,7 @@ class Stockland_REST_Locations {
 				Stockland_DB::table( 'locations' ),
 				array(
 					'location_name'    => $name,
-					'branch_code'      => $code ?: null,
+					'branch_code'      => $code ? $code : null,
 					'location_type'    => $type,
 					'role_description' => $desc,
 					'is_active'        => 1,
@@ -99,7 +99,7 @@ class Stockland_REST_Locations {
 	public function update( WP_REST_Request $r ) {
 		global $wpdb;
 		$id  = (int) $r['id'];
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE id=%d', $id ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 		if ( ! $row ) {
 			return new WP_Error( 'not_found', 'Location not found.', array( 'status' => 404 ) );
 		}$p      = $r->get_json_params();
@@ -111,7 +111,7 @@ class Stockland_REST_Locations {
 			$name = sanitize_text_field( $p['location_name'] );
 			if ( '' === $name ) {
 				return new WP_Error( 'invalid', 'Location name cannot be empty.', array( 'status' => 400 ) );
-			}$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE location_name=%s AND id<>%d', $name, $id ) );
+			}$dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE location_name=%s AND id<>%d', Stockland_DB::table( 'locations' ), $name, $id ) );
 			if ( $dup ) {
 				return new WP_Error( 'duplicate', 'Another location already uses that name.', array( 'status' => 409 ) );
 			}$data['location_name'] = $name;
@@ -119,7 +119,7 @@ class Stockland_REST_Locations {
 			$code = sanitize_key( $p['branch_code'] );
 			if ( '' === $code ) {
 				return new WP_Error( 'invalid', 'Location code cannot be empty.', array( 'status' => 400 ) );
-			} $dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE branch_code=%s AND id<>%d LIMIT 1', $code, $id ) );
+			} $dup = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE branch_code=%s AND id<>%d LIMIT 1', Stockland_DB::table( 'locations' ), $code, $id ) );
 			if ( $dup ) {
 				return new WP_Error( 'duplicate_code', 'Another location already uses this code.', array( 'status' => 409 ) );
 			} $data['branch_code'] = $code;
@@ -135,7 +135,7 @@ class Stockland_REST_Locations {
 			return new WP_Error( 'transaction_failed', 'Could not start location update transaction.', array( 'status' => 500 ) );
 		}try {
 			if ( false === $wpdb->update( Stockland_DB::table( 'locations' ), $data, array( 'id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'No location change was saved.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'No location change was saved.' );
 			}if ( ! Stockland_Audit::log( get_current_user_id(), $id, 'LOCATION_UPDATE', null, null, $row['location_name'], wp_json_encode( $data ), 'Owner changed organization structure', 'LOCATION-' . $id, get_current_user_id() ) ) {
 				throw new Exception( 'Audit event could not be recorded; location was not committed.' );
 			}if ( false === $wpdb->query( 'COMMIT' ) ) {

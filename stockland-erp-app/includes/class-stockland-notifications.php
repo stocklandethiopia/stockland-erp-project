@@ -47,7 +47,7 @@ class Stockland_Notifications {
 	}
 	public static function unread( $user_id = null, $limit = 50 ) {
 		global $wpdb;
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		$limit   = max( 1, min( 100, (int) $limit ) );
 		$profile = Stockland_Authority::profile( $user_id );
 		if ( ! $profile ) {
@@ -61,7 +61,7 @@ class Stockland_Notifications {
 	}
 	public static function mark_read( $id, $user_id = null ) {
 		global $wpdb;
-		$user_id = $user_id ?: get_current_user_id();
+		$user_id = $user_id ? $user_id : get_current_user_id();
 		$profile = Stockland_Authority::profile( $user_id );
 		if ( ! $profile ) {
 			return false;
@@ -102,7 +102,7 @@ class Stockland_Notifications {
 		$count = isset( $product['created_count'] ) ? (int) $product['created_count'] : 0;
 		if ( 'VARIANT_MATRIX' === $action ) {
 			$title   = 'Product variants created';
-			$message = $count . ' new variant(s) were created under ' . $sku . ' — ' . ( $name ?: $sku ) . '. Review Product Master when needed.';
+			$message = $count . ' new variant(s) were created under ' . $sku . ' — ' . ( $name ? $name : $sku ) . '. Review Product Master when needed.';
 		} else {
 			$verb    = 'UPDATED' === $action ? 'updated' : 'created';
 			$title   = 'Product Master ' . $verb;
@@ -117,6 +117,8 @@ class Stockland_Notifications {
 		try {
 			$actor_profile = Stockland_Authority::profile( $actor_id );
 			$actor_role    = sanitize_key( (string) ( $actor_profile['role'] ?? '' ) ); } catch ( Throwable $ignore ) {
+				// A missing profile must not block confirmation of the committed Product Master action.
+				$actor_role = '';
 			}
 			$ok3 = ( $actor_id > 0 && ! in_array( $actor_role, array( 'management', 'owner' ), true ) )
 			? self::push_user( $actor_id, 'product_master', $title, $message, 'product', $sku, 'info' )

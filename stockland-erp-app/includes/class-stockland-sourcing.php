@@ -53,10 +53,13 @@ class Stockland_Sourcing {
 		}
 
 		$locations = $wpdb->get_results(
-			"SELECT id,location_name,location_type
-             FROM {$locations_table}
-             WHERE is_active=1 AND location_type IN('Branch','Warehouse')
-             ORDER BY CASE WHEN location_type='Warehouse' THEN 0 ELSE 1 END,id",
+			$wpdb->prepare(
+				"SELECT id,location_name,location_type
+                 FROM %i
+                 WHERE is_active=1 AND location_type IN('Branch','Warehouse')
+                 ORDER BY CASE WHEN location_type='Warehouse' THEN 0 ELSE 1 END,id",
+				$locations_table
+			),
 			ARRAY_A
 		);
 		if ( $wpdb->last_error || ! $locations ) {
@@ -272,11 +275,12 @@ class Stockland_Sourcing {
 			return array();
 		}
 
-		$sql  = "SELECT p.variant_id,p.sku,p.product_name,p.branch_reorder_level
-                FROM {$products_table} p
+		$sql = "SELECT p.variant_id,p.sku,p.product_name,p.branch_reorder_level
+                FROM %i p
                 WHERE p.is_active=1 AND p.product_type<>'STYLE'
                   AND (" . implode( ' OR ', $where ) . ')';
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The query format contains only this bound table identifier and internally generated %d/%s placeholders; all variant IDs and SKUs are supplied as prepared values.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( $products_table ), $args ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			return null;
 		}
@@ -297,7 +301,7 @@ class Stockland_Sourcing {
 			return array();
 		}
 
-		$alias       = Stockland_DB::table === $table( 'transactions' ) ? 't' : 'r';
+		$alias       = Stockland_DB::table( 'transactions' ) === $table ? 't' : 'r';
 		$location_ph = implode( ',', array_fill( 0, count( $location_ids ), '%d' ) );
 		$conditions  = array();
 		$args        = $location_ids;
@@ -314,14 +318,15 @@ class Stockland_Sourcing {
 		$sql = "SELECT {$alias}.location_id,
                        COALESCE({$alias}.variant_id,p.variant_id) AS variant_id,
                        SUM({$alias}.{$sum_field}) AS {$output_field}
-                FROM {$table} {$alias}
-                LEFT JOIN {$products_table} p ON p.sku={$alias}.sku
+                FROM %i {$alias}
+                LEFT JOIN %i p ON p.sku={$alias}.sku
                 WHERE {$alias}.location_id IN({$location_ph})
                   {$extra}
                   AND (" . implode( ' OR ', $conditions ) . ")
                 GROUP BY {$alias}.location_id,COALESCE({$alias}.variant_id,p.variant_id)";
 
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table identifiers are bound separately; location/variant IDs and SKUs use generated placeholders with prepared values.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( $table, $products_table ), $args ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			return null;
 		}
@@ -343,7 +348,7 @@ class Stockland_Sourcing {
 		$conditions = array();
 		$args       = array(
 			(int) $branch_id,
-			date( 'Y-m-d', strtotime( current_time( 'Y-m-d' ) . ' -29 days' ) ),
+			gmdate( 'Y-m-d', strtotime( current_time( 'Y-m-d' ) . ' 00:00:00 UTC -29 days' ) ),
 			current_time( 'Y-m-d' ),
 		);
 		if ( $variant_ids ) {
@@ -355,16 +360,17 @@ class Stockland_Sourcing {
 			$args         = array_merge( $args, $skus );
 		}
 
-		$sql  = "SELECT COALESCE(s.variant_id,p.variant_id) AS variant_id,
+		$sql = "SELECT COALESCE(s.variant_id,p.variant_id) AS variant_id,
                        SUM(s.quantity_sold) AS qty
-                FROM {$sales_table} s
-                LEFT JOIN {$products_table} p ON p.sku=s.sku
+                FROM %i s
+                LEFT JOIN %i p ON p.sku=s.sku
                 WHERE s.branch_location_id=%d
                   AND s.sale_date BETWEEN %s AND %s
                   AND s.posting_status='CLOSED'
                   AND (" . implode( ' OR ', $conditions ) . ')
                 GROUP BY COALESCE(s.variant_id,p.variant_id)';
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL shape is static except for generated IN placeholders; branch/date/variant/SKU values are bound and table names are bound identifiers.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( $sales_table, $products_table ), $args ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			return null;
 		}
@@ -393,15 +399,16 @@ class Stockland_Sourcing {
 			$args         = array_merge( $args, $skus );
 		}
 
-		$sql  = "SELECT COALESCE(t.variant_id,p.variant_id) AS variant_id,
+		$sql = "SELECT COALESCE(t.variant_id,p.variant_id) AS variant_id,
                        SUM(GREATEST(COALESCE(t.dispatched_qty,t.quantity)-COALESCE(t.received_qty,0),0)) AS qty
-                FROM {$transfer_table} t
-                LEFT JOIN {$products_table} p ON p.sku=t.sku
+                FROM %i t
+                LEFT JOIN %i p ON p.sku=t.sku
                 WHERE t.to_location_id=%d
                   AND t.status IN('Picked','In Transit')
                   AND (" . implode( ' OR ', $conditions ) . ')
                 GROUP BY COALESCE(t.variant_id,p.variant_id)';
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Transfer/product identifiers are bound separately; branch, variant, and SKU values remain prepared.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( $transfer_table, $products_table ), $args ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			return null;
 		}

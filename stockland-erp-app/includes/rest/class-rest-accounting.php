@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP accounting, procurement, receivables, payables, and ledger REST handlers.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,9 +15,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * and audited. Posted financial journals are append-only.
  */
 class Stockland_REST_Accounting extends Stockland_REST_Base {
+	/**
+	 * Registers accounting and procurement routes for the ERP REST controller.
+	 *
+	 * @return void Registers controller hooks.
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
 
+	/**
+	 * Checks the current user's role and capability for an accounting operation.
+	 *
+	 * @param string $cap Capability required for the operation.
+	 * @return bool Whether the current user is authorized for the capability.
+	 */
 	private function can( $cap ) {
 		$uid  = get_current_user_id();
 		$role = Stockland_Authority::role( $uid );
@@ -39,18 +56,52 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	// Accounting needs an extra capability rule (management/settings can also pass).
 	// Keep this helper uniquely named so it does not override the base REST
 	// controller's protected require_cap( $request, $capability ) contract.
+	/**
+	 * Handles the require accounting cap operation for the ERP.
+	 *
+	 * @param string $cap Capability required for the operation.
+	 * @return mixed The operation result.
+	 */
 	private function require_accounting_cap( $cap ) {
 		return $this->can( $cap ) ? true : new WP_Error( 'forbidden', 'You are not authorized for this accounting operation.', array( 'status' => 403 ) );
 	}
+	/**
+	 * Validates and normalizes a supplied business date.
+	 *
+	 * @param mixed $v Value to validate or normalize.
+	 * @param mixed $default Optional fallback value.
+	 * @return string|false The normalized date, or false when the value is invalid.
+	 */
 	private function date( $v, $default = null ) {
-		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ?: current_time( 'Y-m-d' ) ) );
+		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ? $default : current_time( 'Y-m-d' ) ) );
 		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : null;
 	}
+	/**
+	 * Normalizes a monetary input for ledger-safe processing.
+	 *
+	 * @param mixed $v Value to validate or normalize.
+	 * @return string The normalized monetary value.
+	 */
 	private function money( $v ) {
 		return Stockland_Money::decimal( Stockland_Money::minor( $v ) ); }
+	/**
+	 * Allocates the next document number for a business record.
+	 *
+	 * @param string      $prefix Document-number prefix.
+	 * @param mixed       $table Internal table name used for the numbering sequence.
+	 * @param string      $field Internal field used for the numbering sequence.
+	 * @param string|null $date Business date used to scope numbering.
+	 * @return string The next document number.
+	 */
 	private function next_number( $prefix, $table = null, $field = null, $date = null ) {
 		return Stockland_Sequence::next( $prefix, $date );
 	}
+	/**
+	 * Resolves and validates a requested operational location.
+	 *
+	 * @param mixed $requested Value for the requested argument.
+	 * @return int|WP_Error|false A validated location identifier, or an error/false result.
+	 */
 	private function location( $requested = null ) {
 		$id = $this->resolve_branch_for_user( $requested );
 		if ( is_wp_error( $id ) ) {
@@ -60,9 +111,14 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return (int) $id;
 		}
 		$cw = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
-		return $cw ?: 0;
+		return $cw ? $cw : 0;
 	}
 
+	/**
+	 * Registers supplier, customer, procurement, payments, and general-ledger REST routes.
+	 *
+	 * @return void Registers the REST routes.
+	 */
 	public function routes() {
 		$read = array(
 			'methods'             => 'GET',
@@ -320,6 +376,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Returns the accounting data authorized for the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function read( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_manage_external_supplier_finance( 'stockland_view_financials' ) ) {
 			return new WP_Error( 'forbidden', 'Supplier/AP accounting bootstrap is restricted to active Stockland Owner and Management profiles.', array( 'status' => 403 ) );
@@ -331,25 +393,35 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$ci  = Stockland_DB::table( 'customer_invoices' );
 		$ex  = Stockland_DB::table( 'expenses' );
 		$pay = Stockland_DB::table( 'payments' );
-		$ap  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(total_amount),0) FROM {$si} WHERE status='POSTED'" ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount),0) FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED'" ) ) ) );
-		$ar  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(total_amount),0) FROM {$ci} WHERE status='POSTED'" ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount),0) FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED'" ) ) ) );
+		$ap  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(total_amount),0) FROM %i WHERE status='POSTED'", $si ) ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED'", $pay ) ) ) ) );
+		$ar  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(total_amount),0) FROM %i WHERE status='POSTED'", $ci ) ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED'", $pay ) ) ) ) );
 		// Single-query balance aggregation: avoid 3 extra queries per supplier/customer.
 		$sr = $wpdb->get_results(
-			"SELECT s.id,s.supplier_code,s.supplier_name,s.phone,s.tax_id,s.opening_balance,
+			$wpdb->prepare(
+				"SELECT s.id,s.supplier_code,s.supplier_name,s.phone,s.tax_id,s.opening_balance,
             ROUND(s.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance
-            FROM {$sup} s
-            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM {$si} WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
-            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
+            FROM %i s
+            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
+            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
             WHERE s.is_active=1 ORDER BY s.supplier_name LIMIT 500",
+				$sup,
+				$si,
+				$pay
+			),
 			ARRAY_A
 		);
 		$cr = $wpdb->get_results(
-			"SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.opening_balance,
+			$wpdb->prepare(
+				"SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.opening_balance,
             ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance
-            FROM {$cus} c
-            LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM {$ci} WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id
-            LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id
+            FROM %i c
+            LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id
+            LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id
             WHERE c.is_active=1 ORDER BY c.customer_name LIMIT 500",
+				$cus,
+				$ci,
+				$pay
+			),
 			ARRAY_A
 		);
 		return rest_ensure_response(
@@ -361,29 +433,47 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				'customers'           => count( $cr ),
 				'accounts_payable'    => $ap,
 				'accounts_receivable' => $ar,
-				'expenses_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount+tax_amount),0) FROM {$ex} WHERE status='POSTED' AND expense_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')" ) ) ),
-				'payments_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount),0) FROM {$pay} WHERE status='POSTED' AND payment_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')" ) ) ),
+				'expenses_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount+tax_amount),0) FROM %i WHERE status='POSTED' AND expense_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01')", $ex ) ) ) ),
+				'payments_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE status='POSTED' AND payment_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01')", $pay ) ) ) ),
 				'supplier_rows'       => $sr,
 				'customer_rows'       => $cr,
 			)
 		);
 	}
+	/**
+	 * Lists supplier records available to the current role.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function suppliers( WP_REST_Request $r ) {
 		global $wpdb;
 		$t    = Stockland_DB::table( 'suppliers' );
 		$inv  = Stockland_DB::table( 'supplier_invoices' );
 		$pay  = Stockland_DB::table( 'payments' );
 		$rows = $wpdb->get_results(
-			"SELECT s.*,ROUND(s.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance,COALESCE(g.gl_balance,0) gl_balance
-            FROM {$t} s
-            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM {$inv} WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
-            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
-            LEFT JOIN (SELECT supplier_id,SUM(debit-credit) gl_balance FROM " . Stockland_DB::table( 'gl_lines' ) . " WHERE account_code='2000' GROUP BY supplier_id) g ON g.supplier_id=s.id
+			$wpdb->prepare(
+				"SELECT s.*,ROUND(s.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance,COALESCE(g.gl_balance,0) gl_balance
+            FROM %i s
+            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
+            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
+            LEFT JOIN (SELECT supplier_id,SUM(debit-credit) gl_balance FROM %i WHERE account_code='2000' GROUP BY supplier_id) g ON g.supplier_id=s.id
             ORDER BY s.supplier_name LIMIT 1000",
+				$t,
+				$inv,
+				$pay,
+				Stockland_DB::table( 'gl_lines' )
+			),
 			ARRAY_A
 		);
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Creates or updates a supplier record after capability and field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function supplier_save( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_suppliers' );
 		if ( true !== $e ) {
@@ -400,7 +490,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$existing    = null;
 		$old_opening = 0.0;
 		if ( $id ) {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'suppliers' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'suppliers' ), $id ), ARRAY_A );
 			if ( ! $existing ) {
 				return new WP_Error( 'not_found', 'Supplier not found.', array( 'status' => 404 ) );
 			}$old_opening = $this->money( $existing['opening_balance'] );}
@@ -432,7 +522,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$ok = $wpdb->insert( Stockland_DB::table( 'suppliers' ), $data );
 				$id = (int) $wpdb->insert_id;}
 			if ( false === $ok ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save supplier.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save supplier.' );
 			}
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $new_opening, $old_opening ) ) !== 0 ) {
 				$journal = Stockland_Accounting::sync_opening_balance_journal( 'SUPPLIER', $id, $old_opening, $new_opening, get_current_user_id() );
@@ -457,6 +547,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Lists customer records authorized for the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customers( WP_REST_Request $r ) {
 		global $wpdb;
 		$t       = Stockland_DB::table( 'customers' );
@@ -465,18 +561,56 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$finance = current_user_can( 'stockland_view_financials' );
 		$uid     = get_current_user_id();
 		$role    = Stockland_Authority::role( $uid );
-		$columns = $finance ? 'c.*,ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance' : 'c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.email,c.address,c.created_at';
-		$joins   = $finance ? " LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM {$inv} WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id" : '';
-		// Customer schema is intentionally unchanged (49-table contract has no location FK). Until a controlled migration exists, branch users only see customer records they registered; Finance/Management retain the approved master view.
+		// The branch-only view is intentionally restricted to records created by the current user.
 		if ( in_array( $role, array( 'branch_manager', 'sales_employee' ), true ) ) {
-			$sql  = "SELECT {$columns} FROM {$t} c{$joins} WHERE c.created_by=%d ORDER BY c.customer_name LIMIT 1000";
-			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $uid ), ARRAY_A );
+			if ( $finance ) {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT c.*,ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance FROM %i c LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id WHERE c.created_by=%d ORDER BY c.customer_name LIMIT 1000",
+						$t,
+						$inv,
+						$pay,
+						$uid
+					),
+					ARRAY_A
+				);
+			} else {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						'SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.email,c.address,c.created_at FROM %i c WHERE c.created_by=%d ORDER BY c.customer_name LIMIT 1000',
+						$t,
+						$uid
+					),
+					ARRAY_A
+				);
+			}
+		} elseif ( $finance ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT c.*,ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance FROM %i c LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id ORDER BY c.customer_name LIMIT 1000",
+					$t,
+					$inv,
+					$pay
+				),
+				ARRAY_A
+			);
 		} else {
-			$sql  = "SELECT {$columns} FROM {$t} c{$joins} ORDER BY c.customer_name LIMIT 1000";
-			$rows = $wpdb->get_results( $sql, ARRAY_A );
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.email,c.address,c.created_at FROM %i c ORDER BY c.customer_name LIMIT 1000',
+					$t
+				),
+				ARRAY_A
+			);
 		}
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Creates or updates a customer record after field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customer_save( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_customers' );
 		if ( true !== $e ) {
@@ -497,7 +631,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'branch_customer_registration_only', 'Branch customer registration creates new customers only. Existing customer financial/master changes remain management-controlled.', array( 'status' => 403 ) );
 		}
 		if ( $id ) {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'customers' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'customers' ), $id ), ARRAY_A );
 			if ( ! $existing ) {
 				return new WP_Error( 'not_found', 'Customer not found.', array( 'status' => 404 ) );
 			}$old_opening = $this->money( $existing['opening_balance'] );}
@@ -530,7 +664,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$ok = $wpdb->insert( Stockland_DB::table( 'customers' ), $data );
 				$id = (int) $wpdb->insert_id;}
 			if ( false === $ok ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not save customer.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save customer.' );
 			}
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $new_opening, $old_opening ) ) !== 0 ) {
 				$journal = Stockland_Accounting::sync_opening_balance_journal( 'CUSTOMER', $id, $old_opening, $new_opening, get_current_user_id() );
@@ -555,31 +689,45 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Lists purchase orders permitted by the current role and scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_orders( WP_REST_Request $r ) {
 		global $wpdb;
 		$p     = $r->get_param( 'status' );
 		$users = $wpdb->prefix . 'stock_users';
 		$sql   = 'SELECT po.*,s.supplier_name,l.location_name,cp.role AS creator_role,ap.role AS approver_role
-            FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' po
-            JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=po.supplier_id
-            JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=po.location_id
-            LEFT JOIN {$users} cp ON cp.wp_user_id=po.created_by AND cp.is_active=1
-            LEFT JOIN {$users} ap ON ap.wp_user_id=po.approved_by AND ap.is_active=1 WHERE 1=1";
-		$args  = array();
-		if ( $p ) {
-			$sql   .= ' AND po.status=%s';
-			$args[] = $p;}
-		$sql .= ' ORDER BY po.id DESC LIMIT 500';
+            FROM %i po
+            JOIN %i s ON s.id=po.supplier_id
+            JOIN %i l ON l.id=po.location_id
+            LEFT JOIN %i cp ON cp.wp_user_id=po.created_by AND cp.is_active=1
+            LEFT JOIN %i ap ON ap.wp_user_id=po.approved_by AND ap.is_active=1
+            WHERE 1=1';
+		$args  = array(
+			Stockland_DB::table( 'purchase_orders' ),
+			Stockland_DB::table( 'suppliers' ),
+			Stockland_DB::table( 'locations' ),
+			$users,
+			$users,
+		);
 		if ( ! Stockland_Authority::company_scope() ) {
 			$allowed = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
 			if ( empty( $allowed ) ) {
 				return rest_ensure_response( array() );
 			}
 			$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
-			$sql  = str_replace( ' WHERE 1=1', ' WHERE po.location_id IN(' . $ph . ')', $sql );
-			$args = array_merge( $allowed, $args );
+			$sql  = str_replace( ' WHERE 1=1', ' WHERE po.location_id IN(' . $ph . ') AND 1=1', $sql );
+			$args = array_merge( $args, $allowed );
 		}
-		$rows         = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		if ( $p ) {
+			$sql   .= ' AND po.status=%s';
+			$args[] = $p;
+		}
+		$sql         .= ' ORDER BY po.id DESC LIMIT 500';
+		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		$finance_view = $this->can( 'stockland_view_financials' );
 		$uid          = get_current_user_id();
 		$role         = Stockland_Authority::role( $uid );
@@ -627,6 +775,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Creates a purchase order using the approved procurement workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_create( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_create_external_purchase_order() ) {
 			return new WP_Error( 'forbidden', 'Only an active Stockland Management profile may enter an external-supply purchase order. WordPress Administrator/settings capability alone is not purchasing authority.', array( 'status' => 403 ) );
@@ -647,7 +801,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $supplier || ! $lines ) {
 			return new WP_Error( 'invalid', 'supplier_id and at least one line are required.', array( 'status' => 400 ) );
 		}
-		if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'suppliers' ) . ' WHERE id=%d AND is_active=1', $supplier ) ) ) {
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'suppliers' ), $supplier ) ) ) {
 			return new WP_Error( 'supplier_not_found', 'Supplier not found.', array( 'status' => 404 ) );
 		}
 		$sub   = 0;
@@ -689,7 +843,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! preg_match( '/^[A-Fa-f0-9-]{16,80}$/', $request_key ) ) {
 			return new WP_Error( 'invalid_request_key', 'request_key must be a valid generated idempotency token.', array( 'status' => 400 ) );
 		}
-		$fingerprint = hash(
+		$fingerprint  = hash(
 			'sha256',
 			wp_json_encode(
 				array(
@@ -712,33 +866,33 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '' !== $request_key ? '[[SLPOREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
-		$requestLock = null;
+		$marker       = '' !== $request_key ? '[[SLPOREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
+		$request_lock = null;
 		if ( '' !== $request_key ) {
-			$requestLock = Stockland_DB::acquire_named_lock( 'po_create_request_' . $request_key, 10 );
-			if ( empty( $requestLock['ok'] ) ) {
+			$request_lock = Stockland_DB::acquire_named_lock( 'po_create_request_' . $request_key, 10 );
+			if ( empty( $request_lock['ok'] ) ) {
 				return new WP_Error( 'busy', 'This purchase-order submission is already being processed. Retry the same form shortly.', array( 'status' => 409 ) );
 			}
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'transaction_failed', 'Could not start the purchase-order transaction.', array( 'status' => 500 ) );}
 		try {
 			if ( '' !== $request_key ) {
 				$pattern  = $wpdb->esc_like( '[[SLPOREQ:' . $request_key . ':' ) . '%';
-				$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,po_number,status,total_amount,notes FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', $pattern ), ARRAY_A );
+				$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,po_number,status,total_amount,notes FROM %i WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', Stockland_DB::table( 'purchase_orders' ), $pattern ), ARRAY_A );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not verify purchase-order retry marker.' );
 				}
 				if ( $existing ) {
 					if ( ! preg_match( '/^\[\[SLPOREQ:([A-Fa-f0-9-]{16,80}):([a-f0-9]{64})\]\]/', $existing['notes'] ?? '', $m ) || strtolower( $m[1] ) !== strtolower( $request_key ) || ! hash_equals( $m[2], $fingerprint ) ) {
 						$wpdb->query( 'ROLLBACK' );
-						Stockland_DB::release_named_lock( $requestLock );
+						Stockland_DB::release_named_lock( $request_lock );
 						return new WP_Error( 'idempotency_conflict', 'This purchase-order request key has already been used with different details. Reload the form before creating another order.', array( 'status' => 409 ) );
 					}
 					$wpdb->query( 'ROLLBACK' );
-					Stockland_DB::release_named_lock( $requestLock );
+					Stockland_DB::release_named_lock( $request_lock );
 					return rest_ensure_response(
 						array(
 							'id'        => (int) $existing['id'],
@@ -785,8 +939,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Purchase-order create commit failed.' );
-			}if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			}if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return rest_ensure_response(
 				array(
 					'id'        => $id,
@@ -798,22 +952,28 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		} catch ( Throwable $x ) {
 			$wpdb->query( 'ROLLBACK' );
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'po_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Returns the requested purchase-order detail within the user's scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = (int) $r['id'];
-		$po = $wpdb->get_row( $wpdb->prepare( 'SELECT po.*,s.supplier_name,l.location_name FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' po JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=po.supplier_id JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=po.location_id WHERE po.id=%d', $id ), ARRAY_A );
+		$po = $wpdb->get_row( $wpdb->prepare( 'SELECT po.*,s.supplier_name,l.location_name FROM %i po JOIN %i s ON s.id=po.supplier_id JOIN %i l ON l.id=po.location_id WHERE po.id=%d', Stockland_DB::table( 'purchase_orders' ), Stockland_DB::table( 'suppliers' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 		if ( ! $po ) {
 			return new WP_Error( 'not_found', 'Purchase order not found.', array( 'status' => 404 ) );
 		}
 		if ( ! Stockland_Authority::company_scope() && ! Stockland_Authority::can_access_location( (int) $po['location_id'] ) ) {
 			return new WP_Error( 'forbidden', 'This purchase order is outside your authorized location scope.', array( 'status' => 403 ) );
 		}
-		$po['items'] = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d ORDER BY id', $id ), ARRAY_A );
+		$po['items'] = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d ORDER BY id', Stockland_DB::table( 'purchase_order_items' ), $id ), ARRAY_A );
 		if ( ! $this->can( 'stockland_view_financials' ) ) {
 			foreach ( array( 'subtotal', 'tax_amount', 'total_amount' ) as $k ) {
 				unset( $po[ $k ] );
@@ -827,6 +987,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $po );
 	}
 
+	/**
+	 * Applies an allowed purchase-order state transition.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_status( WP_REST_Request $r ) {
 		global $wpdb;
 		$id     = (int) $r['id'];
@@ -841,7 +1007,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start the purchase-order transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'purchase_orders', $id ), ARRAY_A );
 			if ( ! $po ) {
 				throw new Exception( 'PO not found.' );
 			}
@@ -900,14 +1066,14 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					throw new Exception( 'PO approval evidence is incomplete; cannot close this order.' );
 				}
 				$wpdb->last_error    = '';
-				$open_unreceived_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $id ) );
+				$open_unreceived_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $id ) );
 				if ( null === $open_unreceived_raw || $wpdb->last_error ) {
 					throw new Exception( 'Could not verify unreceived PO quantities; closure is blocked.' );
 				}if ( (float) $open_unreceived_raw > 0.00001 ) {
 					throw new Exception( 'A purchase order cannot close while any ordered quantity remains unreceived.' );
 				}
 				$wpdb->last_error          = '';
-				$open_received_invoice_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' sii INNER JOIN ' . Stockland_DB::table( 'supplier_invoices' ) . " si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM " . Stockland_DB::table( 'purchase_order_items' ) . ' poi WHERE poi.po_id=%d', $id ) );
+				$open_received_invoice_raw = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM %i sii INNER JOIN %i si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM %i poi WHERE poi.po_id=%d", Stockland_DB::table( 'supplier_invoice_items' ), Stockland_DB::table( 'supplier_invoices' ), Stockland_DB::table( 'purchase_order_items' ), $id ) );
 				if ( null === $open_received_invoice_raw || $wpdb->last_error ) {
 					throw new Exception( 'Could not verify received-but-uninvoiced quantities; PO closure is blocked.' );
 				}$open_received_invoice_qty = (float) $open_received_invoice_raw;
@@ -930,7 +1096,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$data['status_note'] = '' !== $note ? $note : null;
 			}
 			if ( false === $wpdb->update( Stockland_DB::table( 'purchase_orders' ), $data, array( 'id' => $id ) ) ) {
-				throw new Exception( $wpdb->last_error ?: 'Could not update PO.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not update PO.' );
 			}
 			if ( ! Stockland_Audit::log( $uid, $po['location_id'], 'PO_STATUS', null, null, $from, $to, ( $action !== $to ? $action . ' — ' : '' ) . $note, $po['po_number'] ) ) {
 				throw new Exception( 'Audit event could not be recorded; purchase-order status was not committed.' );
@@ -965,6 +1131,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 	}
 
+	/**
+	 * Records receipt against an authorized purchase order.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_receive( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_receive_external_purchase_order() ) {
 			return new WP_Error( 'forbidden', 'Only an active Stockland Warehouse Manager may accept external-supply quantities. Warehouse Employee and WordPress Administrator capabilities alone are insufficient.', array( 'status' => 403 ) );
@@ -1007,7 +1179,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				'quantity'   => number_format( $q, 2, '.', '' ),
 			);
 		}
-		$fingerprint = hash(
+		$fingerprint  = hash(
 			'sha256',
 			wp_json_encode(
 				array(
@@ -1018,54 +1190,54 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '' !== $request_key ? '[[SLGRNREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
-		$requestLock = null;
+		$marker       = '' !== $request_key ? '[[SLGRNREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
+		$request_lock = null;
 		// Stable request lock serializes concurrent retries before checking the receipt marker.
 		if ( '' !== $request_key ) {
-			$requestLock = Stockland_DB::acquire_named_lock( 'grn_request_' . $request_key, 10 );
-			if ( empty( $requestLock['ok'] ) ) {
+			$request_lock = Stockland_DB::acquire_named_lock( 'grn_request_' . $request_key, 10 );
+			if ( empty( $request_lock['ok'] ) ) {
 				return new WP_Error( 'busy', 'This goods receipt submission is already being processed. Retry the same form shortly.', array( 'status' => 409 ) );
 			}
 		}
-		$peek = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,status,created_by,approved_by,approved_at,po_number FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d', $poid ), ARRAY_A );
+		$peek = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,status,created_by,approved_by,approved_at,po_number FROM %i WHERE id=%d', 'purchase_orders', $poid ), ARRAY_A );
 		if ( ! $peek ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'not_found', 'PO not found.', array( 'status' => 404 ) );}
 		if ( ! Stockland_Authority::company_scope() && ! Stockland_Authority::can_access_location( (int) $peek['location_id'] ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'forbidden', 'This purchase order is outside your authorized receiving location.', array( 'status' => 403 ) );}
 		$location = (int) $peek['location_id'];
 		$central  = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( $central <= 0 || $location !== $central ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'external_supply_destination', 'External supply receipts are restricted to Central Warehouse. Branch fulfillment must use approved requisitions/transfers.', array( 'status' => 403 ) );}
 		$warehouse_guard = Stockland_Authority::assert_warehouse( $location );
 		if ( is_wp_error( $warehouse_guard ) || (int) $peek['created_by'] <= 0 || Stockland_Authority::role( (int) $peek['created_by'] ) !== 'management' || (int) $peek['approved_by'] <= 0 || (int) $peek['approved_by'] === (int) $peek['created_by'] || Stockland_Authority::role( (int) $peek['approved_by'] ) !== 'owner' || empty( $peek['approved_at'] ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'owner_approval_required', 'The PO lacks valid, separate Management-entry and Owner-approval evidence. Stop receiving and route legacy records to the Owner review queue.', array( 'status' => 409 ) );}
 		if ( '' !== $request_key ) {
 			$pattern  = $wpdb->esc_like( '[[SLGRNREQ:' . $request_key . ':' ) . '%';
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,receipt_number,po_id,notes FROM ' . Stockland_DB::table( 'purchase_receipts' ) . ' WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', $pattern ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,receipt_number,po_id,notes FROM %i WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', 'purchase_receipts', $pattern ), ARRAY_A );
 			if ( $wpdb->last_error ) {
-				Stockland_DB::release_named_lock( $requestLock );
+				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'retry_check_failed', 'Could not verify goods-receipt retry marker.', array( 'status' => 500 ) );}
 			if ( $existing ) {
 				if ( (int) $existing['po_id'] !== $poid || ! preg_match( '/^\[\[SLGRNREQ:([A-Fa-f0-9-]{16,80}):([a-f0-9]{64})\]\]/', $existing['notes'] ?? '', $m ) || strtolower( $m[1] ) !== strtolower( $request_key ) || ! hash_equals( $m[2], $fingerprint ) ) {
-					Stockland_DB::release_named_lock( $requestLock );
+					Stockland_DB::release_named_lock( $request_lock );
 					return new WP_Error( 'idempotency_conflict', 'This goods-receipt request key already belongs to a different submission. Reopen the receiving form before making a new receipt.', array( 'status' => 409 ) );
 				}
 				$rid     = (int) $existing['id'];
-				$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'gl_journals' ) . " WHERE source_type=%s AND source_id=%s AND status='POSTED' LIMIT 1", 'PURCHASE_RECEIPT', (string) $rid ) );
+				$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE source_type=%s AND source_id=%s AND status=\'POSTED\' LIMIT 1', 'gl_journals', 'PURCHASE_RECEIPT', (string) $rid ) );
 				if ( ! $journal ) {
-					Stockland_DB::release_named_lock( $requestLock );
+					Stockland_DB::release_named_lock( $request_lock );
 					return new WP_Error( 'receipt_integrity_error', 'The prior receipt exists but its posted PLEDGER/GL journal could not be verified. Stop and ask Management to reconcile before retrying.', array( 'status' => 500 ) );}
-				$value   = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(line_value),0) FROM ' . Stockland_DB::table( 'purchase_receipt_items' ) . ' WHERE receipt_id=%d', $rid ) );
-				$current = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d', $poid ) );
-				Stockland_DB::release_named_lock( $requestLock );
+				$value   = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(line_value),0) FROM %i WHERE receipt_id=%d', 'purchase_receipt_items', $rid ) );
+				$current = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE id=%d', 'purchase_orders', $poid ) );
+				Stockland_DB::release_named_lock( $request_lock );
 				return rest_ensure_response(
 					array(
 						'receipt_number'  => $existing['receipt_number'],
@@ -1078,32 +1250,32 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 		}
 		if ( ! in_array( $peek['status'], array( 'OWNER_APPROVED', 'PARTIALLY_RECEIVED' ), true ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'invalid_status', 'Only an Owner-approved or partially received PO may accept further quantities. Legacy one-step approvals must be re-reviewed by the Owner.', array( 'status' => 409 ) );}
 		try {
 			Stockland_Business_Calendar::assert_business_day( $date );
 		} catch ( Throwable $e ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'business_day_closed', $e->getMessage(), array( 'status' => 409 ) );}
 		if ( Stockland_DB::is_day_closed( $location, $date ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'business_day_closed', 'This receiving business day is already closed.', array( 'status' => 409 ) );}
 		$locks = Stockland_DB::acquire_location_locks( array( $location ), $date );
 		if ( ! $locks['ok'] ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'busy', 'Another inventory operation is processing this warehouse date.', array( 'status' => 409 ) );}
-		if ( $requestLock ) {
-			$locks['locks'][] = $requestLock;
+		if ( $request_lock ) {
+			$locks['locks'][] = $request_lock;
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_location_locks( $locks['locks'] );
 			return new WP_Error( 'transaction_failed', 'Could not start receiving transaction.', array( 'status' => 500 ) );}
 		try {
-			$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d FOR UPDATE', $poid ), ARRAY_A );
+			$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'purchase_orders', $poid ), ARRAY_A );
 			if ( ! $po ) {
 				throw new Exception( 'PO not found.' );
 			}
@@ -1127,7 +1299,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( ! in_array( $po['status'], array( 'OWNER_APPROVED', 'PARTIALLY_RECEIVED' ), true ) ) {
 				throw new Exception( 'PO must have separate Owner approval before receiving.' );
 			}
-			$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d ORDER BY id FOR UPDATE', $poid ), ARRAY_A );
+			$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d ORDER BY id FOR UPDATE', 'purchase_order_items', $poid ), ARRAY_A );
 			if ( ! $items ) {
 				throw new Exception( 'Purchase order has no lines.' );
 			}
@@ -1189,13 +1361,14 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$input_tax = Stockland_Money::add( $input_tax, $line_tax );
 				$grni      = Stockland_Money::add( $grni, Stockland_Money::add( $value, $line_tax ) );
 				++$count;
+				$received_variant_id = (int) ( $item['variant_id'] ?? 0 );
 				if ( false === $wpdb->insert(
 					Stockland_DB::table( 'purchase_receipt_items' ),
 					array(
 						'receipt_id'        => $rid,
 						'po_item_id'        => $item['id'],
 						'sku'               => $item['sku'],
-						'variant_id'        => (int) ( $item['variant_id'] ?? 0 ) ?: null,
+						'variant_id'        => $received_variant_id ? $received_variant_id : null,
 						'quantity_received' => $q,
 						'unit_cost'         => $item['unit_cost'],
 						'line_value'        => $value,
@@ -1209,7 +1382,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}if ( false === Stockland_Ledger::record( $location, $item['sku'], 'PURCHASE_RECEIPT', $q, 'po_receipt', $ref, $date, get_current_user_id() ) ) {
 					throw new Exception( 'Inventory ledger posting failed for ' . $item['sku'] );
 				}
-				$po_item_ok = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'purchase_order_items' ) . ' SET quantity_received=quantity_received+%f WHERE id=%d', $q, $item['id'] ) );
+				$po_item_ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET quantity_received=quantity_received+%f WHERE id=%d', 'purchase_order_items', $q, $item['id'] ) );
 				if ( false === $po_item_ok ) {
 					throw new Exception( 'PO received quantity update failed.' );
 				}
@@ -1217,7 +1390,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( $count <= 0 ) {
 				throw new Exception( 'No receivable quantity was submitted.' );
 			}$new_status     = 'PARTIALLY_RECEIVED';
-			$remaining_total = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
+			$remaining_total = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 			if ( $remaining_total <= 0.00001 ) {
 				$new_status = 'RECEIVED';
 			}
@@ -1294,17 +1467,45 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( $closed ? 'business_day_closed' : 'receive_failed', $message, array( 'status' => $closed ? 409 : 500 ) );}
 	}
 
+	/**
+	 * Lists supplier invoices visible to the current role.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function supplier_invoices( WP_REST_Request $r ) {
 		global $wpdb;
-		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$where  = '';
-		$args   = array();
-		if ( in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true ) ) {
-			$where  = ' WHERE i.status=%s';
-			$args[] = $status;
-		}$sql = 'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name FROM ' . Stockland_DB::table( 'supplier_invoices' ) . ' i JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=i.supplier_id LEFT JOIN ' . Stockland_DB::table( 'purchase_orders' ) . ' po ON po.id=i.po_id LEFT JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=po.location_id LEFT JOIN {$wpdb->users} u ON u.ID=i.created_by{$where} ORDER BY i.id DESC LIMIT 500";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$status     = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$rows       = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name
+				FROM %i i
+				JOIN %i s ON s.id=i.supplier_id
+				LEFT JOIN %i po ON po.id=i.po_id
+				LEFT JOIN %i l ON l.id=po.location_id
+				LEFT JOIN %i u ON u.ID=i.created_by
+				WHERE (%d = 0 OR i.status = %s)
+				ORDER BY i.id DESC LIMIT 500',
+				Stockland_DB::table( 'supplier_invoices' ),
+				Stockland_DB::table( 'suppliers' ),
+				Stockland_DB::table( 'purchase_orders' ),
+				Stockland_DB::table( 'locations' ),
+				$wpdb->users,
+				$has_status ? 1 : 0,
+				$has_status ? $status : ''
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
+
+	/**
+	 * Creates a supplier invoice and links it to eligible procurement records.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function supplier_invoice_create( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_prepare_finance( 'stockland_manage_payables' ) ) {
 			return new WP_Error( 'forbidden', 'Supplier invoice entry is Management-only; the active Owner must approve the submitted invoice separately.', array( 'status' => 403 ) );
@@ -1336,7 +1537,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			if ( $poid ) {
-				$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d AND supplier_id=%d FOR UPDATE', $poid, $sid ), ARRAY_A );
+				$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND supplier_id=%d FOR UPDATE', 'purchase_orders', $poid, $sid ), ARRAY_A );
 				if ( ! $po ) {
 					throw new Exception( 'PO not found for supplier.' );
 				}
@@ -1358,14 +1559,14 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$po_item_ids  = array();
 			$already      = array();
 			if ( $poid ) {
-				$po_item_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d FOR UPDATE', $poid ), ARRAY_A );
+				$po_item_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d FOR UPDATE', Stockland_DB::table( 'purchase_order_items' ), $poid ), ARRAY_A );
 				if ( ! $po_item_rows ) {
 					throw new Exception( 'Linked purchase order has no lines.' );
 				}
 				foreach ( $po_item_rows as $pi ) {
 					$po_item_ids[ (int) $pi['id'] ] = $pi;
 				}
-				$already_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' sii JOIN ' . Stockland_DB::table( 'supplier_invoices' ) . " si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.status IN ('POSTED','PENDING') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id", $poid ), ARRAY_A );
+				$already_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM %i sii JOIN %i si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.status IN (\'POSTED\',\'PENDING\') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id', 'supplier_invoice_items', $poid, 'supplier_invoices' ), ARRAY_A );
 				foreach ( $already_rows as $ar ) {
 					$already[ (int) $ar['po_item_id'] ] = (float) $ar['qty'];
 				}
@@ -1399,7 +1600,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				array(
 					'invoice_number' => $invoice,
 					'supplier_id'    => $sid,
-					'po_id'          => $poid ?: null,
+					'po_id'          => $poid ? $poid : null,
 					'invoice_date'   => $date,
 					'due_date'       => $due,
 					'subtotal'       => $sub,
@@ -1410,7 +1611,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'created_by'     => get_current_user_id(),
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Supplier invoice failed' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Supplier invoice failed' );
 			}
 			$id             = (int) $wpdb->insert_id;
 			$line_sub_total = 0;
@@ -1454,14 +1655,15 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 						throw new Exception( 'Supplier invoice SKU, unit cost and tax must match the approved PO. Request an Owner-reviewed PO amendment for price/tax differences before posting.' );
 					}
 				}
-				$line_sub_total = Stockland_Money::add( $line_sub_total, $ls );
-				$line_tax_total = Stockland_Money::add( $line_tax_total, $lt );
+				$line_sub_total   = Stockland_Money::add( $line_sub_total, $ls );
+				$line_tax_total   = Stockland_Money::add( $line_tax_total, $lt );
+				$invoice_line_sku = sanitize_text_field( $li['sku'] ?? ( $poid ? $po_item_ids[ $po_item_id ]['sku'] : '' ) );
 				if ( false === $wpdb->insert(
 					Stockland_DB::table( 'supplier_invoice_items' ),
 					array(
 						'invoice_id'    => $id,
-						'po_item_id'    => $po_item_id ?: null,
-						'sku'           => sanitize_text_field( $li['sku'] ?? ( $poid ? $po_item_ids[ $po_item_id ]['sku'] : '' ) ) ?: null,
+						'po_item_id'    => $po_item_id ? $po_item_id : null,
+						'sku'           => $invoice_line_sku ? $invoice_line_sku : null,
 						'description'   => $desc,
 						'quantity'      => $q,
 						'unit_cost'     => $uc,
@@ -1512,12 +1714,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( $poid && 'POSTED' === $invoice_status ) {
 				$wpdb->last_error         = '';
-				$remaining_unreceived_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
+				$remaining_unreceived_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 				if ( null === $remaining_unreceived_raw || $wpdb->last_error ) {
 					throw new Exception( 'Could not verify unreceived purchase quantity; PO status was not changed.' );
 				}$remaining_unreceived    = (float) $remaining_unreceived_raw;
 				$wpdb->last_error         = '';
-				$remaining_uninvoiced_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' sii INNER JOIN ' . Stockland_DB::table( 'supplier_invoices' ) . " si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM " . Stockland_DB::table( 'purchase_order_items' ) . ' poi WHERE poi.po_id=%d', $poid ) );
+				$remaining_uninvoiced_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM %i sii INNER JOIN %i si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status=\'POSTED\'),0),0)),0) FROM %i poi WHERE poi.po_id=%d', 'supplier_invoice_items', $poid, 'supplier_invoices', 'purchase_order_items' ) );
 				if ( null === $remaining_uninvoiced_raw || $wpdb->last_error ) {
 					throw new Exception( 'Could not verify received-but-uninvoiced purchase quantity; PO status was not changed.' );
 				}$remaining_uninvoiced = (float) $remaining_uninvoiced_raw;
@@ -1558,11 +1760,38 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'invoice_failed', $x->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Lists customer invoices authorized for the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customer_invoices( WP_REST_Request $r ) {
 		global $wpdb;
-		return rest_ensure_response( $wpdb->get_results( 'SELECT i.*,c.customer_name,l.location_name FROM ' . Stockland_DB::table( 'customer_invoices' ) . ' i JOIN ' . Stockland_DB::table( 'customers' ) . ' c ON c.id=i.customer_id LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=i.location_id ORDER BY i.id DESC LIMIT 500', ARRAY_A ) );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT i.*,c.customer_name,l.location_name
+				FROM %i i
+				JOIN %i c ON c.id=i.customer_id
+				LEFT JOIN %i l ON l.id=i.location_id
+				ORDER BY i.id DESC LIMIT 500',
+				Stockland_DB::table( 'customer_invoices' ),
+				Stockland_DB::table( 'customers' ),
+				Stockland_DB::table( 'locations' )
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Inserts a customer payment into the active database transaction.
+	 *
+	 * @param mixed $p Validated payment, invoice, or party values.
+	 * @param int   $user_id WordPress user ID associated with the transaction.
+	 * @param mixed $invoice_total Total amount of the invoice.
+	 * @return int|WP_Error|false The payment identifier, or an error/failure result.
+	 */
 	private function insert_customer_payment_in_transaction( $p, $user_id, $invoice_total = 0 ) {
 		global $wpdb;
 		$cid    = (int) ( $p['customer_id'] ?? 0 );
@@ -1625,13 +1854,22 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Creates a customer invoice from validated source data.
+	 *
+	 * @param mixed $p Validated payment, invoice, or party values.
+	 * @param int   $user_id WordPress user ID associated with the transaction.
+	 * @param mixed $source_type Value for the source type argument.
+	 * @param mixed $source_id Value for the source id argument.
+	 * @return mixed The operation result.
+	 */
 	private function create_customer_invoice( $p, $user_id, $source_type = 'MANUAL', $source_id = null ) {
 		global $wpdb;
 		$cid = (int) ( $p['customer_id'] ?? 0 );
 		if ( ! $cid ) {
 			return array( 'error' => new WP_Error( 'customer_required', 'customer_id is required.', array( 'status' => 400 ) ) );
 		}
-		$customer = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'customers' ) . ' WHERE id=%d AND is_active=1', $cid ), ARRAY_A );
+		$customer = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND is_active=1', 'customers', $cid ), ARRAY_A );
 		if ( ! $customer ) {
 			return array( 'error' => new WP_Error( 'customer_not_found', 'Customer not found.', array( 'status' => 404 ) ) );
 		}
@@ -1700,7 +1938,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'status'         => 'POSTED',
 					'notes'          => sanitize_text_field( $p['notes'] ?? '' ),
 					'source_type'    => $source_type,
-					'source_id'      => $source_id ?: $invoice,
+					'source_id'      => $source_id ? $source_id : $invoice,
 					'created_by'     => $user_id,
 				)
 			) ) {
@@ -1783,6 +2021,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return array( 'error' => new WP_Error( 'invoice_failed', $x->getMessage(), array( 'status' => 500 ) ) );}
 	}
 
+	/**
+	 * Creates a customer invoice through the REST workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customer_invoice_create( WP_REST_Request $r ) {
 		$p      = $r->get_json_params();
 		$result = $this->create_customer_invoice( $p, get_current_user_id(), 'MANUAL', null );
@@ -1792,12 +2036,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	}
 
 
+	/**
+	 * Resolves the configured walk-in customer record.
+	 *
+	 * @return array|false The walk-in customer record, or false when unavailable.
+	 */
 	private function walkin_customer() {
 		global $wpdb;
-		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'customers' ) . ' WHERE customer_code=%s LIMIT 1', 'WALK-IN' ) );
+		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE customer_code=%s LIMIT 1', 'customers', 'WALK-IN' ) );
 		return $id;
 	}
 
+	/**
+	 * Looks up product master information for a barcode.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function barcode( WP_REST_Request $r ) {
 		$code = sanitize_text_field( $r['code'] );
 		$p    = Stockland_DB::get_product_by_identifier( $code );
@@ -1813,34 +2068,60 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $p );
 	}
 
+	/**
+	 * Lists expense records visible to the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function expenses( WP_REST_Request $r ) {
 		global $wpdb;
-		$t      = Stockland_DB::table( 'expenses' );
-		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$where  = array( '1=1' );
-		$args   = array();
-		if ( in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true ) ) {
-			$where[] = 'e.status=%s';
-			$args[]  = $status;}
-		if ( ! Stockland_Authority::company_scope() ) {
-			$ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
-			if ( ! $ids ) {
+		$table        = Stockland_DB::table( 'expenses' );
+		$status       = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status   = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$company_wide = Stockland_Authority::company_scope();
+		$location_ids = array();
+		if ( ! $company_wide ) {
+			$location_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
+			if ( ! $location_ids ) {
 				$branch = Stockland_Authority::branch_id();
 				if ( $branch ) {
-					$ids = array( $branch );
+					$location_ids = array( (int) $branch );
 				}
 			}
-			if ( ! $ids ) {
+			if ( ! $location_ids ) {
 				return rest_ensure_response( array() );
 			}
-			$where[] = 'e.location_id IN(' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')';
-			$args    = array_merge( $args, $ids );
 		}
-		// Use a normal WordPress users join (the column/table identifiers are trusted plugin runtime values).
-		$sql = "SELECT e.*,l.location_name,wu.display_name AS created_by_name FROM {$t} e LEFT JOIN " . Stockland_DB::table( 'locations' ) . " l ON l.id=e.location_id LEFT JOIN {$wpdb->users} wu ON wu.ID=e.created_by WHERE " . implode( ' AND ', $where ) . ' ORDER BY e.expense_date DESC,e.id DESC LIMIT 500';
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$location_filter = implode( ',', array_map( 'intval', $location_ids ) );
+		$rows            = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT e.*,l.location_name,wu.display_name AS created_by_name
+				FROM %i e
+				LEFT JOIN %i l ON l.id=e.location_id
+				LEFT JOIN %i wu ON wu.ID=e.created_by
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+				ORDER BY e.expense_date DESC,e.id DESC LIMIT 500',
+				$table,
+				Stockland_DB::table( 'locations' ),
+				$wpdb->users,
+				$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Creates an expense record within the configured preparation and approval workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function expense_create( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_expenses' );
 		if ( true !== $e ) {
@@ -1880,7 +2161,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $location_id ) {
 			return new WP_Error( 'branch_required', 'Select the branch/location for this expense.', array( 'status' => 400 ) );
 		}
-		$location = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE id=%d', $location_id ), ARRAY_A );
+		$location = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM %i WHERE id=%d', 'locations', $location_id ), ARRAY_A );
 		if ( ! $location || empty( $location['is_active'] ) ) {
 			return new WP_Error( 'invalid_location', 'The selected active branch/location was not found.', array( 'status' => 400 ) );
 		}
@@ -1917,12 +2198,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'busy', 'This expense submission is already being processed. Retry using the same form key.', array( 'status' => 409 ) );
 		}
 		$pattern  = $wpdb->esc_like( '[[SLEXP:' . $key_hash . ':' ) . '%';
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,expense_number,status,reference,amount FROM ' . Stockland_DB::table( 'expenses' ) . ' WHERE reference LIKE %s ORDER BY id DESC LIMIT 1', $pattern ), ARRAY_A );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,expense_number,status,reference,amount FROM %i WHERE reference LIKE %s ORDER BY id DESC LIMIT 1', 'expenses', $pattern ), ARRAY_A );
 		if ( $existing ) {
 			if ( ! preg_match( '/^\\[\\[SLEXP:([a-f0-9]{20}):([a-f0-9]{32})\\]\\]/', (string) $existing['reference'], $m ) || ! hash_equals( $key_hash, $m[1] ) || ! hash_equals( $fingerprint, $m[2] ) ) {
 				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'idempotency_conflict', 'This expense request key was already used for different details.', array( 'status' => 409 ) );}
-			$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'gl_journals' ) . " WHERE source_type='EXPENSE' AND source_id=%s AND status='POSTED' LIMIT 1", (string) $existing['id'] ) );
+			$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE source_type=\'EXPENSE\' AND source_id=%s AND status=\'POSTED\' LIMIT 1', 'gl_journals', (string) $existing['id'] ) );
 			if ( 'POSTED' === $existing['status'] && ! $journal ) {
 				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'expense_integrity_error', 'The prior posted expense has no verifiable GL journal. Stop and reconcile before retrying.', array( 'status' => 500 ) );}
@@ -1962,7 +2243,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'created_by'     => $uid,
 				)
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Expense submission failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense submission failed.' );
 			}
 			$id      = (int) $wpdb->insert_id;
 			$journal = null;
@@ -2030,6 +2311,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Applies an authorized expense state transition.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function expense_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_expenses() ) {
 			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile can approve or reject submitted expenses.', array( 'status' => 403 ) );
@@ -2050,13 +2337,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			$t   = Stockland_DB::table( 'expenses' );
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id=%d FOR UPDATE", $id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', $t, $id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Expense not found.' );
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			if ( (int) $row['created_by'] === get_current_user_id() ) {
+			if ( get_current_user_id() === (int) $row['created_by'] ) {
 				throw new Exception( 'Separate approval is required; an Owner cannot approve their own submission.' );
 			}
 			$creator_role = Stockland_Authority::role( (int) $row['created_by'] );
@@ -2115,7 +2402,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Expense status update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense status update failed.' );
 			}
 			$event = 'APPROVE' === $action ? 'BRANCH_EXPENSE_APPROVE' : 'BRANCH_EXPENSE_REJECT';
 			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Owner approved; GL journal ' . $journal, $row['expense_number'] ) ) {
@@ -2144,17 +2431,44 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Lists payment records available to the current role.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function payments( WP_REST_Request $r ) {
 		global $wpdb;
-		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$where  = '';
-		$args   = array();
-		if ( in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true ) ) {
-			$where  = ' WHERE p.status=%s';
-			$args[] = $status;
-		}$sql = 'SELECT p.*,s.supplier_name,c.customer_name,u.display_name AS created_by_name FROM ' . Stockland_DB::table( 'payments' ) . ' p LEFT JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=p.supplier_id LEFT JOIN ' . Stockland_DB::table( 'customers' ) . ' c ON c.id=p.customer_id LEFT JOIN ' . $wpdb->users . " u ON u.ID=p.created_by{$where} ORDER BY p.payment_date DESC,p.id DESC LIMIT 500";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$status     = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$rows       = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT p.*,s.supplier_name,c.customer_name,u.display_name AS created_by_name
+				FROM %i p
+				LEFT JOIN %i s ON s.id=p.supplier_id
+				LEFT JOIN %i c ON c.id=p.customer_id
+				LEFT JOIN %i u ON u.ID=p.created_by
+				WHERE (%d = 0 OR p.status = %s)
+				ORDER BY p.payment_date DESC,p.id DESC LIMIT 500',
+				Stockland_DB::table( 'payments' ),
+				Stockland_DB::table( 'suppliers' ),
+				Stockland_DB::table( 'customers' ),
+				$wpdb->users,
+				$has_status ? 1 : 0,
+				$has_status ? $status : ''
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
+
+	/**
+	 * Records an internal customer payment and its ledger effects.
+	 *
+	 * @param mixed $p Validated payment, invoice, or party values.
+	 * @param int   $user_id WordPress user ID associated with the transaction.
+	 * @return mixed The operation result.
+	 */
 	private function record_internal_customer_payment( $p, $user_id ) {
 		global $wpdb;
 		$cid    = (int) ( $p['customer_id'] ?? 0 );
@@ -2228,6 +2542,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'payment_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Validates and saves payment allocations against eligible open balances.
+	 *
+	 * @param int    $payment_id Payment record ID.
+	 * @param string $type Payment party/allocation type.
+	 * @param int    $party_id Customer or supplier ID.
+	 * @param array  $allocations Requested invoice or balance allocations.
+	 * @param mixed  $payment_amount Total amount available for allocation.
+	 * @return bool|WP_Error Whether allocations were saved, or an error.
+	 */
 	private function save_allocations( $payment_id, $type, $party_id, $allocations, $payment_amount ) {
 		global $wpdb;
 		if ( ! is_array( $allocations ) || ! $allocations ) {
@@ -2247,14 +2571,14 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			list($invoice_type, $iid) = explode( ':', $key, 2 );
 			$iid                      = (int) $iid;
 			if ( 'SUPPLIER' === $type ) {
-				$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT id,total_amount FROM ' . Stockland_DB::table( 'supplier_invoices' ) . " WHERE id=%d AND supplier_id=%d AND status='POSTED' FOR UPDATE", $iid, $party_id ), ARRAY_A );
+				$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT id,total_amount FROM %i WHERE id=%d AND supplier_id=%d AND status=\'POSTED\' FOR UPDATE', 'supplier_invoices', $iid, $party_id ), ARRAY_A );
 			} else {
-				$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT id,total_amount FROM ' . Stockland_DB::table( 'customer_invoices' ) . " WHERE id=%d AND customer_id=%d AND status='POSTED' FOR UPDATE", $iid, $party_id ), ARRAY_A );
+				$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT id,total_amount FROM %i WHERE id=%d AND customer_id=%d AND status=\'POSTED\' FOR UPDATE', 'customer_invoices', $iid, $party_id ), ARRAY_A );
 			}
 			if ( ! $invoice ) {
 				return false;
 			}
-			$allocated   = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(a.amount),0) FROM ' . Stockland_DB::table( 'payment_allocations' ) . ' a INNER JOIN ' . Stockland_DB::table( 'payments' ) . " p ON p.id=a.payment_id WHERE a.invoice_type=%s AND a.invoice_id=%d AND p.status IN ('POSTED','PENDING') AND a.payment_id<>%d", $invoice_type, $iid, (int) $payment_id ) );
+			$allocated   = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(a.amount),0) FROM %i a INNER JOIN %i p ON p.id=a.payment_id WHERE a.invoice_type=%s AND a.invoice_id=%d AND p.status IN (\'POSTED\',\'PENDING\') AND a.payment_id<>%d', 'payment_allocations', $invoice_type, 'payments', $iid, (int) $payment_id ) );
 			$outstanding = Stockland_Money::subtract( $invoice['total_amount'], $allocated );
 			if ( $outstanding < 0 ) {
 				$outstanding = 0;
@@ -2280,6 +2604,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return true;
 	}
 
+	/**
+	 * Creates a payment under the accounting authorization and transaction rules.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function payment_create( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_payments' );
 		if ( true !== $e ) {
@@ -2313,22 +2643,22 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $date ) {
 			return new WP_Error( 'invalid_date', 'payment_date is invalid.', array( 'status' => 400 ) );
 		}
-		$reference   = sanitize_text_field( $p['reference'] ?? '' );
-		$notes       = sanitize_text_field( $p['notes'] ?? '' );
-		$allocations = $p['allocations'] ?? array();
-		$requestLock = null;
-		$fingerprint = '';
-		$requestKey  = '';
-		$storedNotes = $notes;
+		$reference           = sanitize_text_field( $p['reference'] ?? '' );
+		$notes               = sanitize_text_field( $p['notes'] ?? '' );
+		$allocations         = $p['allocations'] ?? array();
+		$request_lock        = null;
+		$fingerprint         = '';
+		$payment_request_key = '';
+		$stored_notes        = $notes;
 		// Idempotency covers every manual payment type, not only AP. Retrying the same
 		// request returns the original result; reusing a key with changed details fails.
-		$requestKey = strtolower( sanitize_text_field( (string) ( $p['request_key'] ?? '' ) ) );
-		if ( ! preg_match( '/^[a-z0-9_-]{16,80}$/', $requestKey ) ) {
+		$payment_request_key = strtolower( sanitize_text_field( (string) ( $p['request_key'] ?? '' ) ) );
+		if ( ! preg_match( '/^[a-z0-9_-]{16,80}$/', $payment_request_key ) ) {
 			return new WP_Error( 'idempotency_key_required', 'A stable request_key is required to prevent duplicate payment/PLEDGER/GL transactions.', array( 'status' => 400 ) );
 		}
 		$allocation_input = is_array( $allocations ) ? $allocations : array();
 		$groups           = array();
-		$allocatedTotal   = '0.00';
+		$allocated_total  = '0.00';
 		if ( 'SUPPLIER' === $type && ! $sid ) {
 			return new WP_Error( 'supplier_required', 'supplier_id is required.', array( 'status' => 400 ) );
 		}
@@ -2339,30 +2669,30 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'customer_required', 'customer_id is required.', array( 'status' => 400 ) );
 		}
 		foreach ( $allocation_input as $allocation ) {
-			$invoiceId = (int) ( $allocation['invoice_id'] ?? 0 );
-			$allocated = $this->money( $allocation['amount'] ?? 0 );
-			if ( $invoiceId <= 0 || $allocated <= 0 ) {
+			$invoice_id = (int) ( $allocation['invoice_id'] ?? 0 );
+			$allocated  = $this->money( $allocation['amount'] ?? 0 );
+			if ( $invoice_id <= 0 || $allocated <= 0 ) {
 				return new WP_Error( 'invalid_allocation', 'Each payment allocation needs a valid invoice and positive amount.', array( 'status' => 400 ) );
 			}
-			$groups[ $invoiceId ] = Stockland_Money::add( $groups[ $invoiceId ] ?? '0.00', $allocated );
+			$groups[ $invoice_id ] = Stockland_Money::add( $groups[ $invoice_id ] ?? '0.00', $allocated );
 		}
 		if ( $groups ) {
 			ksort( $groups, SORT_NUMERIC );
-			foreach ( $groups as $invoiceId => $allocated ) {
-				$canonical[]    = array(
-					'invoice_id' => (int) $invoiceId,
+			foreach ( $groups as $invoice_id => $allocated ) {
+				$canonical[]     = array(
+					'invoice_id' => (int) $invoice_id,
 					'amount'     => $allocated,
 				);
-				$allocatedTotal = Stockland_Money::add( $allocatedTotal, $allocated );}
+				$allocated_total = Stockland_Money::add( $allocated_total, $allocated );}
 		} else {
 			$canonical = array();}
-		if ( $canonical && Stockland_Money::minor( Stockland_Money::subtract( $allocatedTotal, $amount ) ) !== 0 ) {
+		if ( $canonical && Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 			return new WP_Error( 'allocation_total_mismatch', 'Payment allocation total must equal the payment amount exactly.', array( 'status' => 409 ) );
 		}
-		if ( 'SUPPLIER' === $type && Stockland_Money::minor( Stockland_Money::subtract( $allocatedTotal, $amount ) ) !== 0 ) {
+		if ( 'SUPPLIER' === $type && Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 			return new WP_Error( 'allocation_total_mismatch', 'Supplier payment allocation total must equal the payment amount exactly.', array( 'status' => 409 ) );
 		}
-		$fingerprint = hash(
+		$fingerprint  = hash(
 			'sha256',
 			wp_json_encode(
 				array(
@@ -2378,28 +2708,28 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '[[SLPAYREQ:' . $requestKey . ':' . $fingerprint . ']]';
-		$storedNotes = trim( $marker . ' ' . $notes );
-		if ( strlen( $storedNotes ) > 500 ) {
+		$marker       = '[[SLPAYREQ:' . $payment_request_key . ':' . $fingerprint . ']]';
+		$stored_notes = trim( $marker . ' ' . $notes );
+		if ( strlen( $stored_notes ) > 500 ) {
 			return new WP_Error( 'notes_too_long', 'Payment notes exceed the supported length after the idempotency marker.', array( 'status' => 400 ) );
 		}
-		$requestLock = Stockland_DB::acquire_named_lock( 'payment_' . $type . '_' . $requestKey, 10 );
-		if ( empty( $requestLock['ok'] ) ) {
+		$request_lock = Stockland_DB::acquire_named_lock( 'payment_' . $type . '_' . $payment_request_key, 10 );
+		if ( empty( $request_lock['ok'] ) ) {
 			return new WP_Error( 'busy', 'This payment request is already being processed. Retry the same request key.', array( 'status' => 409 ) );
 		}
-		$pattern  = '%' . $wpdb->esc_like( '[[SLPAYREQ:' . $requestKey . ':' ) . '%';
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,payment_number,notes,amount,supplier_id,customer_id,payment_type,status FROM ' . Stockland_DB::table( 'payments' ) . ' WHERE payment_type=%s AND notes LIKE %s ORDER BY id DESC LIMIT 1', $type, $pattern ), ARRAY_A );
+		$pattern  = '%' . $wpdb->esc_like( '[[SLPAYREQ:' . $payment_request_key . ':' ) . '%';
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,payment_number,notes,amount,supplier_id,customer_id,payment_type,status FROM %i WHERE payment_type=%s AND notes LIKE %s ORDER BY id DESC LIMIT 1', 'payments', $type, $pattern ), ARRAY_A );
 		if ( $existing ) {
 			$stored = (string) ( $existing['notes'] ?? '' );
-			if ( ! preg_match( '/\[\[SLPAYREQ:([a-z0-9_-]{16,80}):([a-f0-9]{64})\]\]/', $stored, $m ) || strtolower( $m[1] ) !== $requestKey || ! hash_equals( $m[2], $fingerprint ) ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( ! preg_match( '/\[\[SLPAYREQ:([a-z0-9_-]{16,80}):([a-f0-9]{64})\]\]/', $stored, $m ) || strtolower( $m[1] ) !== $payment_request_key || ! hash_equals( $m[2], $fingerprint ) ) {
+				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'idempotency_conflict', 'This payment key is already used for different payment details.', array( 'status' => 409 ) );
 			}
-			$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'gl_journals' ) . " WHERE source_type=%s AND source_id=%s AND status='POSTED' LIMIT 1", 'PAYMENT', (string) $existing['id'] ) );
+			$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE source_type=%s AND source_id=%s AND status=\'POSTED\' LIMIT 1', 'gl_journals', 'PAYMENT', (string) $existing['id'] ) );
 			if ( 'POSTED' === $existing['status'] && ! $journal ) {
-				Stockland_DB::release_named_lock( $requestLock );
+				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'payment_integrity_error', 'The prior posted payment has no verifiable PLEDGER/GL journal. Stop and reconcile before retrying.', array( 'status' => 500 ) );}
-			Stockland_DB::release_named_lock( $requestLock );
+			Stockland_DB::release_named_lock( $request_lock );
 			$balance = 'SUPPLIER' === $type ? Stockland_Accounting::supplier_balance( $sid ) : Stockland_Accounting::customer_balance( $cid );
 			return rest_ensure_response(
 				array(
@@ -2413,8 +2743,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'transaction_failed', 'Could not start payment transaction.', array( 'status' => 500 ) );}
 		try {
 			$num                  = $this->next_number( 'PAY-', $date );
@@ -2427,12 +2757,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'payment_number' => $num,
 					'payment_date'   => $date,
 					'payment_type'   => $type,
-					'supplier_id'    => $sid ?: null,
-					'customer_id'    => $cid ?: null,
+					'supplier_id'    => $sid ? $sid : null,
+					'customer_id'    => $cid ? $cid : null,
 					'amount'         => $amount,
 					'method'         => $method,
 					'reference'      => $reference,
-					'notes'          => $storedNotes,
+					'notes'          => $stored_notes,
 					'status'         => $status,
 					'created_by'     => $uid,
 				)
@@ -2492,8 +2822,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Payment commit failed.' );
-			}if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			}if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}
 			return rest_ensure_response(
 				array(
@@ -2507,12 +2837,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		} catch ( Throwable $x ) {
 			$wpdb->query( 'ROLLBACK' );
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'payment_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
-	/** Owner approves/rejects a Management-entered supplier invoice; the posted AP journal is created in the same transaction. */
+	/**
+	 * Owner approves/rejects a Management-entered supplier invoice; the posted AP journal is created in the same transaction.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 */
 	public function supplier_invoice_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_finance() ) {
 			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile may approve supplier invoices.', array( 'status' => 403 ) );
@@ -2533,13 +2867,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			$it      = Stockland_DB::table( 'supplier_invoices' );
-			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$it} WHERE id=%d FOR UPDATE", $id ), ARRAY_A );
+			$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', $it, $id ), ARRAY_A );
 			if ( ! $invoice ) {
 				throw new Exception( 'Supplier invoice not found.' );
 			}if ( 'PENDING' !== $invoice['status'] ) {
 				throw new Exception( 'Only PENDING supplier invoices can be approved/rejected.' );
 			}
-			if ( (int) $invoice['created_by'] === get_current_user_id() || Stockland_Authority::role( (int) $invoice['created_by'] ) !== 'management' ) {
+			if ( get_current_user_id() === (int) $invoice['created_by'] || Stockland_Authority::role( (int) $invoice['created_by'] ) !== 'management' ) {
 				throw new Exception( 'Supplier invoice requires a different active Owner approving a Management-submitted invoice.' );
 			}
 			$poid = (int) ( $invoice['po_id'] ?? 0 );
@@ -2547,7 +2881,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				throw new Exception( 'Supplier invoice approval is blocked: a posted stock purchase requires a linked Owner-approved Central Warehouse PO and posted receipt. Legacy unlinked invoices must be reconciled manually before any GL posting.' );
 			}$debit_account = '2010';
 			if ( $poid ) {
-				$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d AND supplier_id=%d FOR UPDATE', $poid, (int) $invoice['supplier_id'] ), ARRAY_A );
+				$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND supplier_id=%d FOR UPDATE', Stockland_DB::table( 'purchase_orders' ), $poid, (int) $invoice['supplier_id'] ), ARRAY_A );
 				if ( ! $po || ! in_array( $po['status'], array( 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED' ), true ) ) {
 					throw new Exception( 'Linked PO must remain valid and received before invoice approval.' );
 				}
@@ -2559,25 +2893,25 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					throw new Exception( 'Linked PO owner-approval evidence failed validation.' );
 				}
 				$debit_account = '2010';
-				$poitems       = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d FOR UPDATE', $poid ), ARRAY_A );
-				$poMap         = array();
+				$poitems       = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d FOR UPDATE', Stockland_DB::table( 'purchase_order_items' ), $poid ), ARRAY_A );
+				$po_map        = array();
 				foreach ( $poitems as $pi ) {
-					$poMap[ (int) $pi['id'] ] = $pi;
+					$po_map[ (int) $pi['id'] ] = $pi;
 				}
-				$already_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . " sii JOIN {$it} si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.id<>%d AND si.status IN ('POSTED','PENDING') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id", $poid, $id ), ARRAY_A );
+				$already_rows = $wpdb->get_results( $wpdb->prepare( "SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM %i sii JOIN %i si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.id<>%d AND si.status IN ('POSTED','PENDING') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id", Stockland_DB::table( 'supplier_invoice_items' ), $it, $poid, $id ), ARRAY_A );
 				$already      = array();
 				foreach ( $already_rows as $ar ) {
 					$already[ (int) $ar['po_item_id'] ] = (float) $ar['qty'];
 				}
-				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' WHERE invoice_id=%d FOR UPDATE', $id ), ARRAY_A );
+				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d FOR UPDATE', Stockland_DB::table( 'supplier_invoice_items' ), $id ), ARRAY_A );
 				if ( ! $items ) {
 					throw new Exception( 'Supplier invoice has no saved lines.' );
 				}
 				foreach ( $items as $li ) {
 					$pid = (int) ( $li['po_item_id'] ?? 0 );
-					if ( ! $pid || ! isset( $poMap[ $pid ] ) ) {
+					if ( ! $pid || ! isset( $po_map[ $pid ] ) ) {
 						throw new Exception( 'Invoice line has no valid linked PO item.' );
-					}$pi       = $poMap[ $pid ];
+					}$pi       = $po_map[ $pid ];
 					$remaining = max( 0, (float) $pi['quantity_received'] - (float) ( $already[ $pid ] ?? 0 ) );
 					if ( (float) $li['quantity'] <= 0 || (float) $li['quantity'] > $remaining + 0.00001 ) {
 						throw new Exception( 'Invoice quantity exceeds the remaining received quantity for ' . $pi['sku'] . '.' );
@@ -2586,7 +2920,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					}
 				}
 			} else {
-				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' WHERE invoice_id=%d FOR UPDATE', $id ), ARRAY_A );
+				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d FOR UPDATE', Stockland_DB::table( 'supplier_invoice_items' ), $id ), ARRAY_A );
 				if ( ! $items ) {
 					throw new Exception( 'Supplier invoice has no saved lines.' );
 				}
@@ -2641,11 +2975,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Supplier invoice status update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Supplier invoice status update failed.' );
 			}
 			if ( 'APPROVE' === $action && $poid ) {
-				$remaining_unreceived = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
-				$remaining_uninvoiced = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . " sii INNER JOIN {$it} si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM " . Stockland_DB::table( 'purchase_order_items' ) . ' poi WHERE poi.po_id=%d', $poid ) );
+				$remaining_unreceived = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $poid ) );
+				$remaining_uninvoiced = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM %i sii INNER JOIN %i si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM %i poi WHERE poi.po_id=%d", Stockland_DB::table( 'supplier_invoice_items' ), $it, Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not reconcile remaining PO quantities after invoice approval.' );
 				}
@@ -2677,7 +3011,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'supplier_invoice_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
-	/** Owner-only posting of a previously submitted Finance payment. Supplier allocations are revalidated under row locks. */
+	/**
+	 * Owner-only posting of a previously submitted Finance payment. Supplier allocations are revalidated under row locks.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 */
 	public function payment_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_finance() ) {
 			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile can approve or reject finance payments.', array( 'status' => 403 ) );
@@ -2698,13 +3036,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			$pt      = Stockland_DB::table( 'payments' );
-			$payment = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$pt} WHERE id=%d FOR UPDATE", $id ), ARRAY_A );
+			$payment = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', $pt, $id ), ARRAY_A );
 			if ( ! $payment ) {
 				throw new Exception( 'Payment not found.' );
 			}if ( 'PENDING' !== $payment['status'] ) {
 				throw new Exception( 'Only PENDING payments can be approved/rejected.' );
 			}
-			if ( (int) $payment['created_by'] === get_current_user_id() || Stockland_Authority::role( (int) $payment['created_by'] ) !== 'management' ) {
+			if ( get_current_user_id() === (int) $payment['created_by'] || Stockland_Authority::role( (int) $payment['created_by'] ) !== 'management' ) {
 				throw new Exception( 'A different active Owner must approve a Management-submitted payment.' );
 			}
 			$amount = $this->money( $payment['amount'] );
@@ -2725,23 +3063,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					if ( ! $sid ) {
 						throw new Exception( 'Supplier payment is missing supplier_id.' );
 					}
-					$allocs = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'payment_allocations' ) . " WHERE payment_id=%d AND invoice_type='AP' FOR UPDATE", $id ), ARRAY_A );
+					$allocs = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE payment_id=%d AND invoice_type='AP' FOR UPDATE", Stockland_DB::table( 'payment_allocations' ), $id ), ARRAY_A );
 					if ( ! $allocs ) {
 						throw new Exception( 'Supplier payment has no PLEDGER invoice allocations.' );
 					}
-					$allocatedTotal = '0.00';
+					$allocated_total = '0.00';
 					foreach ( $allocs as $a ) {
 						$iid   = (int) $a['invoice_id'];
 						$alloc = $this->money( $a['amount'] );
-						$iv    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'supplier_invoices' ) . " WHERE id=%d AND supplier_id=%d AND status='POSTED' FOR UPDATE", $iid, $sid ), ARRAY_A );
+						$iv    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND supplier_id=%d AND status='POSTED' FOR UPDATE", Stockland_DB::table( 'supplier_invoices' ), $iid, $sid ), ARRAY_A );
 						if ( ! $iv ) {
 							throw new Exception( 'A supplier payment allocation no longer points to a POSTED invoice for this supplier.' );
-						}$other      = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(a.amount),0) FROM ' . Stockland_DB::table( 'payment_allocations' ) . " a INNER JOIN {$pt} p ON p.id=a.payment_id WHERE a.invoice_type='AP' AND a.invoice_id=%d AND p.status IN ('POSTED','PENDING') AND p.id<>%d", $iid, $id ) );
+						}$other      = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(a.amount),0) FROM %i a INNER JOIN %i p ON p.id=a.payment_id WHERE a.invoice_type='AP' AND a.invoice_id=%d AND p.status IN ('POSTED','PENDING') AND p.id<>%d", Stockland_DB::table( 'payment_allocations' ), $pt, $iid, $id ) );
 						$outstanding = Stockland_Money::subtract( $iv['total_amount'], number_format( $other, 2, '.', '' ) );
 						if ( Stockland_Money::minor( Stockland_Money::subtract( $alloc, $outstanding ) ) > 0 ) {
 							throw new Exception( 'Supplier payment would over-allocate invoice ' . $iv['invoice_number'] . '.' );
-						}$allocatedTotal = Stockland_Money::add( $allocatedTotal, $alloc );}
-					if ( Stockland_Money::minor( Stockland_Money::subtract( $allocatedTotal, $amount ) ) !== 0 ) {
+						}$allocated_total = Stockland_Money::add( $allocated_total, $alloc );}
+					if ( Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 						throw new Exception( 'Supplier payment allocations do not equal payment amount.' );
 					}
 				} elseif ( 'CUSTOMER' === $type && $cid <= 0 ) {
@@ -2794,7 +3132,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				),
 				array( 'id' => $id )
 			) ) {
-				throw new Exception( $wpdb->last_error ?: 'Payment status update failed.' );
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payment status update failed.' );
 			}
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'APPROVE' === $action ? 'FINANCE_PAYMENT_APPROVE' : 'FINANCE_PAYMENT_REJECT', null, $amount, 'PENDING', $next, 'REJECT' === $action ? $note : 'Owner approved; GL journal ' . $journal, 'PAY' . $id ) ) {
 				throw new Exception( 'Payment decision audit failed.' );
@@ -2817,11 +3155,37 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'payment_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Builds a trial-balance report from posted general-ledger entries.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return WP_REST_Response|WP_Error The authorized trial-balance response or an error.
+	 */
 	public function trial_balance( WP_REST_Request $r ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( 'SELECT a.account_code,a.account_name,a.account_type,COALESCE(SUM(l.debit),0) debit,COALESCE(SUM(l.credit),0) credit,COALESCE(SUM(l.debit-l.credit),0) balance FROM ' . Stockland_DB::table( 'gl_accounts' ) . ' a LEFT JOIN ' . Stockland_DB::table( 'gl_lines' ) . ' l ON l.account_code=a.account_code LEFT JOIN ' . Stockland_DB::table( 'gl_journals' ) . " j ON j.id=l.journal_id WHERE a.is_active=1 AND (j.id IS NULL OR j.status='POSTED') GROUP BY a.id ORDER BY a.account_code", ARRAY_A );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT a.account_code,a.account_name,a.account_type,COALESCE(SUM(l.debit),0) debit,COALESCE(SUM(l.credit),0) credit,COALESCE(SUM(l.debit-l.credit),0) balance
+				FROM %i a
+				LEFT JOIN %i l ON l.account_code=a.account_code
+				LEFT JOIN %i j ON j.id=l.journal_id
+				WHERE a.is_active=1 AND (j.id IS NULL OR j.status='POSTED')
+				GROUP BY a.id ORDER BY a.account_code",
+				Stockland_DB::table( 'gl_accounts' ),
+				Stockland_DB::table( 'gl_lines' ),
+				Stockland_DB::table( 'gl_journals' )
+			),
+			ARRAY_A
+		);
 		return rest_ensure_response( $rows );
 	}
+
+	/**
+	 * Builds the authorized financial summary report.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return WP_REST_Response|WP_Error The authorized financial summary or an error.
+	 */
 	public function financials( WP_REST_Request $r ) {
 		$tb = $this->trial_balance( $r );
 		if ( is_wp_error( $tb ) ) {
@@ -2871,19 +3235,38 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Returns permitted general-ledger journal and account information.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return WP_REST_Response|WP_Error The authorized general-ledger response or an error.
+	 */
 	public function gl( WP_REST_Request $r ) {
 		global $wpdb;
-		$from  = $this->date( $r->get_param( 'from' ) ?? null, null );
-		$to    = $this->date( $r->get_param( 'to' ) ?? null, null );
-		$where = '';
-		$args  = array();
-		if ( $from ) {
-			$where .= ' AND j.journal_date >= %s';
-			$args[] = $from;
-		}if ( $to ) {
-			$where .= ' AND j.journal_date <= %s';
-			$args[] = $to;}
-		$sql = 'SELECT j.journal_number,j.journal_date,j.source_type,j.source_id,j.memo,l.account_code,a.account_name,l.debit,l.credit,l.location_id FROM ' . Stockland_DB::table( 'gl_journals' ) . ' j JOIN ' . Stockland_DB::table( 'gl_lines' ) . ' l ON l.journal_id=j.id JOIN ' . Stockland_DB::table( 'gl_accounts' ) . " a ON a.account_code=l.account_code WHERE j.status='POSTED'{$where} ORDER BY j.journal_date DESC,j.id DESC,l.id ASC LIMIT 2000";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$from     = $this->date( $r->get_param( 'from' ) ?? null, null );
+		$to       = $this->date( $r->get_param( 'to' ) ?? null, null );
+		$has_from = (bool) $from;
+		$has_to   = (bool) $to;
+		$rows     = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT j.journal_number,j.journal_date,j.source_type,j.source_id,j.memo,l.account_code,a.account_name,l.debit,l.credit,l.location_id
+				FROM %i j
+				JOIN %i l ON l.journal_id=j.id
+				JOIN %i a ON a.account_code=l.account_code
+				WHERE j.status='POSTED'
+					AND (%d = 0 OR j.journal_date >= %s)
+					AND (%d = 0 OR j.journal_date <= %s)
+				ORDER BY j.journal_date DESC,j.id DESC,l.id ASC LIMIT 2000",
+				Stockland_DB::table( 'gl_journals' ),
+				Stockland_DB::table( 'gl_lines' ),
+				Stockland_DB::table( 'gl_accounts' ),
+				$has_from ? 1 : 0,
+				$has_from ? $from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $to : ''
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
 }
