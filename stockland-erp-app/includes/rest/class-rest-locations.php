@@ -80,6 +80,7 @@ class Stockland_REST_Locations {
 	 *
 	 * @param WP_REST_Request $r REST request containing location fields.
 	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When the location or audit record cannot be saved atomically.
 	 */
 	public function create( WP_REST_Request $r ) {
 		global $wpdb;
@@ -138,6 +139,7 @@ class Stockland_REST_Locations {
 	 *
 	 * @param WP_REST_Request $r REST request containing location ID and changed fields.
 	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When the location update or audit record cannot be saved atomically.
 	 */
 	public function update( WP_REST_Request $r ) {
 		global $wpdb;
