@@ -707,20 +707,15 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	public function purchase_orders( WP_REST_Request $r ) {
 		global $wpdb;
 		$p     = $r->get_param( 'status' );
-		$users = $wpdb->prefix . 'stock_users';
-		$sql   = 'SELECT po.*,s.supplier_name,l.location_name,cp.role AS creator_role,ap.role AS approver_role
+		$sql  = 'SELECT po.*,s.supplier_name,l.location_name
             FROM %i po
             JOIN %i s ON s.id=po.supplier_id
             JOIN %i l ON l.id=po.location_id
-            LEFT JOIN %i cp ON cp.wp_user_id=po.created_by AND cp.is_active=1
-            LEFT JOIN %i ap ON ap.wp_user_id=po.approved_by AND ap.is_active=1
             WHERE 1=1';
-		$args  = array(
+		$args = array(
 			Stockland_DB::table( 'purchase_orders' ),
 			Stockland_DB::table( 'suppliers' ),
 			Stockland_DB::table( 'locations' ),
-			$users,
-			$users,
 		);
 		if ( ! Stockland_Authority::company_scope() ) {
 			$allowed = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
@@ -745,13 +740,24 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$can_approve  = Stockland_Authority::can_approve_external_purchase_order();
 		$can_receive  = Stockland_Authority::can_receive_external_purchase_order();
 		$central      = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+		$role_cache   = array();
+		$profile_role = static function ( $user_id ) use ( &$role_cache ) {
+			$user_id = (int) $user_id;
+			if ( $user_id <= 0 ) {
+				return '';
+			}
+			if ( ! array_key_exists( $user_id, $role_cache ) ) {
+				$role_cache[ $user_id ] = Stockland_Authority::role( $user_id );
+			}
+			return $role_cache[ $user_id ];
+		};
 		foreach ( $rows as &$row ) {
 			$actions               = array();
 			$status                = (string) $row['status'];
 			$creator               = (int) $row['created_by'];
-			$created_by_management = (string) ( $row['creator_role'] ?? '' ) === 'management';
+			$created_by_management = 'management' === $profile_role( $creator );
 			$approved_by           = (int) ( $row['approved_by'] ?? 0 );
-			$owner_approved        = $approved_by > 0 && $approved_by !== $creator && (string) ( $row['approver_role'] ?? '' ) === 'owner' && ! empty( $row['approved_at'] );
+			$owner_approved        = $approved_by > 0 && $approved_by !== $creator && 'owner' === $profile_role( $approved_by ) && ! empty( $row['approved_at'] );
 			$central_po            = $central > 0 && (int) $row['location_id'] === $central;
 			if ( 'DRAFT' === $status && $can_create && $creator === $uid && $created_by_management ) {
 				$actions[] = 'SUBMIT';
@@ -775,7 +781,6 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$row['approval_integrity_ok'] = $created_by_management && $owner_approved && $central_po;
 			$row['available_actions']     = $actions;
 			$row['next_action']           = $actions[0] ?? 'VIEW';
-			unset( $row['creator_role'], $row['approver_role'] );
 			if ( ! $finance_view ) {
 				foreach ( array( 'subtotal', 'tax_amount', 'total_amount' ) as $k ) {
 					unset( $row[ $k ] );
