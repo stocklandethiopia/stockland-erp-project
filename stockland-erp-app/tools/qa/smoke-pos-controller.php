@@ -135,7 +135,18 @@ class FakeWPDB {
 	}
 	public function query( $sql ) {
 		return true; }
-	public function get_row( $sql, $output = ARRAY_A ) {
+	public function get_results( $sql, $output = ARRAY_A ) {
+		// The smoke fixture starts with no pre-existing unclosed sales.
+		return array();
+	}
+	public function get_row( $sql, $output = ARRAY_A, $y = 0 ) {
+		if ( stripos( $sql, 'SUM(sales_total)' ) !== false ) {
+			return array(
+				'total_sales'        => '0.00',
+				'total_vat'          => '0.00',
+				'total_gross_profit' => '0.00',
+			);
+		}
 		if ( stripos( $sql, 'FROM wp_stock_sales' ) !== false ) {
 			if ( preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
 				return $this->sales[ $m[1] ] ?? null;
@@ -226,6 +237,30 @@ class Stockland_DB {
 			'products' => 'wp_stock_products',
 		);
 		return $map[ $key ] ?? 'wp_stock_' . $key; }
+	public static function execute_query( $sql ) {
+		global $wpdb;
+		return $wpdb->query( $sql );
+	}
+	public static function read_var( $sql, $x = 0, $y = 0 ) {
+		global $wpdb;
+		return $wpdb->get_var( $sql, $x, $y );
+	}
+	public static function read_row( $sql, $output = ARRAY_A, $y = 0 ) {
+		global $wpdb;
+		return $wpdb->get_row( $sql, $output, $y );
+	}
+	public static function read_results( $sql, $output = ARRAY_A ) {
+		global $wpdb;
+		return $wpdb->get_results( $sql, $output );
+	}
+	public static function insert_record( $table, $data, $format = null ) {
+		global $wpdb;
+		return $wpdb->insert( $table, $data, $format );
+	}
+	public static function update_record( $table, $data, $where, $format = null, $where_format = null ) {
+		global $wpdb;
+		return $wpdb->update( $table, $data, $where );
+	}
 	public static function acquire_day_lock( $branch, $date ) {
 		return array(
 			'ok'  => true,
