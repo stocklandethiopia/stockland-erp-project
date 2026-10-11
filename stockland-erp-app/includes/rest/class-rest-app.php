@@ -1661,7 +1661,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		$rows         = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM ' . Stockland_DB::table( 'locations' ) . " WHERE is_active=1 AND id IN({$placeholders})", $ids ), ARRAY_A );
+		$rows         = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM %i WHERE is_active=1 AND id IN(' . $placeholders . ')', array_merge( array( Stockland_DB::table( 'locations' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
 		$types        = array();
 		foreach ( $rows as $row ) {
 			$types[ (int) $row['id'] ] = (string) $row['location_type'];
@@ -1719,8 +1719,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$placeholders[] = '(%d,%d,%d,1,%d)';
 			array_push( $values, $user_id, $loc, $is_primary, $created );
 		}
-		$sql = "INSERT INTO {$table} (wp_user_id,location_id,is_primary,is_active,created_by) VALUES " . implode( ',', $placeholders );
-		$ok  = $wpdb->query( $wpdb->prepare( $sql, $values ) );
+		$sql = 'INSERT INTO %i (wp_user_id,location_id,is_primary,is_active,created_by) VALUES ' . implode( ',', $placeholders );
+		$ok  = $wpdb->query( $wpdb->prepare( $sql, array_merge( array( $table ), $values ) ) );
 		return false !== $ok;
 	}
 
@@ -1729,26 +1729,33 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$users_table     = Stockland_DB::table( 'users' );
 		$locations_table = Stockland_DB::table( 'locations' );
 		$scope_table     = Stockland_DB::table( 'user_locations' );
-		$rows            = $wpdb->get_results(
-			"SELECT su.wp_user_id,su.role,su.branch_location_id,su.is_active,
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT su.wp_user_id,su.role,su.branch_location_id,su.is_active,
                     u.user_login,u.display_name,u.user_email,l.location_name,
                     COALESCE(scope.location_ids,IF(su.branch_location_id IS NULL,'',CAST(su.branch_location_id AS CHAR))) AS location_ids_csv,
                     COALESCE(scope.location_names,IF(l.location_name IS NULL,'',l.location_name)) AS location_names_csv
-             FROM {$users_table} su
-             JOIN {$wpdb->users} u ON u.ID=su.wp_user_id
-             LEFT JOIN {$locations_table} l ON l.id=su.branch_location_id
+             FROM %i su
+             JOIN %i u ON u.ID=su.wp_user_id
+             LEFT JOIN %i l ON l.id=su.branch_location_id
              LEFT JOIN (
                  SELECT ul.wp_user_id,
                         GROUP_CONCAT(DISTINCT ul.location_id ORDER BY ul.is_primary DESC,ul.id SEPARATOR ',') AS location_ids,
                         GROUP_CONCAT(DISTINCT loc.location_name ORDER BY ul.is_primary DESC,ul.id SEPARATOR '||') AS location_names
-                 FROM {$scope_table} ul
-                 JOIN {$locations_table} loc ON loc.id=ul.location_id
+                 FROM %i ul
+                 JOIN %i loc ON loc.id=ul.location_id
                  WHERE ul.is_active=1
                    AND (ul.effective_from IS NULL OR ul.effective_from<=CURDATE())
                    AND (ul.effective_to IS NULL OR ul.effective_to>=CURDATE())
                  GROUP BY ul.wp_user_id
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login",
+				$users_table,
+				$wpdb->users,
+				$locations_table,
+				$scope_table,
+				$locations_table
+			),
 			ARRAY_A
 		);
 		foreach ( $rows as &$row ) {
@@ -1921,12 +1928,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function available_wp_users() {
 		global $wpdb;
 		$stock_table = Stockland_DB::table( 'users' );
-		$rows        = $wpdb->get_results(
-			"SELECT u.ID,u.user_login,u.display_name,u.user_email,u.user_registered,
-                su.role AS erp_role,su.is_active AS erp_is_active
-            FROM {$wpdb->users} u
-            LEFT JOIN {$stock_table} su ON su.wp_user_id=u.ID
-            ORDER BY u.display_name,u.user_login",
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT u.ID,u.user_login,u.display_name,u.user_email,u.user_registered,su.role AS erp_role,su.is_active AS erp_is_active FROM %i u LEFT JOIN %i su ON su.wp_user_id=u.ID ORDER BY u.display_name,u.user_login',
+				$wpdb->users,
+				$stock_table
+			),
 			ARRAY_A
 		);
 		$out         = array();
@@ -2014,7 +2021,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start ERP user activation transaction.', array( 'status' => 500 ) );
 		}$previous = array();
 		try {
-			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$stock_table} WHERE wp_user_id=%d FOR UPDATE", $target ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d FOR UPDATE', $stock_table, $target ), ARRAY_A );
 			$old_ref  = $existing ? $existing['role'] : 'UNLINKED';
 			$previous = $this->apply_stockland_role( $target, $role, true );
 			$data     = array(
@@ -2674,7 +2681,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 		}
 		if ( $barcode ) {
-			$p = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$products} WHERE is_active=1 AND (barcode=%s OR gtin=%s) LIMIT 2", $barcode, $barcode ), ARRAY_A );
+			$p = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE is_active=1 AND (barcode=%s OR gtin=%s) LIMIT 2', $products, $barcode, $barcode ), ARRAY_A );
 			if ( $p ) {
 				return $p;
 			}
@@ -2686,7 +2693,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $brand || ! $name ) {
 			return null;
 		}
-		$rows    = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$products} WHERE is_active=1 AND LOWER(TRIM(brand))=%s AND LOWER(TRIM(product_name))=%s", $brand, $name ), ARRAY_A );
+		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE is_active=1 AND LOWER(TRIM(brand))=%s AND LOWER(TRIM(product_name))=%s', $products, $brand, $name ), ARRAY_A );
 		$matches = array_values(
 			array_filter(
 				$rows,
@@ -2848,7 +2855,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count transaction.', array( 'status' => 500 ) );}
 		try {
-			$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT batch_id FROM ' . Stockland_DB::table( 'count_batches' ) . " WHERE location_id=%d AND count_date=%s AND status IN('Pending','Approved') LIMIT 1", $loc, $date ) );
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT batch_id FROM %i WHERE location_id=%d AND count_date=%s AND status IN('Pending','Approved') LIMIT 1", Stockland_DB::table( 'count_batches' ), $loc, $date ) );
 			if ( $exists ) {
 				throw new Exception( 'A physical count is already open for this location and date: ' . $exists . '. Complete or resolve it before uploading another count.' );
 			}
@@ -2976,7 +2983,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! in_array( $decision, array( 'Approved', 'Rejected' ), true ) ) {
 			return new WP_Error( 'invalid_decision', 'Decision must be Approved or Rejected.', array( 'status' => 400 ) );
 		}
-		$b = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_batches' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+		$b = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'count_batches' ), $id ), ARRAY_A );
 		if ( ! $b ) {
 			return new WP_Error( 'not_found', 'Physical count batch not found.', array( 'status' => 404 ) );
 		}
@@ -2994,12 +3001,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count decision transaction.', array( 'status' => 500 ) );}
 		try {
-			$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_batches' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'count_batches' ), $id ), ARRAY_A );
 			if ( ! $batch || 'Pending' !== $batch['status'] ) {
 				throw new Exception( 'Physical count is no longer pending.' );
 			}
 			if ( 'Rejected' === $decision ) {
-				if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'adjustments' ) . " SET status='Rejected',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status='Pending'", get_current_user_id(), current_time( 'mysql' ), $reason, $batch['batch_id'] ) ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='Rejected',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status='Pending'", Stockland_DB::table( 'adjustments' ), get_current_user_id(), current_time( 'mysql' ), $reason, $batch['batch_id'] ) ) ) {
 					throw new Exception( 'Could not reject pending physical-count adjustments.' );
 				}
 				if ( false === $wpdb->update(
@@ -3026,14 +3033,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					)
 				);
 			}
-			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_lines' ) . ' WHERE batch_id=%s ORDER BY id FOR UPDATE', $batch['batch_id'] ), ARRAY_A );
+			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE batch_id=%s ORDER BY id FOR UPDATE', Stockland_DB::table( 'count_lines' ), $batch['batch_id'] ), ARRAY_A );
 			foreach ( $lines as $line ) {
 				$current = Stockland_DB::get_physical_stock( (int) $batch['location_id'], $line['sku'] );
 				if ( abs( $current - (float) $line['system_qty'] ) > 0.00001 ) {
 					throw new Exception( 'Stock changed after the physical count for ' . $line['sku'] . '. Recount is required before this batch can be approved.' );
 				}
 			}
-			$adjustments = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'adjustments' ) . " WHERE count_batch_id=%s AND status='Pending' FOR UPDATE", $batch['batch_id'] ), ARRAY_A );
+			$adjustments = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE count_batch_id=%s AND status='Pending' FOR UPDATE", Stockland_DB::table( 'adjustments' ), $batch['batch_id'] ), ARRAY_A );
 			foreach ( $adjustments as $a ) {
 				if ( false === Stockland_Ledger::record( (int) $a['location_id'], $a['sku'], 'PHYSICAL_COUNT_ADJUSTMENT', (float) $a['variance_qty'], 'adjustment', (string) $a['id'], $batch['count_date'], get_current_user_id() ) ) {
 					throw new Exception( 'Could not post the physical-count adjustment for ' . $a['sku'] . '.' );
