@@ -2116,8 +2116,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$ret   = Stockland_DB::table( 'returns' );
 		$loc   = Stockland_DB::table( 'locations' );
 
-		$where      = $scope ? $wpdb->prepare( ' AND branch_location_id=%d', $scope ) : '';
-		$rt         = $wpdb->get_row(
+		$where       = $scope ? $wpdb->prepare( ' AND branch_location_id=%d', $scope ) : '';
+		$rt          = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT COALESCE(SUM(sales_total),0) sales,COALESCE(SUM(net_sales_excl_vat),0) net,
                     COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit,
@@ -2128,7 +2128,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			),
 			ARRAY_A
 		);
-		$wt         = $scope ? array(
+		$wt          = $scope ? array(
 			'sales'  => 0,
 			'net'    => 0,
 			'vat'    => 0,
@@ -2145,7 +2145,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			),
 			ARRAY_A
 		);
-		$branch_sql = "SELECT l.location_name,
+		$branch_sql  = "SELECT l.location_name,
                     COALESCE(SUM(s.quantity_sold),0) retail_units,
                     COALESCE(SUM(s.sales_total),0) retail_sales,
                     COALESCE(SUM(s.gross_profit),0) retail_profit
@@ -2158,9 +2158,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$branch_sql   .= ' AND l.id=%d';
 			$branch_args[] = $scope;
 		}
-		$branch_sql .= ' GROUP BY l.id ORDER BY retail_sales DESC';
-		$branch      = $wpdb->get_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
-		$top        = $wpdb->get_results(
+		$branch_sql  .= ' GROUP BY l.id ORDER BY retail_sales DESC';
+		$branch       = $wpdb->get_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
+		$top          = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT s.sku,p.product_name,COALESCE(SUM(s.quantity_sold),0) units,
                     COALESCE(SUM(s.sales_total),0) sales,COALESCE(SUM(s.gross_profit),0) profit
@@ -2179,7 +2179,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$returns_sql   .= ' AND location_id=%d';
 			$returns_args[] = $scope;
 		}
-		$returns = $wpdb->get_row( $wpdb->prepare( $returns_sql, $returns_args ), ARRAY_A );
+		$returns    = $wpdb->get_row( $wpdb->prepare( $returns_sql, $returns_args ), ARRAY_A );
 		$stock_sql  = "SELECT l.location_name,p.sku,p.product_name,p.brand,p.size,p.color,COALESCE(b.physical_stock,0) physical_stock,COALESCE(a.reserved_stock,0) reserved_stock,COALESCE(b.physical_stock,0)-COALESCE(a.reserved_stock,0) available_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level FROM " . Stockland_DB::table( 'products' ) . ' p JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.location_type IN('Warehouse','Branch') LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM " . Stockland_DB::table( 'transactions' ) . ' WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id=p.variant_id AND b.location_id=l.id LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_reserved) reserved_stock FROM ' . Stockland_DB::table( 'reservations' ) . " WHERE status='Active' AND variant_id IS NOT NULL GROUP BY location_id,variant_id) a ON a.variant_id=p.variant_id AND a.location_id=l.id WHERE p.is_active=1";
 		$stock_args = array();
 		if ( $scope ) {
