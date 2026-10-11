@@ -1,4 +1,5 @@
 <?php
+// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
 /**
  * Stockland ERP import, mapping, workbook validation, and commit endpoints.
  *
