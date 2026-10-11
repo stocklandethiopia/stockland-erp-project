@@ -130,6 +130,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				$args[] = $id;}
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 500';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql contains only the fixed transfer query plus generated %d tokens; scope IDs are integer-cast and bound through $args.
 		return rest_ensure_response( Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
 
