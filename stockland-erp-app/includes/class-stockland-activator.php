@@ -1697,6 +1697,7 @@ class Stockland_Activator {
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not clear stale balance migration stage.' );
 				}
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The table identifier is bound; the only appended fragment is wpdb's trusted charset/collation clause for this fixed migration DDL.
 				$wpdb->query(
 					$wpdb->prepare( "CREATE TABLE %i (
                     location_id BIGINT UNSIGNED NOT NULL,
@@ -1705,7 +1706,7 @@ class Stockland_Activator {
                     physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     PRIMARY KEY  (location_id,variant_id), KEY sku (sku), KEY location_sku (location_id,sku)
-                ) ENGINE=InnoDB {$wpdb->get_charset_collate()}", $stage )
+                ) ENGINE=InnoDB", $stage ) . ' ' . $wpdb->get_charset_collate()
 				);
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not create staged balance read model.' );
