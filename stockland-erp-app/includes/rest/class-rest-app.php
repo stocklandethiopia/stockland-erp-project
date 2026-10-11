@@ -612,24 +612,32 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	private function transfer_snapshot( $scope = null ) {
 		global $wpdb;
-		$args = array();
+		$args = array(
+			Stockland_DB::table( 'transfers' ),
+			Stockland_DB::table( 'locations' ),
+			Stockland_DB::table( 'locations' ),
+			Stockland_DB::table( 'products' ),
+		);
 		$sql  = 'SELECT t.transfer_id,t.transfer_date,t.from_location_id,t.to_location_id,t.sku,t.quantity,t.status,f.location_name from_location_name,to_l.location_name to_location_name,p.product_name
-              FROM ' . Stockland_DB::table( 'transfers' ) . ' t
-              JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id
-              JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id
-              JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE 1=1';
+              FROM %i t
+              JOIN %i f ON f.id=t.from_location_id
+              JOIN %i to_l ON to_l.id=t.to_location_id
+              JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE 1=1';
 		if ( is_array( $scope ) ) {
-			$ph = implode( ',', array_fill( 0, count( $scope ), '%d' ) );
-			foreach ( $scope as $id ) {
-				$args[] = $id;
-				$args[] = $id;}
+			$ids = array_values( array_unique( array_map( 'intval', $scope ) ) );
+			if ( empty( $ids ) ) {
+				return array();
+			}
+			$ph   = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$args = array_merge( $args, $ids, $ids );
 			$sql .= " AND (t.from_location_id IN({$ph}) OR t.to_location_id IN({$ph}))";
 		} elseif ( null !== $scope ) {
+			$args[] = (int) $scope;
+			$args[] = (int) $scope;
 			$sql   .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
-			$args[] = $scope;
-			$args[] = $scope; }
+		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 100';
-		return $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		return $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 	}
 
 	private function dashboard( $scope = null ) {
