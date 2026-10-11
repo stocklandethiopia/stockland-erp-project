@@ -156,7 +156,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$table = Stockland_DB::table( 'products' );
-		$hit   = $wpdb->get_var(
+		$hit   = Stockland_DB::read_var(
 			$wpdb->prepare(
 				'SELECT sku FROM %i WHERE %i = %s AND sku <> %s LIMIT 1',
 				$table,
@@ -207,7 +207,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			 * placeholder order. The nine LIKE values precede the exact-SKU sort
 			 * values; prepending the exact-SKU value breaks search parameter binding.
 			 */
-			$rows = $wpdb->get_results(
+			$rows = Stockland_DB::read_results(
 				$wpdb->prepare(
 					'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,CASE WHEN %d = 1 THEN purchase_cost ELSE NULL END AS purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active
 					FROM %i
@@ -255,7 +255,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		$manage  = current_user_can( 'stockland_manage_products' );
 		$table   = Stockland_DB::table( 'products' );
 		$product = $manage && (string) $request->get_param( 'include_inactive' ) === '1'
-			? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s LIMIT 1', $table, $sku ), ARRAY_A )
+			? Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s LIMIT 1', $table, $sku ), ARRAY_A )
 			: Stockland_DB::get_product( $sku );
 		if ( ! $product ) {
 			return new WP_Error( 'not_found', 'SKU not found in Product Master.', array( 'status' => 404 ) );
@@ -340,22 +340,22 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		if ( empty( $new['parent_sku'] ) ) {
 			$new['parent_sku'] = 'SIMPLE' === $type ? $sku : $new['parent_sku'];
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start Product Master create transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$ok = $wpdb->insert( $table, $new );
+			$ok = Stockland_DB::insert_record( $table, $new );
 			if ( false === $ok ) {
 				throw new Exception( 'Could not create product. SKU may already exist.' );
 			}
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'PRODUCT_CREATE', $sku, null, null, $this->audit_value( $new ), 'Product Master product created', 'PRODUCT|' . $sku ) ) {
 				throw new Exception( 'Audit event could not be recorded; product was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Product create commit failed.' );
 			}
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'insert_failed', $e->getMessage(), array( 'status' => 409 ) );}
 		$saved = Stockland_DB::get_product( $sku );
 		if ( ! $saved ) {
@@ -403,7 +403,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		$created = array();
 		$skipped = array();
 		$used    = array();
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start variant matrix transaction.', array( 'status' => 500 ) );
 		}
 		try {
@@ -447,7 +447,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					if ( isset( $used[ $sku ] ) ) {
 						continue;
 					} $used[ $sku ] = 1;
-					$existing       = $wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
+					$existing       = Stockland_DB::read_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
 					if ( $existing ) {
 						$skipped[] = $sku;
 						continue;}
@@ -483,7 +483,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'central_reorder_level' => $style['central_reorder_level'],
 						'is_active'             => 1,
 					);
-					if ( false === $wpdb->insert( Stockland_DB::table( 'products' ), $row ) ) {
+					if ( false === Stockland_DB::insert_record( Stockland_DB::table( 'products' ), $row ) ) {
 						throw new Exception( 'Could not create variant ' . $sku . '.' );
 					}
 					$created[] = $sku;
@@ -507,11 +507,11 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			) ) {
 				throw new Exception( 'Audit event could not be recorded; variant matrix was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Variant matrix commit failed.' );
 			}
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'variant_create_failed', $e->getMessage(), array( 'status' => 409 ) );}
 		if ( $created ) {
 			try {
@@ -550,13 +550,13 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		$table = Stockland_DB::table( 'products' );
 		$sku   = $request['sku'];
 		$p     = $request->get_json_params();
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start Product Master update transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s FOR UPDATE', $table, $sku ), ARRAY_A );
+			$current = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s FOR UPDATE', $table, $sku ), ARRAY_A );
 			if ( ! $current ) {
-				$wpdb->query( 'ROLLBACK' );
+				Stockland_DB::execute_query( 'ROLLBACK' );
 				return new WP_Error( 'not_found', 'SKU not found.', array( 'status' => 404 ) );}
 			foreach ( array( 'barcode', 'gtin' ) as $field ) {
 				if ( isset( $p[ $field ] ) ) {
@@ -617,14 +617,14 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 				}
 			}
 			if ( empty( $update ) ) {
-				if ( false === $wpdb->query( 'COMMIT' ) ) {
+				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 					throw new Exception( 'No-change Product Master verification commit failed.' );
 				} return rest_ensure_response( Stockland_DB::get_product( $sku ) ); }
-			if ( false === $wpdb->update( $table, $update, array( 'sku' => $sku ) ) ) {
+			if ( false === Stockland_DB::update_record( $table, $update, array( 'sku' => $sku ) ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Product Master update failed.' );
 			}
 			foreach ( $price_changes as $change ) {
-				if ( false === $wpdb->insert(
+				if ( false === Stockland_DB::insert_record(
 					$history,
 					array(
 						'variant_id' => (int) $current['variant_id'],
@@ -641,7 +641,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( $uid, null, 'PRODUCT_UPDATE', $sku, null, $this->audit_value( $current ), $this->audit_value( $update ), 'Product Master product updated', 'PRODUCT|' . $sku ) ) {
 				throw new Exception( 'Audit event could not be recorded; product update was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Product update commit failed.' );
 			}
 			$saved = Stockland_DB::get_product( $sku );
@@ -655,7 +655,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 				}
 				return rest_ensure_response( $saved );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'product_update_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
