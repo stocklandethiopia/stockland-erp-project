@@ -75,11 +75,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * Validates and normalizes a supplied business date.
 	 *
 	 * @param mixed $v Value to validate or normalize.
-	 * @param mixed $default Optional fallback value.
+	 * @param mixed $fallback_date Optional fallback value.
 	 * @return string|false The normalized date, or false when the value is invalid.
 	 */
-	private function date( $v, $default = null ) {
-		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ? $default : current_time( 'Y-m-d' ) ) );
+	private function date( $v, $fallback_date = null ) {
+		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $fallback_date ? $fallback_date : current_time( 'Y-m-d' ) ) );
 		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : null;
 	}
 	/**
