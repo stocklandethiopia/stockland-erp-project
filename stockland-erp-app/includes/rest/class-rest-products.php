@@ -370,11 +370,11 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 	}
 
 	/**
-	 * Generates a color-by-size variant matrix from one existing STYLE template.
+	 * Creates a color-by-size matrix from a Style template without duplicate combinations.
 	 *
 	 * @param WP_REST_Request $request REST request containing parent SKU, colors and sizes.
-	 * @return mixed REST response with created variants or a WP_Error.
-	 * @throws Exception When validation, persistence, audit or transaction checks fail.
+	 * @return mixed Created variant matrix or WP_Error.
+	 * @throws Exception When validation or transaction processing fails.
 	 */
 	public function generate_variants( WP_REST_Request $request ) {
 		global $wpdb;
