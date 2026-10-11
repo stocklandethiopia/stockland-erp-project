@@ -358,8 +358,15 @@ class Stockland_Roles {
 		return $row ? $row : null;
 	}
 
-	/** Authorized operational locations. Company-wide roles are intentionally
-	 * handled by Authority::company_scope() and do not need a row per branch. */
+	/**
+	 * Returns active operational locations assigned to a WordPress user.
+	 *
+	 * Company-wide roles are handled by Authority::company_scope() and do not
+	 * require a separate assignment row for each branch.
+	 *
+	 * @param int $wp_user_id WordPress user identifier.
+	 * @return array<int> Assigned active location IDs.
+	 */
 	public static function get_location_scope( $wp_user_id ) {
 		global $wpdb;
 		$ids    = array();
