@@ -66,7 +66,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$table = Stockland_DB::table( 'returns' );
-		$rows  = $wpdb->get_results(
+		$rows  = Stockland_DB::read_results(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE (%d = 0 OR location_id = %d) ORDER BY created_at DESC LIMIT %d',
 				$table,
@@ -132,7 +132,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		}
 
 		if ( 'Adjustment' === $p['return_type'] ) {
-			if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 				Stockland_DB::release_day_lock( $lock );
 				return new WP_Error( 'transaction_failed', 'Could not start adjustment transaction.', array( 'status' => 500 ) );}
 			try {
@@ -140,7 +140,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 				$sign   = isset( $p['adjustment_sign'] ) && (int) $p['adjustment_sign'] < 0 ? -1 : 1;
 				$delta  = $sign * abs( (float) $p['quantity'] );
 				$aid    = Stockland_Sequence::next( 'ADJ-', $current_date );
-				$ok     = $wpdb->insert(
+				$ok     = Stockland_DB::insert_record(
 					Stockland_DB::table( 'adjustments' ),
 					array(
 						'adjustment_id' => $aid,
@@ -177,7 +177,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 				if ( ! Stockland_Audit::log( $user_id, $location_id, 'ADJUSTMENT_REQUEST', sanitize_text_field( $p['sku'] ), $delta, (string) $system, (string) ( $system + $delta ), $p['reason'], $aid ) ) {
 					throw new Exception( 'Audit event could not be recorded.' );
 				}
-				if ( false === $wpdb->query( 'COMMIT' ) ) {
+				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 					throw new Exception( 'Adjustment commit failed.' );
 				}
 				Stockland_DB::release_day_lock( $lock );
@@ -191,7 +191,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 					)
 				);
 			} catch ( Throwable $e ) {
-				$wpdb->query( 'ROLLBACK' );
+				Stockland_DB::execute_query( 'ROLLBACK' );
 				Stockland_DB::release_day_lock( $lock );
 				return new WP_Error( 'adjustment_failed', $e->getMessage(), array( 'status' => 409 ) );
 			}
@@ -200,12 +200,12 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		if ( 'Damage' === $p['return_type'] && Stockland_DB::get_available_stock( $location_id, $sku ) < (float) $p['quantity'] ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'insufficient_stock', 'Insufficient available stock for this damage quantity.', array( 'status' => 409 ) ); }
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start return transaction.', array( 'status' => 500 ) );}
 		try {
 			$reference_sale_id = sanitize_text_field( $p['reference_sale_id'] ?? '' );
-			$wpdb->insert(
+			Stockland_DB::insert_record(
 				$table,
 				array(
 					'return_date'       => $return_date,
@@ -225,7 +225,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 				throw new Exception( 'Could not record return.' );
 			}
 
-			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $id ), ARRAY_A );
+			$row = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $id ), ARRAY_A );
 			if ( 'Adjustment' === $p['return_type'] ) {
 				return rest_ensure_response( $row ); // protected above; retained for defensive compatibility
 			}
@@ -239,7 +239,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 				$unit_cost  = (float) ( $prod['purchase_cost'] ?? 0 );
 				$unit_price = (float) ( $prod['retail_price'] ?? 0 );
 				if ( ! empty( $row['reference_sale_id'] ) ) {
-					$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT selling_price,sales_total,net_sales_excl_vat,vat_amount,cogs,quantity_sold FROM %i WHERE sale_id=%s AND (variant_id=%d OR (variant_id IS NULL AND sku=%s)) LIMIT 1', Stockland_DB::table( 'sales' ), $row['reference_sale_id'], (int) $row['variant_id'], $row['sku'] ), ARRAY_A );
+					$sale = Stockland_DB::read_row( $wpdb->prepare( 'SELECT selling_price,sales_total,net_sales_excl_vat,vat_amount,cogs,quantity_sold FROM %i WHERE sale_id=%s AND (variant_id=%d OR (variant_id IS NULL AND sku=%s)) LIMIT 1', Stockland_DB::table( 'sales' ), $row['reference_sale_id'], (int) $row['variant_id'], $row['sku'] ), ARRAY_A );
 					if ( $sale ) {
 						$unit_price = Stockland_Money::divide( $sale['sales_total'], $sale['quantity_sold'] );
 						$unit_cost  = Stockland_Money::divide( $sale['cogs'], $sale['quantity_sold'] );}
@@ -323,13 +323,13 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( $user_id, $location_id, 'RETURN_RECORD_' . strtoupper( $p['return_type'] ), $p['sku'], $p['quantity'], null, null, $p['reason'], (string) $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; return was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Return transaction commit failed.' );
 			}
 			Stockland_DB::release_day_lock( $lock );
 			return rest_ensure_response( $row );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'return_failed', $e->getMessage(), array( 'status' => 409 ) ); }
 	}
