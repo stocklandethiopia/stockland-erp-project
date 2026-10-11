@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'STOCKLAND_VERSION', '16.1.57' );
+define( 'STOCKLAND_ROLE_CAPS_VERSION', '16.1.57-owner-po-approval-v2' );
 define( 'STOCKLAND_CORE_SCHEMA_VERSION', '16.1.1' );
 define( 'STOCKLAND_ACCOUNTING_SCHEMA_VERSION', '16.1.15' );
 define( 'STOCKLAND_HR_SCHEMA_VERSION', '16.1.3' );
@@ -138,10 +139,10 @@ function stockland_init_plugin() {
 			'init',
 			function () {
 				try {
-					if ( get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_VERSION ) {
+					if ( get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION ) {
 						Stockland_Roles::register_roles();
 						Stockland_Roles::sync_roles();
-						update_option( 'stockland_roles_cap_version', STOCKLAND_VERSION, false );
+						update_option( 'stockland_roles_cap_version', STOCKLAND_ROLE_CAPS_VERSION, false );
 					}
 				} catch ( Throwable $e ) {
 					update_option(
