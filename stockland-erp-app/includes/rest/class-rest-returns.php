@@ -44,14 +44,16 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$table = Stockland_DB::table( 'returns' );
-		$sql   = 'SELECT * FROM %i WHERE 1=1';
-		$args  = array( $table );
-		if ( $location_id ) {
-			$sql   .= ' AND location_id = %d';
-			$args[] = $location_id;
-		}
-		$sql .= ' ORDER BY created_at DESC LIMIT 500';
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE (%d = 0 OR location_id = %d) ORDER BY created_at DESC LIMIT %d',
+				$table,
+				$location_id ? 1 : 0,
+				$location_id ? (int) $location_id : 0,
+				500
+			),
+			ARRAY_A
+		);
 		return rest_ensure_response( $rows );
 	}
 

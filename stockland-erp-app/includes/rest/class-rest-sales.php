@@ -88,28 +88,47 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		global $wpdb;
 		$table          = Stockland_DB::table( 'sales' );
 		$can_see_profit = current_user_can( 'stockland_view_cost_and_profit' );
+		$date           = $request->get_param( 'date' );
+		$has_location   = (bool) $location_id;
+		$has_date       = (bool) $date;
+		$location_value = $has_location ? (int) $location_id : 0;
+		$date_value     = $has_date ? (string) $date : '';
 
-		$cols = 'sale_id, sale_date, branch_location_id, sku, quantity_sold, size, color,
-                 master_price_at_sale, selling_price, price_overridden, vat_mode, vat_rate_used,
-                 sales_total, vat_amount, net_sales_excl_vat, posting_status';
 		if ( $can_see_profit ) {
-			$cols .= ', cogs, gross_profit';
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT sale_id,sale_date,branch_location_id,sku,quantity_sold,size,color,master_price_at_sale,selling_price,price_overridden,vat_mode,vat_rate_used,sales_total,vat_amount,net_sales_excl_vat,posting_status,cogs,gross_profit
+					FROM %i
+					WHERE (%d = 0 OR branch_location_id = %d)
+						AND (%d = 0 OR sale_date = %s)
+					ORDER BY sale_date DESC, sale_id DESC LIMIT %d',
+					$table,
+					$has_location ? 1 : 0,
+					$location_value,
+					$has_date ? 1 : 0,
+					$date_value,
+					500
+				),
+				ARRAY_A
+			);
+		} else {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT sale_id,sale_date,branch_location_id,sku,quantity_sold,size,color,master_price_at_sale,selling_price,price_overridden,vat_mode,vat_rate_used,sales_total,vat_amount,net_sales_excl_vat,posting_status
+					FROM %i
+					WHERE (%d = 0 OR branch_location_id = %d)
+						AND (%d = 0 OR sale_date = %s)
+					ORDER BY sale_date DESC, sale_id DESC LIMIT %d',
+					$table,
+					$has_location ? 1 : 0,
+					$location_value,
+					$has_date ? 1 : 0,
+					$date_value,
+					500
+				),
+				ARRAY_A
+			);
 		}
-
-		$sql  = "SELECT {$cols} FROM {$table} WHERE 1=1";
-		$args = array();
-		if ( $location_id ) {
-			$sql   .= ' AND branch_location_id = %d';
-			$args[] = $location_id;
-		}
-		$date = $request->get_param( 'date' );
-		if ( $date ) {
-			$sql   .= ' AND sale_date = %s';
-			$args[] = $date;
-		}
-		$sql .= ' ORDER BY sale_date DESC, sale_id DESC LIMIT 500';
-
-		$rows = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
 		return rest_ensure_response( $rows );
 	}
 
