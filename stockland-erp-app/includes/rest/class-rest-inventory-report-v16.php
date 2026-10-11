@@ -96,15 +96,18 @@ class Stockland_REST_Inventory_Report_V16 {
 			$wpdb->prepare(
 				"SELECT b.variant_id,b.sku,
                     COALESCE(b.physical_qty,0)-COALESCE(r.reserved_qty,0) available_qty
-             FROM {$bal} b
-             INNER JOIN {$prod} p ON p.variant_id=b.variant_id
+             FROM %i b
+             INNER JOIN %i p ON p.variant_id=b.variant_id
              LEFT JOIN (
                  SELECT COALESCE(variant_id,0) variant_id,sku,SUM(quantity_reserved) reserved_qty
-                 FROM {$res}
+                 FROM %i
                  WHERE location_id=%d AND status='Active'
                  GROUP BY COALESCE(variant_id,0),sku
              ) r ON (r.variant_id=b.variant_id OR (r.variant_id=0 AND r.sku=b.sku))
              WHERE b.location_id=%d AND p.is_active=1 AND p.product_type<>'STYLE'",
+				$bal,
+				$prod,
+				$res,
 				$warehouse_id,
 				$warehouse_id
 			),
@@ -126,8 +129,7 @@ class Stockland_REST_Inventory_Report_V16 {
 		global $wpdb;
 		$p    = Stockland_DB::table( 'products' );
 		$rows = $wpdb->get_results(
-			"SELECT variant_id,sku,product_name,unit,purchase_cost,retail_price,branch_reorder_level,central_reorder_level
-             FROM {$p} WHERE is_active=1 AND product_type<>'STYLE' ORDER BY product_name,sku",
+			$wpdb->prepare( "SELECT variant_id,sku,product_name,unit,purchase_cost,retail_price,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY product_name,sku", $p ),
 			ARRAY_A
 		);
 		if ( $wpdb->last_error ) {
@@ -235,9 +237,9 @@ class Stockland_REST_Inventory_Report_V16 {
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_locations' );
 		if ( ! $location ) {
-			$locs = $wpdb->get_results( "SELECT id,location_name,location_type FROM {$locations_t} WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", ARRAY_A );
+			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", $locations_t ), ARRAY_A );
 		} else {
-			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM {$locations_t} WHERE id=%d AND is_active=1 LIMIT 1", $location ), ARRAY_A );
+			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE id=%d AND is_active=1 LIMIT 1", $locations_t, $location ), ARRAY_A );
 		}
 		if ( empty( $locs ) ) {
 			return rest_ensure_response(
