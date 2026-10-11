@@ -359,6 +359,11 @@ class Stockland_Frontend {
 		}
 	}
 
+	/**
+	 * Registers the additive direct ERP route without replacing the WordPress page.
+	 *
+	 * @return void
+	 */
 	private static function register_rewrite_rule() {
 		add_rewrite_rule(
 			'^' . self::ERP_PATH . '/?$',
