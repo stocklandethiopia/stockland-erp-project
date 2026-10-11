@@ -1,4 +1,10 @@
 <?php
+/**
+ * Statutory Ethiopian employment-income tax and private-pension calculations.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; }
 
@@ -130,7 +136,20 @@ final class Stockland_Payroll_Statutory {
 		);
 	}
 
-	/** Calculate one monthly payroll line without floating-point money arithmetic. */
+	/**
+	 * Calculates one monthly payroll line without floating-point money arithmetic.
+	 *
+	 * Allowance tax treatment must be verified and approved separately; this method
+	 * only calculates amounts after the authoritative classifications are supplied.
+	 *
+	 * @param mixed $base_salary Base salary amount in ETB.
+	 * @param mixed $taxable_allowance Total taxable allowance amount in ETB.
+	 * @param mixed $exempt_allowance Owner-classified exempt allowance amount in ETB.
+	 * @param mixed $pensionable_salary Salary amount subject to pension contribution.
+	 * @param mixed $other_deduction Other authorized deduction amount in ETB.
+	 * @return array<string, string> Calculated payroll amounts and rule metadata.
+	 * @throws InvalidArgumentException When amounts are invalid or deductions exceed gross pay.
+	 */
 	public static function calculate( $base_salary, $taxable_allowance, $exempt_allowance, $pensionable_salary, $other_deduction ) {
 		$base          = self::amount( $base_salary, 'Base salary' );
 		$taxable_allow = self::amount( $taxable_allowance, 'Taxable allowance' );
@@ -178,8 +197,14 @@ final class Stockland_Payroll_Statutory {
 	}
 
 	/**
-	 * Calculate the published monthly rate schedule using the bracket rates and
-	 * corresponding tax-credit amounts that make adjacent brackets continuous.
+	 * Calculates PAYE using the published monthly brackets and credits.
+	 *
+	 * The bracket credits keep adjacent rates continuous. This method must only
+	 * be used for a payroll period covered by this rule version.
+	 *
+	 * @param mixed $taxable_income Monthly taxable employment income in ETB.
+	 * @return array{0: string, 1: string} The tax amount and applied percentage.
+	 * @throws InvalidArgumentException When taxable income is invalid or negative.
 	 */
 	public static function income_tax( $taxable_income ) {
 		$income = self::amount( $taxable_income, 'Taxable income' );
@@ -208,10 +233,18 @@ final class Stockland_Payroll_Statutory {
 				return array( $tax, $pct );
 	}
 
+	/**
+	 * Normalizes a non-negative monetary amount.
+	 *
+	 * @param mixed  $value Amount to normalize.
+	 * @param string $label Human-readable amount label for validation errors.
+	 * @return string Normalized two-decimal ETB amount.
+	 * @throws InvalidArgumentException When the amount is negative.
+	 */
 	private static function amount( $value, $label ) {
 		$amount = Stockland_Money::decimal( Stockland_Money::minor( $value ) );
 		if ( Stockland_Money::minor( $amount ) < 0 ) {
-			throw new InvalidArgumentException( $label . ' cannot be negative.' );
+			throw new InvalidArgumentException( esc_html( $label ) . ' cannot be negative.' );
 		}
 		return $amount;
 	}
