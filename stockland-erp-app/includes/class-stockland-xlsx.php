@@ -28,13 +28,29 @@ class Stockland_XLSX {
 	const MAX_ZIP_UNCOMPRESSED_BYTES = 96 * 1024 * 1024;
 	const MAX_ZIP_RATIO              = 200;
 
-	/** @var ZipArchive|null Open workbook archive. */
+	/**
+	 * Open workbook archive.
+	 *
+	 * @var ZipArchive|null
+	 */
 	private $zip = null;
-	/** @var mixed Reserved compatibility field for legacy reader implementations. */
+	/**
+	 * Reserved compatibility field for legacy reader implementations.
+	 *
+	 * @var mixed
+	 */
 	private $pcl = null;
-	/** @var array<int, string> Shared strings loaded from the workbook. */
+	/**
+	 * Shared strings loaded from the workbook.
+	 *
+	 * @var array<int, string>
+	 */
 	private $shared = array();
-	/** @var array<string, string> Worksheet names mapped to archive paths. */
+	/**
+	 * Worksheet names mapped to archive paths.
+	 *
+	 * @var array<string, string>
+	 */
 	private $sheets = array();
 
 	/**
@@ -128,7 +144,7 @@ class Stockland_XLSX {
 	/**
 	 * Returns the uncompressed size of a workbook archive entry.
 	 *
-	 * @param string $path Archive entry path.
+	 * @param string $name Archive entry name.
 	 * @return int|null Entry size, or null when the archive cannot report it.
 	 */
 	private function entry_size( $name ) {
@@ -145,7 +161,7 @@ class Stockland_XLSX {
 	/**
 	 * Loads a bounded XML metadata entry from the workbook.
 	 *
-	 * @param string $path Archive entry path.
+	 * @param string $name Archive entry name.
 	 * @return SimpleXMLElement|false Parsed XML or false on failure.
 	 */
 	private function xml( $name ) {
@@ -390,8 +406,9 @@ class Stockland_XLSX {
 			}
 			$nodes = 0;
 			while ( $reader->read() ) {
-				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API defines nodeType/localName in camelCase.
+				// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API defines nodeType/localName in camelCase.
 				if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
+				// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 					continue;
 				}
 				if ( ++$nodes > $max_physical_rows ) {
