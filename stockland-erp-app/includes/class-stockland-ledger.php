@@ -18,7 +18,7 @@ class Stockland_Ledger {
 			return false !== $wpdb->query( 'START TRANSACTION' );
 		}
 		$savepoint = 'sl_ledger_' . wp_rand( 100000, 999999 );
-		return false !== $wpdb->query( 'SAVEPOINT ' . $savepoint );
+		return false !== $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
 	}
 	private static function rollback_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
@@ -26,12 +26,12 @@ class Stockland_Ledger {
 			$wpdb->query( 'ROLLBACK' );
 			return;}
 		if ( $savepoint !== '' ) {
-			$wpdb->query( 'ROLLBACK TO SAVEPOINT ' . $savepoint );
-			$wpdb->query( 'RELEASE SAVEPOINT ' . $savepoint );}
+			$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
+			$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
 	}
 	private static function commit_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
-		$ok = $owns_transaction ? $wpdb->query( 'COMMIT' ) : $wpdb->query( 'RELEASE SAVEPOINT ' . $savepoint );
+		$ok = $owns_transaction ? $wpdb->query( 'COMMIT' ) : $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
 		if ( false !== $ok ) {
 			return true;
 		}
