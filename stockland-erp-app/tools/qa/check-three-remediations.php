@@ -82,7 +82,7 @@ $ok( 1 === preg_match( '/\'account_code\'\s*=>\s*\'1020\'/', $sales ) && 0 === p
 $ok( 1 === preg_match( '/\'posting_status\'\s*=>\s*\'CLOSED\'/', $sales ) && strpos( $sales, 'Stockland_Ledger::post_sale_closed' ) !== false, 'POS does not atomically close/post inventory' );
 
 $ok( strpos( $import, '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' ) !== false, 'Product Master generic SKU contract is missing' );
-$ok( 1 === preg_match( '/\$variant_rows\s*=\s*array\s*\(\s*\)/', $import ) && 1 === preg_match( '/if\s*\(\s*\$mapped_type\s*===\s*\'VARIANT\'\s*\)\s*\{?\s*\$variant_rows\[\]\s*=\s*\$candidate\s*;/', $import ), 'Product Master same-workbook variant ordering guard is missing' );
+$ok( 1 === preg_match( '/\$variant_rows\s*=\s*array\s*\(\s*\)/', $import ) && 1 === preg_match( '/if\s*\(\s*(?:\$mapped_type\s*===\s*\'VARIANT\'|\'VARIANT\'\s*===\s*\$mapped_type)\s*\)\s*\{?\s*\$variant_rows\[\]\s*=\s*\$candidate\s*;/', $import ), 'Product Master same-workbook variant ordering guard is missing' );
 $ok( 1 === preg_match( '/array\s*\(\s*\'initial_stock\'\s*,\s*\'opening_stock\'\s*,\s*\'stock_quantity\'\s*,\s*\'quantity\'\s*,\s*\'qty\'\s*,\s*\'stock\'\s*\)/', $import ), 'Product Master physical-stock rejection missing' );
 $ok( strpos( $import, 'private function map_vat_mode' ) !== false && strpos( $import, 'Stockland_Sale_Math::calculate' ) !== false, 'Daily POS does not use centralized sale math' );
 $ok( strpos( $import, 'Stockland_Business_Calendar::assert_business_day' ) !== false, 'Daily POS calendar gate missing' );
