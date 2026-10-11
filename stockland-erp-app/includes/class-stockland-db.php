@@ -40,8 +40,8 @@ class Stockland_DB {
 	 * not serve potentially stale values after a stock or financial write.
 	 *
 	 * @param string|null $query Static or prepared SQL query.
-	 * @param int        $x Zero-based result column.
-	 * @param int        $y Zero-based result row.
+	 * @param int         $x Zero-based result column.
+	 * @param int         $y Zero-based result row.
 	 * @return mixed Scalar query result or null.
 	 */
 	public static function read_var( $query = null, $x = 0, $y = 0 ) {
