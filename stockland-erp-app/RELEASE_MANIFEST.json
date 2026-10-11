@@ -83,8 +83,8 @@
     "phpcs_wpcs_configuration": true,
     "local_regression_tests": true,
     "critical_workflow_qa": true,
-    "phpunit_suite_executed": false,
-    "phpcs_executed": false,
+    "phpunit_suite_executed": true,
+    "phpcs_executed": true,
     "browser_e2e_executed": false,
     "live_database_integration_executed": false,
     "sonarqube_semgrep_owasp_zap_executed": false,
@@ -95,7 +95,7 @@
     "single_guarded_fetch_sink": true,
     "live_certification": false,
     "full_scope_phpcs_profile_prepared": true,
-    "full_scope_phpcs_profile_executed": false,
+    "full_scope_phpcs_profile_executed": true,
     "statutory_payroll_math_qa": true,
     "hr_schema_contract_qa": true,
     "operational_ui_contract_qa_local": true,
@@ -113,7 +113,9 @@
       1440
     ],
     "authenticated_live_browser_e2e_executed": false,
-    "bootstrap_css_upstream_verified": true
+    "bootstrap_css_upstream_verified": true,
+    "phpcs_wpcs_zero_findings": true,
+    "github_actions_source_gate_passed": true
   },
   "live_certification": false,
   "runtime_diagnostics": {
@@ -133,7 +135,7 @@
     "Existing active employee compensation must be explicitly owner-classified after the additive HR migration. Until this is done, payroll_compensation_classification intentionally fails closed.",
     "RETAINER_SERVICE records are kept visible but excluded from employee PAYE/pension generation. Their specific contract/payment and any applicable withholding treatment requires approved finance/legal SOP and separate verification.",
     "No authenticated live database, browser transaction, or production deployment was performed in this build environment. Live health, Product Master, POS import, receiving, payroll, GL and rollback remain staging acceptance items.",
-    "SonarQube/Semgrep/OWASP ZAP, PHPCS/WPCS and Composer-backed PHPUnit outputs are not included as executed scans. Local deterministic QA is not a substitute for external tools.",
+    "SonarQube, Semgrep and OWASP ZAP were not run in the latest CI workflow. A successful GitHub Actions source gate separately ran Composer-backed PHPUnit and full-scope PHPCS/WPCS with zero errors and zero warnings; these checks do not replace live staging acceptance.",
     "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host."
   ],
   "release_candidate_changes": [
@@ -162,7 +164,8 @@
     "16.1.57: manual supplier/customer finance payment requests are Management-prepared, idempotency-key protected and PENDING until Owner decision; row locks, allocation validation, audit and notifications protect posting.",
     "16.1.57: payroll requires Management draft preparation/submission, independent Owner approval with statutory/component evidence and balanced GL posting, then separate Owner payment; notifications follow the transitions.",
     "16.1.57: explicit System Health deep mode includes Stockland_Integrity::scan() SELECT-only reconciliation/orphan checks; SCAN_INCOMPLETE/unknown SQL results fail closed and the health report cannot mark live_ready unless the supplemental scan is clean.",
-    "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest."
+    "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest.",
+    "Latest GitHub Actions source gate passed PHP syntax checks, Composer validation, the production-service coding standard, PHPUnit, ERP static/integrity QA, and full-source PHPCS/WPCS with zero errors and warnings. This is CI/source validation, not live-site certification."
   ],
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
