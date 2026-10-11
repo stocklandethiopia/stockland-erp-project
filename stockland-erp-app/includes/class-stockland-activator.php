@@ -149,6 +149,7 @@ class Stockland_Activator {
 		$tables = array();
 
 		// 1. Locations (SETTINGS sheet rows 10-16)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_locations (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             location_name VARCHAR(80) NOT NULL,
@@ -160,8 +161,10 @@ class Stockland_Activator {
             UNIQUE KEY location_name (location_name),
             UNIQUE KEY branch_code (branch_code)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 2. Settings (VAT rate, FX rate, reorder defaults, business info)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_settings (
             setting_key VARCHAR(100) NOT NULL,
             setting_value LONGTEXT NULL,
@@ -169,8 +172,10 @@ class Stockland_Activator {
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (setting_key)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 3. Product Master
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_products (
             variant_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             sku VARCHAR(64) NOT NULL,
@@ -219,8 +224,10 @@ class Stockland_Activator {
             KEY active_name (is_active,product_name),
             KEY active_brand (is_active,brand)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 3b. Price history
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_price_history (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             variant_id BIGINT UNSIGNED NULL,
@@ -234,9 +241,11 @@ class Stockland_Activator {
             KEY variant_id (variant_id),
             KEY sku (sku)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 3c. Immutable Product Identity / SKU History. A SKU may change in the master,
 		// but the internal variant_id never changes and historical transactions are not rewritten.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_product_sku_history (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             variant_id BIGINT UNSIGNED NOT NULL,
@@ -253,8 +262,10 @@ class Stockland_Activator {
             KEY new_sku (new_sku),
             KEY effective_from (effective_from)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 4. Users (role + branch assignment, individual identity per section 14)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_users (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             wp_user_id BIGINT UNSIGNED NOT NULL,
@@ -265,11 +276,13 @@ class Stockland_Activator {
             UNIQUE KEY wp_user_id (wp_user_id),
             KEY branch_location_id (branch_location_id)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 4b. Future-proof operational scope assignments. The existing primary
 		// branch_location_id remains for backward compatibility, while this table
 		// allows one user to be explicitly assigned to one or more authorized
 		// operational locations without granting company-wide access.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_user_locations (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             wp_user_id BIGINT UNSIGNED NOT NULL,
@@ -285,8 +298,10 @@ class Stockland_Activator {
             KEY location_user (location_id,wp_user_id),
             KEY user_active (wp_user_id,is_active)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 5. Stock ledger (the engine room)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_transactions (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             location_id BIGINT UNSIGNED NOT NULL,
@@ -314,8 +329,10 @@ class Stockland_Activator {
             KEY source_line (source_line_id),
             UNIQUE KEY movement_reference (reference_type, reference_id, source_line_id, movement_type)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 6. Warehouse receipts
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_receipts (
             receipt_id VARCHAR(20) NOT NULL,
             receipt_date DATE NOT NULL,
@@ -337,8 +354,10 @@ class Stockland_Activator {
             PRIMARY KEY  (receipt_id),
             KEY sku (sku)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 7. Transfers
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_transfers (
             transfer_id VARCHAR(20) NOT NULL,
             transfer_date DATE NOT NULL,
@@ -374,8 +393,10 @@ class Stockland_Activator {
             KEY from_status (from_location_id, status),
             KEY to_status (to_location_id, status)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 8. Requisitions + items
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_requisitions (
             requisition_id VARCHAR(20) NOT NULL,
             branch_location_id BIGINT UNSIGNED NOT NULL,
@@ -389,7 +410,9 @@ class Stockland_Activator {
             KEY branch_location_id (branch_location_id),
             KEY status_date (status, date_requested)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_requisition_items (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             requisition_id VARCHAR(20) NOT NULL,
@@ -404,8 +427,10 @@ class Stockland_Activator {
             KEY sku (sku),
             KEY variant_id (variant_id)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 9. Reservations
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_reservations (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             location_id BIGINT UNSIGNED NOT NULL,
@@ -425,8 +450,10 @@ class Stockland_Activator {
             KEY requisition_id (requisition_id),
             KEY transfer_id (transfer_id)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 10. Retail sales (legacy archive + all DAILY branch sheets, unified)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_sales (
             sale_id VARCHAR(20) NOT NULL,
             sale_date DATE NOT NULL,
@@ -463,8 +490,10 @@ class Stockland_Activator {
             KEY source_job_row (source_job_id,source_row_number),
             KEY source_group (source_sale_group)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 11. Wholesale sales
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_wholesale_sales (
             sale_id VARCHAR(20) NOT NULL,
             sale_date DATE NOT NULL,
@@ -483,8 +512,10 @@ class Stockland_Activator {
             PRIMARY KEY  (sale_id),
             KEY sku (sku)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 12. Returns & adjustments
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_returns (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             return_date DATE NOT NULL,
@@ -503,8 +534,10 @@ class Stockland_Activator {
             KEY location_variant (location_id, variant_id),
             KEY variant_id (variant_id)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 12b. Inventory reconciliation / adjustment approvals
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_adjustments (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             adjustment_id VARCHAR(30) NOT NULL,
@@ -527,11 +560,13 @@ class Stockland_Activator {
             PRIMARY KEY  (id), UNIQUE KEY adjustment_id (adjustment_id),
             KEY location_sku (location_id, sku), KEY status (status), KEY location_status (location_id, status)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 12c. Physical stock-count sessions and immutable count lines.
 		// A manager uploads what was physically found (brand/product/size/color/qty);
 		// the system resolves each line to the Product Master SKU and creates a
 		// controlled pending reconciliation. Approval, not the upload itself, changes stock.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_count_batches (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             batch_id VARCHAR(30) NOT NULL,
@@ -547,7 +582,9 @@ class Stockland_Activator {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id), UNIQUE KEY batch_id (batch_id), KEY location_status (location_id,status), KEY count_date (count_date)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_count_lines (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             batch_id VARCHAR(30) NOT NULL,
@@ -566,8 +603,10 @@ class Stockland_Activator {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id), KEY batch_id (batch_id), KEY location_sku (location_id,sku), KEY location_variant (location_id,variant_id), KEY variant_id (variant_id), KEY adjustment_id (adjustment_id)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 12d. Immutable workflow timeline
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_workflow_events (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             entity_type VARCHAR(30) NOT NULL,
@@ -580,8 +619,10 @@ class Stockland_Activator {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id), KEY entity (entity_type,entity_id), KEY created_at (created_at)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 13. Daily open/close control
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_daily_closings (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             branch_location_id BIGINT UNSIGNED NOT NULL,
@@ -597,9 +638,11 @@ class Stockland_Activator {
             PRIMARY KEY  (id),
             UNIQUE KEY branch_day (branch_location_id, business_date)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 14. Import job master. The source file is treated as an input document;
 		// staged rows remain immutable until the job is committed in bounded chunks.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_import_jobs (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             import_key CHAR(64) NOT NULL,
@@ -629,9 +672,11 @@ class Stockland_Activator {
             KEY sha256 (source_sha256),
             KEY source_system_signature (source_system,mapping_signature)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 15. Immutable staged import rows. JSON keeps the original normalized
 		// source fields available for audit while indexed columns drive posting.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_import_rows (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             job_id BIGINT UNSIGNED NOT NULL,
@@ -665,9 +710,11 @@ class Stockland_Activator {
             KEY sku (sku),
             KEY receipt (external_receipt_no)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 16. Persistent application notifications. Notifications are not
 		// WordPress admin notices and survive navigation/refresh.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_notifications (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id BIGINT UNSIGNED NULL,
@@ -688,9 +735,11 @@ class Stockland_Activator {
             KEY entity (entity_type,entity_id),
             KEY created_at (created_at)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 17. One business-level batch record allows daily imported POS
 		// receipts to be reconciled without pretending the ERP is the POS.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_sale_batches (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             job_id BIGINT UNSIGNED NOT NULL,
@@ -715,10 +764,12 @@ class Stockland_Activator {
             KEY source_receipt (source_system,external_receipt_no),
             KEY status (status)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 18. Fast current-balance read model. The ledger remains authoritative;
 		// this table is rebuilt incrementally from immutable movements for fast
 		// mobile/dashboard/report reads.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_balances (
             location_id BIGINT UNSIGNED NOT NULL,
             sku VARCHAR(64) NOT NULL,
@@ -729,10 +780,12 @@ class Stockland_Activator {
             KEY sku (sku),
             KEY location_sku (location_id,sku)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 19. Reusable import mapping profiles. Header/order changes in a POS
 		// export do not force the branch to re-format its file. Once a mapping
 		// is confidently recognized it is stored and reused.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_import_profiles (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             import_type VARCHAR(30) NOT NULL,
@@ -750,10 +803,12 @@ class Stockland_Activator {
             UNIQUE KEY import_profile_unique (import_type,source_system,header_signature),
             KEY type_source (import_type,source_system,is_active)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 20. External-to-live product code cross-reference. Historical ERP/POS
 		// codes can point to the current Stockland live SKU without rewriting
 		// historical ledger rows.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_product_code_maps (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             variant_id BIGINT UNSIGNED NULL,
@@ -776,8 +831,10 @@ class Stockland_Activator {
             KEY live_sku (live_sku),
             KEY source_active (source_system,is_active)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// 18. Audit log
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- dbDelta needs a complete CREATE TABLE string; the WordPress prefix and schema definitions are fixed, plugin-owned DDL.
 		$tables[] = "CREATE TABLE {$p}stock_audit_logs (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id BIGINT UNSIGNED NOT NULL,
@@ -801,6 +858,7 @@ class Stockland_Activator {
             KEY action_time (action_time),
             KEY hash_version (hash_version)
         ) ENGINE=InnoDB $charset_collate;";
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
@@ -973,8 +1031,8 @@ class Stockland_Activator {
 				)
 			);
 			if ( ! $has_count_batch ) {
-				$wpdb->query( "ALTER TABLE {$p}stock_adjustments ADD COLUMN count_batch_id VARCHAR(30) NULL AFTER rejection_reason" );
-				$wpdb->query( "ALTER TABLE {$p}stock_adjustments ADD KEY count_batch_id (count_batch_id)" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(30) NULL AFTER %i', $p . 'stock_adjustments', 'count_batch_id', 'rejection_reason' ) );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_adjustments', 'count_batch_id', 'count_batch_id' ) );
 			}
 
 			// Requisition review/approval audit fields — additive and idempotent.
@@ -997,7 +1055,8 @@ class Stockland_Activator {
 			foreach ( $req_fields as $field => $definition ) {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
-					$wpdb->query( "ALTER TABLE {$p}stock_requisitions ADD COLUMN {$field} {$definition}" );}
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
+			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
 			}
 			// Warehouse-controlled reservation / picking + branch pickup appointment.
 			$req_fields_1301 = array(
@@ -1022,12 +1081,13 @@ class Stockland_Activator {
 			foreach ( $transfer_fields_1301 as $field => $definition ) {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_transfers', $field ) );
 				if ( ! $exists ) {
-					$wpdb->query( "ALTER TABLE {$p}stock_transfers ADD COLUMN {$field} {$definition}" );}
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
+			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );}
 			}
 			$expense_loc = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='location_id'", DB_NAME, $p . 'stock_expenses' ) );
 			if ( ! $expense_loc ) {
-				$wpdb->query( "ALTER TABLE {$p}stock_expenses ADD COLUMN location_id BIGINT UNSIGNED NULL AFTER expense_date" );
-				$wpdb->query( "ALTER TABLE {$p}stock_expenses ADD KEY location_date (location_id,expense_date)" );}
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_expenses', 'location_id', 'expense_date' ) );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_expenses', 'location_date', 'location_id', 'expense_date' ) );}
 
 			// v16: recover import_rows for any partial/legacy installation in which
 			// the staging table or its legacy indexes are incomplete. The canonical
@@ -1044,7 +1104,7 @@ class Stockland_Activator {
 				foreach ( (array) $legacy_indexes as $legacy ) {
 					$safe = preg_replace( '/[^A-Za-z0-9_]/', '', $legacy );
 					if ( $safe ) {
-						$wpdb->query( "ALTER TABLE {$p}stock_import_rows DROP INDEX `{$safe}`" );
+						$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $p . 'stock_import_rows', $safe ) );
 					}
 				}
 			}
@@ -1059,12 +1119,12 @@ class Stockland_Activator {
 				)
 			);
 			if ( ! $has_res_variant ) {
-				$wpdb->query( "ALTER TABLE {$p}stock_reservations ADD COLUMN variant_id BIGINT UNSIGNED NULL AFTER sku" );
-				$wpdb->query( "ALTER TABLE {$p}stock_reservations ADD KEY location_variant (location_id, variant_id)" );
-				$wpdb->query( "ALTER TABLE {$p}stock_reservations ADD KEY variant_id (variant_id)" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_reservations', 'variant_id', 'sku' ) );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_reservations', 'location_variant', 'location_id', 'variant_id' ) );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_reservations', 'variant_id', 'variant_id' ) );
 			}
 			if ( self::table_exists_static( $p . 'stock_reservations' ) && self::table_exists_static( $p . 'stock_products' ) ) {
-				$wpdb->query( "UPDATE {$p}stock_reservations r INNER JOIN {$p}stock_products p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL" );
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i r INNER JOIN %i p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL', $p . 'stock_reservations', $p . 'stock_products' ) );
 			}
 
 			// Historical returns and physical-count lines carry immutable variant identity
@@ -1083,13 +1143,13 @@ class Stockland_Activator {
 					continue;
 				}
 				if ( ! $has_col( $table, 'variant_id' ) ) {
-					$wpdb->query( "ALTER TABLE {$table} ADD COLUMN variant_id BIGINT UNSIGNED NULL AFTER {$cfg['after']}" );
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $cfg['after'] ) );
 				}
 				if ( ! $has_index( $table, $cfg['index'] ) ) {
-					$wpdb->query( "ALTER TABLE {$table} ADD KEY variant_id (variant_id)" );
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) );
 				}
 				if ( self::table_exists_static( $p . 'stock_products' ) ) {
-					$wpdb->query( "UPDATE {$table} r INNER JOIN {$p}stock_products p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL" );
+					$wpdb->query( $wpdb->prepare( 'UPDATE %i r INNER JOIN %i p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL', $table, $p . 'stock_products' ) );
 				}
 			}
 
@@ -1103,8 +1163,8 @@ class Stockland_Activator {
 				)
 			);
 			if ( ! $has_hash_version ) {
-				$wpdb->query( "ALTER TABLE {$p}stock_audit_logs ADD COLUMN hash_version TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER event_hash" );
-				$wpdb->query( "ALTER TABLE {$p}stock_audit_logs ADD KEY hash_version (hash_version)" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER %i', $p . 'stock_audit_logs', 'hash_version', 'event_hash' ) );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_audit_logs', 'hash_version', 'hash_version' ) );
 			}
 
 			// 9.0: every stockable catalog row receives an immutable numeric variant identity.
@@ -1131,7 +1191,7 @@ class Stockland_Activator {
 		// Seeded locations created after migration also receive stable codes immediately.
 		self::backfill_location_codes( $p );
 		self::seed_settings( $p );
-		$wpdb->query( "INSERT IGNORE INTO {$p}stock_settings (setting_key,setting_value) VALUES ('requisition_approval_mode','ONE_OF')" );
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)", $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
 
 		// Roles must exist before accounting/procurement grants are applied.
 		Stockland_Roles::register_roles();
@@ -1182,11 +1242,11 @@ class Stockland_Activator {
 		$uid = get_current_user_id();
 		if ( $uid ) {
 			global $wpdb;
-			$existing_profile = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$p}stock_users WHERE wp_user_id=%d LIMIT 1", $uid ) );
+			$existing_profile = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE wp_user_id=%d LIMIT 1', $p . 'stock_users', $uid ) );
 			if ( ! $existing_profile ) {
 				$wpdb->query(
 					$wpdb->prepare(
-						"INSERT INTO {$p}stock_users (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)",
+						$wpdb->prepare( "INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $p . 'stock_users', $uid ),
 						$uid
 					)
 				);
@@ -1304,7 +1364,7 @@ class Stockland_Activator {
 		foreach ( $locations as $loc ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					"INSERT IGNORE INTO {$p}stock_locations (location_name, location_type, role_description) VALUES (%s, %s, %s)",
+					$wpdb->prepare( 'INSERT IGNORE INTO %i (location_name, location_type, role_description) VALUES (%s,%s,%s)', $p . 'stock_locations', $name, $type, $description ),
 					$loc[0],
 					$loc[1],
 					$loc[2]
@@ -1323,7 +1383,7 @@ class Stockland_Activator {
 	 */
 	private static function backfill_location_codes( $p ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( "SELECT id,location_name,location_type,branch_code FROM {$p}stock_locations ORDER BY id", ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,branch_code FROM %i ORDER BY id', $p . 'stock_locations' ), ARRAY_A );
 		if ( ! $rows ) {
 			return;
 		}
@@ -1333,7 +1393,7 @@ class Stockland_Activator {
 			}
 			$prefix    = 'Warehouse' === $row['location_type'] ? 'WH' : ( 'Sales channel' === $row['location_type'] ? 'SC' : 'BR' );
 			$candidate = $prefix . str_pad( (string) ( (int) $row['id'] ), 3, '0', STR_PAD_LEFT );
-			$exists    = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$p}stock_locations WHERE branch_code=%s AND id<>%d LIMIT 1", $candidate, (int) $row['id'] ) );
+			$exists    = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE branch_code=%s AND id<>%d LIMIT 1', $p . 'stock_locations', $candidate, (int) $row['id'] ) );
 			if ( $exists ) {
 				$candidate = $prefix . str_pad( (string) ( (int) $row['id'] ), 4, '0', STR_PAD_LEFT );
 			}
@@ -1365,7 +1425,7 @@ class Stockland_Activator {
 		foreach ( $defaults as $key => $value ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					"INSERT IGNORE INTO {$p}stock_settings (setting_key, setting_value) VALUES (%s, %s)",
+					$wpdb->prepare( 'INSERT IGNORE INTO %i (setting_key, setting_value) VALUES (%s,%s)', $p . 'stock_settings', $key, $value ),
 					$key,
 					$value
 				)
@@ -1524,22 +1584,22 @@ class Stockland_Activator {
 		$tx = $p . 'stock_transactions';
 		if ( self::table_exists_static( $tx ) ) {
 			if ( ! $has_col( $tx, 'source_line_id' ) ) {
-				$wpdb->query( "ALTER TABLE {$tx} ADD COLUMN source_line_id VARCHAR(80) NOT NULL DEFAULT '' AFTER reference_id" );
-				$wpdb->query( "UPDATE {$tx} SET source_line_id=reference_id WHERE source_line_id=''" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(80) NOT NULL DEFAULT %s AFTER %i', $tx, 'source_line_id', '', 'reference_id' ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET %i=%i WHERE %i=%s', $tx, 'source_line_id', 'reference_id', 'source_line_id', '' ) );
 			}
 			if ( $has_col( $tx, 'reference_id' ) ) {
-				$wpdb->query( "ALTER TABLE {$tx} MODIFY reference_id VARCHAR(80) NOT NULL" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i MODIFY %i VARCHAR(80) NOT NULL', $tx, 'reference_id' ) );
 			}
 			if ( $has_index( $tx, 'movement_reference' ) ) {
-				$wpdb->query( "ALTER TABLE {$tx} DROP INDEX movement_reference" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $tx, 'movement_reference' ) );
 			}
-			$wpdb->query( "ALTER TABLE {$tx} ADD UNIQUE KEY movement_reference (reference_type,reference_id,source_line_id,movement_type)" );
+			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i,%i,%i)', $tx, 'movement_reference', 'reference_type', 'reference_id', 'source_line_id', 'movement_type' ) );
 		}
 
 		$ir = $p . 'stock_import_rows';
 		if ( self::table_exists_static( $ir ) && ! $has_col( $ir, 'cost_basis' ) ) {
-			$wpdb->query( "ALTER TABLE {$ir} ADD COLUMN cost_basis DECIMAL(12,2) NULL AFTER sales_total" );
-			$wpdb->query( "ALTER TABLE {$ir} ADD COLUMN cost_basis_source VARCHAR(40) NULL AFTER cost_basis" );
+			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DECIMAL(12,2) NULL AFTER %i', $ir, 'cost_basis', 'sales_total' ) );
+			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(40) NULL AFTER %i', $ir, 'cost_basis_source', 'cost_basis' ) );
 		}
 
 		$sb = $p . 'stock_sale_batches';
@@ -1554,13 +1614,13 @@ class Stockland_Activator {
 				}
 			}
 			if ( $has_index( $sb, 'job' ) ) {
-				$wpdb->query( "ALTER TABLE {$sb} DROP INDEX job" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $sb, 'job' ) );
 			}
 			if ( ! $has_index( $sb, 'job_receipt' ) ) {
-				$wpdb->query( "ALTER TABLE {$sb} ADD UNIQUE KEY job_receipt (job_id,receipt_key)" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i)', $sb, 'job_receipt', 'job_id', 'receipt_key' ) );
 			}
 			if ( ! $has_index( $sb, 'source_receipt' ) ) {
-				$wpdb->query( "ALTER TABLE {$sb} ADD KEY source_receipt (source_system,external_receipt_no)" );
+				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $sb, 'source_receipt', 'source_system', 'external_receipt_no' ) );
 			}
 		}
 
