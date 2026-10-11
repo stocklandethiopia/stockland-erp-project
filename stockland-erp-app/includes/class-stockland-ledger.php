@@ -15,7 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @package Stockland_ERP
  */
 class Stockland_Ledger {
-	/** Begin an atomic unit; use a savepoint when called inside a caller-owned transaction. */
+	/**
+	 * Begins an atomic unit or creates a savepoint inside a caller-owned transaction.
+	 *
+	 * @param bool   &$owns_transaction Set true when this method opens the transaction.
+	 * @param string &$savepoint Set to the savepoint name for nested units.
+	 * @return bool Whether the transaction or savepoint was started successfully.
+	 */
 	private static function begin_unit_of_work( &$owns_transaction, &$savepoint ) {
 		global $wpdb;
 		$state = $wpdb->get_var( 'SELECT @@session.in_transaction' );
