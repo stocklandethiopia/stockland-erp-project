@@ -1,8 +1,18 @@
 <?php
+/**
+ * Stockland ERP role registration and profile management.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Declares canonical role slugs and provisions their capabilities.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_Roles {
 	const ROLE_OWNER              = 'stockland_owner';
 	const ROLE_MANAGEMENT         = 'stockland_management';
