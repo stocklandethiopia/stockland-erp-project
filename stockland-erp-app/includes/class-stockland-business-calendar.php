@@ -108,7 +108,6 @@ final class Stockland_Business_Calendar {
 	 * @param string $date Business date in YYYY-MM-DD format.
 	 * @return array Business-date status and reason.
 	 * @throws InvalidArgumentException When the supplied date is invalid.
-	 * @throws RuntimeException When saved calendar configuration is invalid.
 	 */
 	public static function status( $date ) {
 		if ( ! self::valid_date( $date ) ) {
@@ -150,8 +149,6 @@ final class Stockland_Business_Calendar {
 	 *
 	 * @param string $date Business date in YYYY-MM-DD format.
 	 * @return bool Whether the date is open.
-	 * @throws InvalidArgumentException When the supplied date is invalid.
-	 * @throws RuntimeException When saved calendar configuration is invalid.
 	 */
 	public static function is_business_day( $date ) {
 		return 'OPEN' === self::status( $date )['status'];
@@ -162,8 +159,6 @@ final class Stockland_Business_Calendar {
 	 *
 	 * @param string $date Business date in YYYY-MM-DD format.
 	 * @return array Business-date status.
-	 * @throws InvalidArgumentException When the supplied date is invalid.
-	 * @throws RuntimeException When saved calendar configuration is invalid.
 	 * @throws Exception When the selected date is closed.
 	 */
 	public static function assert_business_day( $date ) {
@@ -180,7 +175,6 @@ final class Stockland_Business_Calendar {
 	 * @param string $month Calendar month in YYYY-MM format.
 	 * @return array Month, daily statuses and normalized calendar configuration.
 	 * @throws InvalidArgumentException When the month is invalid.
-	 * @throws RuntimeException When saved calendar configuration is invalid.
 	 */
 	public static function month( $month ) {
 		$month = (string) $month;
