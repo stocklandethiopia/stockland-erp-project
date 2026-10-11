@@ -340,8 +340,7 @@ class Stockland_REST_Setup {
 	 * @return mixed REST response containing physically verified batch progress.
 	 * @throws RuntimeException When a required schema invariant cannot be satisfied.
 	 */
-	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- WordPress REST callback signature retains WP_REST_Request for consistent route dispatch.
-	public function advance( WP_REST_Request $request ) {
+	public function advance( WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- WordPress REST callback signature retains WP_REST_Request for consistent route dispatch.
 		if ( get_transient( self::LOCK ) ) {
 			return new WP_Error( 'setup_busy', 'Another Stockland setup request is currently running. Please retry in a few seconds.', array( 'status' => 409 ) );
 		}
