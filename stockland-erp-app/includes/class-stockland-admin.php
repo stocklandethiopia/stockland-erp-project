@@ -1,4 +1,9 @@
 <?php
+/**
+ * Adds Stockland ERP entry points to the native WordPress administration UI.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -10,8 +15,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * wp-admin, remove the Dashboard, or take ownership of WordPress administration.
  * Operational users may use the dedicated ERP frontend, while administrators
  * retain full WordPress backend control.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_Admin {
+	/**
+	 * Registers the ERP admin menu and toolbar entry.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 90 );
@@ -22,6 +34,11 @@ class Stockland_Admin {
 
 
 
+	/**
+	 * Adds the ERP launcher and owner-only System Control submenu.
+	 *
+	 * @return void
+	 */
 	public function admin_menu() {
 		add_menu_page(
 			'Stockland ERP',
@@ -37,6 +54,12 @@ class Stockland_Admin {
 		add_submenu_page( 'stockland-erp', 'WordPress Dashboard', 'WordPress Dashboard', 'manage_options', 'index.php' );
 	}
 
+	/**
+	 * Adds a Stockland ERP shortcut to the WordPress admin toolbar.
+	 *
+	 * @param WP_Admin_Bar $bar WordPress admin toolbar API.
+	 * @return void
+	 */
 	public function admin_bar( $bar ) {
 		if ( ! is_admin_bar_showing() ) {
 			return;
@@ -50,10 +73,20 @@ class Stockland_Admin {
 		);
 	}
 
+	/**
+	 * Returns the authoritative ERP frontend entry URL.
+	 *
+	 * @return string ERP frontend URL.
+	 */
 	private static function erp_url() {
 		return Stockland_Frontend::page_url();
 	}
 
+	/**
+	 * Renders the admin launcher for the standalone ERP frontend.
+	 *
+	 * @return void
+	 */
 	public function erp_page() {
 		if ( ! current_user_can( 'read' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access Stockland ERP.', 'stockland-inventory' ) );
@@ -64,6 +97,11 @@ class Stockland_Admin {
 		exit;
 	}
 
+	/**
+	 * Renders the protected System Control entry point for technical administrators.
+	 *
+	 * @return void
+	 */
 	public function system_control() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access system control.', 'stockland-inventory' ) );
