@@ -963,7 +963,7 @@ class Stockland_Activator {
 				);
 			} elseif ( $fresh_namespace ) {
 				// Fresh-install path: execute the already-normalized final DDL directly.
-				$result = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fresh-install CREATE TABLE SQL comes from the plugin-owned fixed schema array and uses only the trusted WordPress prefix.
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fresh-install CREATE TABLE SQL comes from the plugin-owned fixed schema array and uses only the trusted WordPress prefix.
 				$result = $wpdb->query( $sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
@@ -1057,7 +1057,8 @@ class Stockland_Activator {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
+				}
 			}
 			// Warehouse-controlled reservation / picking + branch pickup appointment.
 			$req_fields_1301 = array(
@@ -1070,7 +1071,9 @@ class Stockland_Activator {
 			foreach ( $req_fields_1301 as $field => $definition ) {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The definition is selected from the fixed $req_fields_1301 migration map; identifiers remain bound.
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
+				}
 			}
 			$transfer_fields_1301 = array(
 				'pickup_date' => 'DATE NULL AFTER requisition_item_id',
@@ -1083,7 +1086,8 @@ class Stockland_Activator {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_transfers', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );}
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );
+				}
 			}
 			$expense_loc = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='location_id'", DB_NAME, $p . 'stock_expenses' ) );
 			if ( ! $expense_loc ) {
@@ -1194,7 +1198,7 @@ class Stockland_Activator {
 		// Seeded locations created after migration also receive stable codes immediately.
 		self::backfill_location_codes( $p );
 		self::seed_settings( $p );
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)", $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)', $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
 
 		// Roles must exist before accounting/procurement grants are applied.
 		Stockland_Roles::register_roles();
@@ -1417,7 +1421,7 @@ class Stockland_Activator {
 
 		$defaults = array(
 			'vat_rate'                       => '0.15',
-			'vat_basis'                      => 'INCLUSIVE', // selling prices are VAT-inclusive; VAT extracted, not added on top
+			'vat_basis'                      => 'INCLUSIVE', // Selling prices are VAT-inclusive; VAT is extracted, not added on top.
 			'branch_reorder_alert_level'     => '2',
 			'central_reorder_alert_level'    => '200',
 			'default_branch_reorder_target'  => '5',
@@ -1522,7 +1526,7 @@ class Stockland_Activator {
 	 *
 	 * @param string $p WordPress table prefix.
 	 * @return void Applies the idempotent product identity migration.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When a schema identity invariant cannot be applied.
 	 */
 	private static function upgrade_variant_first_product_identity( $p ) {
 		global $wpdb;
@@ -1559,10 +1563,10 @@ class Stockland_Activator {
 	}
 
 	/**
-	 * v16 convergence: make every required module/schema line up under one clean production contract.
+	 * V16 convergence: make every required module/schema line up under one clean production contract.
 	 *
 	 * @param string $p WordPress table prefix.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When a schema migration invariant cannot be satisfied.
 	 */
 	private static function apply_schema_1600_migrations( $p ) {
 		global $wpdb;
@@ -1616,6 +1620,7 @@ class Stockland_Activator {
 				array( 'source_system', 'VARCHAR(80) NOT NULL DEFAULT \'POS\'' ),
 			) as $c ) {
 				if ( ! $has_col( $sb, $c[0] ) ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Column name and DDL definition are from the fixed inline migration map; the table/column identifiers are bound.
 					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $c[1], $sb, $c[0] ) );
 				}
 			}
@@ -1697,17 +1702,22 @@ class Stockland_Activator {
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not clear stale balance migration stage.' );
 				}
-				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The table identifier is bound; the only appended fragment is wpdb's trusted charset/collation clause for this fixed migration DDL.
-				$wpdb->query(
-					$wpdb->prepare( "CREATE TABLE %i (
-                    location_id BIGINT UNSIGNED NOT NULL,
-                    sku VARCHAR(64) NOT NULL,
-                    variant_id BIGINT UNSIGNED NOT NULL,
-                    physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0,
-                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    PRIMARY KEY  (location_id,variant_id), KEY sku (sku), KEY location_sku (location_id,sku)
-                ) ENGINE=InnoDB", $stage ) . ' ' . $wpdb->get_charset_collate()
+				$stage_ddl = $wpdb->prepare(
+					'CREATE TABLE %i (
+						location_id BIGINT UNSIGNED NOT NULL,
+						sku VARCHAR(64) NOT NULL,
+						variant_id BIGINT UNSIGNED NOT NULL,
+						physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0,
+						updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+						PRIMARY KEY (location_id,variant_id),
+						KEY sku (sku),
+						KEY location_sku (location_id,sku)
+					) ENGINE=InnoDB',
+					$stage
 				);
+				$stage_ddl .= ' ' . $wpdb->get_charset_collate();
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- DDL structure is a fixed schema template, the table identifier is bound, and the only appended value is WordPress's trusted charset/collation clause.
+				$wpdb->query( $stage_ddl );
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not create staged balance read model.' );
 				}
