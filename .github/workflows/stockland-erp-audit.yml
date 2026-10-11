@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit-source:
@@ -48,9 +48,6 @@ jobs:
               exit 1
             fi
             unzip -t "$archive"
-            if [ ! -f stockland-erp-app/stockland-inventory.php ]; then
-              unzip -oq "$archive" -d .
-            fi
           elif [ ! -f stockland-erp-app/stockland-inventory.php ]; then
             echo "::error title=Authoritative package required::Upload the canonical 16.1.57 ZIP to $archive. Expected SHA-256: $expected."
             exit 1
@@ -117,31 +114,6 @@ jobs:
           grep -q 'Bootstrap  v5.3.8' assets/bootstrap.min.css
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
-      - name: Persist imported source on audit branch
-        id: commit-source
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("AUDIT/16.1.57-package-identity.md")
-          text = p.read_text(encoding="utf-8")
-          paragraphs = text.split("\n\n")
-          for i, paragraph in enumerate(paragraphs):
-              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "The canonical plugin source has been imported" in paragraph:
-                  paragraphs[i] = "The canonical plugin source has been imported from the hash-verified 105-entry candidate and its Bootstrap asset has been replaced with the authenticated upstream 5.3.8 file. Automated validation is running; a rebuilt installable ZIP is not certified until the tests finish successfully."
-          p.write_text("\n\n".join(paragraphs), encoding="utf-8")
-          PY
-          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Import authoritative 16.1.57 source and verified Bootstrap 5.3.8"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
-
-
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -166,26 +138,7 @@ jobs:
           set -euo pipefail
           composer validate --strict
           composer install --prefer-dist --no-interaction --no-progress
-          # First apply only token-aware, mechanical PHPCBF corrections across
-          # the full PHP audit profile. No business logic is intentionally edited
-          # by this formatter; all regression/static checks run afterwards.
-          # PHPCBF may leave non-fixable findings; full-source PHPCS is authoritative.
-          vendor/bin/phpcbf --standard=phpcs-full-audit.xml.dist || true
-          # Retain the stricter production-service profile as a separate step.
-          vendor/bin/phpcbf --standard=phpcs.xml.dist || true
-
-      - name: Persist mechanical PHP formatting on the audit branch
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add -u -- stockland-erp-app
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Apply full-source PHPCBF formatting fixes"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
+          # Scan and test the committed source as-is; formatting changes belong in a reviewed source commit.
 
       - name: Enforce production-service coding standard
         working-directory: stockland-erp-app
@@ -319,8 +272,13 @@ jobs:
               if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.57 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
                   paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip; its SHA-256 is recorded for this candidate build; the full-runtime PHPCS/WPCS and live staging gates remain independent."
           text = "\n\n".join(paragraphs)
-          if "\n## Rebuilt package " in text:
-              text = text.split("\n## Rebuilt package ", 1)[0]
+          markers = [
+              "\n## Rebuilt candidate package (automated build evidence)",
+              "\n## Rebuilt package ",
+          ]
+          positions = [text.find(marker) for marker in markers if text.find(marker) >= 0]
+          if positions:
+              text = text[:min(positions)]
           text = text.rstrip()
           text += (
               "\n\n## Rebuilt candidate package (automated build evidence)\n\n"
@@ -332,21 +290,6 @@ jobs:
           )
           p.write_text(text, encoding="utf-8")
           PY
-
-      - name: Commit rebuilt package to audit branch
-        if: github.event_name == 'push' && startsWith(github.ref_name, 'audit/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip
-          rm -f audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip.sha256
-          git add -A stockland-erp-app AUDIT/16.1.57-package-identity.md audit/packages
-          if ! git diff --cached --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Build canonical 16.1.57 package with verified Bootstrap 5.3.8"
-            git push origin "HEAD:$GITHUB_REF_NAME"
-          fi
 
       - name: Upload built package for review
         uses: actions/upload-artifact@v4
