@@ -2,10 +2,12 @@ name: Stockland ERP package and source gate
 
 on:
   push:
-    branches: ["audit/**"]
+    branches: ["audit/**", "main"]
     paths:
       - "stockland-erp-app/**"
-      - "audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip"
+      - "audit/packages/**"
+      - "audit/vendor/bootstrap-5.3.8/bootstrap.min.css"
+      - "AUDIT/**"
       - ".github/workflows/stockland-erp-audit.yml"
   pull_request:
     branches: ["main"]
@@ -159,9 +161,12 @@ jobs:
           set -euo pipefail
           composer validate --strict
           composer install --prefer-dist --no-interaction --no-progress
-          # Apply only PHPCBF's mechanical formatting corrections to the three
-          # explicitly scoped production services. The subsequent PHPCS run is
-          # authoritative and still fails if any violations remain.
+          # First apply only token-aware, mechanical PHPCBF corrections across
+          # the full PHP audit profile. No business logic is intentionally edited
+          # by this formatter; all regression/static checks run afterwards.
+          # PHPCBF may leave non-fixable findings; full-source PHPCS is authoritative.
+          vendor/bin/phpcbf --standard=phpcs-full-audit.xml.dist || true
+          # Retain the stricter production-service profile as a separate step.
           vendor/bin/phpcbf --standard=phpcs.xml.dist || true
 
       - name: Persist mechanical PHP formatting on the audit branch
@@ -169,11 +174,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git add stockland-erp-app/includes/class-stockland-sequence.php stockland-erp-app/includes/class-stockland-money.php stockland-erp-app/includes/class-stockland-integrity.php
+          git add -u -- stockland-erp-app
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Apply PHPCBF formatting to targeted ERP services"
+            git commit -m "Apply full-source PHPCBF formatting fixes"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
@@ -259,6 +264,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Enforce zero full-source PHPCS/WPCS findings
+        working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The diagnostic report is uploaded first so failures retain evidence.
+          # Do not weaken or exclude the full profile to obtain a green build.
+          vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist
+
       - name: Remove CI-only Composer vendor tree and PHPUnit cache before runtime QA and packaging
         shell: bash
         run: |
@@ -285,7 +299,10 @@ jobs:
           mkdir -p audit/packages
           package="audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
           rm -f "$package" "$package.sha256"
-          zip -qr "$package" stockland-erp-app
+          # Normalize timestamps and entry order so identical source produces
+          # identical ZIP bytes/checksum on repeated builds.
+          find stockland-erp-app -exec touch -t 198001010000 {} +
+          find stockland-erp-app -print | LC_ALL=C sort | zip -X -q "$package" -@
           unzip -t "$package"
           sha256sum "$package" > "$package.sha256"
           cat "$package.sha256"
