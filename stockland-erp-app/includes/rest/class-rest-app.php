@@ -2164,7 +2164,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	public function settings() {
 		global $wpdb;
-		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( "SELECT setting_key,setting_value,updated_at FROM %i WHERE setting_key NOT LIKE '__stockland_sequence__%' ORDER BY setting_key", Stockland_DB::table( 'settings' ) ), ARRAY_A ) );}
+		$sequence_pattern = $wpdb->esc_like( Stockland_Sequence::KEY_PREFIX ) . '%';
+		$rows             = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT setting_key,setting_value,updated_at FROM %i WHERE setting_key NOT LIKE %s ORDER BY setting_key',
+				Stockland_DB::table( 'settings' ),
+				$sequence_pattern
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
+	}
 	public function save_settings( WP_REST_Request $r ) {
 		$p       = $r->get_json_params();
 		$allowed = array( 'vat_rate', 'vat_basis', 'business_name', 'tagline', 'branch_reorder_alert_level', 'central_reorder_alert_level' );
