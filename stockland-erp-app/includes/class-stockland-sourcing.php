@@ -343,7 +343,7 @@ class Stockland_Sourcing {
 		$conditions = array();
 		$args       = array(
 			(int) $branch_id,
-			date( 'Y-m-d', strtotime( current_time( 'Y-m-d' ) . ' -29 days' ) ),
+			gmdate( 'Y-m-d', strtotime( current_time( 'Y-m-d' ) . ' 00:00:00 UTC -29 days' ) ),
 			current_time( 'Y-m-d' ),
 		);
 		if ( $variant_ids ) {

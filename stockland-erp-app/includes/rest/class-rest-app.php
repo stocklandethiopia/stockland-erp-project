@@ -11,6 +11,28 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	private function can_manage_users_frontend() {
 		return is_user_logged_in() && ( current_user_can( 'manage_options' ) || Stockland_Authority::can_manage_users() );
 	}
+	/**
+	 * Read a local plugin source file for read-only runtime contract diagnostics.
+	 *
+	 * @param string $file Absolute path to a local source or asset file.
+	 * @return string|false File contents, or false when the file cannot be read.
+	 */
+	private function read_local_source_file( $file ) {
+		if ( ! is_string( $file ) || ! is_file( $file ) || ! is_readable( $file ) ) {
+			return false;
+		}
+		try {
+			$source_lines = array();
+			$source_file  = new SplFileObject( $file, 'r' );
+			foreach ( $source_file as $source_line ) {
+				$source_lines[] = $source_line;
+			}
+			return implode( '', $source_lines );
+		} catch ( Throwable $e ) {
+			return false;
+		}
+	}
+
 	public function routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -1362,7 +1384,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$scheduler_hits   = array();
 		$trigger_hits     = array();
 		foreach ( $source_files as $source_file ) {
-			$src = @file_get_contents( $source_file );
+			$src = $this->read_local_source_file( $source_file );
 			if ( false === $src ) {
 				continue;
 			}
@@ -1398,9 +1420,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['warehouse_receiving_contract'] = in_array( 'receipts', $found_keys, true ) && isset( $routes['/stockland/v16/receipts'] ) && isset( $routes['/stockland/v16/receipts/(?P<receipt_id>[a-zA-Z0-9\-]+)/complete'] );
 		$checks['sku_mapping_contract']         = in_array( 'product_code_maps', $found_keys, true ) && isset( $routes['/stockland/v16/import/code-maps'] ) && isset( $routes['/stockland/v16/import/code-maps/(?P<id>\d+)'] );
 		$checks['sourcing_service']             = class_exists( 'Stockland_Sourcing' ) && method_exists( 'Stockland_Sourcing', 'for_items' );
-		$import_source                          = @file_get_contents( STOCKLAND_PLUGIN_DIR . 'includes/rest/class-rest-import-v16.php' );
-		$xlsx_source                            = @file_get_contents( STOCKLAND_PLUGIN_DIR . 'includes/class-stockland-xlsx.php' );
-		$sourcing_source                        = @file_get_contents( STOCKLAND_PLUGIN_DIR . 'includes/class-stockland-sourcing.php' );
+		$import_source                          = $this->read_local_source_file( STOCKLAND_PLUGIN_DIR . 'includes/rest/class-rest-import-v16.php' );
+		$xlsx_source                            = $this->read_local_source_file( STOCKLAND_PLUGIN_DIR . 'includes/class-stockland-xlsx.php' );
+		$sourcing_source                        = $this->read_local_source_file( STOCKLAND_PLUGIN_DIR . 'includes/class-stockland-sourcing.php' );
 		$checks['four_layer_import_contract']   = false !== $import_source
 			&& strpos( $import_source, 'layer_1_file_integrity' ) !== false
 			&& strpos( $import_source, 'layer_2_identity_mapping' ) !== false
@@ -1464,8 +1486,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		// contains a real Service Worker registration path. This is a source/asset gate,
 		// not a promise that the target browser has already installed the worker.
 		$pwa_file                          = STOCKLAND_PLUGIN_DIR . 'assets/pwa.js';
-		$pwa_source                        = $pwa_file && file_exists( $pwa_file ) ? (string) file_get_contents( $pwa_file ) : '';
-		$checks['pwa_registration_source'] = file_exists( $pwa_file )
+		$pwa_source                        = $this->read_local_source_file( $pwa_file );
+		$checks['pwa_registration_source'] = false !== $pwa_source
 			&& stripos( $pwa_source, 'serviceWorker.register' ) !== false
 			&& stripos( $pwa_source, 'navigator.serviceWorker' ) !== false;
 

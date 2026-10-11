@@ -582,7 +582,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$period_end          = $period['end_date'];
 		$hire                = ! empty( $employee['hire_date'] ) && $employee['hire_date'] > $period_start ? $employee['hire_date'] : $period_start;
 		$term                = ! empty( $employee['termination_date'] ) && $employee['termination_date'] < $period_end ? $employee['termination_date'] : $period_end;
-		$days_in_month       = (int) date( 't', strtotime( $period_start ) );
+		$days_in_month       = (int) gmdate( 't', strtotime( $period_start . ' 00:00:00 UTC' ) );
 		$totals              = array(
 			'base_salary'             => '0.00',
 			'taxable_allowance_total' => '0.00',
@@ -601,7 +601,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$to = $term;
 			if ( isset( $schedule[ $i + 1 ] ) ) {
 				$next_start = $schedule[ $i + 1 ]['effective_from'];
-				$next_day   = date( 'Y-m-d', strtotime( $next_start . ' -1 day' ) );
+				$next_day   = gmdate( 'Y-m-d', strtotime( $next_start . ' 00:00:00 UTC -1 day' ) );
 				if ( $next_day < $to ) {
 					$to = $next_day;
 				}
@@ -794,7 +794,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Only DRAFT payroll periods can be generated.' );
 			}
 			$month_start = substr( $period['start_date'], 0, 7 ) . '-01';
-			if ( $period['start_date'] !== $month_start || date( 'Y-m-t', strtotime( $period['start_date'] ) ) !== $period['end_date'] || substr( $period['start_date'], 0, 7 ) !== $period['period_key'] ) {
+			if ( $period['start_date'] !== $month_start || gmdate( 'Y-m-t', strtotime( $period['start_date'] . ' 00:00:00 UTC' ) ) !== $period['end_date'] || substr( $period['start_date'], 0, 7 ) !== $period['period_key'] ) {
 				throw new Exception( 'Payroll period must be a full calendar month with key YYYY-MM.' );
 			}
 			if ( $period['start_date'] < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {

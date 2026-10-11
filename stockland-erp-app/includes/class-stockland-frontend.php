@@ -191,9 +191,15 @@ class Stockland_Frontend {
 	private static function asset_version( $relative ) {
 		$file        = STOCKLAND_PLUGIN_DIR . ltrim( $relative, '/' );
 		$fingerprint = '0';
-		if ( is_file( $file ) ) {
-			$mtime       = @filemtime( $file );
-			$fingerprint = $mtime ? $mtime : substr( (string) @sha1_file( $file ), 0, 12 );}
+		if ( is_file( $file ) && is_readable( $file ) ) {
+			$mtime = filemtime( $file );
+			if ( $mtime ) {
+				$fingerprint = $mtime;
+			} else {
+				$digest      = hash_file( 'sha256', $file );
+				$fingerprint = false !== $digest ? substr( $digest, 0, 12 ) : '0';
+			}
+		}
 		return STOCKLAND_VERSION . '-' . preg_replace( '/[^0-9A-Za-z_-]/', '', $fingerprint );
 	}
 	private static function asset_url( $relative ) {
