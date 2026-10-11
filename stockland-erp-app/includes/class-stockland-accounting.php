@@ -715,7 +715,7 @@ class Stockland_Accounting {
 			array( '2033', 'Other Payroll Deductions Payable', 'LIABILITY' ),
 		);
 		foreach ( $accounts as $a ) {
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)", $p . 'stock_gl_accounts', $a[0], $a[1], $a[2] ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $p . 'stock_gl_accounts', $a[0], $a[1], $a[2] ) );
 		}
 	}
 
@@ -760,7 +760,7 @@ class Stockland_Accounting {
 
 	private static function seed_walkin_customer( $p ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)", $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)', $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
 	}
 
 	/** Idempotently ensure statutory payroll accounts exist during an Owner-approved payroll posting. */
