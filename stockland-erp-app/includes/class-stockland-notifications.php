@@ -100,6 +100,7 @@ class Stockland_Notifications {
 		$loc            = (int) ( $profile['branch_location_id'] ?? 0 );
 		$assigned_table = $wpdb->prefix . 'stock_user_locations';
 		$sql            = 'SELECT n.*,l.location_name FROM %i n LEFT JOIN %i l ON l.id=n.location_id WHERE n.is_read=0 AND (n.user_id=%d OR (n.audience_role=%s AND (n.location_id IS NULL OR n.location_id=%d OR EXISTS (SELECT 1 FROM %i sul WHERE sul.wp_user_id=%d AND sul.location_id=n.location_id AND sul.is_active=1 AND (sul.effective_from IS NULL OR sul.effective_from<=CURDATE()) AND (sul.effective_to IS NULL OR sul.effective_to>=CURDATE()))))) ORDER BY n.id DESC LIMIT %d';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is a fixed query template with placeholders for both tables, the capped LIMIT and every user/role/location value; execution always passes through prepare().
 		return $wpdb->get_results( $wpdb->prepare( $sql, Stockland_DB::table( 'notifications' ), Stockland_DB::table( 'locations' ), (int) $user_id, $role, $loc, $assigned_table, (int) $user_id, $limit ), ARRAY_A );
 	}
 	/**
@@ -120,6 +121,7 @@ class Stockland_Notifications {
 		$loc            = (int) ( $profile['branch_location_id'] ?? 0 );
 		$assigned_table = $wpdb->prefix . 'stock_user_locations';
 		$sql            = 'UPDATE %i AS n SET is_read=1,read_at=%s WHERE n.id=%d AND (n.user_id=%d OR (n.audience_role=%s AND (n.location_id IS NULL OR n.location_id=%d OR EXISTS (SELECT 1 FROM %i sul WHERE sul.wp_user_id=%d AND sul.location_id=n.location_id AND sul.is_active=1 AND (sul.effective_from IS NULL OR sul.effective_from<=CURDATE()) AND (sul.effective_to IS NULL OR sul.effective_to>=CURDATE())))))';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is a fixed UPDATE template; table identifiers, timestamp, notification ID, user, role, location and assignment table are all bound through prepare().
 		return false !== $wpdb->query( $wpdb->prepare( $sql, Stockland_DB::table( 'notifications' ), current_time( 'mysql' ), (int) $id, (int) $user_id, $role, $loc, $assigned_table, (int) $user_id ) );
 	}
 	/**
