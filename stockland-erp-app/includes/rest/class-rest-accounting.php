@@ -384,12 +384,18 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$inv  = Stockland_DB::table( 'supplier_invoices' );
 		$pay  = Stockland_DB::table( 'payments' );
 		$rows = $wpdb->get_results(
-			"SELECT s.*,ROUND(s.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance,COALESCE(g.gl_balance,0) gl_balance
-            FROM {$t} s
-            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM {$inv} WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
-            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
-            LEFT JOIN (SELECT supplier_id,SUM(debit-credit) gl_balance FROM " . Stockland_DB::table( 'gl_lines' ) . " WHERE account_code='2000' GROUP BY supplier_id) g ON g.supplier_id=s.id
+			$wpdb->prepare(
+				"SELECT s.*,ROUND(s.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance,COALESCE(g.gl_balance,0) gl_balance
+            FROM %i s
+            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
+            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
+            LEFT JOIN (SELECT supplier_id,SUM(debit-credit) gl_balance FROM %i WHERE account_code='2000' GROUP BY supplier_id) g ON g.supplier_id=s.id
             ORDER BY s.supplier_name LIMIT 1000",
+				$t,
+				$inv,
+				$pay,
+				Stockland_DB::table( 'gl_lines' )
+			),
 			ARRAY_A
 		);
 		return rest_ensure_response( $rows );
@@ -410,7 +416,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$existing    = null;
 		$old_opening = 0.0;
 		if ( $id ) {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'suppliers' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'suppliers' ), $id ), ARRAY_A );
 			if ( ! $existing ) {
 				return new WP_Error( 'not_found', 'Supplier not found.', array( 'status' => 404 ) );
 			}$old_opening = $this->money( $existing['opening_balance'] );}
@@ -1228,7 +1234,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( $count <= 0 ) {
 				throw new Exception( 'No receivable quantity was submitted.' );
 			}$new_status     = 'PARTIALLY_RECEIVED';
-			$remaining_total = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
+			$remaining_total = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 			if ( $remaining_total <= 0.00001 ) {
 				$new_status = 'RECEIVED';
 			}
@@ -1369,7 +1375,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$po_item_ids  = array();
 			$already      = array();
 			if ( $poid ) {
-				$po_item_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d FOR UPDATE', $poid ), ARRAY_A );
+				$po_item_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d FOR UPDATE', Stockland_DB::table( 'purchase_order_items' ), $poid ), ARRAY_A );
 				if ( ! $po_item_rows ) {
 					throw new Exception( 'Linked purchase order has no lines.' );
 				}
@@ -1524,7 +1530,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( $poid && 'POSTED' === $invoice_status ) {
 				$wpdb->last_error         = '';
-				$remaining_unreceived_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
+				$remaining_unreceived_raw = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 				if ( null === $remaining_unreceived_raw || $wpdb->last_error ) {
 					throw new Exception( 'Could not verify unreceived purchase quantity; PO status was not changed.' );
 				}$remaining_unreceived    = (float) $remaining_unreceived_raw;
@@ -2062,7 +2068,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			$t   = Stockland_DB::table( 'expenses' );
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id=%d FOR UPDATE", $id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', $t, $id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Expense not found.' );
 			}if ( 'PENDING' !== $row['status'] ) {
@@ -2545,7 +2551,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			$it      = Stockland_DB::table( 'supplier_invoices' );
-			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$it} WHERE id=%d FOR UPDATE", $id ), ARRAY_A );
+			$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', $it, $id ), ARRAY_A );
 			if ( ! $invoice ) {
 				throw new Exception( 'Supplier invoice not found.' );
 			}if ( 'PENDING' !== $invoice['status'] ) {
@@ -2559,7 +2565,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				throw new Exception( 'Supplier invoice approval is blocked: a posted stock purchase requires a linked Owner-approved Central Warehouse PO and posted receipt. Legacy unlinked invoices must be reconciled manually before any GL posting.' );
 			}$debit_account = '2010';
 			if ( $poid ) {
-				$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d AND supplier_id=%d FOR UPDATE', $poid, (int) $invoice['supplier_id'] ), ARRAY_A );
+				$po = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND supplier_id=%d FOR UPDATE', Stockland_DB::table( 'purchase_orders' ), $poid, (int) $invoice['supplier_id'] ), ARRAY_A );
 				if ( ! $po || ! in_array( $po['status'], array( 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED' ), true ) ) {
 					throw new Exception( 'Linked PO must remain valid and received before invoice approval.' );
 				}
@@ -2571,17 +2577,17 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					throw new Exception( 'Linked PO owner-approval evidence failed validation.' );
 				}
 				$debit_account = '2010';
-				$poitems       = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d FOR UPDATE', $poid ), ARRAY_A );
+				$poitems       = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d FOR UPDATE', Stockland_DB::table( 'purchase_order_items' ), $poid ), ARRAY_A );
 				$po_map        = array();
 				foreach ( $poitems as $pi ) {
 					$po_map[ (int) $pi['id'] ] = $pi;
 				}
-				$already_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . " sii JOIN {$it} si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.id<>%d AND si.status IN ('POSTED','PENDING') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id", $poid, $id ), ARRAY_A );
+				$already_rows = $wpdb->get_results( $wpdb->prepare( "SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM %i sii JOIN %i si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.id<>%d AND si.status IN ('POSTED','PENDING') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id", Stockland_DB::table( 'supplier_invoice_items' ), $it, $poid, $id ), ARRAY_A );
 				$already      = array();
 				foreach ( $already_rows as $ar ) {
 					$already[ (int) $ar['po_item_id'] ] = (float) $ar['qty'];
 				}
-				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' WHERE invoice_id=%d FOR UPDATE', $id ), ARRAY_A );
+				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d FOR UPDATE', Stockland_DB::table( 'supplier_invoice_items' ), $id ), ARRAY_A );
 				if ( ! $items ) {
 					throw new Exception( 'Supplier invoice has no saved lines.' );
 				}
@@ -2598,7 +2604,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					}
 				}
 			} else {
-				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . ' WHERE invoice_id=%d FOR UPDATE', $id ), ARRAY_A );
+				$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d FOR UPDATE', Stockland_DB::table( 'supplier_invoice_items' ), $id ), ARRAY_A );
 				if ( ! $items ) {
 					throw new Exception( 'Supplier invoice has no saved lines.' );
 				}
@@ -2656,8 +2662,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Supplier invoice status update failed.' );
 			}
 			if ( 'APPROVE' === $action && $poid ) {
-				$remaining_unreceived = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d', $poid ) );
-				$remaining_uninvoiced = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . " sii INNER JOIN {$it} si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM " . Stockland_DB::table( 'purchase_order_items' ) . ' poi WHERE poi.po_id=%d', $poid ) );
+				$remaining_unreceived = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(quantity_ordered-quantity_received,0)),0) FROM %i WHERE po_id=%d', Stockland_DB::table( 'purchase_order_items' ), $poid ) );
+				$remaining_uninvoiced = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM %i sii INNER JOIN %i si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status='POSTED'),0),0)),0) FROM %i poi WHERE poi.po_id=%d", Stockland_DB::table( 'supplier_invoice_items' ), $it, Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not reconcile remaining PO quantities after invoice approval.' );
 				}
@@ -2710,7 +2716,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		try {
 			$pt      = Stockland_DB::table( 'payments' );
-			$payment = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$pt} WHERE id=%d FOR UPDATE", $id ), ARRAY_A );
+			$payment = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', $pt, $id ), ARRAY_A );
 			if ( ! $payment ) {
 				throw new Exception( 'Payment not found.' );
 			}if ( 'PENDING' !== $payment['status'] ) {
@@ -2737,7 +2743,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					if ( ! $sid ) {
 						throw new Exception( 'Supplier payment is missing supplier_id.' );
 					}
-					$allocs = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'payment_allocations' ) . " WHERE payment_id=%d AND invoice_type='AP' FOR UPDATE", $id ), ARRAY_A );
+					$allocs = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE payment_id=%d AND invoice_type='AP' FOR UPDATE", Stockland_DB::table( 'payment_allocations' ), $id ), ARRAY_A );
 					if ( ! $allocs ) {
 						throw new Exception( 'Supplier payment has no PLEDGER invoice allocations.' );
 					}
@@ -2745,10 +2751,10 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					foreach ( $allocs as $a ) {
 						$iid   = (int) $a['invoice_id'];
 						$alloc = $this->money( $a['amount'] );
-						$iv    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'supplier_invoices' ) . " WHERE id=%d AND supplier_id=%d AND status='POSTED' FOR UPDATE", $iid, $sid ), ARRAY_A );
+						$iv    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND supplier_id=%d AND status='POSTED' FOR UPDATE", Stockland_DB::table( 'supplier_invoices' ), $iid, $sid ), ARRAY_A );
 						if ( ! $iv ) {
 							throw new Exception( 'A supplier payment allocation no longer points to a POSTED invoice for this supplier.' );
-						}$other      = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(a.amount),0) FROM ' . Stockland_DB::table( 'payment_allocations' ) . " a INNER JOIN {$pt} p ON p.id=a.payment_id WHERE a.invoice_type='AP' AND a.invoice_id=%d AND p.status IN ('POSTED','PENDING') AND p.id<>%d", $iid, $id ) );
+						}$other      = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(a.amount),0) FROM %i a INNER JOIN %i p ON p.id=a.payment_id WHERE a.invoice_type='AP' AND a.invoice_id=%d AND p.status IN ('POSTED','PENDING') AND p.id<>%d", Stockland_DB::table( 'payment_allocations' ), $pt, $iid, $id ) );
 						$outstanding = Stockland_Money::subtract( $iv['total_amount'], number_format( $other, 2, '.', '' ) );
 						if ( Stockland_Money::minor( Stockland_Money::subtract( $alloc, $outstanding ) ) > 0 ) {
 							throw new Exception( 'Supplier payment would over-allocate invoice ' . $iv['invoice_number'] . '.' );
