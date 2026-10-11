@@ -993,7 +993,7 @@ class Stockland_Accounting {
 
 		try {
 			$num = Stockland_Sequence::next( 'JRN-', $date );
-			$ok  = $wpdb->insert(
+			$ok  = Stockland_DB::insert_record(
 				Stockland_DB::table( 'gl_journals' ),
 				array(
 					'journal_number' => $num,
@@ -1011,7 +1011,7 @@ class Stockland_Accounting {
 			}
 			$jid = (int) $wpdb->insert_id;
 			foreach ( $lines as $line ) {
-				$ok = $wpdb->insert(
+				$ok = Stockland_DB::insert_record(
 					Stockland_DB::table( 'gl_lines' ),
 					array(
 						'journal_id'   => $jid,
