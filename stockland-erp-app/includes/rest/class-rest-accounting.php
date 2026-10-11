@@ -1475,15 +1475,31 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function supplier_invoices( WP_REST_Request $r ) {
 		global $wpdb;
-		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$where  = '';
-		$args   = array();
-		if ( in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true ) ) {
-			$where  = ' WHERE i.status=%s';
-			$args[] = $status;
-		}$sql = 'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name FROM ' . Stockland_DB::table( 'supplier_invoices' ) . ' i JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=i.supplier_id LEFT JOIN ' . Stockland_DB::table( 'purchase_orders' ) . ' po ON po.id=i.po_id LEFT JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=po.location_id LEFT JOIN {$wpdb->users} u ON u.ID=i.created_by{$where} ORDER BY i.id DESC LIMIT 500";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$status     = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$rows       = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name
+				FROM %i i
+				JOIN %i s ON s.id=i.supplier_id
+				LEFT JOIN %i po ON po.id=i.po_id
+				LEFT JOIN %i l ON l.id=po.location_id
+				LEFT JOIN %i u ON u.ID=i.created_by
+				WHERE (%d = 0 OR i.status = %s)
+				ORDER BY i.id DESC LIMIT 500',
+				Stockland_DB::table( 'supplier_invoices' ),
+				Stockland_DB::table( 'suppliers' ),
+				Stockland_DB::table( 'purchase_orders' ),
+				Stockland_DB::table( 'locations' ),
+				$wpdb->users,
+				$has_status ? 1 : 0,
+				$has_status ? $status : ''
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
+
 	/**
 	 * Creates a supplier invoice and links it to eligible procurement records.
 	 *
@@ -1752,7 +1768,20 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function customer_invoices( WP_REST_Request $r ) {
 		global $wpdb;
-		return rest_ensure_response( $wpdb->get_results( 'SELECT i.*,c.customer_name,l.location_name FROM ' . Stockland_DB::table( 'customer_invoices' ) . ' i JOIN ' . Stockland_DB::table( 'customers' ) . ' c ON c.id=i.customer_id LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=i.location_id ORDER BY i.id DESC LIMIT 500', ARRAY_A ) );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT i.*,c.customer_name,l.location_name
+				FROM %i i
+				JOIN %i c ON c.id=i.customer_id
+				LEFT JOIN %i l ON l.id=i.location_id
+				ORDER BY i.id DESC LIMIT 500',
+				Stockland_DB::table( 'customer_invoices' ),
+				Stockland_DB::table( 'customers' ),
+				Stockland_DB::table( 'locations' )
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
 
 	/**
@@ -2047,30 +2076,44 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function expenses( WP_REST_Request $r ) {
 		global $wpdb;
-		$t      = Stockland_DB::table( 'expenses' );
-		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$where  = array( '1=1' );
-		$args   = array();
-		if ( in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true ) ) {
-			$where[] = 'e.status=%s';
-			$args[]  = $status;}
-		if ( ! Stockland_Authority::company_scope() ) {
-			$ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
-			if ( ! $ids ) {
+		$table       = Stockland_DB::table( 'expenses' );
+		$status      = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status  = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$company_wide = Stockland_Authority::company_scope();
+		$location_ids = array();
+		if ( ! $company_wide ) {
+			$location_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
+			if ( ! $location_ids ) {
 				$branch = Stockland_Authority::branch_id();
 				if ( $branch ) {
-					$ids = array( $branch );
+					$location_ids = array( (int) $branch );
 				}
 			}
-			if ( ! $ids ) {
+			if ( ! $location_ids ) {
 				return rest_ensure_response( array() );
 			}
-			$where[] = 'e.location_id IN(' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')';
-			$args    = array_merge( $args, $ids );
 		}
-		// Use a normal WordPress users join (the column/table identifiers are trusted plugin runtime values).
-		$sql = "SELECT e.*,l.location_name,wu.display_name AS created_by_name FROM {$t} e LEFT JOIN " . Stockland_DB::table( 'locations' ) . " l ON l.id=e.location_id LEFT JOIN {$wpdb->users} wu ON wu.ID=e.created_by WHERE " . implode( ' AND ', $where ) . ' ORDER BY e.expense_date DESC,e.id DESC LIMIT 500';
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$location_filter = implode( ',', array_map( 'intval', $location_ids ) );
+		$rows            = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT e.*,l.location_name,wu.display_name AS created_by_name
+				FROM %i e
+				LEFT JOIN %i l ON l.id=e.location_id
+				LEFT JOIN %i wu ON wu.ID=e.created_by
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+				ORDER BY e.expense_date DESC,e.id DESC LIMIT 500',
+				$table,
+				Stockland_DB::table( 'locations' ),
+				$wpdb->users,
+				$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
 
 	/**
@@ -2396,15 +2439,29 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function payments( WP_REST_Request $r ) {
 		global $wpdb;
-		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$where  = '';
-		$args   = array();
-		if ( in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true ) ) {
-			$where  = ' WHERE p.status=%s';
-			$args[] = $status;
-		}$sql = 'SELECT p.*,s.supplier_name,c.customer_name,u.display_name AS created_by_name FROM ' . Stockland_DB::table( 'payments' ) . ' p LEFT JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=p.supplier_id LEFT JOIN ' . Stockland_DB::table( 'customers' ) . ' c ON c.id=p.customer_id LEFT JOIN ' . $wpdb->users . " u ON u.ID=p.created_by{$where} ORDER BY p.payment_date DESC,p.id DESC LIMIT 500";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$status     = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$rows       = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT p.*,s.supplier_name,c.customer_name,u.display_name AS created_by_name
+				FROM %i p
+				LEFT JOIN %i s ON s.id=p.supplier_id
+				LEFT JOIN %i c ON c.id=p.customer_id
+				LEFT JOIN %i u ON u.ID=p.created_by
+				WHERE (%d = 0 OR p.status = %s)
+				ORDER BY p.payment_date DESC,p.id DESC LIMIT 500',
+				Stockland_DB::table( 'payments' ),
+				Stockland_DB::table( 'suppliers' ),
+				Stockland_DB::table( 'customers' ),
+				$wpdb->users,
+				$has_status ? 1 : 0,
+				$has_status ? $status : ''
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
+
 	/**
 	 * Records an internal customer payment and its ledger effects.
 	 *
@@ -3106,9 +3163,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function trial_balance( WP_REST_Request $r ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( 'SELECT a.account_code,a.account_name,a.account_type,COALESCE(SUM(l.debit),0) debit,COALESCE(SUM(l.credit),0) credit,COALESCE(SUM(l.debit-l.credit),0) balance FROM ' . Stockland_DB::table( 'gl_accounts' ) . ' a LEFT JOIN ' . Stockland_DB::table( 'gl_lines' ) . ' l ON l.account_code=a.account_code LEFT JOIN ' . Stockland_DB::table( 'gl_journals' ) . " j ON j.id=l.journal_id WHERE a.is_active=1 AND (j.id IS NULL OR j.status='POSTED') GROUP BY a.id ORDER BY a.account_code", ARRAY_A );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT a.account_code,a.account_name,a.account_type,COALESCE(SUM(l.debit),0) debit,COALESCE(SUM(l.credit),0) credit,COALESCE(SUM(l.debit-l.credit),0) balance
+				FROM %i a
+				LEFT JOIN %i l ON l.account_code=a.account_code
+				LEFT JOIN %i j ON j.id=l.journal_id
+				WHERE a.is_active=1 AND (j.id IS NULL OR j.status='POSTED')
+				GROUP BY a.id ORDER BY a.account_code",
+				Stockland_DB::table( 'gl_accounts' ),
+				Stockland_DB::table( 'gl_lines' ),
+				Stockland_DB::table( 'gl_journals' )
+			),
+			ARRAY_A
+		);
 		return rest_ensure_response( $rows );
 	}
+
 	/**
 	 * Builds the authorized financial summary report.
 	 *
@@ -3172,17 +3243,30 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function gl( WP_REST_Request $r ) {
 		global $wpdb;
-		$from  = $this->date( $r->get_param( 'from' ) ?? null, null );
-		$to    = $this->date( $r->get_param( 'to' ) ?? null, null );
-		$where = '';
-		$args  = array();
-		if ( $from ) {
-			$where .= ' AND j.journal_date >= %s';
-			$args[] = $from;
-		}if ( $to ) {
-			$where .= ' AND j.journal_date <= %s';
-			$args[] = $to;}
-		$sql = 'SELECT j.journal_number,j.journal_date,j.source_type,j.source_id,j.memo,l.account_code,a.account_name,l.debit,l.credit,l.location_id FROM ' . Stockland_DB::table( 'gl_journals' ) . ' j JOIN ' . Stockland_DB::table( 'gl_lines' ) . ' l ON l.journal_id=j.id JOIN ' . Stockland_DB::table( 'gl_accounts' ) . " a ON a.account_code=l.account_code WHERE j.status='POSTED'{$where} ORDER BY j.journal_date DESC,j.id DESC,l.id ASC LIMIT 2000";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$from     = $this->date( $r->get_param( 'from' ) ?? null, null );
+		$to       = $this->date( $r->get_param( 'to' ) ?? null, null );
+		$has_from = (bool) $from;
+		$has_to   = (bool) $to;
+		$rows     = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT j.journal_number,j.journal_date,j.source_type,j.source_id,j.memo,l.account_code,a.account_name,l.debit,l.credit,l.location_id
+				FROM %i j
+				JOIN %i l ON l.journal_id=j.id
+				JOIN %i a ON a.account_code=l.account_code
+				WHERE j.status='POSTED'
+					AND (%d = 0 OR j.journal_date >= %s)
+					AND (%d = 0 OR j.journal_date <= %s)
+				ORDER BY j.journal_date DESC,j.id DESC,l.id ASC LIMIT 2000",
+				Stockland_DB::table( 'gl_journals' ),
+				Stockland_DB::table( 'gl_lines' ),
+				Stockland_DB::table( 'gl_accounts' ),
+				$has_from ? 1 : 0,
+				$has_from ? $from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $to : ''
+			),
+			ARRAY_A
+		);
+		return rest_ensure_response( $rows );
 	}
 }
