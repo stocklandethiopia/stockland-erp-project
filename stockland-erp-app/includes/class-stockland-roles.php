@@ -334,8 +334,8 @@ class Stockland_Roles {
 
 	public static function get_profile( $wp_user_id ) {
 		global $wpdb;
-		$p   = $wpdb->prefix;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}stock_users WHERE wp_user_id=%d AND is_active=1", (int) $wp_user_id ), ARRAY_A );
+		$table = Stockland_DB::table( 'users' );
+		$row   = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d AND is_active=1', $table, (int) $wp_user_id ), ARRAY_A );
 		return $row ?: null;
 	}
 
@@ -347,7 +347,7 @@ class Stockland_Roles {
 		$table  = $wpdb->prefix . 'stock_user_locations';
 		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
 		if ( $exists === $table ) {
-			$rows = $wpdb->get_col( $wpdb->prepare( "SELECT location_id FROM {$table} WHERE wp_user_id=%d AND is_active=1 AND (effective_from IS NULL OR effective_from<=CURDATE()) AND (effective_to IS NULL OR effective_to>=CURDATE()) ORDER BY is_primary DESC,id", (int) $wp_user_id ) );
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT location_id FROM %i WHERE wp_user_id=%d AND is_active=1 AND (effective_from IS NULL OR effective_from<=CURDATE()) AND (effective_to IS NULL OR effective_to>=CURDATE()) ORDER BY is_primary DESC,id', $table, (int) $wp_user_id ) );
 			foreach ( $rows as $id ) {
 				$ids[] = (int) $id;
 			}
