@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP accounting, procurement, receivables, payables, and ledger REST handlers.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,9 +15,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * and audited. Posted financial journals are append-only.
  */
 class Stockland_REST_Accounting extends Stockland_REST_Base {
+	/**
+	 * Registers accounting and procurement routes for the ERP REST controller.
+	 *
+	 * @return void Registers controller hooks.
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
 
+	/**
+	 * Checks the current user's role and capability for an accounting operation.
+	 *
+	 * @param string $cap Capability required for the operation.
+	 * @return bool Whether the current user is authorized for the capability.
+	 */
 	private function can( $cap ) {
 		$uid  = get_current_user_id();
 		$role = Stockland_Authority::role( $uid );
@@ -39,18 +56,52 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	// Accounting needs an extra capability rule (management/settings can also pass).
 	// Keep this helper uniquely named so it does not override the base REST
 	// controller's protected require_cap( $request, $capability ) contract.
+	/**
+	 * Handles the require accounting cap operation for the ERP.
+	 *
+	 * @param string $cap Capability required for the operation.
+	 * @return mixed The operation result.
+	 */
 	private function require_accounting_cap( $cap ) {
 		return $this->can( $cap ) ? true : new WP_Error( 'forbidden', 'You are not authorized for this accounting operation.', array( 'status' => 403 ) );
 	}
+	/**
+	 * Validates and normalizes a supplied business date.
+	 *
+	 * @param mixed $v Value to validate or normalize.
+	 * @param mixed $default Optional fallback value.
+	 * @return string|false The normalized date, or false when the value is invalid.
+	 */
 	private function date( $v, $default = null ) {
 		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ? $default : current_time( 'Y-m-d' ) ) );
 		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : null;
 	}
+	/**
+	 * Normalizes a monetary input for ledger-safe processing.
+	 *
+	 * @param mixed $v Value to validate or normalize.
+	 * @return string The normalized monetary value.
+	 */
 	private function money( $v ) {
 		return Stockland_Money::decimal( Stockland_Money::minor( $v ) ); }
+	/**
+	 * Allocates the next document number for a business record.
+	 *
+	 * @param string      $prefix Document-number prefix.
+	 * @param mixed       $table Internal table name used for the numbering sequence.
+	 * @param string      $field Internal field used for the numbering sequence.
+	 * @param string|null $date Business date used to scope numbering.
+	 * @return string The next document number.
+	 */
 	private function next_number( $prefix, $table = null, $field = null, $date = null ) {
 		return Stockland_Sequence::next( $prefix, $date );
 	}
+	/**
+	 * Resolves and validates a requested operational location.
+	 *
+	 * @param mixed $requested Value for the requested argument.
+	 * @return int|WP_Error|false A validated location identifier, or an error/false result.
+	 */
 	private function location( $requested = null ) {
 		$id = $this->resolve_branch_for_user( $requested );
 		if ( is_wp_error( $id ) ) {
@@ -63,6 +114,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return $cw ? $cw : 0;
 	}
 
+	/**
+	 * Registers supplier, customer, procurement, payments, and general-ledger REST routes.
+	 *
+	 * @return void Registers the REST routes.
+	 */
 	public function routes() {
 		$read = array(
 			'methods'             => 'GET',
@@ -320,6 +376,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Returns the accounting data authorized for the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function read( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_manage_external_supplier_finance( 'stockland_view_financials' ) ) {
 			return new WP_Error( 'forbidden', 'Supplier/AP accounting bootstrap is restricted to active Stockland Owner and Management profiles.', array( 'status' => 403 ) );
@@ -378,6 +440,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			)
 		);
 	}
+	/**
+	 * Lists supplier records available to the current role.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function suppliers( WP_REST_Request $r ) {
 		global $wpdb;
 		$t    = Stockland_DB::table( 'suppliers' );
@@ -400,6 +468,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Creates or updates a supplier record after capability and field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function supplier_save( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_suppliers' );
 		if ( true !== $e ) {
@@ -473,6 +547,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Lists customer records authorized for the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customers( WP_REST_Request $r ) {
 		global $wpdb;
 		$t       = Stockland_DB::table( 'customers' );
@@ -525,6 +605,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Creates or updates a customer record after field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customer_save( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_customers' );
 		if ( true !== $e ) {
@@ -603,6 +689,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Lists purchase orders permitted by the current role and scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_orders( WP_REST_Request $r ) {
 		global $wpdb;
 		$p     = $r->get_param( 'status' );
@@ -683,6 +775,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Creates a purchase order using the approved procurement workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_create( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_create_external_purchase_order() ) {
 			return new WP_Error( 'forbidden', 'Only an active Stockland Management profile may enter an external-supply purchase order. WordPress Administrator/settings capability alone is not purchasing authority.', array( 'status' => 403 ) );
@@ -859,6 +957,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}return new WP_Error( 'po_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Returns the requested purchase-order detail within the user's scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = (int) $r['id'];
@@ -883,6 +987,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $po );
 	}
 
+	/**
+	 * Applies an allowed purchase-order state transition.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_status( WP_REST_Request $r ) {
 		global $wpdb;
 		$id     = (int) $r['id'];
@@ -1021,6 +1131,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}
 	}
 
+	/**
+	 * Records receipt against an authorized purchase order.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function purchase_order_receive( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_receive_external_purchase_order() ) {
 			return new WP_Error( 'forbidden', 'Only an active Stockland Warehouse Manager may accept external-supply quantities. Warehouse Employee and WordPress Administrator capabilities alone are insufficient.', array( 'status' => 403 ) );
@@ -1351,6 +1467,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( $closed ? 'business_day_closed' : 'receive_failed', $message, array( 'status' => $closed ? 409 : 500 ) );}
 	}
 
+	/**
+	 * Lists supplier invoices visible to the current role.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function supplier_invoices( WP_REST_Request $r ) {
 		global $wpdb;
 		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
@@ -1362,6 +1484,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}$sql = 'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name FROM ' . Stockland_DB::table( 'supplier_invoices' ) . ' i JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=i.supplier_id LEFT JOIN ' . Stockland_DB::table( 'purchase_orders' ) . ' po ON po.id=i.po_id LEFT JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=po.location_id LEFT JOIN {$wpdb->users} u ON u.ID=i.created_by{$where} ORDER BY i.id DESC LIMIT 500";
 		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
 	}
+	/**
+	 * Creates a supplier invoice and links it to eligible procurement records.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function supplier_invoice_create( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_prepare_finance( 'stockland_manage_payables' ) ) {
 			return new WP_Error( 'forbidden', 'Supplier invoice entry is Management-only; the active Owner must approve the submitted invoice separately.', array( 'status' => 403 ) );
@@ -1616,11 +1744,25 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'invoice_failed', $x->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Lists customer invoices authorized for the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customer_invoices( WP_REST_Request $r ) {
 		global $wpdb;
 		return rest_ensure_response( $wpdb->get_results( 'SELECT i.*,c.customer_name,l.location_name FROM ' . Stockland_DB::table( 'customer_invoices' ) . ' i JOIN ' . Stockland_DB::table( 'customers' ) . ' c ON c.id=i.customer_id LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=i.location_id ORDER BY i.id DESC LIMIT 500', ARRAY_A ) );
 	}
 
+	/**
+	 * Inserts a customer payment into the active database transaction.
+	 *
+	 * @param mixed $p Validated payment, invoice, or party values.
+	 * @param int   $user_id WordPress user ID associated with the transaction.
+	 * @param mixed $invoice_total Total amount of the invoice.
+	 * @return int|WP_Error|false The payment identifier, or an error/failure result.
+	 */
 	private function insert_customer_payment_in_transaction( $p, $user_id, $invoice_total = 0 ) {
 		global $wpdb;
 		$cid    = (int) ( $p['customer_id'] ?? 0 );
@@ -1683,6 +1825,15 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Creates a customer invoice from validated source data.
+	 *
+	 * @param mixed $p Validated payment, invoice, or party values.
+	 * @param int   $user_id WordPress user ID associated with the transaction.
+	 * @param mixed $source_type Value for the source type argument.
+	 * @param mixed $source_id Value for the source id argument.
+	 * @return mixed The operation result.
+	 */
 	private function create_customer_invoice( $p, $user_id, $source_type = 'MANUAL', $source_id = null ) {
 		global $wpdb;
 		$cid = (int) ( $p['customer_id'] ?? 0 );
@@ -1841,6 +1992,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return array( 'error' => new WP_Error( 'invoice_failed', $x->getMessage(), array( 'status' => 500 ) ) );}
 	}
 
+	/**
+	 * Creates a customer invoice through the REST workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function customer_invoice_create( WP_REST_Request $r ) {
 		$p      = $r->get_json_params();
 		$result = $this->create_customer_invoice( $p, get_current_user_id(), 'MANUAL', null );
@@ -1850,12 +2007,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	}
 
 
+	/**
+	 * Resolves the configured walk-in customer record.
+	 *
+	 * @return array|false The walk-in customer record, or false when unavailable.
+	 */
 	private function walkin_customer() {
 		global $wpdb;
 		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'customers' ) . ' WHERE customer_code=%s LIMIT 1', 'WALK-IN' ) );
 		return $id;
 	}
 
+	/**
+	 * Looks up product master information for a barcode.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function barcode( WP_REST_Request $r ) {
 		$code = sanitize_text_field( $r['code'] );
 		$p    = Stockland_DB::get_product_by_identifier( $code );
@@ -1871,6 +2039,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $p );
 	}
 
+	/**
+	 * Lists expense records visible to the current user.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function expenses( WP_REST_Request $r ) {
 		global $wpdb;
 		$t      = Stockland_DB::table( 'expenses' );
@@ -1899,6 +2073,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
 	}
 
+	/**
+	 * Creates an expense record within the configured preparation and approval workflow.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function expense_create( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_expenses' );
 		if ( true !== $e ) {
@@ -2088,6 +2268,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Applies an authorized expense state transition.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function expense_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_expenses() ) {
 			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile can approve or reject submitted expenses.', array( 'status' => 403 ) );
@@ -2202,6 +2388,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Lists payment records available to the current role.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function payments( WP_REST_Request $r ) {
 		global $wpdb;
 		$status = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
@@ -2213,6 +2405,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		}$sql = 'SELECT p.*,s.supplier_name,c.customer_name,u.display_name AS created_by_name FROM ' . Stockland_DB::table( 'payments' ) . ' p LEFT JOIN ' . Stockland_DB::table( 'suppliers' ) . ' s ON s.id=p.supplier_id LEFT JOIN ' . Stockland_DB::table( 'customers' ) . ' c ON c.id=p.customer_id LEFT JOIN ' . $wpdb->users . " u ON u.ID=p.created_by{$where} ORDER BY p.payment_date DESC,p.id DESC LIMIT 500";
 		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
 	}
+	/**
+	 * Records an internal customer payment and its ledger effects.
+	 *
+	 * @param mixed $p Validated payment, invoice, or party values.
+	 * @param int   $user_id WordPress user ID associated with the transaction.
+	 * @return mixed The operation result.
+	 */
 	private function record_internal_customer_payment( $p, $user_id ) {
 		global $wpdb;
 		$cid    = (int) ( $p['customer_id'] ?? 0 );
@@ -2286,6 +2485,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'payment_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Validates and saves payment allocations against eligible open balances.
+	 *
+	 * @param int    $payment_id Payment record ID.
+	 * @param string $type Payment party/allocation type.
+	 * @param int    $party_id Customer or supplier ID.
+	 * @param array  $allocations Requested invoice or balance allocations.
+	 * @param mixed  $payment_amount Total amount available for allocation.
+	 * @return bool|WP_Error Whether allocations were saved, or an error.
+	 */
 	private function save_allocations( $payment_id, $type, $party_id, $allocations, $payment_amount ) {
 		global $wpdb;
 		if ( ! is_array( $allocations ) || ! $allocations ) {
@@ -2338,6 +2547,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		return true;
 	}
 
+	/**
+	 * Creates a payment under the accounting authorization and transaction rules.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return mixed The operation result.
+	 */
 	public function payment_create( WP_REST_Request $r ) {
 		$e = $this->require_accounting_cap( 'stockland_manage_payments' );
 		if ( true !== $e ) {
@@ -2570,7 +2785,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}return new WP_Error( 'payment_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
-	/** Owner approves/rejects a Management-entered supplier invoice; the posted AP journal is created in the same transaction. */
+	/**
+	 * Owner approves/rejects a Management-entered supplier invoice; the posted AP journal is created in the same transaction.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 */
 	public function supplier_invoice_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_finance() ) {
 			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile may approve supplier invoices.', array( 'status' => 403 ) );
@@ -2735,7 +2954,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'supplier_invoice_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
-	/** Owner-only posting of a previously submitted Finance payment. Supplier allocations are revalidated under row locks. */
+	/**
+	 * Owner-only posting of a previously submitted Finance payment. Supplier allocations are revalidated under row locks.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 */
 	public function payment_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_finance() ) {
 			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile can approve or reject finance payments.', array( 'status' => 403 ) );
@@ -2875,11 +3098,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'payment_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Builds a trial-balance report from posted general-ledger entries.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return WP_REST_Response|WP_Error The authorized trial-balance response or an error.
+	 */
 	public function trial_balance( WP_REST_Request $r ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( 'SELECT a.account_code,a.account_name,a.account_type,COALESCE(SUM(l.debit),0) debit,COALESCE(SUM(l.credit),0) credit,COALESCE(SUM(l.debit-l.credit),0) balance FROM ' . Stockland_DB::table( 'gl_accounts' ) . ' a LEFT JOIN ' . Stockland_DB::table( 'gl_lines' ) . ' l ON l.account_code=a.account_code LEFT JOIN ' . Stockland_DB::table( 'gl_journals' ) . " j ON j.id=l.journal_id WHERE a.is_active=1 AND (j.id IS NULL OR j.status='POSTED') GROUP BY a.id ORDER BY a.account_code", ARRAY_A );
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Builds the authorized financial summary report.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return WP_REST_Response|WP_Error The authorized financial summary or an error.
+	 */
 	public function financials( WP_REST_Request $r ) {
 		$tb = $this->trial_balance( $r );
 		if ( is_wp_error( $tb ) ) {
@@ -2929,6 +3164,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Returns permitted general-ledger journal and account information.
+	 *
+	 * @param WP_REST_Request $r REST request containing the endpoint parameters.
+	 * @return WP_REST_Response|WP_Error The authorized general-ledger response or an error.
+	 */
 	public function gl( WP_REST_Request $r ) {
 		global $wpdb;
 		$from  = $this->date( $r->get_param( 'from' ) ?? null, null );
