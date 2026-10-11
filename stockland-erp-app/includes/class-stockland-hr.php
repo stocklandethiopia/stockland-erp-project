@@ -140,7 +140,7 @@ class Stockland_HR {
 			}
 			$wpdb->last_error = '';
 						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- DDL column definitions and AFTER clauses come only from required_columns()' fixed internal allowlist; SQL structure cannot be bound as a data value.
-			$result           = $wpdb->query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
+			$result = $wpdb->query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
 			if ( false === $result || ! empty( $wpdb->last_error ) ) {
 				$message  = 'ALTER TABLE failed';
 				$errors[] = $key . ': ' . $message;
@@ -359,10 +359,10 @@ class Stockland_HR {
 			$wpdb->last_error = '';
 			$direct_sql       = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 						// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $direct_sql is derived from the fixed internal CREATE TABLE DDL list; binding the full DDL as a value is not valid SQL.
-			$result           = $wpdb->query( $direct_sql );
+			$result = $wpdb->query( $direct_sql );
 			if ( false === $result ) {
 				$msg = 'HR table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
-throw new RuntimeException( $msg );}
+				throw new RuntimeException( $msg );}
 			$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 			if ( ! $table_key || ! $exists ) {
 				throw new RuntimeException( 'HR table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
