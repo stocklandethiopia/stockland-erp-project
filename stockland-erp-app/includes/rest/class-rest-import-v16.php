@@ -229,6 +229,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $found Value for the found argument.
 	 * @param mixed $type Value for the type argument.
 	 * @return true|WP_Error True for a valid mapping or an error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function validate_mapping_contract( $found, $type ) {
 		$mapping  = is_array( $found['mapping'] ?? null ) ? $found['mapping'] : array();
@@ -340,6 +341,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $type Value for the type argument.
 	 * @param mixed $source_system Value for the source system argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function scan_workbook( $xlsx, $type, $source_system ) {
 		Stockland_Runtime_Diagnostics::stage( 'PRODUCT_MASTER' === $type ? 'product_master_scan' : 'daily_pos_scan' );
@@ -563,6 +565,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $barcodes Value for the barcodes argument.
 	 * @param mixed $gtins Value for the gtins argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function product_identifier_owners( $barcodes, $gtins ) {
 		global $wpdb;
@@ -737,6 +740,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param mixed $key Value for the key argument.
 	 * @return array|WP_Error Validated upload metadata or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function uploaded_file( $key = 'file' ) {
 		// Import endpoints are registered WordPress REST callbacks; REST auth/nonce and
@@ -883,6 +887,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $xlsx Value for the xlsx argument.
 	 * @param mixed $needles Value for the needles argument.
 	 * @return iterable|WP_Error Rows streamed from the workbook or an error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function sheet_rows( $xlsx, $needles ) {
 		$r = $xlsx->rows_by_headers( $needles, 10 );
@@ -896,6 +901,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param mixed $requested Value for the requested argument.
 	 * @return int|WP_Error Authorized branch ID or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function branch_for_user( $requested ) {
 		$p = Stockland_Authority::profile();
@@ -924,6 +930,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param mixed $id Value for the id argument.
 	 * @return int|WP_Error Validated branch ID or an error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function ensure_branch( $id ) {
 		global $wpdb;
@@ -954,6 +961,7 @@ class Stockland_REST_Import_V16 {
 	 * @param array $row Source row to inspect or normalize.
 	 * @param mixed $product Value for the product argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function validate_staged_daily_row( $job, $row, $product ) {
 		$q = $this->qty( $row['quantity'] ?? null );
@@ -1002,6 +1010,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Daily import preview or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function daily_preview( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1300,6 +1309,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Commit result or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function daily_commit( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1688,6 +1698,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function daily_edit_row( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1796,6 +1807,7 @@ class Stockland_REST_Import_V16 {
 	 * Batch-read Product Master identities so large imports avoid one SQL lookup per workbook row.
 	 *
 	 * @param array $skus Normalized SKU values to check.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function product_lookup_bulk( $skus ) {
 		global $wpdb;
@@ -1835,6 +1847,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param array  $codes Normalized external codes to check.
 	 * @param string $business_date Branch business date for the POS import.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function daily_resolution_bulk( $codes, $business_date ) {
 		global $wpdb;
@@ -1922,6 +1935,7 @@ class Stockland_REST_Import_V16 {
 	 * @param array $rows Rows to validate or stage.
 	 * @param mixed $type Value for the type argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function stage_import_rows( $job_id, $rows, $type ) {
 		global $wpdb;
@@ -2010,6 +2024,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Product Master preview or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function product_preview( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
@@ -2330,6 +2345,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Product Master commit result or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function product_commit( WP_REST_Request $r ) {
 		if ( ! $this->capability_product() ) {
@@ -2798,6 +2814,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function code_map_save( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2893,6 +2910,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function code_map_delete( WP_REST_Request $r ) {
 		global $wpdb;
