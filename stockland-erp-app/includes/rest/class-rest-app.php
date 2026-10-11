@@ -1359,13 +1359,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$as_of           = current_time( 'Y-m-d' );
 			$unresolved      = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$employees_table} e LEFT JOIN {$comp_table} c ON c.id=(SELECT c2.id FROM {$comp_table} c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) WHERE e.status='ACTIVE' AND UPPER(COALESCE(e.employment_type,''))<>'RETAINER_SERVICE' AND (e.hire_date IS NULL OR e.hire_date<=%s) AND (e.termination_date IS NULL OR e.termination_date>=%s) AND (c.id IS NULL OR c.statutory_classification_status<>'OWNER_CLASSIFIED' OR c.taxable_allowance_total IS NULL OR c.exempt_allowance_total IS NULL OR c.pensionable_salary IS NULL)",
+					"SELECT COUNT(*) FROM %i e LEFT JOIN %i c ON c.id=(SELECT c2.id FROM %i c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) WHERE e.status='ACTIVE' AND UPPER(COALESCE(e.employment_type,''))<>'RETAINER_SERVICE' AND (e.hire_date IS NULL OR e.hire_date<=%s) AND (e.termination_date IS NULL OR e.termination_date>=%s) AND (c.id IS NULL OR c.statutory_classification_status<>'OWNER_CLASSIFIED' OR c.taxable_allowance_total IS NULL OR c.exempt_allowance_total IS NULL OR c.pensionable_salary IS NULL)",
+					$employees_table,
+					$comp_table,
+					$comp_table,
 					$as_of,
 					$as_of,
 					$as_of
 				)
 			);
-			$excluded        = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$employees_table} WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s)", $as_of, $as_of ) );
+			$excluded        = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s)", $employees_table, $as_of, $as_of ) );
 			$diagnostics['payroll_compensation_classification']['unresolved_active_employees']         = $unresolved;
 			$diagnostics['payroll_compensation_classification']['excluded_retainer_service_contracts'] = $excluded;
 			$checks['payroll_compensation_classification'] = ( 0 === $unresolved );
