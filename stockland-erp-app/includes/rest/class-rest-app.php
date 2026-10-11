@@ -2342,7 +2342,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		try {
 			foreach ( $changes as $k => $v ) {
 				$old = Stockland_DB::get_setting( $k, null );
-				if ( false === $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . Stockland_DB::table( 'settings' ) . ' (setting_key,setting_value,updated_by) VALUES(%s,%s,%d) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by=VALUES(updated_by)', $k, $v, get_current_user_id() ) ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare('INSERT INTO %i (setting_key,setting_value,updated_by) VALUES(%s,%s,%d) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by=VALUES(updated_by)', 'settings',  $k,  $v,  get_current_user_id() ) ) ) {
 					throw new Exception( 'Could not save setting ' . $k . '.' );
 				}
 				if ( (string) $old !== (string) $v && ! Stockland_Audit::log( get_current_user_id(), null, 'SETTING_UPDATE', null, null, $old, $v, 'Management setting update', $k ) ) {
@@ -3228,7 +3228,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count transaction.', array( 'status' => 500 ) );}
 		try {
-			$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT batch_id FROM ' . Stockland_DB::table( 'count_batches' ) . " WHERE location_id=%d AND count_date=%s AND status IN('Pending','Approved') LIMIT 1", $loc, $date ) );
+			$exists = $wpdb->get_var( $wpdb->prepare('SELECT batch_id FROM %i WHERE location_id=%d AND count_date=%s AND status IN(\'Pending\',\'Approved\') LIMIT 1', 'count_batches',  $loc,  $date ) );
 			if ( $exists ) {
 				throw new Exception( 'A physical count is already open for this location and date: ' . $exists . '. Complete or resolve it before uploading another count.' );
 			}
@@ -3385,7 +3385,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				throw new Exception( 'Physical count is no longer pending.' );
 			}
 			if ( 'Rejected' === $decision ) {
-				if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'adjustments' ) . " SET status='Rejected',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status='Pending'", get_current_user_id(), current_time( 'mysql' ), $reason, $batch['batch_id'] ) ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare('UPDATE %i SET status=\'Rejected\',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status=\'Pending\'', 'adjustments',  get_current_user_id(),  current_time( 'mysql' ),  $reason,  $batch['batch_id'] ) ) ) {
 					throw new Exception( 'Could not reject pending physical-count adjustments.' );
 				}
 				if ( false === $wpdb->update(
@@ -3412,14 +3412,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					)
 				);
 			}
-			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_lines' ) . ' WHERE batch_id=%s ORDER BY id FOR UPDATE', $batch['batch_id'] ), ARRAY_A );
+			$lines = $wpdb->get_results( $wpdb->prepare('SELECT * FROM %i WHERE batch_id=%s ORDER BY id FOR UPDATE', 'count_lines',  $batch['batch_id'] ), ARRAY_A );
 			foreach ( $lines as $line ) {
 				$current = Stockland_DB::get_physical_stock( (int) $batch['location_id'], $line['sku'] );
 				if ( abs( $current - (float) $line['system_qty'] ) > 0.00001 ) {
 					throw new Exception( 'Stock changed after the physical count for ' . $line['sku'] . '. Recount is required before this batch can be approved.' );
 				}
 			}
-			$adjustments = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'adjustments' ) . " WHERE count_batch_id=%s AND status='Pending' FOR UPDATE", $batch['batch_id'] ), ARRAY_A );
+			$adjustments = $wpdb->get_results( $wpdb->prepare('SELECT * FROM %i WHERE count_batch_id=%s AND status=\'Pending\' FOR UPDATE', 'adjustments',  $batch['batch_id'] ), ARRAY_A );
 			foreach ( $adjustments as $a ) {
 				if ( false === Stockland_Ledger::record( (int) $a['location_id'], $a['sku'], 'PHYSICAL_COUNT_ADJUSTMENT', (float) $a['variance_qty'], 'adjustment', (string) $a['id'], $batch['count_date'], get_current_user_id() ) ) {
 					throw new Exception( 'Could not post the physical-count adjustment for ' . $a['sku'] . '.' );
@@ -3536,7 +3536,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}if ( $allowed && (int) $allowed !== (int) $b['location_id'] ) {
 			return new WP_Error( 'forbidden', 'You are not authorized to view this count.', array( 'status' => 403 ) );
 		}
-		$lines   = $wpdb->get_results( $wpdb->prepare( 'SELECT cl.*,p.retail_price,p.wholesale_price FROM ' . Stockland_DB::table( 'count_lines' ) . ' cl LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=cl.variant_id OR (cl.variant_id IS NULL AND p.sku=cl.sku)) WHERE cl.batch_id=%s ORDER BY cl.id', $b['batch_id'] ), ARRAY_A );
+		$lines   = $wpdb->get_results( $wpdb->prepare('SELECT cl.*,p.retail_price,p.wholesale_price FROM %i cl LEFT JOIN %i p ON (p.variant_id=cl.variant_id OR (cl.variant_id IS NULL AND p.sku=cl.sku)) WHERE cl.batch_id=%s ORDER BY cl.id', 'count_lines',  $b['batch_id'] , 'products'), ARRAY_A );
 		$summary = array(
 			'lines'          => count( $lines ),
 			'system_qty'     => 0,

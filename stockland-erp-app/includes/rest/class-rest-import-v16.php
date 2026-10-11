@@ -1710,7 +1710,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! in_array( $job['status'], array( 'READY', 'PARTIAL' ), true ) || (int) $job['processed_rows'] > 0 ) {
 				throw new Exception( 'Only unreleased Daily POS rows can be edited.' );
 			}
-			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_rows' ) . ' WHERE id=%d AND job_id=%d LIMIT 1', $row_id, $job_id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d AND job_id=%d LIMIT 1', 'import_rows',  $row_id,  $job_id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Import row not found.' );
 			}
