@@ -360,7 +360,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 					if ( isset( $used[ $sku ] ) ) {
 						continue;
 					} $used[ $sku ] = 1;
-					$existing       = $wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM ' . Stockland_DB::table( 'products' ) . ' WHERE sku=%s FOR UPDATE', $sku ) );
+					$existing       = $wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
 					if ( $existing ) {
 						$skipped[] = $sku;
 						continue;}
