@@ -196,8 +196,8 @@ class Stockland_DB {
 	 */
 	private static function schema_query( $query ) {
 		global $wpdb;
-		$sql    = ltrim( (string) $query );
-		$target = '';
+		$sql      = ltrim( (string) $query );
+		$target   = '';
 		$patterns = array(
 			'/^ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/i',
 			'/^CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+`?([A-Za-z0-9_]+)`?/i',
