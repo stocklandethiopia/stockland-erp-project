@@ -144,7 +144,7 @@ final class Stockland_Runtime_Diagnostics {
 		);
 		if ( $wpdb ) {
 			try {
-				$e['db_select_ok'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );
+				$e['db_select_ok'] = ( (string) Stockland_DB::read_var( 'SELECT 1' ) === '1' );
 			} catch ( Throwable $x ) {
 				// Fail closed: the database probe remains false when the query throws.
 				$e['db_select_ok'] = false;
