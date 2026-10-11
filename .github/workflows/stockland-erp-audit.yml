@@ -13,8 +13,9 @@ on:
     branches: ["main"]
     paths:
       - "stockland-erp-app/**"
-      - "audit/packages/STOCKLAND_ERP_16.1.57_FINAL_COMPREHENSIVE_ONE_PACK_FRESH_INSTALL_AND_UPDATE_CANDIDATE.zip"
+      - "audit/packages/**"
       - "audit/vendor/bootstrap-5.3.8/bootstrap.min.css"
+      - "AUDIT/**"
       - ".github/workflows/stockland-erp-audit.yml"
   workflow_dispatch:
 
