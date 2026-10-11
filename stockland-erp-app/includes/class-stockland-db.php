@@ -96,6 +96,59 @@ class Stockland_DB {
 		return $wpdb->get_col( $query, $x );
 	}
 
+
+	/**
+	 * Executes uncached SQL for live ERP transactional data and transaction control.
+	 *
+	 * Queries must be constant SQL or SQL produced by wpdb::prepare(). Schema-changing
+	 * statements are routed to schema_query(), which accepts only DDL targeting a
+	 * table inside the plugin-owned Stockland table namespace.
+	 *
+	 * @param string $query Static or prepared SQL statement.
+	 * @return int|bool Number of affected rows or false on query failure.
+	 */
+	public static function execute_query( $query ) {
+		global $wpdb;
+		$sql = ltrim( (string) $query );
+		if ( preg_match( '/^(ALTER|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i', $sql ) ) {
+			return self::schema_query( $query );
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Single uncached gateway for custom transactional tables; callers use static/prepared SQL so writes and transaction-control statements retain their exact database semantics.
+		return $wpdb->query( $query );
+	}
+
+	/**
+	 * Executes DDL only against tables inside the plugin-owned Stockland namespace.
+	 *
+	 * The source migration routines still own the column/index definition allowlists;
+	 * this boundary additionally prevents accidental schema changes to WordPress core
+	 * or unrelated plugin tables.
+	 *
+	 * @param string $query Fixed-schema DDL statement with a prefixed table identifier.
+	 * @return int|bool Database result, or false when the DDL/table is outside policy.
+	 */
+	private static function schema_query( $query ) {
+		global $wpdb;
+		$sql    = ltrim( (string) $query );
+		$target = '';
+		$patterns = array(
+			'/^ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/i',
+			'/^CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+`?([A-Za-z0-9_]+)`?/i',
+			'/^DROP\s+TABLE(?:\s+IF\s+EXISTS)?\s+`?([A-Za-z0-9_]+)`?/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			if ( preg_match( $pattern, $sql, $matches ) ) {
+				$target = $matches[1];
+				break;
+			}
+		}
+		if ( '' === $target || 0 !== strpos( $target, $wpdb->prefix . 'stock_' ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Central fail-closed DDL gateway: only fixed schema migrations targeting the plugin's prefixed Stockland tables are allowed to reach WPDB.
+		return $wpdb->query( $query );
+	}
+
 	/**
 	 * Looks up the database ID for a Stockland location name.
 	 *
