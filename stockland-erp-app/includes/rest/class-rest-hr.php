@@ -421,7 +421,6 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
 	 * @throws Exception When validation or transaction processing fails.
-	 * @throws RuntimeException When a database or money calculation invariant fails.
 	 * @throws InvalidArgumentException When a compensation amount is invalid.
 	 */
 	public function compensation_create( WP_REST_Request $r ) {
@@ -694,8 +693,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @param mixed $employee Value for the employee argument.
 	 * @param mixed $period Value for the period argument.
 	 * @return array Effective-dated compensation segments.
-	 * @throws Exception When compensation data cannot be selected or normalized.
-	 * @throws RuntimeException When the authoritative compensation query fails.
+	 * @throws RuntimeException When a compensation classification or calculation invariant fails.
 	 */
 	private function compensation_segments( $employee, $period ) {
 		global $wpdb;
