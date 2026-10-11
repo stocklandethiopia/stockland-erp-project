@@ -341,7 +341,7 @@ class Stockland_Accounting {
 				$result = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
 					$msg = 'Accounting/procurement table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
-throw new RuntimeException( $msg );}
+					throw new RuntimeException( $msg );}
 				$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 				if ( ! $table_key || ! $exists ) {
 					throw new RuntimeException( 'Accounting/procurement table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
