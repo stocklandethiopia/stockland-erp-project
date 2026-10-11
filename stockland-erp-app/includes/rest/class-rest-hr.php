@@ -737,7 +737,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$comp_status  = (string) ( $c['statutory_classification_status'] ?? '' );
 			$manager_safe = 'MANAGEMENT_PREPARED' === $comp_status && Stockland_Money::minor( $c['exempt_allowance_total'] ?? '0.00' ) === 0 && Stockland_Money::minor( Stockland_Money::subtract( $c['pensionable_salary'] ?? '0.00', $c['base_salary'] ?? '0.00' ) ) === 0;
 			if ( ( 'OWNER_CLASSIFIED' !== $comp_status && ! $manager_safe ) || null === $c['taxable_allowance_total'] || null === $c['exempt_allowance_total'] || null === $c['pensionable_salary'] ) {
-				throw new RuntimeException( 'Compensation effective ' . $c['effective_from'] . ' for ' . $employee['employee_id'] . ' is not owner-classified. Open HR → Set Compensation and explicitly classify taxable/exempt allowance and pensionable salary.' );
+				throw new RuntimeException( 'Compensation effective ' . esc_html( (string) $c['effective_from'] ) . ' for ' . esc_html( (string) $employee['employee_id'] ) . ' is not owner-classified. Open HR → Set Compensation and explicitly classify taxable/exempt allowance and pensionable salary.' );
 			}
 			$exempt           = Stockland_Money::decimal( Stockland_Money::minor( $c['exempt_allowance_total'] ) );
 			$basis            = trim( (string) ( $c['statutory_classification_note'] ?? '' ) );
@@ -747,7 +747,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}
 			if ( Stockland_Money::minor( $exempt ) > 0 ) {
 				if ( strlen( $basis ) < 20 ) {
-					throw new RuntimeException( 'Exempt allowance classification for ' . $employee['employee_id'] . ' requires a current 20+ character legal basis note.' );
+					throw new RuntimeException( 'Exempt allowance classification for ' . esc_html( (string) $employee['employee_id'] ) . ' requires a current 20+ character legal basis note.' );
 				}
 				$saved_exempt = '0.00';
 				foreach ( $saved_components as $component ) {
@@ -755,12 +755,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 						continue;
 					}
 					if ( empty( $component['owner_verified'] ) || strlen( trim( (string) ( $component['legal_basis'] ?? '' ) ) ) < 20 || strlen( trim( (string) ( $component['evidence_reference'] ?? '' ) ) ) < 4 ) {
-						throw new RuntimeException( 'Exempt allowance for ' . $employee['employee_id'] . ' lacks verified legal-basis/evidence snapshot. Re-save compensation through the Owner allowance editor.' );
+						throw new RuntimeException( 'Exempt allowance for ' . esc_html( (string) $employee['employee_id'] ) . ' lacks verified legal-basis/evidence snapshot. Re-save compensation through the Owner allowance editor.' );
 					}
 					$saved_exempt = Stockland_Money::add( $saved_exempt, $component['amount'] ?? '0.00' );
 				}
 				if ( Stockland_Money::minor( $saved_exempt ) !== Stockland_Money::minor( $exempt ) ) {
-					throw new RuntimeException( 'Exempt allowance snapshot does not match the amount for ' . $employee['employee_id'] . '. Re-save compensation through the Owner allowance editor.' );
+					throw new RuntimeException( 'Exempt allowance snapshot does not match the amount for ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation through the Owner allowance editor.' );
 				}
 			}
 			if ( ! $saved_components ) {
@@ -787,7 +787,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				}
 			}
 			if ( Stockland_Money::minor( $snapshot_taxable ) !== Stockland_Money::minor( $c['taxable_allowance_total'] ?? '0.00' ) || Stockland_Money::minor( $snapshot_exempt ) !== Stockland_Money::minor( $c['exempt_allowance_total'] ?? '0.00' ) ) {
-				throw new RuntimeException( 'Allowance component breakdown does not match saved compensation for ' . $employee['employee_id'] . '. Re-save compensation from Owner HR before payroll generation.' );
+				throw new RuntimeException( 'Allowance component breakdown does not match saved compensation for ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation from Owner HR before payroll generation.' );
 			}
 			$start_obj = new DateTimeImmutable( $from );
 			$end_obj   = new DateTimeImmutable( $to );
@@ -840,14 +840,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				$delta = $target - $actual;
 				if ( 0 !== $delta ) {
 					if ( null === $largest_key ) {
-						throw new RuntimeException( 'Allowance audit snapshot is missing the ' . $treatment . ' component needed to reconcile ' . $employee['employee_id'] . '. Re-save compensation through Owner HR.' );
+						throw new RuntimeException( 'Allowance audit snapshot is missing the ' . esc_html( (string) $treatment ) . ' component needed to reconcile ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation through Owner HR.' );
 					}
 					if ( abs( $delta ) > max( 5, count( $keys ) * 5 ) ) {
-						throw new RuntimeException( 'Allowance component rounding differs from the statutory aggregate by more than a safe rounding tolerance for ' . $employee['employee_id'] . '. Re-save compensation.' );
+						throw new RuntimeException( 'Allowance component rounding differs from the statutory aggregate by more than a safe rounding tolerance for ' . esc_html( (string) $employee['employee_id'] ) . '. Re-save compensation.' );
 					}
 					$adjusted = Stockland_Money::minor( Stockland_Money::add( $allowance_snapshots[ $largest_key ]['amount'], Stockland_Money::decimal( $delta ) ) );
 					if ( $adjusted < 0 ) {
-						throw new RuntimeException( 'Allowance evidence snapshot could not be reconciled without a negative component for ' . $employee['employee_id'] . '.' );
+						throw new RuntimeException( 'Allowance evidence snapshot could not be reconciled without a negative component for ' . esc_html( (string) $employee['employee_id'] ) . '.' );
 					}
 					$allowance_snapshots[ $largest_key ]['amount'] = Stockland_Money::decimal( $adjusted );
 				}
@@ -909,7 +909,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$totals = $this->payroll_totals( $period_id );
 		$ok     = $wpdb->update( Stockland_DB::table( 'payroll_periods' ), $totals, array( 'id' => (int) $period_id ) );
 		if ( false === $ok ) {
-			throw new RuntimeException( $wpdb->last_error ? $wpdb->last_error : 'Payroll period totals could not be saved.' );
+			throw new RuntimeException( 'Payroll period totals could not be saved.' );
 		}
 		return $totals;
 	}
