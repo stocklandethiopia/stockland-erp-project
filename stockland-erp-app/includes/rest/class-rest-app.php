@@ -1898,7 +1898,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$scope_table,
 			$locations_table
 		);
-		$rows         = Stockland_DB::read_results( $prepared_sql, ARRAY_A );
+		$rows = Stockland_DB::read_results( $prepared_sql, ARRAY_A );
 		foreach ( $rows as &$row ) {
 			$row['location_ids']   = array_values( array_filter( array_map( 'intval', preg_split( '/\s*,\s*/', (string) ( $row['location_ids_csv'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY ) ) ) );
 			$row['location_names'] = array_values( array_filter( array_map( 'trim', explode( '||', (string) ( $row['location_names_csv'] ?? '' ) ) ) ) );
