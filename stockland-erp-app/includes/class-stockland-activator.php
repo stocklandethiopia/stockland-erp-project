@@ -1407,7 +1407,7 @@ class Stockland_Activator {
 	/**
 	 * Ensures required Stockland system settings have their safe default values.
 	 *
-	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @param string $p WordPress table prefix.
 	 * @return void Ensures required settings exist.
 	 */
 	private static function seed_settings( $p ) {
@@ -1517,7 +1517,7 @@ class Stockland_Activator {
 	/**
 	 * Applies the controlled variant-first product identity migration while preserving historical ledger records.
 	 *
-	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @param string $p WordPress table prefix.
 	 * @return void Applies the idempotent product identity migration.
 	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
@@ -1558,7 +1558,7 @@ class Stockland_Activator {
 	/**
 	 * v16 convergence: make every required module/schema line up under one clean production contract.
 	 *
-	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @param string $p WordPress table prefix.
 	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private static function apply_schema_1600_migrations( $p ) {
