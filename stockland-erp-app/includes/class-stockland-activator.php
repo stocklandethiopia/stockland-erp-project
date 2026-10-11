@@ -1702,7 +1702,7 @@ class Stockland_Activator {
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not clear stale balance migration stage.' );
 				}
-				$stage_ddl = $wpdb->prepare(
+				$stage_ddl  = $wpdb->prepare(
 					'CREATE TABLE %i (
 						location_id BIGINT UNSIGNED NOT NULL,
 						sku VARCHAR(64) NOT NULL,
