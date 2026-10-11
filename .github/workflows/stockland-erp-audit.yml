@@ -344,7 +344,7 @@ jobs:
               "erp_static_integrity_qa": "PASS",
               "javascript_syntax": "PASS",
           }
-          path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+          path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           print("Recorded verified CI source-gate evidence; live_certification remains false.")
           PY
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
