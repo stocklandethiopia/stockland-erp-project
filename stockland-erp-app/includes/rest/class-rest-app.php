@@ -1510,10 +1510,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$diagnostics['notification_rows'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'notifications' ) );
 		}
 		if ( in_array( 'import_jobs', $found_keys, true ) ) {
-			$diagnostics['import_job_rows'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'import_jobs' ) );
+			$diagnostics['import_job_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'import_jobs' ) ) );
 		}
 		if ( in_array( 'receipts', $found_keys, true ) ) {
-			$diagnostics['receipt_rows'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'receipts' ) );
+			$diagnostics['receipt_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'receipts' ) ) );
 		}
 
 		// Release gate dependencies must be explicitly evaluated before live_ready.
@@ -1522,8 +1522,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['variant_first_product_identity'] = false;
 		if ( in_array( 'products', $found_keys, true ) ) {
 			$product_table  = Stockland_DB::table( 'products' );
-			$variant_col    = $wpdb->get_row( "SHOW COLUMNS FROM {$product_table} LIKE 'variant_id'", ARRAY_A );
-			$indexes        = (array) $wpdb->get_results( "SHOW INDEX FROM {$product_table}", ARRAY_A );
+			$variant_col    = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', $product_table, 'variant_id' ), ARRAY_A );
+			$indexes        = (array) $wpdb->get_results( $wpdb->prepare( 'SHOW INDEX FROM %i', $product_table ), ARRAY_A );
 			$has_variant_pk = false;
 			$has_sku_unique = false;
 			foreach ( $indexes as $ix ) {
@@ -1661,7 +1661,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		$rows         = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM ' . Stockland_DB::table( 'locations' ) . " WHERE is_active=1 AND id IN({$placeholders})", $ids ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table is bound as %i; the only dynamic SQL fragment is a comma-separated list of %d placeholders generated from unique integer-cast IDs.
+		$rows         = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM %i WHERE is_active=1 AND id IN(' . $placeholders . ')', array_merge( array( Stockland_DB::table( 'locations' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
 		$types        = array();
 		foreach ( $rows as $row ) {
 			$types[ (int) $row['id'] ] = (string) $row['location_type'];
