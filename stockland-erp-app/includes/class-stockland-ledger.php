@@ -24,7 +24,7 @@ class Stockland_Ledger {
 	 */
 	private static function begin_unit_of_work( &$owns_transaction, &$savepoint ) {
 		global $wpdb;
-		$state = $wpdb->get_var( 'SELECT @@session.in_transaction' );
+		$state = Stockland_DB::read_var( 'SELECT @@session.in_transaction' );
 		if ( null === $state ) {
 			return false; // Unknown transaction state is unsafe; fail closed.
 		}
@@ -97,7 +97,7 @@ class Stockland_Ledger {
 			return false;
 		}
 		try {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,sku,variant_id,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1 FOR UPDATE', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
+			$existing = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_id,sku,variant_id,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1 FOR UPDATE', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new RuntimeException( 'Ledger idempotency lookup failed.' );
 			}
@@ -131,7 +131,7 @@ class Stockland_Ledger {
 				)
 			);
 			if ( false === $ok ) {
-				$duplicate = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,sku,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
+				$duplicate = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_id,sku,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
 				if ( $wpdb->last_error || ! $duplicate || (int) $duplicate['location_id'] !== (int) $location_id || (string) $duplicate['sku'] !== (string) $sku || abs( (float) $duplicate['quantity_signed'] - (float) $quantity_signed ) >= 0.00001 ) {
 					throw new RuntimeException( 'Conflicting ledger idempotency key.' );
 				}
@@ -186,7 +186,7 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Cannot rebuild balance: Product Master variant not found.' );
 			}
 			$sku  = null !== $new_sku ? (string) $new_sku : (string) $product['sku'];
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM %i WHERE variant_id=%d GROUP BY location_id', $tx, $variant_id ), ARRAY_A );
+			$rows = Stockland_DB::read_results( $wpdb->prepare( 'SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM %i WHERE variant_id=%d GROUP BY location_id', $tx, $variant_id ), ARRAY_A );
 			if ( $wpdb->last_error || ! is_array( $rows ) ) {
 				throw new RuntimeException( 'Could not read ledger rows for balance rebuild.' );
 			}
@@ -240,7 +240,7 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Cannot rebuild balance without a valid Product Master variant.' );
 			}
 			$vid = (int) $product['variant_id'];
-			$qty = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND variant_id=%d', $tx, (int) $location_id, $vid ) );
+			$qty = Stockland_DB::read_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND variant_id=%d', $tx, (int) $location_id, $vid ) );
 			if ( null === $qty || $wpdb->last_error ) {
 				throw new RuntimeException( 'Could not read inventory ledger total.' );
 			}
