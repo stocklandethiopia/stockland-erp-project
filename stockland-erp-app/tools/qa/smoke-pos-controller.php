@@ -106,16 +106,33 @@ class FakeWPDB {
 	public $insert_id  = 0;
 	public $sales      = array();
 	public function prepare( $query, ...$args ) {
-		foreach ( $args as $arg ) {
-			$value = is_numeric( $arg ) ? (string) $arg : "'" . str_replace( "'", "''", (string) $arg ) . "'";
-			$query = preg_replace( '/%[sd]/', $value, $query, 1 );
-		}
-		return $query;
+		$index = 0;
+		return preg_replace_callback(
+			'/%([idsf])/',
+			static function ( $match ) use ( &$index, $args ) {
+				if ( ! array_key_exists( $index, $args ) ) {
+					return $match[0];
+				}
+				$value = $args[ $index++ ];
+				switch ( $match[1] ) {
+					case 'i':
+						return '`' . str_replace( '`', '``', (string) $value ) . '`';
+					case 'd':
+						return (string) (int) $value;
+					case 'f':
+						return (string) (float) $value;
+					case 's':
+					default:
+						return "'" . str_replace( "'", "''", (string) $value ) . "'";
+				}
+			},
+			$query
+		);
 	}
 	public function query( $sql ) {
 		return true; }
 	public function get_row( $sql, $output = ARRAY_A ) {
-		if ( stripos( $sql, 'FROM wp_stock_sales' ) !== false ) {
+		if ( stripos( $sql, 'FROM wp_stock_sales' ) || stripos( $sql, 'FROM `wp_stock_sales`' ) !== false ) {
 			if ( preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
 				return $this->sales[ $m[1] ] ?? null;
 			}
@@ -170,7 +187,7 @@ class FakeWPDB {
 		return null;
 	}
 	public function get_var( $sql ) {
-		if ( stripos( $sql, 'FROM wp_stock_sales' ) !== false && preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
+		if ( stripos( $sql, 'FROM wp_stock_sales' ) || stripos( $sql, 'FROM `wp_stock_sales`' ) !== false && preg_match( "/WHERE\s+sale_id\s*=\s*'([^']+)'/i", $sql, $m ) ) {
 			return isset( $this->sales[ $m[1] ] ) ? $m[1] : null;
 		}
 		return null;
