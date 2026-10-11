@@ -283,6 +283,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function employee_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -341,6 +342,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function employee_update( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -413,6 +415,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function compensation_create( WP_REST_Request $r ) {
 		if ( ! $this->owner() ) {
@@ -629,6 +632,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_create( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -683,6 +687,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @param mixed $employee Value for the employee argument.
 	 * @param mixed $period Value for the period argument.
 	 * @return array Effective-dated compensation segments.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function compensation_segments( $employee, $period ) {
 		global $wpdb;
@@ -897,6 +902,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param int $period_id Payroll period ID.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function save_payroll_totals( $period_id ) {
 		global $wpdb;
@@ -913,6 +919,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_generate( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -1056,6 +1063,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_line_update( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -1210,6 +1218,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * Management submits a completed draft; only the Owner may approve/pay it.
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_submit( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
@@ -1263,6 +1272,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_approve( WP_REST_Request $r ) {
 		if ( ! $this->payroll_owner() ) {
@@ -1390,6 +1400,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
 	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function payroll_pay( WP_REST_Request $r ) {
 		if ( ! $this->payroll_owner() ) {
