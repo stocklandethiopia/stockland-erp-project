@@ -1286,8 +1286,26 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$pay = Stockland_DB::table( 'payments' );
 			$glj = Stockland_DB::table( 'gl_journals' );
 			$gll = Stockland_DB::table( 'gl_lines' );
-			$diagnostics['supplier_ap_reconciliation_mismatches'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$sup} s LEFT JOIN (SELECT supplier_id,SUM(total_amount) total FROM {$si} WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id LEFT JOIN (SELECT supplier_id,SUM(amount) total FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id LEFT JOIN (SELECT l.supplier_id,SUM(l.credit-l.debit) balance FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' GROUP BY l.supplier_id) g ON g.supplier_id=s.id WHERE ABS(ROUND(COALESCE(s.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01" );
-			$diagnostics['customer_ar_reconciliation_mismatches'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$cus} c LEFT JOIN (SELECT customer_id,SUM(total_amount) total FROM {$ci} WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) total FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id LEFT JOIN (SELECT l.customer_id,SUM(l.debit-l.credit) balance FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' GROUP BY l.customer_id) g ON g.customer_id=c.id WHERE ABS(ROUND(COALESCE(c.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01" );
+			$diagnostics['supplier_ap_reconciliation_mismatches'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM %i s LEFT JOIN (SELECT supplier_id,SUM(total_amount) total FROM %i WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id LEFT JOIN (SELECT supplier_id,SUM(amount) total FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id LEFT JOIN (SELECT l.supplier_id,SUM(l.credit-l.debit) balance FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' GROUP BY l.supplier_id) g ON g.supplier_id=s.id WHERE ABS(ROUND(COALESCE(s.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01",
+					$sup,
+					$si,
+					$pay,
+					$gll,
+					$glj
+				)
+			);
+			$diagnostics['customer_ar_reconciliation_mismatches'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM %i c LEFT JOIN (SELECT customer_id,SUM(total_amount) total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id LEFT JOIN (SELECT l.customer_id,SUM(l.debit-l.credit) balance FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' GROUP BY l.customer_id) g ON g.customer_id=c.id WHERE ABS(ROUND(COALESCE(c.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01",
+					$cus,
+					$ci,
+					$pay,
+					$gll,
+					$glj
+				)
+			);
 			$checks['ap_ar_reconciled']                           = ( 0 === $diagnostics['supplier_ap_reconciliation_mismatches'] && 0 === $diagnostics['customer_ar_reconciliation_mismatches'] );
 		} else {
 			$diagnostics['supplier_ap_reconciliation_mismatches'] = null;
@@ -1296,8 +1314,20 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 
 		if ( in_array( 'gl_journals', $found_keys, true ) && in_array( 'gl_lines', $found_keys, true ) ) {
-			$diagnostics['unbalanced_gl_journals'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'gl_journals' ) . ' j JOIN (SELECT journal_id,SUM(debit) d,SUM(credit) c FROM ' . Stockland_DB::table( 'gl_lines' ) . " GROUP BY journal_id) x ON x.journal_id=j.id WHERE j.status='POSTED' AND ABS(x.d-x.c)>0.01" );
-			$diagnostics['orphan_gl_lines']        = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'gl_lines' ) . ' l LEFT JOIN ' . Stockland_DB::table( 'gl_journals' ) . ' j ON j.id=l.journal_id WHERE j.id IS NULL' );
+			$diagnostics['unbalanced_gl_journals'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM %i j JOIN (SELECT journal_id,SUM(debit) d,SUM(credit) c FROM %i GROUP BY journal_id) x ON x.journal_id=j.id WHERE j.status='POSTED' AND ABS(x.d-x.c)>0.01",
+					Stockland_DB::table( 'gl_journals' ),
+					Stockland_DB::table( 'gl_lines' )
+				)
+			);
+			$diagnostics['orphan_gl_lines'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM %i l LEFT JOIN %i j ON j.id=l.journal_id WHERE j.id IS NULL',
+					Stockland_DB::table( 'gl_lines' ),
+					Stockland_DB::table( 'gl_journals' )
+				)
+			);
 			$checks['general_ledger_balanced']     = 0 === $diagnostics['unbalanced_gl_journals'] && 0 === $diagnostics['orphan_gl_lines'];
 		} else {
 			$diagnostics['unbalanced_gl_journals'] = null;
@@ -1305,8 +1335,20 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$checks['general_ledger_balanced']     = $checks['full_schema'];
 		}
 		if ( in_array( 'purchase_order_items', $found_keys, true ) && in_array( 'purchase_orders', $found_keys, true ) && in_array( 'invoice_items', $found_keys, true ) && in_array( 'customer_invoices', $found_keys, true ) ) {
-			$diagnostics['orphan_po_items']      = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' i LEFT JOIN ' . Stockland_DB::table( 'purchase_orders' ) . ' p ON p.id=i.po_id WHERE p.id IS NULL' );
-			$diagnostics['orphan_invoice_items'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'invoice_items' ) . ' i LEFT JOIN ' . Stockland_DB::table( 'customer_invoices' ) . ' h ON h.id=i.invoice_id WHERE h.id IS NULL' );
+			$diagnostics['orphan_po_items'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM %i i LEFT JOIN %i p ON p.id=i.po_id WHERE p.id IS NULL',
+					Stockland_DB::table( 'purchase_order_items' ),
+					Stockland_DB::table( 'purchase_orders' )
+				)
+			);
+			$diagnostics['orphan_invoice_items'] = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM %i i LEFT JOIN %i h ON h.id=i.invoice_id WHERE h.id IS NULL',
+					Stockland_DB::table( 'invoice_items' ),
+					Stockland_DB::table( 'customer_invoices' )
+				)
+			);
 			$checks['procurement_references']    = 0 === $diagnostics['orphan_po_items'] && 0 === $diagnostics['orphan_invoice_items'];
 		} else {
 			$diagnostics['orphan_po_items']      = null;
