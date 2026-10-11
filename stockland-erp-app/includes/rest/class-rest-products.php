@@ -118,9 +118,16 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return null;
 		}
 		global $wpdb;
-		$t   = Stockland_DB::table( 'products' );
-		$sql = "SELECT sku FROM {$t} WHERE {$field}=%s AND sku<>%s LIMIT 1";
-		$hit = $wpdb->get_var( $wpdb->prepare( $sql, $value, $sku ) );
+		$table = Stockland_DB::table( 'products' );
+		$hit   = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT sku FROM %i WHERE %i = %s AND sku <> %s LIMIT 1',
+				$table,
+				$field,
+				$value,
+				$sku
+			)
+		);
 		return $hit ? new WP_Error( 'duplicate_identifier', ucfirst( $field ) . ' is already assigned to SKU ' . $hit . '. Each stockable variant must have a unique identifier.', array( 'status' => 409 ) ) : null;
 	}
 
@@ -131,9 +138,9 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			if ( ! Stockland_DB::table_exists( $table ) ) {
 				return new WP_Error( 'product_master_unavailable', 'Product Master table is not available. Complete the verified 49-table ERP setup first.', array( 'status' => 503 ) );
 			}
-			$can    = current_user_can( 'stockland_view_cost_and_profit' );
-			$manage = current_user_can( 'stockland_manage_products' );
-			$cost   = $can ? 'purchase_cost' : 'NULL AS purchase_cost';
+			$can              = current_user_can( 'stockland_view_cost_and_profit' );
+			$manage           = current_user_can( 'stockland_manage_products' );
+			$include_inactive = $manage && (string) $request->get_param( 'include_inactive' ) === '1';
 
 			// Product Master is the catalog authority. Do not make inventory status
 			// or the transactional bootstrap list the source of catalog search.
@@ -142,30 +149,46 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			// Inactive rows are visible only to users who manage Product Master, so
 			// an authorized catalog administrator can find and repair an old SKU
 			// without exposing inactive products to ordinary operational users.
-			$include_inactive = $manage && (string) $request->get_param( 'include_inactive' ) === '1';
-			$where            = $include_inactive ? '1=1' : 'is_active=1';
-			$args             = array();
-			// In-place compatibility: accept both the newer q contract and the legacy search contract.
 			$q = trim( (string) $request->get_param( 'q' ) );
 			if ( '' === $q ) {
+				// In-place compatibility: accept both the newer q contract and the legacy search contract.
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
-			if ( '' !== $q ) {
-				$like   = '%' . $wpdb->esc_like( $q ) . '%';
-				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
-				$args   = array_fill( 0, 9, $like );
-			}
-			$requested_limit = $request->get_param( 'limit' );
-			$limit           = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
-			// Exact SKU matches sort first; this makes a known SKU deterministic
-			// while retaining broad catalog search for partial SKU/name/dimension terms.
-			$exact = '' !== $q ? 'CASE WHEN sku = %s THEN 0 ELSE 1 END,' : '';
-			if ( '' !== $q ) {
-				array_unshift( $args, $q );
-			}
-			$sql    = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,{$cost},retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active FROM {$table} WHERE {$where} ORDER BY {$exact} COALESCE(parent_sku,sku), color, size, sku LIMIT %d";
-			$args[] = $limit;
-			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+
+			$like             = '%' . $wpdb->esc_like( $q ) . '%';
+			$requested_limit  = $request->get_param( 'limit' );
+			$limit            = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
+
+			/*
+			 * Keep this SQL template static so every data value is bound in SQL
+			 * placeholder order. The nine LIKE values precede the exact-SKU sort
+			 * values; prepending the exact-SKU value breaks search parameter binding.
+			 */
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,CASE WHEN %d = 1 THEN purchase_cost ELSE NULL END AS purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active
+					FROM %i
+					WHERE (%d = 1 OR is_active = 1)
+						AND (%s = \'\' OR (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s))
+					ORDER BY CASE WHEN %s <> \'\' AND sku = %s THEN 0 ELSE 1 END, COALESCE(parent_sku,sku), color, size, sku
+					LIMIT %d',
+					array_merge(
+						array(
+							$can ? 1 : 0,
+							$table,
+							$include_inactive ? 1 : 0,
+							$q,
+						),
+						array_fill( 0, 9, $like ),
+						array(
+							$q,
+							$q,
+							$limit,
+						)
+					)
+				),
+				ARRAY_A
+			);
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland Product Master search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'product_master_query_failed', 'Product Master search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );

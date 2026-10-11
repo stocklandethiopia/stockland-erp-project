@@ -30,6 +30,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-corrective-1653-regressions.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-corrective-1653.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-external-procurement-authority.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-product-master-search.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1657.php' ),
 );
 foreach ( $commands as $command ) {
