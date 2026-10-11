@@ -1,12 +1,32 @@
 <?php
 // phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+/**
+ * Location administration and assigned-scope endpoints for Stockland ERP.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+/**
+ * Provides role-checked organization location read/write operations.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_Locations {
 	const NS = 'stockland/v16';
+	/**
+	 * Registers organization location routes.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) );}
+	/**
+	 * Registers location listing, creation and update endpoints.
+	 *
+	 * @return void
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -42,9 +62,20 @@ class Stockland_REST_Locations {
 			)
 		);
 	}
+	/**
+	 * Lists active locations permitted by the current ERP role.
+	 *
+	 * @return mixed REST response containing locations or a WP_Error.
+	 */
 	public function list() {
 		global $wpdb;
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,branch_code,location_type,role_description,is_active FROM %i ORDER BY (location_type='Warehouse') DESC, location_name", Stockland_DB::table( 'locations' ) ), ARRAY_A ) );}
+	/**
+	 * Creates a location after Owner-only authority and field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing location fields.
+	 * @return mixed REST response or a WP_Error.
+	 */
 	public function create( WP_REST_Request $r ) {
 		global $wpdb;
 		$p    = $r->get_json_params();
@@ -97,6 +128,12 @@ class Stockland_REST_Locations {
 		} catch ( Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'create_failed', $e->getMessage(), array( 'status' => 409 ) );}}
+	/**
+	 * Updates a location after Owner-only authority and field validation.
+	 *
+	 * @param WP_REST_Request $r REST request containing location ID and changed fields.
+	 * @return mixed REST response or a WP_Error.
+	 */
 	public function update( WP_REST_Request $r ) {
 		global $wpdb;
 		$id  = (int) $r['id'];
