@@ -104,7 +104,7 @@ register_activation_hook(
 				),
 				false
 			);
-			error_log( 'Stockland ERP activation error: ' . $e->getMessage() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP activation error: ' . $e->getMessage() );
 			deactivate_plugins( plugin_basename( __FILE__ ), true );
 			wp_die(
 				esc_html( 'Stockland ERP could not finish activating: ' . $e->getMessage() ) .
@@ -152,7 +152,7 @@ function stockland_init_plugin() {
 						),
 						false
 					);
-					error_log( 'Stockland ERP role sync error: ' . $e->getMessage() );
+					Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP role sync error: ' . $e->getMessage() );
 				}
 			},
 			5
@@ -184,7 +184,7 @@ function stockland_init_plugin() {
 					),
 					false
 				);
-				error_log( 'Stockland ERP accounting schema gate error: ' . $e->getMessage() );
+				Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP accounting schema gate error: ' . $e->getMessage() );
 			}
 		}
 		if ( class_exists( 'Stockland_HR' ) ) {
@@ -203,7 +203,7 @@ function stockland_init_plugin() {
 					),
 					false
 				);
-				error_log( 'Stockland ERP HR schema gate error: ' . $e->getMessage() );
+				Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP HR schema gate error: ' . $e->getMessage() );
 			}
 		}
 
@@ -245,7 +245,7 @@ function stockland_init_plugin() {
 			),
 			false
 		);
-		error_log( 'Stockland ERP startup error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
+		Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP startup error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
 		// Do not propagate a plugin runtime exception into a WordPress Critical Error.
 		// Native WordPress remains usable while System Control records the exact failure.
 	}
