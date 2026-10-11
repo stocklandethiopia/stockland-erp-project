@@ -30,6 +30,72 @@ class Stockland_DB {
 		return $wpdb->prefix . 'stock_' . $name;
 	}
 
+
+	/**
+	 * Reads one scalar value through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 * The custom inventory, ledger, permission and payroll tables are transactional
+	 * sources of truth; WordPress object caching is not transaction-aware and must
+	 * not serve potentially stale values after a stock or financial write.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param int          $x Zero-based result column.
+	 * @param int          $y Zero-based result row.
+	 * @return mixed Scalar query result or null.
+	 */
+	public static function read_var( $query = null, $x = 0, $y = 0 ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Central uncached gateway for prepared/custom-table reads that must reflect the current transactional ledger and authority state.
+		return $wpdb->get_var( $query, $x, $y );
+	}
+
+	/**
+	 * Reads rows through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param string      $output Output shape supported by wpdb, such as ARRAY_A.
+	 * @return mixed Query rows in the requested wpdb output shape.
+	 */
+	public static function read_results( $query = null, $output = OBJECT ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Relational ERP joins and live operational rows are intentionally uncached for consistency with ledger writes and role/location assignments.
+		return $wpdb->get_results( $query, $output );
+	}
+
+	/**
+	 * Reads one row through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param string      $output Output shape supported by wpdb, such as ARRAY_A.
+	 * @param int         $y Zero-based result row.
+	 * @return mixed Single result row in the requested wpdb output shape.
+	 */
+	public static function read_row( $query = null, $output = OBJECT, $y = 0 ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Permission, ledger, and workflow reads must reflect current database state rather than a potentially stale object-cache entry.
+		return $wpdb->get_row( $query, $output, $y );
+	}
+
+	/**
+	 * Reads one result column through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param int         $x Zero-based result column.
+	 * @return array Query values from the selected column.
+	 */
+	public static function read_col( $query = null, $x = 0 ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema metadata and operational identifiers are queried fresh so setup and authority checks cannot use stale cache entries.
+		return $wpdb->get_col( $query, $x );
+	}
+
 	/**
 	 * Looks up the database ID for a Stockland location name.
 	 *
@@ -39,7 +105,7 @@ class Stockland_DB {
 	public static function get_location_id( $location_name ) {
 		global $wpdb;
 		$table = self::table( 'locations' );
-		return $wpdb->get_var(
+		return self::read_var(
 			$wpdb->prepare(
 				'SELECT id FROM %i WHERE location_name = %s',
 				$table,
@@ -58,7 +124,7 @@ class Stockland_DB {
 	public static function get_setting( $key, $default = null ) {
 		global $wpdb;
 		$table = self::table( 'settings' );
-		$value = $wpdb->get_var(
+		$value = self::read_var(
 			$wpdb->prepare(
 				'SELECT setting_value FROM %i WHERE setting_key = %s',
 				$table,
@@ -90,7 +156,7 @@ class Stockland_DB {
 	public static function get_product( $sku ) {
 		global $wpdb;
 		$table = self::table( 'products' );
-		return $wpdb->get_row(
+		return self::read_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE sku = %s AND is_active = 1',
 				$table,
@@ -108,7 +174,7 @@ class Stockland_DB {
 	 */
 	public static function table_exists( $table_name ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var(
+		return (bool) self::read_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 				DB_NAME,
@@ -138,7 +204,7 @@ class Stockland_DB {
 
 		$maps = self::table( 'product_code_maps' );
 		if ( self::table_exists( $maps ) ) {
-			$mapped = $wpdb->get_var(
+			$mapped = self::read_var(
 				$wpdb->prepare(
 					'SELECT live_sku FROM %i WHERE source_system=%s AND external_code=%s AND is_active=1
                  AND (effective_from IS NULL OR effective_from<=%s)
@@ -185,7 +251,7 @@ class Stockland_DB {
 		$tx      = self::table( 'transactions' );
 		$product = self::get_product( $sku );
 		if ( $product && ! empty( $product['variant_id'] ) ) {
-			return (float) $wpdb->get_var(
+			return (float) self::read_var(
 				$wpdb->prepare(
 					'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))',
 					$tx,
@@ -195,7 +261,7 @@ class Stockland_DB {
 				)
 			);
 		}
-		return (float) $wpdb->get_var(
+		return (float) self::read_var(
 			$wpdb->prepare(
 				'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND sku=%s',
 				$tx,
@@ -214,7 +280,7 @@ class Stockland_DB {
 	public static function is_day_closed( $location_id, $business_date ) {
 		global $wpdb;
 		$table = self::table( 'daily_closings' );
-		if ( (string) $wpdb->get_var(
+		if ( (string) self::read_var(
 			$wpdb->prepare(
 				'SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s LIMIT 1',
 				$table,
@@ -251,7 +317,7 @@ class Stockland_DB {
 		}
 		// GET_LOCK names are connection-scoped strings; hash keeps them short and stable.
 		$name = 'stockland_' . substr( hash( 'sha256', $raw ), 0, 48 );
-		$got  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, max( 0, (int) $timeout ) ) );
+		$got  = self::read_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, max( 0, (int) $timeout ) ) );
 		return array(
 			'ok'   => ( '1' === (string) $got ),
 			'name' => $name,
@@ -268,7 +334,7 @@ class Stockland_DB {
 	public static function release_named_lock( $lock ) {
 		global $wpdb;
 		if ( is_array( $lock ) && ! empty( $lock['name'] ) ) {
-			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', (string) $lock['name'] ) );
+			self::read_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', (string) $lock['name'] ) );
 		}
 	}
 
@@ -353,7 +419,7 @@ class Stockland_DB {
 			return null;
 		}
 		$table = self::table( 'products' );
-		return $wpdb->get_row(
+		return self::read_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE variant_id=%d AND is_active=1 LIMIT 1',
 				$table,
@@ -376,7 +442,7 @@ class Stockland_DB {
 			return null;
 		}
 		$table = self::table( 'products' );
-		return $wpdb->get_row(
+		return self::read_row(
 			$wpdb->prepare(
 				"SELECT * FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
 				$table,
@@ -402,7 +468,7 @@ class Stockland_DB {
 		if ( $product && ! empty( $product['variant_id'] ) ) {
 			// Preserve both current variant-linked reservations and legacy SKU-only
 			// reservations. A legacy row must still reduce live availability.
-			$reserved = (float) $wpdb->get_var(
+			$reserved = (float) self::read_var(
 				$wpdb->prepare(
 					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
 					$res,
@@ -412,7 +478,7 @@ class Stockland_DB {
 				)
 			);
 		} else {
-			$reserved = (float) $wpdb->get_var(
+			$reserved = (float) self::read_var(
 				$wpdb->prepare(
 					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND sku=%s AND status='Active'",
 					$res,
