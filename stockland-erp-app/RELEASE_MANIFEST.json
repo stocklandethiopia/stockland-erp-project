@@ -83,8 +83,8 @@
     "phpcs_wpcs_configuration": true,
     "local_regression_tests": true,
     "critical_workflow_qa": true,
-    "phpunit_suite_executed": true,
-    "phpcs_executed": true,
+    "phpunit_suite_executed": false,
+    "phpcs_executed": false,
     "browser_e2e_executed": false,
     "live_database_integration_executed": false,
     "sonarqube_semgrep_owasp_zap_executed": false,
@@ -95,7 +95,7 @@
     "single_guarded_fetch_sink": true,
     "live_certification": false,
     "full_scope_phpcs_profile_prepared": true,
-    "full_scope_phpcs_profile_executed": true,
+    "full_scope_phpcs_profile_executed": false,
     "statutory_payroll_math_qa": true,
     "hr_schema_contract_qa": true,
     "operational_ui_contract_qa_local": true,
@@ -114,8 +114,8 @@
     ],
     "authenticated_live_browser_e2e_executed": false,
     "bootstrap_css_upstream_verified": true,
-    "phpcs_wpcs_zero_findings": true,
-    "github_actions_source_gate_passed": true
+    "phpcs_wpcs_zero_findings": false,
+    "github_actions_source_gate_passed": false
   },
   "live_certification": false,
   "runtime_diagnostics": {
@@ -136,7 +136,9 @@
     "RETAINER_SERVICE records are kept visible but excluded from employee PAYE/pension generation. Their specific contract/payment and any applicable withholding treatment requires approved finance/legal SOP and separate verification.",
     "No authenticated live database, browser transaction, or production deployment was performed in this build environment. Live health, Product Master, POS import, receiving, payroll, GL and rollback remain staging acceptance items.",
     "SonarQube, Semgrep and OWASP ZAP were not run in the latest CI workflow. A successful GitHub Actions source gate separately ran Composer-backed PHPUnit and full-scope PHPCS/WPCS with zero errors and zero warnings; these checks do not replace live staging acceptance.",
-    "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host."
+    "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host.",
+    "Owner purchase-order approval capability sync and canonical profile-role queue changes require a fresh GitHub Actions run and authenticated staging test using a Management-submitted Central Warehouse PO before acceptance.",
+    "User-profile dropdown and Owner approval queue have not been tested in an authenticated live browser. Production certification remains false."
   ],
   "release_candidate_changes": [
     "Restricts detailed system health/runtime REST endpoints to native WordPress administrators and Stockland Owner/Management.",
@@ -165,7 +167,10 @@
     "16.1.57: payroll requires Management draft preparation/submission, independent Owner approval with statutory/component evidence and balanced GL posting, then separate Owner payment; notifications follow the transitions.",
     "16.1.57: explicit System Health deep mode includes Stockland_Integrity::scan() SELECT-only reconciliation/orphan checks; SCAN_INCOMPLETE/unknown SQL results fail closed and the health report cannot mark live_ready unless the supplemental scan is clean.",
     "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest.",
-    "Latest GitHub Actions source gate passed PHP syntax checks, Composer validation, the production-service coding standard, PHPUnit, ERP static/integrity QA, and full-source PHPCS/WPCS with zero errors and warnings. This is CI/source validation, not live-site certification."
+    "Latest GitHub Actions source gate passed PHP syntax checks, Composer validation, the production-service coding standard, PHPUnit, ERP static/integrity QA, and full-source PHPCS/WPCS with zero errors and warnings. This is CI/source validation, not live-site certification.",
+    "Corrective Owner PO approval capability marker: an in-place 16.1.57 update now re-synchronizes the canonical role capability map even when the plugin release number is unchanged; no schema or database-version change.",
+    "Purchase-order queue eligibility now resolves creator and approver roles through the same active Stockland ERP profile authority used by status transitions, rather than a separate role-table join.",
+    "Added a keyboard-accessible user-icon dropdown with role-aware Finance & Procurement and Users navigation, SOP guide, appearance settings and sign-out; Owner finance view labels the stock-purchase approval queue explicitly."
   ],
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
@@ -201,7 +206,7 @@
   "source_provenance": {
     "base_package": "Stockland_ERP_16.1.42_AUDIT_CANDIDATE_PLUGIN.zip",
     "historical_acceptance_reference": "STOCKLAND_ERP_16_1_27_RELEASE_TEST_REPORT.md",
-    "note": "The most recent uploaded historical series archive starts at 16.1.28. The original 16.1.27 ZIP was not in that archive, so this release was based on the newer cumulative source to avoid reintroducing later CAP fixes."
+    "note": "Owner PO approval capability synchronization, canonical active-profile role resolution, and profile-dropdown changes are included in the current review branch. Previous source/CI results predate these commits and are not evidence for the current head; fresh CI and authenticated staging are required. No live site was changed."
   },
   "corrective_actions": [
     "Premium responsive interface refinements: readable two-line desktop navigation, high-contrast focus/hover/pressed actions, 44px touch targets, responsive forms/cards and accessible compact payroll editor.",
