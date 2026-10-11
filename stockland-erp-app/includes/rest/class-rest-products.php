@@ -183,7 +183,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		$manage  = current_user_can( 'stockland_manage_products' );
 		$table   = Stockland_DB::table( 'products' );
 		$product = $manage && (string) $request->get_param( 'include_inactive' ) === '1'
-			? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE sku=%s LIMIT 1", $sku ), ARRAY_A )
+			? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s LIMIT 1', $table, $sku ), ARRAY_A )
 			: Stockland_DB::get_product( $sku );
 		if ( ! $product ) {
 			return new WP_Error( 'not_found', 'SKU not found in Product Master.', array( 'status' => 404 ) );
@@ -458,7 +458,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start Product Master update transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$current = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE sku=%s FOR UPDATE", $sku ), ARRAY_A );
+			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s FOR UPDATE', $table, $sku ), ARRAY_A );
 			if ( ! $current ) {
 				$wpdb->query( 'ROLLBACK' );
 				return new WP_Error( 'not_found', 'SKU not found.', array( 'status' => 404 ) );}
