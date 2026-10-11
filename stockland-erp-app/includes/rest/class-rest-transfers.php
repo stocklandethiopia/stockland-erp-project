@@ -4,13 +4,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Authorized inventory-transfer REST workflows.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_Transfers extends Stockland_REST_Base {
 	const VALID_STATUSES = array( 'Requested', 'Approved', 'Reserved', 'Picked', 'In Transit', 'Received', 'Completed', 'Rejected', 'Cancelled' );
 
+	/**
+	 * Registers transfer route callbacks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers transfer listing, creation and status-transition routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -46,6 +61,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Loads one transfer with its source and destination location names.
+	 *
+	 * @param int $id Transfer identifier.
+	 * @return array|null Transfer row or null when it does not exist.
+	 */
 	private function row( $id ) {
 		global $wpdb;
 		return $wpdb->get_row(
@@ -69,6 +90,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Lists transfers within the current user's authorized location scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing optional filters.
+	 * @return mixed REST response with transfer rows or a WP_Error.
+	 */
 	public function list_transfers( WP_REST_Request $r ) {
 		global $wpdb;
 		$profile = Stockland_Roles::get_profile( get_current_user_id() );
@@ -101,6 +128,13 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
 
+	/**
+	 * Creates a transfer request after validating source, destination and quantities.
+	 *
+	 * @param WP_REST_Request $r REST request containing transfer header and lines.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When the guarded transfer transaction cannot complete.
+	 */
 	public function create_transfer( WP_REST_Request $r ) {
 		$p           = $r->get_json_params();
 		$from        = (int) ( $p['from_location_id'] ?? 0 );
@@ -181,6 +215,13 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			return new WP_Error( 'insert_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Checks the permitted transfer-state transition map.
+	 *
+	 * @param string $from Current transfer status.
+	 * @param string $to Requested next status.
+	 * @return bool Whether the transition is allowed.
+	 */
 	private function valid_transition( $from, $to ) {
 		$map = array(
 			'Requested'  => array( 'Approved', 'Rejected', 'Cancelled' ),
@@ -196,6 +237,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		return in_array( $to, $map[ $from ] ?? array(), true );
 	}
 
+	/**
+	 * Checks whether the current ERP role may receive a transfer at its destination.
+	 *
+	 * @param array $t Transfer row containing destination location and status.
+	 * @return bool Whether receipt is permitted.
+	 */
 	private function can_receive( $t ) {
 		if ( ! current_user_can( 'stockland_receive_transfer' ) ) {
 			return false;
@@ -203,6 +250,13 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		return Stockland_Authority::can_access_location( (int) $t['to_location_id'] );
 	}
 
+	/**
+	 * Applies a role-authorized transfer state transition.
+	 *
+	 * @param WP_REST_Request $r REST request containing transfer ID and target status.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When a validated transition cannot complete its transaction.
+	 */
 	public function update_status( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = sanitize_text_field( $r['transfer_id'] );
@@ -468,6 +522,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			return new WP_Error( 'transfer_failed', $e->getMessage(), array( 'status' => 409 ) ); }
 	}
 
+	/**
+	 * Synchronizes the linked requisition state after a transfer transition.
+	 *
+	 * @param string $requisition_id Requisition identifier.
+	 * @return bool Whether a linked requisition was updated or no link existed.
+	 */
 	private function sync_requisition( $requisition_id ) {
 		global $wpdb;
 		$statuses = $wpdb->get_col(
