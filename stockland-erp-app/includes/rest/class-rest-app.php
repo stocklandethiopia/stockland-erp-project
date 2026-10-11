@@ -2332,6 +2332,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function save_settings( WP_REST_Request $r ) {
 		$p       = $r->get_json_params();
