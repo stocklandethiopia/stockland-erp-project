@@ -3,7 +3,7 @@
  * Immutable inventory ledger and derived stock-balance operations.
  *
  * @package Stockland_ERP
-	 */
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -81,7 +81,7 @@ class Stockland_Ledger {
 	 * @param int|null   $created_by User responsible for the movement.
 	 * @param string     $source_line_id Stable source-line idempotency key.
 	 * @return int|false Ledger identifier, or false when the movement cannot be committed.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When an invariant prevents the ledger operation from completing.
 	 */
 	public static function record( $location_id, $sku, $movement_type, $quantity_signed, $reference_type, $reference_id, $transaction_date, $created_by = null, $source_line_id = '' ) {
 		global $wpdb;
