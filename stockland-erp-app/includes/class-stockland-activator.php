@@ -1378,12 +1378,12 @@ class Stockland_Activator {
 	}
 
 	/**
-	 * Seed default settings taken directly from the SETTINGS sheet. These
-	 * are starting values Management already entered in the workbook —
-	 * nothing here is invented, and Management can change any of them
-	 * post-activation via the settings screen (VAT rate, reorder levels).
-
+	 * Assigns stable branch/warehouse codes to existing locations that lack one.
+	 *
+	 * Existing non-empty branch codes are preserved.
+	 *
 	 * @param string $p WordPress table prefix.
+	 * @return void
 	 */
 	private static function backfill_location_codes( $p ) {
 		global $wpdb;
@@ -1429,7 +1429,8 @@ class Stockland_Activator {
 		foreach ( $defaults as $key => $value ) {
 			$wpdb->query(
 				$wpdb->prepare(
-					$wpdb->prepare( 'INSERT IGNORE INTO %i (setting_key, setting_value) VALUES (%s,%s)', $p . 'stock_settings', $key, $value ),
+					'INSERT IGNORE INTO %i (setting_key, setting_value) VALUES (%s,%s)',
+					$p . 'stock_settings',
 					$key,
 					$value
 				)
