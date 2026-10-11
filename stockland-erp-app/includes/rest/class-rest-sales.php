@@ -21,7 +21,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  *    Stockland_Ledger::post_sale_closed().
  *  - Once a sale is CLOSED it cannot be edited through this controller —
  *    corrections must go through /returns as an Adjustment (section 7/15).
-	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 class Stockland_REST_Sales extends Stockland_REST_Base {
 
@@ -356,6 +355,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		}
 	}
 
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 * @throws Exception When validation, migration or transaction processing fails.
 	/** Closes ONE sale row: locks it and posts the stock deduction to the ledger. */
 	public function close_sale( WP_REST_Request $request ) {
