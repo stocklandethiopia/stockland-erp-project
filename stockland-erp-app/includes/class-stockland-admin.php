@@ -1,4 +1,10 @@
 <?php
+/**
+ * WordPress admin menus and System Control entry points for Stockland ERP.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -10,9 +16,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * wp-admin, remove the Dashboard, or take ownership of WordPress administration.
  * Operational users may use the dedicated ERP frontend, while administrators
  * retain full WordPress backend control.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_Admin {
-	public function __construct() {
+	/**
+	 * Registers the ERP menu and admin-bar entry.
+	 *
+	 * @return void
+	 */
+		public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 90 );
 		// ERP adds only its own menu entries. It deliberately does not redirect, replace,
@@ -22,7 +35,12 @@ class Stockland_Admin {
 
 
 
-	public function admin_menu() {
+	/**
+	 * Adds Stockland ERP and System Control menu pages.
+	 *
+	 * @return void
+	 */
+		public function admin_menu() {
 		add_menu_page(
 			'Stockland ERP',
 			'Stockland ERP',
@@ -37,7 +55,13 @@ class Stockland_Admin {
 		add_submenu_page( 'stockland-erp', 'WordPress Dashboard', 'WordPress Dashboard', 'manage_options', 'index.php' );
 	}
 
-	public function admin_bar( $bar ) {
+	/**
+	 * Adds the ERP shortcut to the WordPress admin bar.
+	 *
+	 * @param WP_Admin_Bar $bar WordPress admin bar instance.
+	 * @return void
+	 */
+		public function admin_bar( $bar ) {
 		if ( ! is_admin_bar_showing() ) {
 			return;
 		}
@@ -50,11 +74,21 @@ class Stockland_Admin {
 		);
 	}
 
-	private static function erp_url() {
+	/**
+	 * Resolves the canonical ERP frontend URL.
+	 *
+	 * @return string ERP entry URL.
+	 */
+		private static function erp_url() {
 		return Stockland_Frontend::page_url();
 	}
 
-	public function erp_page() {
+	/**
+	 * Renders the ERP admin doorway without replacing native wp-admin.
+	 *
+	 * @return void
+	 */
+		public function erp_page() {
 		if ( ! current_user_can( 'read' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access Stockland ERP.', 'stockland-inventory' ) );
 		}
@@ -64,7 +98,12 @@ class Stockland_Admin {
 		exit;
 	}
 
-	public function system_control() {
+	/**
+	 * Renders the read-only System Control health and release page.
+	 *
+	 * @return void
+	 */
+		public function system_control() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access system control.', 'stockland-inventory' ) );
 		}
