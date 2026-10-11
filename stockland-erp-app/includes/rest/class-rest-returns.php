@@ -1,5 +1,10 @@
 <?php
 // phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
+/**
+ * Returns, damage and stock-adjustment REST workflows.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -13,10 +18,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Stockland_REST_Returns extends Stockland_REST_Base {
 
+	/**
+	 * Registers return and adjustment route callbacks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers return listing and return creation endpoints.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -38,6 +53,12 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Lists return records within the current user's authorized branch scope.
+	 *
+	 * @param WP_REST_Request $request REST request with optional filters.
+	 * @return mixed REST response containing return rows or a WP_Error.
+	 */
 	public function list_returns( WP_REST_Request $request ) {
 		$location_id = $this->resolve_branch_for_user( $request->get_param( 'location_id' ) );
 		if ( is_wp_error( $location_id ) ) {
@@ -58,6 +79,13 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Posts an authorized return/adjustment with a required business reason.
+	 *
+	 * @param WP_REST_Request $request REST request with return header and line items.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When a ledger, audit or transaction invariant fails.
+	 */
 	public function create_return( WP_REST_Request $request ) {
 		$p = $request->get_json_params();
 		foreach ( array( 'location_id', 'return_type', 'sku', 'quantity', 'reason' ) as $field ) {
