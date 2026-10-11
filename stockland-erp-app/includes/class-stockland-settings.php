@@ -42,7 +42,7 @@ class Stockland_Settings {
 		}
 
 		try {
-			$ok = $wpdb->replace(
+			$ok = Stockland_DB::replace_record(
 				$table,
 				array(
 					'setting_key'   => $key,
