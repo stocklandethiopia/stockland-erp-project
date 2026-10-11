@@ -183,7 +183,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			// Idempotent client retry: an explicitly repeated sale_id must describe the
 			// same transaction, otherwise return a conflict rather than double-posting.
 			if ( '' !== $sale_id_input ) {
-				$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sales_table} WHERE sale_id=%s LIMIT 1 FOR UPDATE", $sale_id_input ), ARRAY_A );
+				$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE', $sales_table, $sale_id_input ), ARRAY_A );
 				if ( $existing ) {
 					$requested_price = '0' === $selling_price_input ? $existing['selling_price'] : Stockland_Money::decimal( Stockland_Money::minor( $selling_price_input ) );
 					if ( (int) $existing['branch_location_id'] !== (int) $branch_location_id ||
@@ -263,7 +263,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not record POS sale.' );
 			}
 
-			$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sales_table} WHERE sale_id=%s LIMIT 1 FOR UPDATE", $sale_id ), ARRAY_A );
+			$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE', $sales_table, $sale_id ), ARRAY_A );
 			if ( ! $sale ) {
 				throw new Exception( 'POS sale was inserted but could not be re-read for posting.' );
 			}
@@ -340,7 +340,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		$table     = Stockland_DB::table( 'sales' );
 		$user_id   = get_current_user_id();
 		$sale_id   = sanitize_text_field( $request['sale_id'] );
-		$sale_date = (string) $wpdb->get_var( $wpdb->prepare( "SELECT sale_date FROM {$table} WHERE sale_id=%s", $sale_id ) );
+		$sale_date = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT sale_date FROM %i WHERE sale_id=%s', $table, $sale_id ) );
 		if ( ! $sale_date ) {
 			return new WP_Error( 'not_found', 'Sale not found.', array( 'status' => 404 ) );
 		}
@@ -363,7 +363,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			if ( Stockland_DB::is_day_closed( $sale['branch_location_id'], $sale_date ) ) {
 				throw new Exception( 'This business day is already closed.' );
 			}
-			$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE sale_id=%s FOR UPDATE", $sale_id ), ARRAY_A );
+			$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s FOR UPDATE', $table, $sale_id ), ARRAY_A );
 			if ( ! $sale ) {
 				throw new Exception( 'Sale not found.' );
 			}
@@ -474,22 +474,22 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start day-close transaction.', array( 'status' => 500 ) );}
 		try {
-			$existing = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$closings_table} WHERE branch_location_id=%d AND business_date=%s FOR UPDATE", $branch_location_id, $business_date ) );
+			$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s FOR UPDATE', $closings_table, $branch_location_id, $business_date ) );
 			if ( 'CLOSED' === $existing ) {
 				throw new Exception( 'This business day is already closed.' );
 			}
 			$import_jobs    = Stockland_DB::table( 'import_jobs' );
-			$pending_import = $wpdb->get_row( $wpdb->prepare( "SELECT id,status FROM {$import_jobs} WHERE import_type='DAILY_SALES' AND branch_location_id=%d AND business_date=%s AND status<>'POSTED' ORDER BY id DESC LIMIT 1", $branch_location_id, $business_date ), ARRAY_A );
+			$pending_import = $wpdb->get_row( $wpdb->prepare( "SELECT id,status FROM %i WHERE import_type='DAILY_SALES' AND branch_location_id=%d AND business_date=%s AND status<>'POSTED' ORDER BY id DESC LIMIT 1", $import_jobs, $branch_location_id, $business_date ), ARRAY_A );
 			if ( $pending_import ) {
 				throw new Exception( 'Daily POS Excel import job #' . $pending_import['id'] . ' is still ' . $pending_import['status'] . '. Complete the import before closing the business day.' );
 			}
 			$sales_table = Stockland_DB::table( 'sales' );
-			$open_sales  = $wpdb->get_results( $wpdb->prepare( "SELECT sale_id FROM {$sales_table} WHERE branch_location_id=%d AND sale_date=%s AND posting_status='OPEN' FOR UPDATE", $branch_location_id, $business_date ), ARRAY_A );
+			$open_sales  = $wpdb->get_results( $wpdb->prepare( "SELECT sale_id FROM %i WHERE branch_location_id=%d AND sale_date=%s AND posting_status='OPEN' FOR UPDATE", $sales_table, $branch_location_id, $business_date ), ARRAY_A );
 			if ( ! empty( $open_sales ) ) {
 				throw new Exception( 'Unposted retail sale records remain for ' . $business_date . '. Import and successfully post the external POS Daily XLSX before closing this business day.' );
 			}
-			$totals = $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(sales_total),0) total_sales,COALESCE(SUM(vat_amount),0) total_vat,COALESCE(SUM(gross_profit),0) total_gross_profit FROM {$sales_table} WHERE branch_location_id=%d AND sale_date=%s AND posting_status='CLOSED'", $branch_location_id, $business_date ), ARRAY_A );
-			$ok     = $wpdb->query( $wpdb->prepare( "INSERT INTO {$closings_table} (branch_location_id,business_date,status,closed_at,closed_by,total_sales,total_vat,total_gross_profit) VALUES(%d,%s,'CLOSED',%s,%d,%f,%f,%f) ON DUPLICATE KEY UPDATE status='CLOSED',closed_at=VALUES(closed_at),closed_by=VALUES(closed_by),total_sales=VALUES(total_sales),total_vat=VALUES(total_vat),total_gross_profit=VALUES(total_gross_profit)", $branch_location_id, $business_date, current_time( 'mysql' ), $user_id, $totals['total_sales'], $totals['total_vat'], $totals['total_gross_profit'] ) );
+			$totals = $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(sales_total),0) total_sales,COALESCE(SUM(vat_amount),0) total_vat,COALESCE(SUM(gross_profit),0) total_gross_profit FROM %i WHERE branch_location_id=%d AND sale_date=%s AND posting_status='CLOSED'", $sales_table, $branch_location_id, $business_date ), ARRAY_A );
+			$ok     = $wpdb->query( $wpdb->prepare( "INSERT INTO %i (branch_location_id,business_date,status,closed_at,closed_by,total_sales,total_vat,total_gross_profit) VALUES(%d,%s,'CLOSED',%s,%d,%f,%f,%f) ON DUPLICATE KEY UPDATE status='CLOSED',closed_at=VALUES(closed_at),closed_by=VALUES(closed_by),total_sales=VALUES(total_sales),total_vat=VALUES(total_vat),total_gross_profit=VALUES(total_gross_profit)", $closings_table, $branch_location_id, $business_date, current_time( 'mysql' ), $user_id, $totals['total_sales'], $totals['total_vat'], $totals['total_gross_profit'] ) );
 			if ( false === $ok ) {
 				throw new Exception( 'Could not close business day.' );
 			}
@@ -516,13 +516,13 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 	private function get_sale_row( $sale_id ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'sales' );
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE sale_id = %s", $sale_id ), ARRAY_A );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id = %s', $table, $sale_id ), ARRAY_A );
 	}
 
 	private static function generate_sale_id( $branch_location_id, $sale_date = null ) {
 		global $wpdb;
 		$locations = Stockland_DB::table( 'locations' );
-		$name      = $wpdb->get_var( $wpdb->prepare( "SELECT location_name FROM {$locations} WHERE id = %d", $branch_location_id ) );
+		$name      = $wpdb->get_var( $wpdb->prepare( 'SELECT location_name FROM %i WHERE id = %d', $locations, $branch_location_id ) );
 		$prefix    = strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', $name ? $name : 'BR' ), 0, 3 ) );
 		return Stockland_Sequence::next( 'SAL-' . sanitize_key( $prefix ), $sale_date );
 	}
