@@ -382,14 +382,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $uid <= 0 ) {
 			return false;
 		}
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT id,role,is_active FROM {$table} WHERE wp_user_id=%d LIMIT 1", $uid ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT id,role,is_active FROM %i WHERE wp_user_id=%d LIMIT 1', $table, $uid ), ARRAY_A );
 		if ( ! $row ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$table} (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $uid ) );
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $table, $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
 			}
 		} elseif ( 1 !== (int) $row['is_active'] || 'owner' !== (string) $row['role'] ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $uid ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE %i SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $table, $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
 			}
@@ -467,8 +467,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$location_table = Stockland_DB::table( 'locations' );
 		$central_id     = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( Stockland_Authority::company_scope() ) {
-			$locs             = $wpdb->get_results( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE is_active=1 ORDER BY id", ARRAY_A );
-			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE id=%d LIMIT 1", $central_id ), ARRAY_A ) : null;
+			$locs             = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 ORDER BY id', $location_table ), ARRAY_A );
+			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
 		} else {
 			$allowed = array_values( array_unique( array_filter( array_map( 'intval', $scope ) ) ) );
 			// Do not inject Central Warehouse into the ordinary operational location
@@ -478,25 +478,25 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$locs = array();
 			} else {
 				$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
-				$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE is_active=1 AND id IN({$ph}) ORDER BY id", $allowed ), ARRAY_A );
+				$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
 			}
-			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE id=%d LIMIT 1", $central_id ), ARRAY_A ) : null;
+			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
 		}
-		$product_cols = current_user_can( 'stockland_view_cost_and_profit' )
-			? 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level'
-			: 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level';
-		$products     = $wpdb->get_results( "SELECT {$product_cols} FROM " . Stockland_DB::table( 'products' ) . " WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", ARRAY_A );
+		$products = current_user_can( 'stockland_view_cost_and_profit' )
+			? $wpdb->get_results( $wpdb->prepare( "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A )
+			: $wpdb->get_results( $wpdb->prepare( "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A );
 
 		$args  = array();
-		$sql   = 'SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
-              FROM (SELECT t.location_id,t.variant_id,SUM(t.quantity_signed) physical_stock FROM ' . Stockland_DB::table( 'transactions' ) . ' t WHERE t.variant_id IS NOT NULL GROUP BY t.location_id,t.variant_id) v
-              JOIN ' . Stockland_DB::table( 'products' ) . ' p ON p.variant_id=v.variant_id
-              LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_reserved) reserved_stock FROM ' . Stockland_DB::table( 'reservations' ) . " WHERE status='Active' GROUP BY location_id,variant_id) r
+		$sql   = "SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
+              FROM (SELECT t.location_id,t.variant_id,SUM(t.quantity_signed) physical_stock FROM %i t WHERE t.variant_id IS NOT NULL GROUP BY t.location_id,t.variant_id) v
+              JOIN %i p ON p.variant_id=v.variant_id
+              LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_reserved) reserved_stock FROM %i WHERE status='Active' GROUP BY location_id,variant_id) r
                 ON r.location_id=v.location_id AND r.variant_id=p.variant_id
               WHERE p.product_type<>'STYLE'";
 		$sql  .= $this->append_scope_filter( 'v.location_id', $args, $scope );
 		$sql  .= ' ORDER BY v.location_id,p.sku';
-		$stock = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		$sql_args = array_merge( array( Stockland_DB::table( 'transactions' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'reservations' ) ), $args );
+		$stock = $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 
 		$dashboard = $this->dashboard( $scope );
 		$can_cost  = (bool) current_user_can( 'stockland_view_cost_and_profit' );
@@ -649,8 +649,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		} elseif ( null !== $scope_ids ) {
 			$sales_where = ' AND branch_location_id=%d';
 			$sales_args  = $scope_ids;}
-			$rt_sql = "SELECT COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity_sold),0) units FROM {$sales} WHERE posting_status='CLOSED'{$sales_where}";
-			$rt     = $sales_args ? $wpdb->get_row( $wpdb->prepare( $rt_sql, $sales_args ), ARRAY_A ) : $wpdb->get_row( $rt_sql, ARRAY_A );
+			$rt_sql = "SELECT COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity_sold),0) units FROM %i WHERE posting_status='CLOSED'{$sales_where}";
+			$rt     = $wpdb->get_row( $wpdb->prepare( $rt_sql, array_merge( array( $sales ), $sales_args ) ), ARRAY_A );
 			// Wholesale sales are company-level in the current data model and are therefore
 			// included only for company-wide dashboards, not branch-scoped dashboards.
 			$wt = null !== $scope_ids ? array(
@@ -659,10 +659,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'profit'  => 0,
 				'vat'     => 0,
 				'units'   => 0,
-			) : $wpdb->get_row( "SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM {$wh}", ARRAY_A );
+			) : $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM %i", $wh ), ARRAY_A );
 
 			$inv_args = array();
-			$inv_sql  = "SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0) FROM {$bal} b JOIN {$prod} p ON p.variant_id=b.variant_id";
+			$inv_sql  = "SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0) FROM %i b JOIN %i p ON p.variant_id=b.variant_id";
 			if ( is_array( $scope_ids ) ) {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$inv_sql .= " WHERE b.location_id IN({$ph})";
@@ -670,10 +670,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$inv_sql         .= ' WHERE b.location_id=%d';
 						$inv_args = $scope_ids;}
-			$inv = $inv_args ? (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, $inv_args ) ) : (float) $wpdb->get_var( $inv_sql );
+			$inv = (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, array_merge( array( $bal, $prod ), $inv_args ) ) );
 
 			$low_args = array();
-			$low_sql  = "SELECT COUNT(*) FROM {$prod} p CROSS JOIN {$loc} l LEFT JOIN {$bal} b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch')";
+			$low_sql  = "SELECT COUNT(*) FROM %i p CROSS JOIN %i l LEFT JOIN %i b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch')";
 			if ( is_array( $scope_ids ) ) {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$low_sql .= " AND l.id IN({$ph})";
@@ -682,15 +682,15 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$low_sql         .= ' AND l.id=%d';
 						$low_args = $scope_ids;}
 			$low_sql .= " AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level)";
-			$low      = $low_args ? (int) $wpdb->get_var( $wpdb->prepare( $low_sql, $low_args ) ) : (int) $wpdb->get_var( $low_sql );
+			$low      = (int) $wpdb->get_var( $wpdb->prepare( $low_sql, array_merge( array( $prod, $loc, $bal ), $low_args ) ) );
 
 			$today       = 'Y-m-d';
 			$today_value = current_time( $today );
 			$today_args  = array( $today_value );
 			$today_where = $sales_where;
 			$today_args  = array_merge( $today_args, $sales_args );
-			$today_sql   = "SELECT COALESCE(SUM(sales_total),0) FROM {$sales} WHERE posting_status='CLOSED' AND sale_date=%s{$today_where}";
-			$today_sales = (float) $wpdb->get_var( $wpdb->prepare( $today_sql, $today_args ) );
+			$today_sql   = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date=%s{$today_where}";
+			$today_sales = (float) $wpdb->get_var( $wpdb->prepare( $today_sql, array_merge( array( $sales ), $today_args ) ) );
 
 			$req_args = array();
 			$req_sql  = 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'requisitions' ) . " WHERE status IN('Requested','Reviewed','Approved','Reserved','Picked')";
@@ -823,7 +823,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function audit( WP_REST_Request $r ) {
 		global $wpdb;
 		$t    = Stockland_DB::table( 'audit_logs' );
-		$rows = $wpdb->get_results( "SELECT a.*,u.display_name,l.location_name FROM {$t} a LEFT JOIN {$wpdb->users} u ON u.ID=a.user_id LEFT JOIN " . Stockland_DB::table( 'locations' ) . ' l ON l.id=a.branch_location_id ORDER BY a.action_time DESC LIMIT 500', ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT a.*,u.display_name,l.location_name FROM %i a LEFT JOIN %i u ON u.ID=a.user_id LEFT JOIN %i l ON l.id=a.branch_location_id ORDER BY a.action_time DESC LIMIT 500', $t, $wpdb->users, Stockland_DB::table( 'locations' ) ), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	/** Minimal read-only endpoint that remains usable even when a larger health query fails. */
 	public function runtime_diagnostics() {
