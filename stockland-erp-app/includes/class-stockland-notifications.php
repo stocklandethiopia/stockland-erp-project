@@ -32,7 +32,7 @@ class Stockland_Notifications {
 		if ( ! $user_id ) {
 			return false;
 		}
-		return false !== $wpdb->insert(
+		return false !== Stockland_DB::insert_record(
 			Stockland_DB::table( 'notifications' ),
 			array(
 				'user_id'           => (int) $user_id,
@@ -64,7 +64,7 @@ class Stockland_Notifications {
 	 */
 	public static function push_role( $role, $location_id, $type, $title, $message, $entity_type = null, $entity_id = null, $severity = 'info' ) {
 		global $wpdb;
-		return false !== $wpdb->insert(
+		return false !== Stockland_DB::insert_record(
 			Stockland_DB::table( 'notifications' ),
 			array(
 				'user_id'           => null,
