@@ -2,7 +2,7 @@ name: Stockland ERP package and source gate
 
 on:
   push:
-    branches: ["audit/**", "main"]
+    branches: ["audit/**", "fix/**", "main"]
     paths:
       - "stockland-erp-app/**"
       - "audit/packages/**"
@@ -374,7 +374,7 @@ jobs:
 
   persist-runtime-formatting:
     name: Apply tested mechanical formatting on isolated audit branch
-    if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/audit/')
+    if: always() && github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/audit/') || startsWith(github.ref, 'refs/heads/fix/'))
     needs: audit-source
     runs-on: ubuntu-latest
     permissions:
