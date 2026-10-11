@@ -2076,9 +2076,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function expenses( WP_REST_Request $r ) {
 		global $wpdb;
-		$table       = Stockland_DB::table( 'expenses' );
-		$status      = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
-		$has_status  = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$table        = Stockland_DB::table( 'expenses' );
+		$status       = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
+		$has_status   = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
 		$company_wide = Stockland_Authority::company_scope();
 		$location_ids = array();
 		if ( ! $company_wide ) {
