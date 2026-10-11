@@ -132,7 +132,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 500';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql contains only the fixed transfer query plus generated %d tokens; scope IDs are integer-cast and bound through $args.
-		return rest_ensure_response( Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
+		$prepared_sql = $wpdb->prepare( $sql, $args );
+		return rest_ensure_response( Stockland_DB::read_results( $prepared_sql, ARRAY_A ) );
 	}
 
 	/**
@@ -534,6 +535,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 	 *
 	 * @param string $requisition_id Requisition identifier.
 	 * @return bool Whether a linked requisition was updated or no link existed.
+	 * @throws Exception When a linked requisition transition cannot be persisted.
 	 */
 	private function sync_requisition( $requisition_id ) {
 		global $wpdb;
