@@ -263,7 +263,7 @@ class Stockland_DB {
 		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1',
+				"SELECT * FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
 				$table,
 				$code,
 				$code
@@ -282,7 +282,7 @@ class Stockland_DB {
 			// reservations. A legacy row must still reduce live availability.
 			$reserved = (float) $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))',
+					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
 					$res,
 					(int) $location_id,
 					(int) $product['variant_id'],
@@ -292,7 +292,7 @@ class Stockland_DB {
 		} else {
 			$reserved = (float) $wpdb->get_var(
 				$wpdb->prepare(
-					'SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND sku=%s AND status='Active'',
+					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND sku=%s AND status='Active'",
 					$res,
 					(int) $location_id,
 					$sku
