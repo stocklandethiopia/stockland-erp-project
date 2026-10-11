@@ -35,7 +35,8 @@ class Stockland_DB {
 		$table = self::table( 'settings' );
 		$value = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT setting_value FROM {$table} WHERE setting_key = %s",
+				"SELECT setting_value FROM %i WHERE setting_key = %s",
+				$table,
 				$key
 			)
 		);
@@ -57,7 +58,8 @@ class Stockland_DB {
 		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE sku = %s AND is_active = 1",
+				"SELECT * FROM %i WHERE sku = %s AND is_active = 1",
+				$table,
 				$sku
 			),
 			ARRAY_A
@@ -92,10 +94,11 @@ class Stockland_DB {
 		if ( self::table_exists( $maps ) ) {
 			$mapped = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT live_sku FROM {$maps} WHERE source_system=%s AND external_code=%s AND is_active=1
+					"SELECT live_sku FROM %i WHERE source_system=%s AND external_code=%s AND is_active=1
                  AND (effective_from IS NULL OR effective_from<=%s)
                  AND (effective_to IS NULL OR effective_to>=%s)
                  ORDER BY effective_from DESC, id DESC LIMIT 1",
+					$maps,
 					$source_system,
 					$external_code,
 					$as_of,
@@ -125,7 +128,8 @@ class Stockland_DB {
 		if ( $product && ! empty( $product['variant_id'] ) ) {
 			return (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_signed),0) FROM {$tx} WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					"SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					$tx,
 					(int) $location_id,
 					(int) $product['variant_id'],
 					$sku
@@ -134,7 +138,8 @@ class Stockland_DB {
 		}
 		return (float) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COALESCE(SUM(quantity_signed),0) FROM {$tx} WHERE location_id=%d AND sku=%s",
+				"SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND sku=%s",
+				$tx,
 				(int) $location_id,
 				$sku
 			)
@@ -147,7 +152,8 @@ class Stockland_DB {
 		$table = self::table( 'daily_closings' );
 		if ( (string) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT status FROM {$table} WHERE branch_location_id=%d AND business_date=%s LIMIT 1",
+				"SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s LIMIT 1",
+				$table,
 				(int) $location_id,
 				$business_date
 			)
@@ -241,7 +247,8 @@ class Stockland_DB {
 		}
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM ' . self::table( 'products' ) . ' WHERE variant_id=%d AND is_active=1 LIMIT 1',
+				'SELECT * FROM %i WHERE variant_id=%d AND is_active=1 LIMIT 1',
+				self::table( 'products' ),
 				$variant_id
 			),
 			ARRAY_A
@@ -257,7 +264,8 @@ class Stockland_DB {
 		$table = self::table( 'products' );
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
+				"SELECT * FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
+				$table,
 				$code,
 				$code
 			),
@@ -275,7 +283,8 @@ class Stockland_DB {
 			// reservations. A legacy row must still reduce live availability.
 			$reserved = (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_reserved),0) FROM {$res} WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
+					$res,
 					(int) $location_id,
 					(int) $product['variant_id'],
 					(string) $product['sku']
@@ -284,7 +293,8 @@ class Stockland_DB {
 		} else {
 			$reserved = (float) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(quantity_reserved),0) FROM {$res} WHERE location_id=%d AND sku=%s AND status='Active'",
+					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND sku=%s AND status='Active'",
+					$res,
 					(int) $location_id,
 					$sku
 				)
