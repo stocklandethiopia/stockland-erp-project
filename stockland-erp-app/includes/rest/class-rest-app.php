@@ -877,7 +877,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql    = 'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE ' . $where . ' ORDER BY ' . $order . ' LIMIT %d';
 			$args[] = $limit;
 			array_unshift( $args, $table );
-			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'sku_search_failed', 'Live SKU search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );
