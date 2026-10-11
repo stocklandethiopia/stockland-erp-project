@@ -1889,18 +1889,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login";
 		// SQL is a fixed assignment/location query with identifier placeholders.
-		$rows = Stockland_DB::read_results(
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql uses fixed clauses and %i identifiers; each physical table name is passed as a separate prepare() argument.
-			$wpdb->prepare(
-				$sql,
-				$users_table,
-				$wpdb->users,
-				$locations_table,
-				$scope_table,
-				$locations_table
-			),
-			ARRAY_A
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql uses fixed clauses and %i identifiers; each physical table name is passed as a separate prepare() argument.
+		$prepared_sql = $wpdb->prepare(
+			$sql,
+			$users_table,
+			$wpdb->users,
+			$locations_table,
+			$scope_table,
+			$locations_table
 		);
+		$rows = Stockland_DB::read_results( $prepared_sql, ARRAY_A );
 		foreach ( $rows as &$row ) {
 			$row['location_ids']   = array_values( array_filter( array_map( 'intval', preg_split( '/\s*,\s*/', (string) ( $row['location_ids_csv'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY ) ) ) );
 			$row['location_names'] = array_values( array_filter( array_map( 'trim', explode( '||', (string) ( $row['location_names_csv'] ?? '' ) ) ) ) );
@@ -3592,7 +3590,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 */
 	public function count_report( WP_REST_Request $r ) {
 		global $wpdb;
-		$id = sanitize_text_field( $r['id'] );
+		$id                  = sanitize_text_field( $r['id'] );
 		$count_batches_table = Stockland_DB::table( 'count_batches' );
 		$locations_table     = Stockland_DB::table( 'locations' );
 		$users_table         = $wpdb->users;
