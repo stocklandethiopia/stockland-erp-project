@@ -23,7 +23,8 @@ class Stockland_Product_Service {
 	 * @param string $reference Optional supporting document/reference.
 	 * @param bool   $manage_transaction Whether this service should start/commit its own transaction.
 	 * @return array|false Saved Product Master product row, or false if it cannot be re-read.
-	 * @throws Exception When validation, active references, ledger rebuild, audit logging or persistence fails.
+	 * @throws Exception When validation, active references, audit logging or persistence fails.
+	 * @throws RuntimeException When the ledger service cannot rebuild the derived balance.
 	 */
 	public static function replace_sku( $variant_id, $new_sku, $reason, $reference = '', $manage_transaction = true ) {
 		global $wpdb;
