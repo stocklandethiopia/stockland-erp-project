@@ -46,6 +46,7 @@ class Stockland_Frontend {
 	/** Current frontend bridge instance used by template_include. */
 	private static function csp_nonce() {
 		if ( null === self::$csp_nonce ) {
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Base64 encodes the cryptographically random value required for a CSP nonce; it is not code obfuscation.
 			self::$csp_nonce = base64_encode( function_exists( 'random_bytes' ) ? random_bytes( 18 ) : wp_generate_password( 24, false, false ) );
 		}
 		return self::$csp_nonce;
@@ -361,9 +362,11 @@ class Stockland_Frontend {
 
 	/** Serve only dynamic PWA assets here. The ERP document itself uses template_include. */
 	public function serve_request() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This GET flag selects a public, read-only PWA manifest and performs no state change.
 		if ( isset( $_GET['stockland_pwa_manifest'] ) ) {
 			$this->serve_manifest();
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This GET flag selects a public, read-only service-worker asset and performs no state change.
 		if ( isset( $_GET['stockland_pwa_sw'] ) ) {
 			$this->serve_service_worker();
 		}
@@ -378,6 +381,7 @@ class Stockland_Frontend {
 		if ( is_admin() ) {
 			return $template;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This sanitized GET flag selects the public ERP shell route and cannot mutate data.
 		$direct_flag = isset( $_GET['stockland_erp'] ) ? sanitize_text_field( wp_unslash( $_GET['stockland_erp'] ) ) : '';
 		$direct      = '1' === $direct_flag;
 		$direct      = $direct || $this->is_direct_request_path();
@@ -536,7 +540,8 @@ class Stockland_Frontend {
 		// This remains compatible for ordinary WordPress rendering, although template_redirect
 		// normally upgrades the page into the same standalone document before the theme runs.
 		if ( ! is_user_logged_in() ) {
-			$status = sanitize_key( $_GET['sl_login'] ?? '' );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The sanitized GET value only selects a login status message; authentication is performed separately by the POST handler.
+			$status = sanitize_key( wp_unslash( $_GET['sl_login'] ?? '' ) );
 			ob_start(); ?>
 			<div class="sl-login">
 				<div class="sl-login-shell">
@@ -626,7 +631,8 @@ elseif ( 'missing' === $status ) :
 		</div>
 		<div class="sl-login-card">
 			<div class="sl-login-card-head"><div class="sl-eyebrow">WELCOME BACK</div><h2>Sign in to Stockland</h2><p>Use your authorized ERP username and password to continue.</p></div>
-			<?php $status = sanitize_key( $_GET['sl_login'] ?? '' ); ?>
+			<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The sanitized GET value only selects a login status message; authentication is performed separately by the POST handler.
+			$status = sanitize_key( wp_unslash( $_GET['sl_login'] ?? '' ) ); ?>
 			<?php
 			if ( 'failed' === $status ) :
 				?>
