@@ -64,6 +64,7 @@ class Stockland_REST_Inventory_Report_V16 {
 		$ph   = implode( ',', array_fill( 0, count( $location_ids ), '%d' ) );
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only repeated %d placeholders; every location ID is passed separately to prepare().
 				'SELECT location_id,COALESCE(variant_id,0) variant_id,sku,COALESCE(SUM(quantity_reserved),0) reserved_qty FROM %i WHERE location_id IN(' . $ph . ") AND status='Active' GROUP BY location_id,COALESCE(variant_id,0),sku",
 				array_merge( array( $t ), array_map( 'intval', $location_ids ) )
 			),
@@ -326,6 +327,7 @@ class Stockland_REST_Inventory_Report_V16 {
             GROUP BY t.location_id,t.variant_id,p.sku";
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_ledger' );
 		$movement_rows = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $movement_select is a fixed SQL template; its generated IN placeholders are paired with integer-only location values in prepare().
 			$wpdb->prepare( $movement_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date, $tx_t, $products_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ),
 			ARRAY_A
 		);
@@ -367,6 +369,7 @@ class Stockland_REST_Inventory_Report_V16 {
             GROUP BY t.location_id,p.variant_id,p.sku";
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_legacy_ledger' );
 		$legacy_rows = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $legacy_select is a fixed SQL template; its generated IN placeholders are paired with integer-only location values in prepare().
 			$wpdb->prepare( $legacy_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date, $tx_t, $products_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ),
 			ARRAY_A
 		);
