@@ -1,10 +1,4 @@
 <?php
-/**
- * Stockland ERP component.
- *
- * @package Stockland_ERP
- */
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -25,96 +19,49 @@ class Stockland_Authority {
 	const WAREHOUSE_MANAGER  = 'warehouse_manager';
 	const AUDITOR            = 'auditor';
 
-	/**
-	 * Handles profile within the Stockland ERP component.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function profile( $user_id = null ) {
 		$user_id = $user_id ? $user_id : get_current_user_id();
 		return Stockland_Roles::get_profile( (int) $user_id );
 	}
 
-	/**
-	 * Handles role within the Stockland ERP component.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function role( $user_id = null ) {
 		$p = self::profile( $user_id );
 		return $p ? (string) $p['role'] : '';
 	}
 
-	/**
-	 * Validates or resolves is owner for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function is_owner( $user_id = null ) {
 		return self::role( $user_id ) === self::OWNER || user_can( $user_id ? $user_id : get_current_user_id(), 'stockland_owner' );
 	}
 
-	/**
-	 * Validates or resolves is management for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function is_management( $user_id = null ) {
 		$r = self::role( $user_id );
 		return in_array( $r, array( self::OWNER, self::MANAGEMENT ), true );
 	}
 
-	/**
-	 * Validates or resolves is warehouse for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function is_warehouse( $user_id = null ) {
 		$r = self::role( $user_id );
 		return in_array( $r, array( self::WAREHOUSE_EMPLOYEE, self::WAREHOUSE_MANAGER ), true );
 	}
 
-	/**
-	 * Handles branch id within the Stockland ERP component.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function branch_id( $user_id = null ) {
 		$p = self::profile( $user_id );
 		return $p && ! empty( $p['branch_location_id'] ) ? (int) $p['branch_location_id'] : 0;
 	}
 
-	/**
-	 * Handles location ids within the Stockland ERP component.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function location_ids( $user_id = null ) {
 		return Stockland_Roles::get_location_scope( $user_id ? $user_id : get_current_user_id() );
 	}
 
-	/**
-	 * Validates or resolves can view warehouse availability for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_view_warehouse_availability( $user_id = null ) {
 		return current_user_can( 'stockland_view_warehouse_availability' ) && (bool) self::profile( $user_id );
 	}
 
 	/** Return the user's operational location scope. Company-wide roles intentionally return an empty list;
-	 * callers that need company scope should use company_scope(). Branch users may have one or many locations. 	 * @param mixed $user_id The user ID.
-*/
+	 * callers that need company scope should use company_scope(). Branch users may have one or many locations. */
 	public static function operational_scope( $user_id = null ) {
 		return self::company_scope( $user_id ) ? array() : self::location_ids( $user_id );
 	}
 
-	/**
-	 * Validates or resolves can access location for the ERP operation.
-	 *
-	 * @param mixed $location_id The location ID.
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_access_location( $location_id, $user_id = null ) {
 		$id = (int) $location_id;
 		if ( $id <= 0 ) {
@@ -126,32 +73,16 @@ class Stockland_Authority {
 		return in_array( $id, self::location_ids( $user_id ), true );
 	}
 
-	/**
-	 * Handles company scope within the Stockland ERP component.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function company_scope( $user_id = null ) {
 		$r = self::role( $user_id );
 		return in_array( $r, array( self::OWNER, self::MANAGEMENT, self::AUDITOR ), true );
 	}
 
-	/**
-	 * Determines whether the current actor may perform the requested ERP operation.
-	 *
-	 * @param mixed $cap The cap value.
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can( $cap, $user_id = null ) {
 		$user_id = $user_id ? $user_id : get_current_user_id();
 		return user_can( $user_id, $cap );
 	}
 
-	/**
-	 * Validates or resolves can daily import for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_daily_import( $user_id = null ) {
 		$user_id = $user_id ? $user_id : get_current_user_id();
 		$r       = self::role( $user_id );
@@ -159,50 +90,31 @@ class Stockland_Authority {
 			&& user_can( $user_id, 'stockland_daily_import' );
 	}
 
-	/**
-	 * Validates or resolves can daily commit for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_daily_commit( $user_id = null ) {
 		return self::role( $user_id ) === self::BRANCH_MANAGER;
 	}
 
-	/**
-	 * Validates or resolves can manage import mappings for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_manage_import_mappings( $user_id = null ) {
 		return self::role( $user_id ) === self::OWNER || self::role( $user_id ) === self::MANAGEMENT;
 	}
 
-	/**
-	 * Validates or resolves can manage product code maps for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_manage_product_code_maps( $user_id = null ) {
 		return self::can_manage_import_mappings( $user_id );
 	}
 
-	/** Management-only submission authority for financial/procurement records; Owner decides separately. 	 * @param mixed $capability The capability value.
-	 * @param mixed $user_id The user ID.
-*/
+	/** Management-only submission authority for financial/procurement records; Owner decides separately. */
 	public static function can_prepare_finance( $capability, $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, $capability );
 	}
 
-	/** Expenses may be submitted by Management or an assigned Branch Manager; Owner reviews them. 	 * @param mixed $user_id The user ID.
-*/
+	/** Expenses may be submitted by Management or an assigned Branch Manager; Owner reviews them. */
 	public static function can_submit_expenses( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::MANAGEMENT, self::BRANCH_MANAGER ), true ) && user_can( $uid, 'stockland_manage_expenses' );
 	}
 
-	/** External procurement read access is limited to active Stockland operational roles. 	 * @param mixed $user_id The user ID.
-*/
+	/** External procurement read access is limited to active Stockland operational roles. */
 	public static function can_view_external_purchase_orders( $user_id = null ) {
 		$uid  = $user_id ? $user_id : get_current_user_id();
 		$role = self::role( $uid );
@@ -215,105 +127,57 @@ class Stockland_Authority {
 		return false;
 	}
 
-	/** Supplier/AP transactions are restricted to active Owner or Management profiles. 	 * @param mixed $capability The capability value.
-	 * @param mixed $user_id The user ID.
-*/
+	/** Supplier/AP transactions are restricted to active Owner or Management profiles. */
 	public static function can_manage_external_supplier_finance( $capability = 'stockland_manage_payables', $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::OWNER, self::MANAGEMENT ), true )
 			&& user_can( $uid, $capability );
 	}
 
-	/** External procurement is deliberately role-separated: Management enters, Owner approves. 	 * @param mixed $user_id The user ID.
-*/
+	/** External procurement is deliberately role-separated: Management enters, Owner approves. */
 	public static function can_create_external_purchase_order( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, 'stockland_manage_purchase_orders' );
 	}
 
-	/**
-	 * Validates or resolves can approve external purchase order for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_approve_external_purchase_order( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_approve_purchase_orders' );
 	}
 
-	/**
-	 * Validates or resolves can receive external purchase order for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_receive_external_purchase_order( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::WAREHOUSE_MANAGER && user_can( $uid, 'stockland_receive_warehouse' );
 	}
 
-	/**
-	 * Validates or resolves can product import for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_product_import( $user_id = null ) {
 		$r = self::role( $user_id );
 		return in_array( $r, array( self::OWNER, self::MANAGEMENT ), true );
 	}
 
-	/**
-	 * Validates or resolves can review requisition for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_review_requisition( $user_id = null ) {
 		return self::role( $user_id ) === self::BRANCH_MANAGER;
 	}
 
-	/**
-	 * Validates or resolves can warehouse operate requisition for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_warehouse_operate_requisition( $user_id = null ) {
 		$r = self::role( $user_id );
 		return in_array( $r, array( self::WAREHOUSE_EMPLOYEE, self::WAREHOUSE_MANAGER ), true );
 	}
 
-	/**
-	 * Validates or resolves can reserve requisition for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_reserve_requisition( $user_id = null ) {
 		return self::role( $user_id ) === self::WAREHOUSE_MANAGER;
 	}
 
-	/**
-	 * Validates or resolves can pick requisition for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_pick_requisition( $user_id = null ) {
 		$r = self::role( $user_id );
 		return self::WAREHOUSE_EMPLOYEE === $r;
 	}
 
-	/**
-	 * Validates or resolves can receive requisition for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_receive_requisition( $user_id = null ) {
 		return self::role( $user_id ) === self::BRANCH_MANAGER && current_user_can( 'stockland_receive_transfer' );
 	}
 
 
-	/**
-	 * Validates or resolves can view returns for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_view_returns( $user_id = null ) {
 		$user_id = $user_id ? $user_id : get_current_user_id();
 		return (bool) self::profile( $user_id ) && (
@@ -323,11 +187,6 @@ class Stockland_Authority {
 		);
 	}
 
-	/**
-	 * Validates or resolves can view integrity for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_view_integrity( $user_id = null ) {
 		$user_id = $user_id ? $user_id : get_current_user_id();
 		return (bool) self::profile( $user_id ) && (
@@ -340,8 +199,7 @@ class Stockland_Authority {
 	 * schema details and environment versions. Restrict these to system owners,
 	 * management and native WordPress administrators; ordinary branch/warehouse
 	 * accounts must not receive operational internals.
-	 	 * @param mixed $user_id The user ID.
-*/
+	 */
 	public static function can_view_system_diagnostics( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		if ( $uid > 0 && user_can( $uid, 'manage_options' ) ) {
@@ -350,21 +208,10 @@ class Stockland_Authority {
 		return (bool) self::profile( $uid ) && self::is_management( $uid );
 	}
 
-	/**
-	 * Validates or resolves can view system health for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_view_system_health( $user_id = null ) {
 		return self::can_view_system_diagnostics( $user_id );
 	}
 
-	/**
-	 * Validates or resolves can approve requisition for the ERP operation.
-	 *
-	 * @param mixed $stage The stage value.
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_approve_requisition( $stage, $user_id = null ) {
 		$r = self::role( $user_id );
 		if ( 'management' === $stage ) {
@@ -376,101 +223,57 @@ class Stockland_Authority {
 		return false;
 	}
 
-	/**
-	 * Validates or resolves can manage locations for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_manage_locations( $user_id = null ) {
 		return self::is_owner( $user_id );
 	}
 
-	/**
-	 * Validates or resolves can manage users for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_manage_users( $user_id = null ) {
 		return self::is_owner( $user_id ) || self::is_management( $user_id );
 	}
 
-	/**
-	 * Validates or resolves can view hr for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_view_hr( $user_id = null ) {
 		return self::is_owner( $user_id ) || self::is_management( $user_id );
 	}
 
 	/** HR review and compensation classification is available to Owner and Management.
-	 * Employee master entry itself is Management-only via can_prepare_hr(). 	 * @param mixed $user_id The user ID.
-*/
+	 * Employee master entry itself is Management-only via can_prepare_hr(). */
 	public static function can_manage_hr( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::OWNER, self::MANAGEMENT ), true ) && user_can( $uid, 'stockland_manage_hr' );
 	}
 
-	/**
-	 * Validates or resolves can prepare hr for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_prepare_hr( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, 'stockland_manage_hr' );
 	}
 
-	/**
-	 * Validates or resolves can view payroll for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_view_payroll( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return in_array( self::role( $uid ), array( self::OWNER, self::MANAGEMENT ), true ) && user_can( $uid, 'stockland_view_payroll' );
 	}
 
-	/**
-	 * Validates or resolves can manage payroll for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_manage_payroll( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::MANAGEMENT && user_can( $uid, 'stockland_manage_payroll' );
 	}
 
-	/** Owner-only final payroll approval/payment. Requires the active ERP Owner profile. 	 * @param mixed $user_id The user ID.
-*/
+	/** Owner-only final payroll approval/payment. Requires the active ERP Owner profile. */
 	public static function can_approve_payroll( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_manage_payroll' );
 	}
 
-	/** Owner-only final approval for posted financial commitments. 	 * @param mixed $user_id The user ID.
-*/
+	/** Owner-only final approval for posted financial commitments. */
 	public static function can_approve_expenses( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_manage_expenses' );
 	}
 
-	/**
-	 * Validates or resolves can approve finance for the ERP operation.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function can_approve_finance( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
 		return self::role( $uid ) === self::OWNER && user_can( $uid, 'stockland_view_financials' );
 	}
 
-	/**
-	 * Handles action authorized within the Stockland ERP component.
-	 *
-	 * @param mixed $action The action value.
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function action_authorized( $action, $user_id = null ) {
 		switch ( $action ) {
 			case 'REQUISITION_REVIEW':
@@ -501,11 +304,6 @@ class Stockland_Authority {
 		}
 	}
 
-	/**
-	 * Handles assert profile within the Stockland ERP component.
-	 *
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function assert_profile( $user_id = null ) {
 		if ( ! self::profile( $user_id ) ) {
 			return new WP_Error( 'no_stockland_profile', 'This account has no active Stockland role/profile.', array( 'status' => 403 ) );
@@ -513,12 +311,6 @@ class Stockland_Authority {
 		return true;
 	}
 
-	/**
-	 * Handles assert branch within the Stockland ERP component.
-	 *
-	 * @param mixed $location_id The location ID.
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function assert_branch( $location_id, $user_id = null ) {
 		$profile = self::profile( $user_id );
 		if ( ! $profile ) {
@@ -533,12 +325,6 @@ class Stockland_Authority {
 		return true;
 	}
 
-	/**
-	 * Handles assert warehouse within the Stockland ERP component.
-	 *
-	 * @param mixed $location_id The location ID.
-	 * @param mixed $user_id The user ID.
-	 */
 	public static function assert_warehouse( $location_id, $user_id = null ) {
 		$profile = self::profile( $user_id );
 		if ( ! $profile ) {
