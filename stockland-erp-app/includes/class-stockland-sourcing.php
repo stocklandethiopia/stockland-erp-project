@@ -1,4 +1,9 @@
 <?php
+/**
+ * Read-only stock sourcing suggestions built from ERP stock, sales and transfer data.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,8 +14,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Reads only authoritative Product Master, inventory ledger, active reservations,
  * branch sales and pending transfer receipts. It reports where stock can be
  * sought without creating or approving any ERP transaction.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_Sourcing {
+	/**
+	 * Proposes available sourcing locations for each requested stock item.
+	 *
+	 * This advisory service is read-only: it does not reserve, transfer, purchase
+	 * or approve inventory.
+	 *
+	 * @param array $items Requested SKU/variant/quantity rows.
+	 * @param int   $requesting_location_id Branch location requesting stock, or zero when unspecified.
+	 * @return array Sourcing options and explanatory warnings for each item.
+	 */
 	public static function for_items( array $items, $requesting_location_id = 0 ) {
 		global $wpdb;
 
@@ -259,6 +276,14 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
+	/**
+	 * Loads Product Master records by immutable variant identity and SKU.
+	 *
+	 * @param string $products_table Prefixed Product Master table.
+	 * @param array  $variant_ids Unique variant identifiers.
+	 * @param array  $skus Candidate SKUs.
+	 * @return array|null Product rows, or null when the authoritative read fails.
+	 */
 	private static function load_products( $products_table, array $variant_ids, array $skus ) {
 		global $wpdb;
 		$where = array();
@@ -295,6 +320,19 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
+	/**
+	 * Aggregates a fixed numeric ledger/read-model field by location and variant.
+	 *
+	 * @param string $table Source table to aggregate.
+	 * @param string $products_table Product Master table used for SKU compatibility.
+	 * @param array  $location_ids Location IDs in the read scope.
+	 * @param array  $variant_ids Immutable variant IDs in the requested scope.
+	 * @param array  $skus Requested SKU fallbacks.
+	 * @param string $sum_field Internal allow-listed numeric field to sum.
+	 * @param string $output_field Output key for the aggregated value.
+	 * @param string $extra Optional trusted SQL condition from fixed internal call sites.
+	 * @return array Aggregated quantities by location and variant.
+	 */
 	private static function batch_location_variant_values( $table, $products_table, array $location_ids, array $variant_ids, array $skus, $sum_field, $output_field, $extra = '' ) {
 		global $wpdb;
 		if ( ! $location_ids || ( ! $variant_ids && ! $skus ) ) {
@@ -338,6 +376,16 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
+	/**
+	 * Aggregates branch sales for the trailing 30-day sourcing window.
+	 *
+	 * @param string $sales_table Sales table.
+	 * @param string $products_table Product Master table.
+	 * @param int    $branch_id Branch location identifier.
+	 * @param array  $variant_ids Requested immutable variant identifiers.
+	 * @param array  $skus Requested SKU fallbacks.
+	 * @return array Sold quantity by variant.
+	 */
 	private static function branch_sales_30d( $sales_table, $products_table, $branch_id, array $variant_ids, array $skus ) {
 		global $wpdb;
 		if ( $branch_id <= 0 || ( ! $variant_ids && ! $skus ) ) {
@@ -382,6 +430,16 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
+	/**
+	 * Aggregates in-flight quantities due to the branch from pending transfers.
+	 *
+	 * @param string $transfer_table Transfer table.
+	 * @param string $products_table Product Master table.
+	 * @param int    $branch_id Branch location identifier.
+	 * @param array  $variant_ids Requested immutable variant identifiers.
+	 * @param array  $skus Requested SKU fallbacks.
+	 * @return array Pending inbound quantity by variant.
+	 */
 	private static function pending_branch_receipts( $transfer_table, $products_table, $branch_id, array $variant_ids, array $skus ) {
 		global $wpdb;
 		if ( $branch_id <= 0 || ( ! $variant_ids && ! $skus ) ) {
@@ -420,6 +478,13 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
+	/**
+	 * Returns a fail-closed advisory result when an authoritative read is unavailable.
+	 *
+	 * @param array  $items Requested sourcing items.
+	 * @param string $message Safe user-facing reason no sourcing option was calculated.
+	 * @return array Unavailable results, one per input item.
+	 */
 	private static function unavailable_rows( array $items, $message ) {
 		$out = array();
 		foreach ( $items as $item ) {
@@ -435,6 +500,13 @@ class Stockland_Sourcing {
 		return $out;
 	}
 
+	/**
+	 * Reports items whose identity cannot be resolved to an authoritative product.
+	 *
+	 * @param array $items Requested sourcing items.
+	 * @param array $products Product rows resolved so far.
+	 * @return array Identity-unresolved sourcing results.
+	 */
 	private static function identity_unresolved_rows( array $items, array $products = array() ) {
 		$out = array();
 		foreach ( $items as $item ) {
