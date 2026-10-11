@@ -34,13 +34,13 @@ if ( ! is_string( $stock_source ) || ! is_string( $return_source ) || ! is_strin
 	exit( 1 );
 }
 $stock_start = strpos( $stock_source, 'public function get_stock( WP_REST_Request $request ) {' );
-$stock_end   = strpos( '/** Mirrors REORDER ACTIONS sheet', $stock_source );
+$stock_end   = strpos( $stock_source, '/** Mirrors REORDER ACTIONS sheet' );
 $reorder_start = strpos( $stock_source, 'public function get_reorder_status( WP_REST_Request $request ) {' );
 $reorder_end = strrpos( $stock_source, "\n}" );
 $return_start = strpos( $return_source, 'public function list_returns( WP_REST_Request $request ) {' );
-$return_end = strpos( 'public function create_return( WP_REST_Request $request ) {', $return_source );
+$return_end = strpos( $return_source, 'public function create_return( WP_REST_Request $request ) {' );
 $sales_start = strpos( $sales_source, 'public function list_sales( WP_REST_Request $request ) {' );
-$sales_end = strpos( 'public function create_sale( WP_REST_Request $request ) {', $sales_source );
+$sales_end = strpos( $sales_source, 'public function create_sale( WP_REST_Request $request ) {' );
 if ( false === $stock_start || false === $stock_end || false === $reorder_start || false === $reorder_end || false === $return_start || false === $return_end || false === $sales_start || false === $sales_end ) {
 	fwrite( STDERR, "FAIL: one or more stock/returns/sales list methods could not be located.\n" );
 	exit( 1 );
