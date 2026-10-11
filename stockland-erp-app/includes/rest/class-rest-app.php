@@ -863,18 +863,15 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 			$requested_limit = $request->get_param( 'limit' );
 			$limit           = min( 200, max( 1, (int) ( $requested_limit ? $requested_limit : 100 ) ) );
-			$args            = array();
-			$where           = "is_active=1 AND product_type<>'STYLE'";
-			$order           = 'sku ASC';
+			$args = array( $table );
+			$sql  = 'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY sku ASC LIMIT %d';
 			if ( '' !== $q ) {
-				$like   = '%' . $wpdb->esc_like( $q ) . '%';
-				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
-				$args   = array_fill( 0, 9, $like );
-				$order  = $wpdb->prepare( 'CASE WHEN sku = %s THEN 0 WHEN barcode = %s THEN 1 WHEN gtin = %s THEN 2 ELSE 3 END, sku ASC', $q, $q, $q );
+				$like = '%' . $wpdb->esc_like( $q ) . '%';
+				$sql  = 'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s) ORDER BY CASE WHEN sku=%s THEN 0 WHEN barcode=%s THEN 1 WHEN gtin=%s THEN 2 ELSE 3 END, sku ASC LIMIT %d';
+				$args = array_merge( $args, array_fill( 0, 9, $like ), array( $q, $q, $q ) );
 			}
-			$sql    = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM {$table} WHERE {$where} ORDER BY {$order} LIMIT %d";
 			$args[] = $limit;
-			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'sku_search_failed', 'Live SKU search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );
@@ -926,7 +923,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'missing_columns' => $cols,
 					);
 					continue;}
-				$present = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table, 0 );
+				$present = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
 				if ( $wpdb->last_error ) {
 					$out['schema'][ $logical ] = array(
 						'table_present' => true,
@@ -1822,8 +1819,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$placeholders[] = '(%d,%d,%d,1,%d)';
 			array_push( $values, $user_id, $loc, $is_primary, $created );
 		}
-		$sql = "INSERT INTO {$table} (wp_user_id,location_id,is_primary,is_active,created_by) VALUES " . implode( ',', $placeholders );
-		$ok  = $wpdb->query( $wpdb->prepare( $sql, $values ) );
+		$sql = "INSERT INTO %i (wp_user_id,location_id,is_primary,is_active,created_by) VALUES " . implode( ',', $placeholders );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name is bound as %i; all remaining values are supplied via generated %d placeholders from integer-cast IDs.
+		$ok  = $wpdb->query( $wpdb->prepare( $sql, array_merge( array( $table ), $values ) ) );
 		return false !== $ok;
 	}
 
@@ -1837,26 +1835,34 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$users_table     = Stockland_DB::table( 'users' );
 		$locations_table = Stockland_DB::table( 'locations' );
 		$scope_table     = Stockland_DB::table( 'user_locations' );
-		$rows            = $wpdb->get_results(
-			"SELECT su.wp_user_id,su.role,su.branch_location_id,su.is_active,
+		$sql  = "SELECT su.wp_user_id,su.role,su.branch_location_id,su.is_active,
                     u.user_login,u.display_name,u.user_email,l.location_name,
                     COALESCE(scope.location_ids,IF(su.branch_location_id IS NULL,'',CAST(su.branch_location_id AS CHAR))) AS location_ids_csv,
                     COALESCE(scope.location_names,IF(l.location_name IS NULL,'',l.location_name)) AS location_names_csv
-             FROM {$users_table} su
-             JOIN {$wpdb->users} u ON u.ID=su.wp_user_id
-             LEFT JOIN {$locations_table} l ON l.id=su.branch_location_id
+             FROM %i su
+             JOIN %i u ON u.ID=su.wp_user_id
+             LEFT JOIN %i l ON l.id=su.branch_location_id
              LEFT JOIN (
                  SELECT ul.wp_user_id,
                         GROUP_CONCAT(DISTINCT ul.location_id ORDER BY ul.is_primary DESC,ul.id SEPARATOR ',') AS location_ids,
                         GROUP_CONCAT(DISTINCT loc.location_name ORDER BY ul.is_primary DESC,ul.id SEPARATOR '||') AS location_names
-                 FROM {$scope_table} ul
-                 JOIN {$locations_table} loc ON loc.id=ul.location_id
+                 FROM %i ul
+                 JOIN %i loc ON loc.id=ul.location_id
                  WHERE ul.is_active=1
                    AND (ul.effective_from IS NULL OR ul.effective_from<=CURDATE())
                    AND (ul.effective_to IS NULL OR ul.effective_to>=CURDATE())
                  GROUP BY ul.wp_user_id
              ) scope ON scope.wp_user_id=su.wp_user_id
-             ORDER BY u.display_name,u.user_login",
+             ORDER BY u.display_name,u.user_login";
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				$sql,
+				$users_table,
+				$wpdb->users,
+				$locations_table,
+				$scope_table,
+				$locations_table
+			),
 			ARRAY_A
 		);
 		foreach ( $rows as &$row ) {
@@ -2050,12 +2056,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function available_wp_users() {
 		global $wpdb;
 		$stock_table = Stockland_DB::table( 'users' );
-		$rows        = $wpdb->get_results(
-			"SELECT u.ID,u.user_login,u.display_name,u.user_email,u.user_registered,
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT u.ID,u.user_login,u.display_name,u.user_email,u.user_registered,
                 su.role AS erp_role,su.is_active AS erp_is_active
-            FROM {$wpdb->users} u
-            LEFT JOIN {$stock_table} su ON su.wp_user_id=u.ID
+            FROM %i u
+            LEFT JOIN %i su ON su.wp_user_id=u.ID
             ORDER BY u.display_name,u.user_login",
+				$wpdb->users,
+				$stock_table
+			),
 			ARRAY_A
 		);
 		$out         = array();
@@ -2149,7 +2159,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start ERP user activation transaction.', array( 'status' => 500 ) );
 		}$previous = array();
 		try {
-			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$stock_table} WHERE wp_user_id=%d FOR UPDATE", $target ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d FOR UPDATE', $stock_table, $target ), ARRAY_A );
 			$old_ref  = $existing ? $existing['role'] : 'UNLINKED';
 			$previous = $this->apply_stockland_role( $target, $role, true );
 			$data     = array(
