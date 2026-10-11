@@ -996,10 +996,10 @@ class Stockland_REST_Import_V16 {
 
 		$calc = Stockland_Sale_Math::calculate( $q, $price, $mode, $current_rate );
 		if ( ! Stockland_Sale_Math::same_money( $calc['sales_total'], $row['sales_total'] ) ) {
-			throw new Exception( 'Imported sales total does not match quantity × selling price × VAT rules on row #' . $row['row_number'] . '. Re-preview the file.' );
+			throw new Exception( 'Imported sales total does not match quantity × selling price × VAT rules on row #' . (int) $row['row_number'] . '. Re-preview the file.' );
 		}
 		if ( ! Stockland_Sale_Math::same_money( $calc['vat_amount'], $row['vat_amount'] ) ) {
-			throw new Exception( 'Imported VAT amount does not match the central VAT rule on row #' . $row['row_number'] . '. Re-preview the file.' );
+			throw new Exception( 'Imported VAT amount does not match the central VAT rule on row #' . (int) $row['row_number'] . '. Re-preview the file.' );
 		}
 
 		return array(
@@ -1265,6 +1265,7 @@ class Stockland_REST_Import_V16 {
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Authorized import job list or a REST error.
 	 */
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- The request argument is part of the WordPress REST callback signature.
 	public function daily_jobs( WP_REST_Request $r ) {
 		global $wpdb;
 		$company   = Stockland_Authority::company_scope();
@@ -1922,17 +1923,31 @@ class Stockland_REST_Import_V16 {
 	}
 
 	/**
-	 * Stage validated import rows in bounded multi-row INSERTs to avoid one SQL round trip per row.
+	 * Encodes one trusted import value as a SQL literal using an allow-listed format.
 	 *
-	 * @param mixed  $value Source value to normalize or validate.
-	 * @param string $format Expected date/value format.
+	 * Values are escaped by wpdb::prepare(); the format token is never derived from
+	 * workbook content and unsupported internal formats fail closed.
+	 *
+	 * @param mixed  $value Source value to encode.
+	 * @param string $format One of the internal %d, %f or %s format tokens.
+	 * @return string|null SQL literal, or NULL for a null value.
+	 * @throws InvalidArgumentException When an unsupported format token is supplied.
 	 */
 	private function import_sql_literal( $value, $format = '%s' ) {
 		global $wpdb;
 		if ( null === $value ) {
 			return 'NULL';
 		}
-		return $wpdb->prepare( $format, $value );
+		switch ( $format ) {
+			case '%d':
+				return $wpdb->prepare( '%d', $value );
+			case '%f':
+				return $wpdb->prepare( '%f', $value );
+			case '%s':
+				return $wpdb->prepare( '%s', $value );
+			default:
+				throw new InvalidArgumentException( 'Unsupported import SQL literal format.' );
+		}
 	}
 	/**
 	 * Stages validated import rows for deterministic transaction processing.
@@ -2007,7 +2022,8 @@ class Stockland_REST_Import_V16 {
 				$sql = "INSERT INTO {$table} (job_id,source_row_number,external_receipt_no,source_code,sku,mapped_sku,mapped_via,variant_id,quantity,master_price,selling_price,vat_rate,vat_amount,vat_mode,sales_total,cost_basis,cost_basis_source,source_key,payload,status,error_message) VALUES " . implode( ',', $values );
 			}
 			if ( false === Stockland_DB::execute_query( $sql ) ) {
-				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not stage import rows.' );
+				Stockland_Runtime_Diagnostics::log_error( 'Import row staging database error: ' . $wpdb->last_error );
+				throw new Exception( 'Could not stage import rows.' );
 			}
 		}
 		return true;
@@ -2016,10 +2032,9 @@ class Stockland_REST_Import_V16 {
 	/**
 	 * Normalizes Product Master input rows without creating sales or stock.
 	 *
-	 * @param WP_REST_Request $r REST request with import parameters.
-	 * @return mixed The operation result.
+	 * @return array Validated upload metadata and mapped Product Master workbook rows.
 	 */
-	private function product_rows( WP_REST_Request $r ) {
+	private function product_rows() {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_upload_read' );
 		$file  = $this->uploaded_file( 'file' );
 		$xlsx  = new Stockland_XLSX( $file['path'] );
@@ -2036,7 +2051,7 @@ class Stockland_REST_Import_V16 {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
 		global $wpdb;
 		try {
-			list($file, $found) = $this->product_rows( $r );
+			list($file, $found) = $this->product_rows();
 			$all_rows           = $found['rows'];
 			$rows               = array_values(
 				array_filter(
@@ -2774,6 +2789,7 @@ class Stockland_REST_Import_V16 {
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
 	 */
+	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- The request argument is part of the WordPress REST callback signature.
 	public function mapping_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$rows = Stockland_DB::read_results( 'SELECT id,import_type,source_system,profile_name,header_signature,mapping_json,mapping_version,is_active,created_by,updated_by,created_at,updated_at FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE is_active=1 ORDER BY updated_at DESC LIMIT 100', ARRAY_A );
