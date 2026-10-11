@@ -103,10 +103,10 @@ class Stockland_Product_Service {
 					throw new Exception( 'SKU replacement is blocked while there are open ' . $name . '.' );
 				}
 			}
-			if ( false === $wpdb->update( $products, array( 'sku' => $new_sku ), array( 'variant_id' => $variant_id ) ) ) {
+			if ( false === Stockland_DB::update_record( $products, array( 'sku' => $new_sku ), array( 'variant_id' => $variant_id ) ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Product SKU could not be changed.' );
 			}
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				$history,
 				array(
 					'variant_id'     => $variant_id,
