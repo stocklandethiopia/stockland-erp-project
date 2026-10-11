@@ -4,6 +4,7 @@
  *
  * @package Stockland_ERP
  */
+
 // phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
 /**
  * Location administration and assigned-scope endpoints for Stockland ERP.
