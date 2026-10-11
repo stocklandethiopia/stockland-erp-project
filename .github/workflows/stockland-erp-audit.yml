@@ -163,7 +163,7 @@ jobs:
             "$GITHUB_WORKSPACE/stockland-erp-app/vendor/bin/phpcbf" \
               --standard=phpcs-full-audit.xml.dist \
               --report=json \
-              --report-file="$report" stockland-inventory.php uninstall.php includes templates
+              --report-file="$report" stockland-inventory.php uninstall.php includes templates includes/rest
           )
           phpcbf_status=$?
           set -e
@@ -219,6 +219,18 @@ jobs:
               sys.exit(2)
           totals = data.get("totals", {})
           files = data.get("files", {})
+          required_runtime_files = {
+              "includes/rest/class-rest-app.php",
+              "includes/rest/class-rest-accounting.php",
+              "includes/rest/class-rest-hr.php",
+              "includes/rest/class-rest-import-v16.php",
+              "includes/rest/class-rest-products.php",
+              "includes/rest/class-rest-sales.php",
+          }
+          missing_runtime_files = sorted(required_runtime_files.difference(files))
+          if missing_runtime_files:
+              print("ERROR: blocking PHPCS profile omitted critical REST runtime files: " + ", ".join(missing_runtime_files))
+              sys.exit(3)
           sources = collections.Counter()
           file_totals = []
           for name, result in files.items():
