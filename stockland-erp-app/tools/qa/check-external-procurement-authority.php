@@ -51,7 +51,7 @@ $receipts = $r( 'includes/rest/class-rest-receipts.php' );
 $notifs   = $r( 'includes/class-stockland-notifications.php' );
 $ok( substr_count( $receipts, "'purchase_order_required'" ) >= 2 && str_contains( $receipts, 'Direct supplier receipts are disabled by Stockland SOP' ), 'free-form receipt creation and completion cannot bypass Owner-approved PO workflow' );
 $ok( str_contains( $app, 'HOLD — legacy receipt' ) && ! str_contains( $app, 'data-receive=' ) && ! str_contains( $app, 'CREATE RECEIPT' ), 'legacy manual receipt UI is read-only and cannot post inventory' );
-$ok( str_contains( $notifs, 'EXISTS (SELECT 1 FROM {$assigned_table} sul' ) && str_contains( $notifs, 'effective_from<=CURDATE()' ), 'location-bound notifications respect all active assigned warehouse locations' );
+$ok( str_contains( $notifs, 'EXISTS (SELECT 1 FROM %i sul' ) && str_contains( $notifs, 'effective_from<=CURDATE()' ) && str_contains( $notifs, '$assigned_table' ), 'location-bound notifications use a prepared assigned-location table identifier and effective-date filters' );
 $ok( str_contains( $a_compact, 'is_wp_error($warehouse_guard)' ), 'warehouse assertion handles WP_Error fail-closed' );
 $ok( str_contains( $a, "'/accounting/suppliers'" ) && str_contains( $a_compact, "Stockland_Authority::can_manage_external_supplier_finance('stockland_view_financials')" ), 'supplier master reads are restricted to explicit Owner/Management role' );
 $ok( str_contains( $a, "'/accounting/bootstrap'" ) && str_contains( $a, 'Supplier/AP accounting bootstrap is restricted to active Stockland Owner and Management profiles' ), 'accounting bootstrap cannot expose supplier/AP data using Administrator/settings capability alone' );

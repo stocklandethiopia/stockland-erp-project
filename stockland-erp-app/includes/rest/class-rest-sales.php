@@ -1,4 +1,5 @@
 <?php
+// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *    Stockland_Ledger::post_sale_closed().
  *  - Once a sale is CLOSED it cannot be edited through this controller —
  *    corrections must go through /returns as an Adjustment (section 7/15).
- */
+	 */
 class Stockland_REST_Sales extends Stockland_REST_Base {
 
 	public function __construct() {
@@ -354,7 +355,13 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		}
 	}
 
-	/** Closes ONE sale row: locks it and posts the stock deduction to the ledger. */
+	/**
+	 * Closes one sale row by locking it and posting the stock deduction to the ledger.
+	 *
+	 * @param WP_REST_Request $request REST request identifying the sale to close.
+	 * @return mixed REST response containing the closed sale or a WP_Error.
+	 * @throws Exception When business-day validation or the guarded transaction fails.
+	 */
 	public function close_sale( WP_REST_Request $request ) {
 		global $wpdb;
 		$table     = Stockland_DB::table( 'sales' );
@@ -468,6 +475,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 	 * End-of-day: closes every remaining OPEN sale for the branch/date, then
 	 * locks the day itself in wp_stock_daily_closings. After this, normal
 	 * users cannot edit any transaction from that day (section 7).
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function close_day( WP_REST_Request $request ) {
 		$p                  = $request->get_json_params();

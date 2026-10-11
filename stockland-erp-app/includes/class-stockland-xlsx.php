@@ -1,4 +1,10 @@
 <?php
+/**
+ * Bounded streaming XLSX reader for Stockland ERP imports.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -22,11 +28,22 @@ class Stockland_XLSX {
 	const MAX_ZIP_UNCOMPRESSED_BYTES = 96 * 1024 * 1024;
 	const MAX_ZIP_RATIO              = 200;
 
-	private $zip    = null;
-	private $pcl    = null;
+	/** @var ZipArchive|null Open workbook archive. */
+	private $zip = null;
+	/** @var mixed Reserved compatibility field for legacy reader implementations. */
+	private $pcl = null;
+	/** @var array<int, string> Shared strings loaded from the workbook. */
 	private $shared = array();
+	/** @var array<string, string> Worksheet names mapped to archive paths. */
 	private $sheets = array();
 
+	/**
+	 * Opens and validates an XLSX archive within configured resource limits.
+	 *
+	 * @param string $file Temporary upload path.
+	 * @return void
+	 * @throws Exception When the file is invalid, oversized or cannot be opened.
+	 */
 	public function __construct( $file ) {
 		if ( ! is_file( $file ) || filesize( $file ) <= 0 ) {
 			throw new Exception( 'Invalid XLSX upload.' );
@@ -82,12 +99,23 @@ class Stockland_XLSX {
 		$this->load_sheets();
 	}
 
+	/**
+	 * Closes the workbook archive and releases reader resources.
+	 *
+	 * @return void
+	 */
 	public function __destruct() {
 		if ( $this->zip instanceof ZipArchive ) {
 			$this->zip->close();
 		}
 	}
 
+	/**
+	 * Resolves a workbook relationship target to its archive entry.
+	 *
+	 * @param string $name Relationship target name.
+	 * @return string Normalized archive path.
+	 */
 	private function get_from_name( $name ) {
 		if ( $this->zip ) {
 			$v = $this->zip->getFromName( $name );
@@ -97,6 +125,12 @@ class Stockland_XLSX {
 		return ( is_array( $r ) && isset( $r[0]['content'] ) ) ? $r[0]['content'] : null;
 	}
 
+	/**
+	 * Returns the uncompressed size of a workbook archive entry.
+	 *
+	 * @param string $path Archive entry path.
+	 * @return int|null Entry size, or null when the archive cannot report it.
+	 */
 	private function entry_size( $name ) {
 		if ( ! $this->zip ) {
 			return null;
@@ -108,6 +142,12 @@ class Stockland_XLSX {
 		return (int) $stat['size'];
 	}
 
+	/**
+	 * Loads a bounded XML metadata entry from the workbook.
+	 *
+	 * @param string $path Archive entry path.
+	 * @return SimpleXMLElement|false Parsed XML or false on failure.
+	 */
 	private function xml( $name ) {
 		$raw = $this->get_from_name( $name );
 		if ( null === $raw ) {
@@ -130,6 +170,12 @@ class Stockland_XLSX {
 			libxml_use_internal_errors( $previous ); }
 	}
 
+	/**
+	 * Concatenates text nodes from a shared-string or inline-string element.
+	 *
+	 * @param mixed $node XML node containing text runs.
+	 * @return string Decoded cell text.
+	 */
 	private function text_parts( $node ) {
 		$parts   = array();
 		$matches = $node->xpath( './/*[local-name()="t"]' );
@@ -139,6 +185,12 @@ class Stockland_XLSX {
 		return implode( '', $parts );
 	}
 
+	/**
+	 * Loads and validates the workbook shared-string table within size limits.
+	 *
+	 * @return void
+	 * @throws Exception When shared-string XML is invalid or exceeds limits.
+	 */
 	private function load_shared() {
 		if ( ! $this->zip && ! $this->pcl ) {
 			return;
@@ -191,6 +243,12 @@ class Stockland_XLSX {
 		}
 	}
 
+	/**
+	 * Loads worksheet names and relationship targets from workbook metadata.
+	 *
+	 * @return void
+	 * @throws Exception When workbook or relationship metadata is invalid.
+	 */
 	private function load_sheets() {
 		$wb   = $this->xml( 'xl/workbook.xml' );
 		$rels = $this->xml( 'xl/_rels/workbook.xml.rels' );
@@ -234,6 +292,12 @@ class Stockland_XLSX {
 		}
 	}
 
+	/**
+	 * Converts an Excel cell reference into a zero-based column index.
+	 *
+	 * @param string $cell_ref Excel cell reference, such as A1.
+	 * @return int Zero-based column index.
+	 */
 	private function col( $ref ) {
 		if ( ! preg_match( '/([A-Z]+)\d+/i', $ref, $m ) ) {
 			return 0;
@@ -245,6 +309,12 @@ class Stockland_XLSX {
 		return $n - 1;
 	}
 
+	/**
+	 * Decodes a cell value using its type and the shared-string table.
+	 *
+	 * @param mixed $c XML cell element.
+	 * @return mixed Decoded cell value.
+	 */
 	private function value( $c ) {
 		$v = (string) $c->v;
 		$t = (string) $c['t'];
@@ -260,28 +330,38 @@ class Stockland_XLSX {
 		return $v;
 	}
 
+	/**
+	 * Returns worksheet names discovered in the workbook.
+	 *
+	 * @return array<string> Worksheet names.
+	 */
 	public function sheet_names() {
 		return array_keys( $this->sheets ); }
 
 	/**
 	 * Stream worksheet rows as ['row_number'=>N,'values'=>[column_index=>value]].
 	 * Data is decoded one Excel row at a time; callers decide when to stop.
+	 *
+	 * @param string $sheet Worksheet name.
+	 * @param int    $max_physical_rows Maximum physical row nodes to inspect.
+	 * @return Generator<int, array> Worksheet rows with physical row numbers.
+	 * @throws Exception When the reader, worksheet or row exceeds validation limits.
 	 */
 	public function stream_rows( $sheet, $max_physical_rows = self::MAX_PHYSICAL_ROW_NODES ) {
 		if ( ! $this->zip || ! class_exists( 'XMLReader' ) ) {
 			throw new Exception( 'This hosting does not provide the required streaming XLSX reader (ZipArchive + XMLReader).' );
 		}
 		if ( ! isset( $this->sheets[ $sheet ] ) ) {
-			throw new Exception( 'Worksheet not found: ' . $sheet );
+			throw new Exception( 'Worksheet not found: ' . esc_html( $sheet ) );
 		}
 		$path = $this->sheets[ $sheet ];
 		$size = $this->entry_size( $path );
 		if ( null !== $size && $size > self::MAX_SHEET_XML_BYTES ) {
-			throw new Exception( 'Worksheet ' . $sheet . ' exceeds the XLSX uncompressed safety limit. Split the workbook.' );
+			throw new Exception( 'Worksheet ' . esc_html( $sheet ) . ' exceeds the XLSX uncompressed safety limit. Split the workbook.' );
 		}
 		$stream = $this->zip->getStream( $path );
 		if ( false === $stream ) {
-			throw new Exception( 'Could not open worksheet stream: ' . $sheet . '.' );
+			throw new Exception( 'Could not open worksheet stream: ' . esc_html( $sheet ) . '.' );
 		}
 		$reader   = null;
 		$temp_xml = '';
@@ -310,28 +390,29 @@ class Stockland_XLSX {
 			}
 			$nodes = 0;
 			while ( $reader->read() ) {
-				if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
+				// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- XMLReader's native API defines nodeType/localName in camelCase.
+			if ( XMLReader::ELEMENT !== $reader->nodeType || 'row' !== $reader->localName ) {
 					continue;
 				}
 				if ( ++$nodes > $max_physical_rows ) {
-					throw new Exception( 'Worksheet ' . $sheet . ' exceeds the physical row safety limit. Split the workbook.' );
+					throw new Exception( 'Worksheet ' . esc_html( $sheet ) . ' exceeds the physical row safety limit. Split the workbook.' );
 				}
 				$row_number = (int) $reader->getAttribute( 'r' );
 				$raw        = $reader->readOuterXml();
 				if ( strlen( $raw ) > self::MAX_ROW_XML_BYTES ) {
-					throw new Exception( 'Worksheet ' . $sheet . ' contains an oversized row. Split or simplify the workbook.' );
+					throw new Exception( 'Worksheet ' . esc_html( $sheet ) . ' contains an oversized row. Split or simplify the workbook.' );
 				}
 				$previous = libxml_use_internal_errors( true );
 				try {
 					$row = simplexml_load_string( $raw, 'SimpleXMLElement', LIBXML_NONET | LIBXML_NOCDATA | LIBXML_COMPACT );
 					if ( false === $row ) {
-						throw new Exception( 'Invalid worksheet row XML in ' . $sheet . '.' );
+						throw new Exception( 'Invalid worksheet row XML in ' . esc_html( $sheet ) . '.' );
 					}
 					$values = array();
 					$cells  = 0;
 					foreach ( $row->c as $c ) {
 						if ( ++$cells > self::MAX_CELLS_PER_ROW ) {
-							throw new Exception( 'Worksheet ' . $sheet . ' contains a row with too many cells.' );
+							throw new Exception( 'Worksheet ' . esc_html( $sheet ) . ' contains a row with too many cells.' );
 						}
 						$values[ $this->col( (string) $c['r'] ) ] = $this->value( $c );
 					}
@@ -352,7 +433,13 @@ class Stockland_XLSX {
 		}
 	}
 
-	/** Backward-compatible physical-count helper. Imports should use stream_rows(). */
+	/**
+	 * Finds the first worksheet whose headers contain all requested terms.
+	 *
+	 * @param array $needles Required header terms.
+	 * @param int   $max_header_row Last row to consider as a header.
+	 * @return array Worksheet, header row, rows and normalized headers.
+	 */
 	public function rows_by_headers( $needles = array(), $max_header_row = 10 ) {
 		foreach ( $this->sheet_names() as $sheet ) {
 			for ( $h = 1;$h <= $max_header_row;$h++ ) {
@@ -386,6 +473,13 @@ class Stockland_XLSX {
 		);
 	}
 
+	/**
+	 * Reads a worksheet into a header-keyed array for legacy callers.
+	 *
+	 * @param string $sheet Worksheet name.
+	 * @param int    $header_row One-based header row.
+	 * @return array Worksheet rows keyed by header names.
+	 */
 	public function rows( $sheet, $header_row = 3 ) {
 		if ( ! isset( $this->sheets[ $sheet ] ) ) {
 			return array();

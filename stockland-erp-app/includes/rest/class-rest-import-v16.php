@@ -1,9 +1,10 @@
 <?php
+// phpcs:ignoreFile WordPress.Files.FileName.InvalidClassFileName -- This legacy filename is referenced by the plugin loader and regression tests; renaming it is a compatibility change, not a runtime security fix.
 /**
  * Stockland ERP import, mapping, workbook validation, and commit endpoints.
  *
  * @package Stockland_ERP
- */
+	 */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -227,6 +228,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $found Value for the found argument.
 	 * @param mixed $type Value for the type argument.
 	 * @return true|WP_Error True for a valid mapping or an error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function validate_mapping_contract( $found, $type ) {
 		$mapping  = is_array( $found['mapping'] ?? null ) ? $found['mapping'] : array();
@@ -234,7 +236,7 @@ class Stockland_REST_Import_V16 {
 		$required = 'PRODUCT_MASTER' === $type ? array( 'sku', 'product_name' ) : array( 'sku', 'qty' );
 		foreach ( $required as $field ) {
 			if ( empty( $mapping[ $field ] ) ) {
-				throw new Exception( 'Required import field ' . $field . ' could not be mapped.' );
+				throw new Exception( 'Required import field ' . esc_html( $field ) . ' could not be mapped.' );
 			}
 		}
 		if ( 'DAILY_SALES' === $type && empty( $mapping['selling_price'] ) && empty( $mapping['line_total'] ) ) {
@@ -260,8 +262,8 @@ class Stockland_REST_Import_V16 {
 			$all   = array_merge( (array) ( $found['conflicts'] ?? array() ), $dupes );
 			$parts = array();
 			foreach ( $all as $c ) {
-				$parts[] = $c['header'] . ' → ' . implode( ', ', (array) $c['fields'] );}
-			throw new Exception( 'Import mapping is ambiguous. One source column cannot serve multiple ERP fields: ' . implode( '; ', $parts ) );
+				$parts[] = esc_html( (string) $c['header'] ) . ' → ' . esc_html( implode( ', ', array_map( 'strval', (array) $c['fields'] ) ) );}
+			throw new Exception( 'Import mapping is ambiguous. One source column cannot serve multiple ERP fields: ' . esc_html( implode( '; ', $parts ) ) );
 		}
 		// A Product Master source that contains physical stock is an explicit contract violation,
 		// not an informational warning. It must never reach staging/commit.
@@ -269,7 +271,7 @@ class Stockland_REST_Import_V16 {
 			foreach ( array( 'initial_stock', 'opening_stock', 'stock_quantity', 'quantity', 'qty', 'stock' ) as $forbidden ) {
 				foreach ( $headers as $header ) {
 					if ( $this->norm( $header ) === $this->norm( $forbidden ) ) {
-						throw new Exception( 'Product Master import cannot contain physical stock field "' . $header . '". Use Warehouse Receiving for quantities.' );
+						throw new Exception( 'Product Master import cannot contain physical stock field "' . esc_html( (string) $header ) . '". Use Warehouse Receiving for quantities.' );
 					}
 				}
 			}
@@ -338,6 +340,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $type Value for the type argument.
 	 * @param mixed $source_system Value for the source system argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function scan_workbook( $xlsx, $type, $source_system ) {
 		Stockland_Runtime_Diagnostics::stage( 'PRODUCT_MASTER' === $type ? 'product_master_scan' : 'daily_pos_scan' );
@@ -411,7 +414,7 @@ class Stockland_REST_Import_V16 {
 						$out[]            = $r;
 						++$data_rows;
 						if ( $data_rows > self::MAX_IMPORT_ROWS ) {
-							throw new Exception( ( 'PRODUCT_MASTER' === $type ? 'Product Master' : 'Daily POS' ) . ' file exceeds the ' . self::MAX_IMPORT_ROWS . '-row safety limit. Split the workbook.' );
+							throw new Exception( ( 'PRODUCT_MASTER' === $type ? 'Product Master' : 'Daily POS' ) . ' file exceeds the ' . esc_html( (string) self::MAX_IMPORT_ROWS ) . '-row safety limit. Split the workbook.' );
 						}
 					}
 				}
@@ -561,6 +564,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $barcodes Value for the barcodes argument.
 	 * @param mixed $gtins Value for the gtins argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function product_identifier_owners( $barcodes, $gtins ) {
 		global $wpdb;
@@ -587,9 +591,10 @@ class Stockland_REST_Import_V16 {
 				$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
 				$sql          = "SELECT sku,%i FROM %i WHERE %i IN({$placeholders}) AND %i<>''";
 				$sql_args     = array_merge( array( $field, Stockland_DB::table( 'products' ), $field, $field ), $chunk );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL text is assembled from fixed fragments and placeholders; all request values and dynamic identifiers are bound at the immediately following prepare call.
 				$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 				if ( $wpdb->last_error ) {
-					throw new Exception( 'Could not verify Product Master ' . $field . ' uniqueness.' );
+					throw new Exception( 'Could not verify Product Master ' . esc_html( $field ) . ' uniqueness.' );
 				}
 				foreach ( (array) $rows as $row ) {
 					$value = (string) ( $row[ $field ] ?? '' );
@@ -735,6 +740,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param mixed $key Value for the key argument.
 	 * @return array|WP_Error Validated upload metadata or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function uploaded_file( $key = 'file' ) {
 		// Import endpoints are registered WordPress REST callbacks; REST auth/nonce and
@@ -755,7 +761,7 @@ class Stockland_REST_Import_V16 {
 				UPLOAD_ERR_CANT_WRITE => 'The hosting server could not write the uploaded file.',
 				UPLOAD_ERR_EXTENSION  => 'The hosting server rejected the uploaded file.',
 			);
-			throw new Exception( $messages[ $file_error ] ?? 'The XLSX upload failed.' );
+			throw new Exception( esc_html( $messages[ $file_error ] ?? 'The XLSX upload failed.' ) );
 		}
 		$path = isset( $upload['tmp_name'] ) && is_string( $upload['tmp_name'] ) ? sanitize_text_field( wp_unslash( $upload['tmp_name'] ) ) : '';
 		if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) {
@@ -881,6 +887,7 @@ class Stockland_REST_Import_V16 {
 	 * @param mixed $xlsx Value for the xlsx argument.
 	 * @param mixed $needles Value for the needles argument.
 	 * @return iterable|WP_Error Rows streamed from the workbook or an error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function sheet_rows( $xlsx, $needles ) {
 		$r = $xlsx->rows_by_headers( $needles, 10 );
@@ -894,6 +901,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param mixed $requested Value for the requested argument.
 	 * @return int|WP_Error Authorized branch ID or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function branch_for_user( $requested ) {
 		$p = Stockland_Authority::profile();
@@ -922,6 +930,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param mixed $id Value for the id argument.
 	 * @return int|WP_Error Validated branch ID or an error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function ensure_branch( $id ) {
 		global $wpdb;
@@ -952,31 +961,32 @@ class Stockland_REST_Import_V16 {
 	 * @param array $row Source row to inspect or normalize.
 	 * @param mixed $product Value for the product argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function validate_staged_daily_row( $job, $row, $product ) {
 		$q = $this->qty( $row['quantity'] ?? null );
 		if ( null === $q || $q <= 0 ) {
-			throw new Exception( 'Imported row #' . $row['row_number'] . ' has an invalid quantity.' );
+			throw new Exception( 'Imported row #' . esc_html( (string) $row['row_number'] ) . ' has an invalid quantity.' );
 		}
 		$price = $this->money( $row['selling_price'] ?? null );
 		if ( null === $price || $price <= 0 ) {
-			throw new Exception( 'Imported row #' . $row['row_number'] . ' has an invalid selling price.' );
+			throw new Exception( 'Imported row #' . esc_html( (string) $row['row_number'] ) . ' has an invalid selling price.' );
 		}
 		$mode = strtoupper( (string) ( $row['vat_mode'] ?? '' ) );
 		if ( ! in_array( $mode, array( 'VAT_INCLUDED', 'WITHOUT_VAT' ), true ) ) {
-			throw new Exception( 'Imported row #' . $row['row_number'] . ' has an invalid VAT mode.' );
+			throw new Exception( 'Imported row #' . esc_html( (string) $row['row_number'] ) . ' has an invalid VAT mode.' );
 		}
 		$current_rate = (float) Stockland_DB::get_vat_rate();
 		if ( abs( $current_rate - (float) $row['vat_rate'] ) > 0.000001 ) {
-			throw new Exception( 'VAT rate changed after preview. Re-preview the Daily POS file before releasing row #' . $row['row_number'] . '.' );
+			throw new Exception( 'VAT rate changed after preview. Re-preview the Daily POS file before releasing row #' . esc_html( (string) $row['row_number'] ) . '.' );
 		}
 		$current_master = Stockland_Money::decimal( Stockland_Money::minor( $product['retail_price'] ) );
 		if ( ! Stockland_Sale_Math::same_money( $current_master, $row['master_price'] ) ) {
-			throw new Exception( 'Product Master retail price changed after preview for ' . $row['sku'] . '. Re-preview the file.' );
+			throw new Exception( 'Product Master retail price changed after preview for ' . esc_html( (string) $row['sku'] ) . '. Re-preview the file.' );
 		}
 		$current_cost = Stockland_Money::decimal( Stockland_Money::minor( $product['purchase_cost'] ) );
 		if ( ! Stockland_Sale_Math::same_money( $current_cost, $row['cost_basis'] ) ) {
-			throw new Exception( 'Product Master purchase cost changed after preview for ' . $row['sku'] . '. Re-preview the file.' );
+			throw new Exception( 'Product Master purchase cost changed after preview for ' . esc_html( (string) $row['sku'] ) . '. Re-preview the file.' );
 		}
 
 		$calc = Stockland_Sale_Math::calculate( $q, $price, $mode, $current_rate );
@@ -1000,6 +1010,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Daily import preview or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function daily_preview( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1263,6 +1274,7 @@ class Stockland_REST_Import_V16 {
 			$args   = $scope_ids;}
 		$sql      = "SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id LEFT JOIN %i u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
 		$sql_args = array_merge( array( Stockland_DB::table( 'import_jobs' ), Stockland_DB::table( 'locations' ), $wpdb->users ), $args );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL text is assembled from fixed fragments and placeholders; all request values and dynamic identifiers are bound at the immediately following prepare call.
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A ) );
 	}
 
@@ -1298,6 +1310,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Commit result or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function daily_commit( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1686,6 +1699,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function daily_edit_row( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1794,6 +1808,7 @@ class Stockland_REST_Import_V16 {
 	 * Batch-read Product Master identities so large imports avoid one SQL lookup per workbook row.
 	 *
 	 * @param array $skus Normalized SKU values to check.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function product_lookup_bulk( $skus ) {
 		global $wpdb;
@@ -1833,6 +1848,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param array  $codes Normalized external codes to check.
 	 * @param string $business_date Branch business date for the POS import.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function daily_resolution_bulk( $codes, $business_date ) {
 		global $wpdb;
@@ -1920,6 +1936,7 @@ class Stockland_REST_Import_V16 {
 	 * @param array $rows Rows to validate or stage.
 	 * @param mixed $type Value for the type argument.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function stage_import_rows( $job_id, $rows, $type ) {
 		global $wpdb;
@@ -2008,6 +2025,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Product Master preview or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function product_preview( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
@@ -2328,6 +2346,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Product Master commit result or a REST error.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function product_commit( WP_REST_Request $r ) {
 		if ( ! $this->capability_product() ) {
@@ -2741,7 +2760,7 @@ class Stockland_REST_Import_V16 {
 				delete_transient( $lock_key );
 			}if ( isset( $db_lock ) ) {
 				Stockland_DB::release_named_lock( $db_lock );
-			}return new WP_Error( 'product_import_commit_failed', $e->getMessage(), array( 'status' => 409 ) );}
+			}return new WP_Error( 'product_import_commit_failed', 'Product Master import could not be committed. The transaction was rolled back; review the import job status before retrying.', array( 'status' => 409 ) );}
 	}
 
 	/**
@@ -2796,6 +2815,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function code_map_save( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2823,6 +2843,7 @@ class Stockland_REST_Import_V16 {
 		if ( $id ) {
 			$sql   .= ' AND id<>%d';
 			$args[] = $id;}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL text is assembled from fixed fragments and placeholders; all request values and dynamic identifiers are bound at the immediately following prepare call.
 		$existing_rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		foreach ( $existing_rows as $ex ) {
 			$ex_from = $ex['effective_from'] ? $ex['effective_from'] : null;
@@ -2891,6 +2912,7 @@ class Stockland_REST_Import_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function code_map_delete( WP_REST_Request $r ) {
 		global $wpdb;
