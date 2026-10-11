@@ -356,6 +356,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		}
 	}
 
+	 * @throws Exception When validation, migration or transaction processing fails.
 	/** Closes ONE sale row: locks it and posts the stock deduction to the ledger. */
 	public function close_sale( WP_REST_Request $request ) {
 		global $wpdb;
@@ -470,6 +471,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 	 * End-of-day: closes every remaining OPEN sale for the branch/date, then
 	 * locks the day itself in wp_stock_daily_closings. After this, normal
 	 * users cannot edit any transaction from that day (section 7).
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function close_day( WP_REST_Request $request ) {
 		$p                  = $request->get_json_params();
