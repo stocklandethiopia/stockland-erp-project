@@ -83,7 +83,7 @@ class Stockland_Audit {
 				self::HASH_VERSION
 			);
 			$event_hash       = hash( 'sha256', self::HASH_VERSION . '|' . $previous . '|' . $payload );
-			$ok               = $wpdb->insert(
+			$ok               = Stockland_DB::insert_record(
 				$table,
 				array(
 					'user_id'            => (int) $user_id,
