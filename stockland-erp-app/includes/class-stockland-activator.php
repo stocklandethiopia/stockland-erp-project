@@ -1515,7 +1515,7 @@ class Stockland_Activator {
 				false
 			);
 			set_transient( 'stockland_accounting_repair_backoff', 1, 30 );
-			error_log( 'Stockland ERP accounting install error: ' . $e->getMessage() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP accounting install error: ' . $e->getMessage() );
 		} finally {
 			delete_transient( $lock_key );
 		}
