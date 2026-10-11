@@ -26,7 +26,7 @@ $gl       = $read( 'includes/class-stockland-accounting.php' );
 $manifest = json_decode( $read( 'RELEASE_MANIFEST.json' ), true );
 $ok( ( $manifest['release'] ?? '' ) === '16.1.57', '16.1.57 release manifest is current' );
 $ok( str_contains( $js, 'function reports()' ) && str_contains( $js, "api('/app/reports/summary?" ) && str_contains( $js, "['reports','Reports & Analytics',canReports]" ), 'Reports screen, route loader and visible navigation are wired' );
-$ok( str_contains( $app, 'location_scope_unavailable' ) && str_contains( $app, '$scope===false' ), 'report scope fails closed for invalid/unassigned location' );
+$ok( str_contains( $app, 'location_scope_unavailable' ) && preg_match( '/\\$scope\\s*===\\s*false/', $app ), 'report scope fails closed for invalid/unassigned location' );
 $ok( str_contains( $layout, '.sl-modern-grid{grid-template-columns:minmax(0,1.2fr) minmax(260px,.9fr)}' ) && str_contains( $layout, '@media (max-width:991.98px)' ), 'desktop uses two columns while tablet/mobile keep one-column breakpoints' );
 $ok( str_contains( $js, 'name="request_key"' ) && str_contains( $js, 'request_key:requestKey' ), 'PO creation and receipt UI keep stable retry keys' );
 $ok( str_contains( $acct, '[[SLPOREQ:' ) && str_contains( $acct, 'po_create_request_' ) && str_contains( $acct, 'FOR UPDATE' ), 'PO create retries serialize by request key and retain row-lock checks' );
