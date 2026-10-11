@@ -315,6 +315,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return rest_ensure_response( $saved );
 	}
 
+	 * @throws Exception When validation, migration or transaction processing fails.
 	/** Create a color × size matrix from one Style template without creating duplicate combinations. */
 	public function generate_variants( WP_REST_Request $request ) {
 		global $wpdb;
