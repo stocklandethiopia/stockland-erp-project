@@ -18,7 +18,11 @@ final class Stockland_Runtime_Diagnostics {
 	const OPTION   = 'stockland_runtime_fatal_v1';
 	const MAX_TEXT = 1200;
 
-	/** Current lifecycle stage used to contextualize fatal diagnostics. */
+	/**
+	 * Current lifecycle stage used to contextualize fatal diagnostics.
+	 *
+	 * @var string
+	 */
 	private static $stage = 'plugin_boot';
 
 	/** Register the shutdown handler that captures fatal PHP errors. */
