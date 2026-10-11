@@ -2627,9 +2627,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated WordPress REST route; not a standalone form handler.
 		// Validate the upload structure, PHP upload error, normalized path and uploaded-file provenance.
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each consumed field is type-checked and normalized below; tmp_name is then verified with is_uploaded_file().
-		$upload = isset( $_FILES['file'] ) && is_array( $_FILES['file'] ) ? $_FILES['file'] : array();
-		$tmp_name = isset( $upload['tmp_name'] ) && is_string( $upload['tmp_name'] ) ? sanitize_text_field( wp_unslash( $upload['tmp_name'] ) ) : '';
-		$file_name = isset( $upload['name'] ) && is_string( $upload['name'] ) ? sanitize_file_name( wp_unslash( $upload['name'] ) ) : '';
+		$upload     = isset( $_FILES['file'] ) && is_array( $_FILES['file'] ) ? $_FILES['file'] : array();
+		$tmp_name   = isset( $upload['tmp_name'] ) && is_string( $upload['tmp_name'] ) ? sanitize_text_field( wp_unslash( $upload['tmp_name'] ) ) : '';
+		$file_name  = isset( $upload['name'] ) && is_string( $upload['name'] ) ? sanitize_file_name( wp_unslash( $upload['name'] ) ) : '';
 		$file_error = isset( $upload['error'] ) ? (int) $upload['error'] : UPLOAD_ERR_NO_FILE;
 		if ( UPLOAD_ERR_OK !== $file_error || '' === $tmp_name || ! is_uploaded_file( $tmp_name ) ) {
 			return new WP_Error( 'file_required', 'Upload a valid Physical Count Excel file.', array( 'status' => 400 ) );

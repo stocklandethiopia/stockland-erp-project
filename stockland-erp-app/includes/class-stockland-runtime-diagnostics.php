@@ -32,8 +32,8 @@ final class Stockland_Runtime_Diagnostics {
 		// required to identify a failing route.
 		// This is diagnostic-only request metadata; never retain query strings or nonces.
 		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
-		$uri = self::request_path( $request_uri );
-		$entry = array(
+		$uri         = self::request_path( $request_uri );
+		$entry       = array(
 			'reference'    => 'FATAL-' . gmdate( 'YmdHis' ) . '-' . substr( hash( 'sha256', $message . '|' . $file . '|' . $line . '|' . $uri ), 0, 8 ),
 			'time_gmt'     => gmdate( 'Y-m-d H:i:s' ),
 			'type'         => (int) ( $last['type'] ?? 0 ),
