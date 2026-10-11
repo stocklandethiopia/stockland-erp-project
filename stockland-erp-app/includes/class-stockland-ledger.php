@@ -76,6 +76,7 @@ class Stockland_Ledger {
 	 * @param int|null   $created_by User responsible for the movement.
 	 * @param string     $source_line_id Stable source-line idempotency key.
 	 * @return int|false Ledger identifier, or false when the movement cannot be committed.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public static function record( $location_id, $sku, $movement_type, $quantity_signed, $reference_type, $reference_id, $transaction_date, $created_by = null, $source_line_id = '' ) {
 		global $wpdb;
@@ -156,6 +157,7 @@ class Stockland_Ledger {
 	 * @param int         $variant_id Product variant identifier.
 	 * @param string|null $new_sku Replacement SKU to persist in derived balances, if any.
 	 * @return bool True when the derived balances are rebuilt successfully.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public static function rebuild_balance_for_variant( $variant_id, $new_sku = null ) {
 		global $wpdb;
@@ -213,6 +215,7 @@ class Stockland_Ledger {
 	 * @param int    $location_id Operational location identifier.
 	 * @param string $sku Product Master SKU.
 	 * @return bool True when the derived balance is rebuilt successfully.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public static function rebuild_balance( $location_id, $sku ) {
 		global $wpdb;
@@ -291,6 +294,7 @@ class Stockland_Ledger {
 	 * @param array $transfer Completed transfer record.
 	 * @param int   $user_id User responsible for posting.
 	 * @return int|false Inbound movement identifier, or false when either leg fails.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public static function post_transfer_completed( $transfer, $user_id ) {
 		$t                   = $transfer;
