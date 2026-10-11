@@ -314,8 +314,8 @@ class Stockland_Accounting {
 			$wpdb->last_error = '';
 			if ( $batch_mode ) {
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
-				$result     = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; table keys are checked against the internal required-table allowlist above and no request values enter the statement.
-				$result     = $wpdb->query( $direct_sql );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This CREATE TABLE statement is generated only from the class-owned schema array; table keys are verified against the internal allowlist and no request data enters the DDL.
+				$result = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
 					$msg = 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( ! empty( $wpdb->last_error ) ) {
