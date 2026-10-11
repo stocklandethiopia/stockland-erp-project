@@ -1266,8 +1266,7 @@ class Stockland_REST_Import_V16 {
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return WP_REST_Response|WP_Error Authorized import job list or a REST error.
 	 */
-	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- The request argument is part of the WordPress REST callback signature.
-	public function daily_jobs( WP_REST_Request $r ) {
+	public function daily_jobs( WP_REST_Request $r ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- The request argument is part of the WordPress REST callback signature.
 		global $wpdb;
 		$company   = Stockland_Authority::company_scope();
 		$scope_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
@@ -2790,8 +2789,7 @@ class Stockland_REST_Import_V16 {
 	 * @param WP_REST_Request $r REST request with import parameters.
 	 * @return mixed The operation result.
 	 */
-	// phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- The request argument is part of the WordPress REST callback signature.
-	public function mapping_list( WP_REST_Request $r ) {
+	public function mapping_list( WP_REST_Request $r ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- The request argument is part of the WordPress REST callback signature.
 		global $wpdb;
 		$rows = Stockland_DB::read_results( 'SELECT id,import_type,source_system,profile_name,header_signature,mapping_json,mapping_version,is_active,created_by,updated_by,created_at,updated_at FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE is_active=1 ORDER BY updated_at DESC LIMIT 100', ARRAY_A );
 		foreach ( $rows as &$x ) {
