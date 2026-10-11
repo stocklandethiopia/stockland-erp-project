@@ -3,7 +3,8 @@
  * Immutable inventory ledger and derived stock-balance operations.
  *
  * @package Stockland_ERP
- */
+	 * @throws Exception When validation, migration or transaction processing fails.
+	 */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
