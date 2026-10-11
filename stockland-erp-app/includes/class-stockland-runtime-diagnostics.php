@@ -74,7 +74,10 @@ final class Stockland_Runtime_Diagnostics {
 	}
 	/** Return a bounded path without query or fragment data. */
 	private static function request_path( $uri ) {
-		$path = wp_parse_url( (string) $uri, PHP_URL_PATH );
+		$raw_uri = (string) $uri;
+		$path     = function_exists( 'wp_parse_url' )
+			? wp_parse_url( $raw_uri, PHP_URL_PATH )
+			: preg_replace( '/[?#].*$/', '', preg_replace( '#^[a-z][a-z0-9+.-]*://[^/]*#i', '', $raw_uri ) );
 		if ( ! is_string( $path ) || $path === '' ) {
 			$path = '/';
 		}
