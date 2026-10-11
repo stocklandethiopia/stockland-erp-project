@@ -212,7 +212,7 @@ class Stockland_HR {
 				false
 			);
 			set_transient( 'stockland_hr_repair_backoff', 1, 30 );
-			error_log( 'Stockland HR install error: ' . $e->getMessage() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland HR install error: ' . $e->getMessage() );
 		}
 		delete_transient( $lock_key );
 	}
