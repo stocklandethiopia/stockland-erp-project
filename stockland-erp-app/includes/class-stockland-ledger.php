@@ -52,7 +52,7 @@ class Stockland_Ledger {
 			return false;
 		}
 		try {
-			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT id,location_id,sku,variant_id,quantity_signed FROM {$table} WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1 FOR UPDATE", $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,sku,variant_id,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1 FOR UPDATE', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new RuntimeException( 'Ledger idempotency lookup failed.' );
 			}
@@ -86,7 +86,7 @@ class Stockland_Ledger {
 				)
 			);
 			if ( false === $ok ) {
-				$duplicate = $wpdb->get_row( $wpdb->prepare( "SELECT id,location_id,sku,quantity_signed FROM {$table} WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1", $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
+				$duplicate = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,sku,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
 				if ( $wpdb->last_error || ! $duplicate || (int) $duplicate['location_id'] !== (int) $location_id || (string) $duplicate['sku'] !== (string) $sku || abs( (float) $duplicate['quantity_signed'] - (float) $quantity_signed ) >= 0.00001 ) {
 					throw new RuntimeException( 'Conflicting ledger idempotency key.' );
 				}
@@ -97,7 +97,7 @@ class Stockland_Ledger {
 			}
 			$balances = Stockland_DB::table( 'balances' );
 			if ( Stockland_DB::table_exists( $balances ) ) {
-				$balance_ok = $wpdb->query( $wpdb->prepare( "INSERT INTO {$balances} (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP", (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
+				$balance_ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
 				if ( false === $balance_ok ) {
 					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ?: 'unknown database error' ) );
 				}
@@ -133,11 +133,11 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Cannot rebuild balance: Product Master variant not found.' );
 			}
 			$sku  = $new_sku !== null ? (string) $new_sku : (string) $product['sku'];
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM {$tx} WHERE variant_id=%d GROUP BY location_id", $variant_id ), ARRAY_A );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM %i WHERE variant_id=%d GROUP BY location_id', $tx, $variant_id ), ARRAY_A );
 			if ( $wpdb->last_error || ! is_array( $rows ) ) {
 				throw new RuntimeException( 'Could not read ledger rows for balance rebuild.' );
 			}
-			if ( false === $wpdb->query( $wpdb->prepare( "DELETE FROM {$bal} WHERE variant_id=%d", $variant_id ) ) ) {
+			if ( false === $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE variant_id=%d', $bal, $variant_id ) ) ) {
 				throw new RuntimeException( 'Could not clear derived balance rows.' );
 			}
 			foreach ( $rows as $row ) {
@@ -179,7 +179,7 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Cannot rebuild balance without a valid Product Master variant.' );
 			}
 			$vid = (int) $product['variant_id'];
-			$qty = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_signed),0) FROM {$tx} WHERE location_id=%d AND variant_id=%d", (int) $location_id, $vid ) );
+			$qty = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND variant_id=%d', $tx, (int) $location_id, $vid ) );
 			if ( $qty === null || $wpdb->last_error ) {
 				throw new RuntimeException( 'Could not read inventory ledger total.' );
 			}
