@@ -916,7 +916,7 @@ class Stockland_Activator {
 				)
 			);
 			if ( $legacy_col && ! $new_col ) {
-				$renamed = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i CHANGE COLUMN %i %i INT UNSIGNED NOT NULL', $import_rows_table, 'row_number', 'source_row_number' ) );
+				$renamed = Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i CHANGE COLUMN %i %i INT UNSIGNED NOT NULL', $import_rows_table, 'row_number', 'source_row_number' ) );
 				if ( false === $renamed ) {
 					throw new RuntimeException( 'Could not migrate import_rows.row_number to source_row_number.' );
 				}
@@ -941,7 +941,7 @@ class Stockland_Activator {
 				// proof that the physical table exists. Each table is verified immediately.
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is built from the fixed Core schema array and the trusted WordPress prefix; SQL structure cannot be bound as a data value.
-				$result     = $wpdb->query( $direct_sql );
+				$result     = Stockland_DB::execute_query( $direct_sql );
 				$db_error   = (string) $wpdb->last_error;
 				if ( false === $result ) {
 					$detail = 'Core table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
@@ -964,7 +964,7 @@ class Stockland_Activator {
 			} elseif ( $fresh_namespace ) {
 				// Fresh-install path: execute the already-normalized final DDL directly.
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fresh-install CREATE TABLE SQL comes from the plugin-owned fixed schema array and uses only the trusted WordPress prefix.
-				$result = $wpdb->query( $sql );
+				$result = Stockland_DB::execute_query( $sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
 				}
@@ -996,7 +996,7 @@ class Stockland_Activator {
 				$fallback_sql     = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fallback CREATE TABLE DDL is derived from the same fixed Core schema allowlist; no request data is included.
-				$result           = $wpdb->query( $fallback_sql );
+				$result           = Stockland_DB::execute_query( $fallback_sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
 				}
@@ -1032,8 +1032,8 @@ class Stockland_Activator {
 				)
 			);
 			if ( ! $has_count_batch ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(30) NULL AFTER %i', $p . 'stock_adjustments', 'count_batch_id', 'rejection_reason' ) );
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_adjustments', 'count_batch_id', 'count_batch_id' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(30) NULL AFTER %i', $p . 'stock_adjustments', 'count_batch_id', 'rejection_reason' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_adjustments', 'count_batch_id', 'count_batch_id' ) );
 			}
 
 			// Requisition review/approval audit fields — additive and idempotent.
@@ -1057,7 +1057,7 @@ class Stockland_Activator {
 				$exists = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
 				}
 			}
 			// Warehouse-controlled reservation / picking + branch pickup appointment.
@@ -1072,7 +1072,7 @@ class Stockland_Activator {
 				$exists = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The definition is selected from the fixed $req_fields_1301 migration map; identifiers remain bound.
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
 				}
 			}
 			$transfer_fields_1301 = array(
@@ -1086,13 +1086,13 @@ class Stockland_Activator {
 				$exists = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_transfers', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );
 				}
 			}
 			$expense_loc = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='location_id'", DB_NAME, $p . 'stock_expenses' ) );
 			if ( ! $expense_loc ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_expenses', 'location_id', 'expense_date' ) );
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_expenses', 'location_date', 'location_id', 'expense_date' ) );}
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_expenses', 'location_id', 'expense_date' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_expenses', 'location_date', 'location_id', 'expense_date' ) );}
 
 			// v16: recover import_rows for any partial/legacy installation in which
 			// the staging table or its legacy indexes are incomplete. The canonical
@@ -1109,7 +1109,7 @@ class Stockland_Activator {
 				foreach ( (array) $legacy_indexes as $legacy ) {
 					$safe = preg_replace( '/[^A-Za-z0-9_]/', '', $legacy );
 					if ( $safe ) {
-						$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $p . 'stock_import_rows', $safe ) );
+						Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $p . 'stock_import_rows', $safe ) );
 					}
 				}
 			}
@@ -1124,12 +1124,12 @@ class Stockland_Activator {
 				)
 			);
 			if ( ! $has_res_variant ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_reservations', 'variant_id', 'sku' ) );
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_reservations', 'location_variant', 'location_id', 'variant_id' ) );
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_reservations', 'variant_id', 'variant_id' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_reservations', 'variant_id', 'sku' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_reservations', 'location_variant', 'location_id', 'variant_id' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_reservations', 'variant_id', 'variant_id' ) );
 			}
 			if ( self::table_exists_static( $p . 'stock_reservations' ) && self::table_exists_static( $p . 'stock_products' ) ) {
-				$wpdb->query( $wpdb->prepare( 'UPDATE %i r INNER JOIN %i p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL', $p . 'stock_reservations', $p . 'stock_products' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i r INNER JOIN %i p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL', $p . 'stock_reservations', $p . 'stock_products' ) );
 			}
 
 			// Historical returns and physical-count lines carry immutable variant identity
@@ -1148,13 +1148,13 @@ class Stockland_Activator {
 					continue;
 				}
 				if ( ! $has_col( $table, 'variant_id' ) ) {
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $cfg['after'] ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $cfg['after'] ) );
 				}
 				if ( ! $has_index( $table, $cfg['index'] ) ) {
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) );
 				}
 				if ( self::table_exists_static( $p . 'stock_products' ) ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE %i r INNER JOIN %i p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL', $table, $p . 'stock_products' ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i r INNER JOIN %i p ON p.sku=r.sku SET r.variant_id=p.variant_id WHERE r.variant_id IS NULL AND p.variant_id IS NOT NULL', $table, $p . 'stock_products' ) );
 				}
 			}
 
@@ -1168,8 +1168,8 @@ class Stockland_Activator {
 				)
 			);
 			if ( ! $has_hash_version ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER %i', $p . 'stock_audit_logs', 'hash_version', 'event_hash' ) );
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_audit_logs', 'hash_version', 'hash_version' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER %i', $p . 'stock_audit_logs', 'hash_version', 'event_hash' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $p . 'stock_audit_logs', 'hash_version', 'hash_version' ) );
 			}
 
 			// 9.0: every stockable catalog row receives an immutable numeric variant identity.
@@ -1178,7 +1178,7 @@ class Stockland_Activator {
 			// v16: migrate the legacy primary assignment into the explicit scope table.
 			// This is additive and idempotent; no user loses their existing branch.
 			if ( self::table_exists_static( $p . 'stock_user_locations' ) ) {
-				$wpdb->query(
+				Stockland_DB::execute_query(
 					$wpdb->prepare(
 						'INSERT IGNORE INTO %i (wp_user_id,location_id,is_primary,is_active,created_by) SELECT wp_user_id,branch_location_id,1,is_active,NULL FROM %i WHERE branch_location_id IS NOT NULL',
 						$p . 'stock_user_locations',
@@ -1198,7 +1198,7 @@ class Stockland_Activator {
 		// Seeded locations created after migration also receive stable codes immediately.
 		self::backfill_location_codes( $p );
 		self::seed_settings( $p );
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)', $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
+		Stockland_DB::execute_query( $wpdb->prepare( 'INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)', $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
 
 		// Roles must exist before accounting/procurement grants are applied.
 		Stockland_Roles::register_roles();
@@ -1251,7 +1251,7 @@ class Stockland_Activator {
 			global $wpdb;
 			$existing_profile = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE wp_user_id=%d LIMIT 1', $p . 'stock_users', $uid ) );
 			if ( ! $existing_profile ) {
-				$wpdb->query(
+				Stockland_DB::execute_query(
 					$wpdb->prepare(
 						"INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)",
 						$p . 'stock_users',
@@ -1370,7 +1370,7 @@ class Stockland_Activator {
 		);
 
 		foreach ( $locations as $loc ) {
-			$wpdb->query(
+			Stockland_DB::execute_query(
 				$wpdb->prepare(
 					'INSERT IGNORE INTO %i (location_name, location_type, role_description) VALUES (%s,%s,%s)',
 					$p . 'stock_locations',
@@ -1432,7 +1432,7 @@ class Stockland_Activator {
 		);
 
 		foreach ( $defaults as $key => $value ) {
-			$wpdb->query(
+			Stockland_DB::execute_query(
 				$wpdb->prepare(
 					'INSERT IGNORE INTO %i (setting_key, setting_value) VALUES (%s,%s)',
 					$p . 'stock_settings',
@@ -1557,7 +1557,7 @@ class Stockland_Activator {
 		// intermediate states between dropping the legacy key and adding the invariant key.
 		$sql = $wpdb->prepare( 'ALTER TABLE %i MODIFY variant_id BIGINT UNSIGNED NOT NULL, DROP PRIMARY KEY', $table ) . $sku_clause . ', ADD PRIMARY KEY (variant_id)';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only unbound fragment is a fixed internal index clause selected from schema metadata; the table identifier is validated by the plugin-owned Product Master schema.
-		if ( false === $wpdb->query( $sql ) || $wpdb->last_error ) {
+		if ( false === Stockland_DB::execute_query( $sql ) || $wpdb->last_error ) {
 			throw new RuntimeException( 'Could not enforce immutable variant_id primary key.' );
 		}
 	}
@@ -1594,22 +1594,22 @@ class Stockland_Activator {
 		$tx = $p . 'stock_transactions';
 		if ( self::table_exists_static( $tx ) ) {
 			if ( ! $has_col( $tx, 'source_line_id' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(80) NOT NULL DEFAULT %s AFTER %i', $tx, 'source_line_id', '', 'reference_id' ) );
-				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET %i=%i WHERE %i=%s', $tx, 'source_line_id', 'reference_id', 'source_line_id', '' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(80) NOT NULL DEFAULT %s AFTER %i', $tx, 'source_line_id', '', 'reference_id' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i SET %i=%i WHERE %i=%s', $tx, 'source_line_id', 'reference_id', 'source_line_id', '' ) );
 			}
 			if ( $has_col( $tx, 'reference_id' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i MODIFY %i VARCHAR(80) NOT NULL', $tx, 'reference_id' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i MODIFY %i VARCHAR(80) NOT NULL', $tx, 'reference_id' ) );
 			}
 			if ( $has_index( $tx, 'movement_reference' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $tx, 'movement_reference' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $tx, 'movement_reference' ) );
 			}
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i,%i,%i)', $tx, 'movement_reference', 'reference_type', 'reference_id', 'source_line_id', 'movement_type' ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i,%i,%i)', $tx, 'movement_reference', 'reference_type', 'reference_id', 'source_line_id', 'movement_type' ) );
 		}
 
 		$ir = $p . 'stock_import_rows';
 		if ( self::table_exists_static( $ir ) && ! $has_col( $ir, 'cost_basis' ) ) {
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DECIMAL(12,2) NULL AFTER %i', $ir, 'cost_basis', 'sales_total' ) );
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(40) NULL AFTER %i', $ir, 'cost_basis_source', 'cost_basis' ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DECIMAL(12,2) NULL AFTER %i', $ir, 'cost_basis', 'sales_total' ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i VARCHAR(40) NULL AFTER %i', $ir, 'cost_basis_source', 'cost_basis' ) );
 		}
 
 		$sb = $p . 'stock_sale_batches';
@@ -1621,17 +1621,17 @@ class Stockland_Activator {
 			) as $c ) {
 				if ( ! $has_col( $sb, $c[0] ) ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Column name and DDL definition are from the fixed inline migration map; the table/column identifiers are bound.
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $c[1], $sb, $c[0] ) );
+					Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $c[1], $sb, $c[0] ) );
 				}
 			}
 			if ( $has_index( $sb, 'job' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $sb, 'job' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i DROP INDEX %i', $sb, 'job' ) );
 			}
 			if ( ! $has_index( $sb, 'job_receipt' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i)', $sb, 'job_receipt', 'job_id', 'receipt_key' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i)', $sb, 'job_receipt', 'job_id', 'receipt_key' ) );
 			}
 			if ( ! $has_index( $sb, 'source_receipt' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $sb, 'source_receipt', 'source_system', 'external_receipt_no' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $sb, 'source_receipt', 'source_system', 'external_receipt_no' ) );
 			}
 		}
 
@@ -1651,7 +1651,7 @@ class Stockland_Activator {
 			// it does not reset or reseed business data.
 			if ( ! $has_col( $bal, 'variant_id' ) ) {
 				$wpdb->last_error = '';
-				$ok               = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $bal, 'variant_id', 'sku' ) );
+				$ok               = Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $bal, 'variant_id', 'sku' ) );
 				if ( false === $ok || $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not add variant_id to stock_balances.' );
 				}
@@ -1665,13 +1665,13 @@ class Stockland_Activator {
 				}
 				$wpdb->last_error = '';
 				// Do not depend on column order on legacy MariaDB tables.
-				$ok = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DECIMAL(14,2) NOT NULL DEFAULT 0', $bal, 'physical_qty' ) );
+				$ok = Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DECIMAL(14,2) NOT NULL DEFAULT 0', $bal, 'physical_qty' ) );
 				if ( false === $ok || $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not add physical_qty to stock_balances.' );
 				}
 				if ( $legacy_qty ) {
 					$wpdb->last_error = '';
-					$ok               = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET physical_qty=COALESCE(%i,0)', $bal, $legacy_qty ) );
+					$ok               = Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i SET physical_qty=COALESCE(%i,0)', $bal, $legacy_qty ) );
 					if ( false === $ok || $wpdb->last_error ) {
 						throw new RuntimeException( 'Could not preserve legacy balance quantity.' );
 					}
@@ -1679,7 +1679,7 @@ class Stockland_Activator {
 			}
 			if ( ! $has_col( $bal, 'updated_at' ) ) {
 				$wpdb->last_error = '';
-				$ok               = $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP', $bal, 'updated_at' ) );
+				$ok               = Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP', $bal, 'updated_at' ) );
 				if ( false === $ok || $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not add updated_at to stock_balances.' );
 				}
@@ -1688,7 +1688,7 @@ class Stockland_Activator {
 			if ( $unresolved > 0 ) {
 				throw new RuntimeException( 'Cannot migrate stock_balances: ' . esc_html( (string) $unresolved ) . ' derived balance row(s) have no matching Product Master variant.' );
 			}
-			$wpdb->query( $wpdb->prepare( 'UPDATE %i b INNER JOIN %i p ON p.sku=b.sku SET b.variant_id=p.variant_id WHERE b.variant_id IS NULL', $bal, $p . 'stock_products' ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i b INNER JOIN %i p ON p.sku=b.sku SET b.variant_id=p.variant_id WHERE b.variant_id IS NULL', $bal, $p . 'stock_products' ) );
 			$pk_cols        = Stockland_DB::read_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $bal ), ARRAY_A );
 			$has_variant_pk = ( is_array( $pk_cols ) && count( $pk_cols ) === 2 && ( ( $pk_cols[0]['COLUMN_NAME'] ?? '' ) === 'location_id' ) && ( ( $pk_cols[1]['COLUMN_NAME'] ?? '' ) === 'variant_id' ) );
 			if ( ! $has_variant_pk ) {
@@ -1698,7 +1698,7 @@ class Stockland_Activator {
 				// A previous interrupted upgrade may have left only the disposable staging
 				// table behind. Remove that stale stage before rebuilding it; the live table
 				// and timestamped rollback snapshot are never touched by this cleanup.
-				$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $stage ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $stage ) );
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not clear stale balance migration stage.' );
 				}
@@ -1717,11 +1717,11 @@ class Stockland_Activator {
 				);
 				$stage_ddl .= ' ' . $wpdb->get_charset_collate();
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- DDL structure is a fixed schema template, the table identifier is bound, and the only appended value is WordPress's trusted charset/collation clause.
-				$wpdb->query( $stage_ddl );
+				Stockland_DB::execute_query( $stage_ddl );
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not create staged balance read model.' );
 				}
-				$wpdb->query(
+				Stockland_DB::execute_query(
 					$wpdb->prepare( 'INSERT INTO %i(location_id,sku,variant_id,physical_qty,updated_at) SELECT b.location_id,MAX(p.sku),p.variant_id,SUM(b.physical_qty),MAX(b.updated_at) FROM %i b JOIN %i p ON p.variant_id=b.variant_id OR p.sku=b.sku GROUP BY b.location_id,p.variant_id', $stage, $bal, $p . 'stock_products' )
 				);
 				if ( $wpdb->last_error ) {
@@ -1733,14 +1733,14 @@ class Stockland_Activator {
 					throw new RuntimeException( 'Derived balance reconciliation failed before cutover. Live read model was preserved.' );
 				}
 				// Atomic metadata cutover; the old read model remains as a rollback snapshot.
-				$wpdb->query( $wpdb->prepare( 'RENAME TABLE %i TO %i, %i TO %i', $bal, $backup, $stage, $bal ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'RENAME TABLE %i TO %i, %i TO %i', $bal, $backup, $stage, $bal ) );
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not cut over staged balance read model.' );
 				}
 				update_option( 'stockland_balance_rollback_snapshot', $backup, false );
 			}
 			if ( ! $has_index( $bal, 'location_sku' ) ) {
-				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $bal, 'location_sku', 'location_id', 'sku' ) );
+				Stockland_DB::execute_query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $bal, 'location_sku', 'location_id', 'sku' ) );
 			}
 		}
 
