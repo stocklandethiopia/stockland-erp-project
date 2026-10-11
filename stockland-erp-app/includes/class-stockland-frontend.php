@@ -631,8 +631,10 @@ elseif ( 'missing' === $status ) :
 		</div>
 		<div class="sl-login-card">
 			<div class="sl-login-card-head"><div class="sl-eyebrow">WELCOME BACK</div><h2>Sign in to Stockland</h2><p>Use your authorized ERP username and password to continue.</p></div>
-			<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The sanitized GET value only selects a login status message; authentication is performed separately by the POST handler.
-			$status = sanitize_key( wp_unslash( $_GET['sl_login'] ?? '' ) ); ?>
+			<?php
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The sanitized GET value only selects a login status message; authentication is performed separately by the POST handler.
+			$status = sanitize_key( wp_unslash( $_GET['sl_login'] ?? '' ) );
+			?>
 			<?php
 			if ( 'failed' === $status ) :
 				?>
