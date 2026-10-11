@@ -73,7 +73,7 @@ class Stockland_HR {
 		foreach ( self::required_columns() as $key => $columns ) {
 			$table            = $prefix . $key;
 			$wpdb->last_error = '';
-			$exists           = $wpdb->get_var(
+			$exists           = Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 					DB_NAME,
@@ -86,7 +86,7 @@ class Stockland_HR {
 			if ( ! $exists ) {
 				continue; }
 			$wpdb->last_error = '';
-			$known            = $wpdb->get_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
+			$known            = Stockland_DB::read_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
 			if ( ! empty( $wpdb->last_error ) || ! is_array( $known ) ) {
 				$gaps[] = $key . '.__columns_metadata_query_failed__';
 				continue; }
@@ -113,7 +113,7 @@ class Stockland_HR {
 		foreach ( self::required_columns() as $key => $columns ) {
 			$table            = $prefix . $key;
 			$wpdb->last_error = '';
-			$exists           = $wpdb->get_var(
+			$exists           = Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 					DB_NAME,
@@ -125,7 +125,7 @@ class Stockland_HR {
 			if ( ! $exists ) {
 				continue; }
 			$wpdb->last_error = '';
-			$known            = $wpdb->get_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
+			$known            = Stockland_DB::read_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
 			if ( ! empty( $wpdb->last_error ) || ! is_array( $known ) ) {
 				throw new RuntimeException( 'Could not inspect HR columns for ' . esc_html( $key ) . ': metadata query failed.' ); }
 			$missing = array_diff_key( $columns, array_flip( $known ) );
@@ -165,7 +165,7 @@ class Stockland_HR {
 	public static function missing_tables() {
 		global $wpdb;
 		$prefix     = $wpdb->prefix . 'stock_';
-		$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+		$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
 			if ( strpos( $table, $prefix ) === 0 ) {
@@ -363,14 +363,14 @@ class Stockland_HR {
 			if ( false === $result ) {
 				throw new RuntimeException( 'HR table creation failed.' );
 			}
-			$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
+			$exists = (bool) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 			if ( ! $table_key || ! $exists ) {
 				throw new RuntimeException( 'HR table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
 			}
 		}
 		$required   = self::table_keys();
 		$prefix     = $p . 'stock_';
-		$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+		$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
 			if ( strpos( $table, $prefix ) === 0 ) {
@@ -394,7 +394,7 @@ class Stockland_HR {
 					throw new RuntimeException( 'HR table ' . esc_html( $key ) . ' could not be created.' );
 				}
 			}
-			$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+			$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 			$found_keys = array();
 			foreach ( (array) $found as $table ) {
 				if ( strpos( $table, $prefix ) === 0 ) {
