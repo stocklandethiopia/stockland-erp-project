@@ -480,23 +480,31 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
 				$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
 			}
-			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( "SELECT id,location_name,location_type,role_description,is_active FROM {$location_table} WHERE id=%d LIMIT 1", $central_id ), ARRAY_A ) : null;
+			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
 		}
 		$product_cols = current_user_can( 'stockland_view_cost_and_profit' )
 			? 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level'
 			: 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level';
-		$products     = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $product_cols . ' FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku', Stockland_DB::table( 'products' ) ), ARRAY_A );
+		$products     = $wpdb->get_results( $wpdb->prepare( "SELECT " . $product_cols . " FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A );
 
-		$args  = array();
-		$sql   = 'SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
-              FROM (SELECT t.location_id,t.variant_id,SUM(t.quantity_signed) physical_stock FROM ' . Stockland_DB::table( 'transactions' ) . ' t WHERE t.variant_id IS NOT NULL GROUP BY t.location_id,t.variant_id) v
-              JOIN ' . Stockland_DB::table( 'products' ) . ' p ON p.variant_id=v.variant_id
-              LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_reserved) reserved_stock FROM ' . Stockland_DB::table( 'reservations' ) . " WHERE status='Active' GROUP BY location_id,variant_id) r
+		$args       = array();
+		$stock_sql  = 'SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
+              FROM (SELECT t.location_id,t.variant_id,SUM(t.quantity_signed) physical_stock FROM %i t WHERE t.variant_id IS NOT NULL GROUP BY t.location_id,t.variant_id) v
+              JOIN %i p ON p.variant_id=v.variant_id
+              LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_reserved) reserved_stock FROM %i WHERE status='Active' GROUP BY location_id,variant_id) r
                 ON r.location_id=v.location_id AND r.variant_id=p.variant_id
               WHERE p.product_type<>'STYLE'";
-		$sql  .= $this->append_scope_filter( 'v.location_id', $args, $scope );
-		$sql  .= ' ORDER BY v.location_id,p.sku';
-		$stock = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		$stock_sql .= $this->append_scope_filter( 'v.location_id', $args, $scope );
+		$stock_sql .= ' ORDER BY v.location_id,p.sku';
+		$stock_args = array_merge(
+			array(
+				Stockland_DB::table( 'transactions' ),
+				Stockland_DB::table( 'products' ),
+				Stockland_DB::table( 'reservations' ),
+			),
+			$args
+		);
+		$stock = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 		$dashboard = $this->dashboard( $scope );
 		$can_cost  = (bool) current_user_can( 'stockland_view_cost_and_profit' );
