@@ -355,9 +355,13 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		}
 	}
 
-	 * @throws Exception When validation, migration or transaction processing fails.
-	 * @throws Exception When validation, migration or transaction processing fails.
-	/** Closes ONE sale row: locks it and posts the stock deduction to the ledger. */
+	/**
+	 * Closes one sale row by locking it and posting the stock deduction to the ledger.
+	 *
+	 * @param WP_REST_Request $request REST request identifying the sale to close.
+	 * @return mixed REST response containing the closed sale or a WP_Error.
+	 * @throws Exception When business-day validation or the guarded transaction fails.
+	 */
 	public function close_sale( WP_REST_Request $request ) {
 		global $wpdb;
 		$table     = Stockland_DB::table( 'sales' );
