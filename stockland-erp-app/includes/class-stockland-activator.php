@@ -963,7 +963,7 @@ class Stockland_Activator {
 				);
 			} elseif ( $fresh_namespace ) {
 				// Fresh-install path: execute the already-normalized final DDL directly.
-				$result = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fresh-install CREATE TABLE SQL comes from the plugin-owned fixed schema array and uses only the trusted WordPress prefix.
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fresh-install CREATE TABLE SQL comes from the plugin-owned fixed schema array and uses only the trusted WordPress prefix.
 				$result = $wpdb->query( $sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
@@ -1070,7 +1070,9 @@ class Stockland_Activator {
 			foreach ( $req_fields_1301 as $field => $definition ) {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
-					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound.
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
+				}
 			}
 			$transfer_fields_1301 = array(
 				'pickup_date' => 'DATE NULL AFTER requisition_item_id',
@@ -1417,7 +1419,7 @@ class Stockland_Activator {
 
 		$defaults = array(
 			'vat_rate'                       => '0.15',
-			'vat_basis'                      => 'INCLUSIVE', // selling prices are VAT-inclusive; VAT extracted, not added on top
+			'vat_basis'                      => 'INCLUSIVE', // Selling prices are VAT-inclusive; VAT is extracted, not added on top.
 			'branch_reorder_alert_level'     => '2',
 			'central_reorder_alert_level'    => '200',
 			'default_branch_reorder_target'  => '5',
@@ -1522,7 +1524,7 @@ class Stockland_Activator {
 	 *
 	 * @param string $p WordPress table prefix.
 	 * @return void Applies the idempotent product identity migration.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When the required Product Master identity migration cannot be completed.
 	 */
 	private static function upgrade_variant_first_product_identity( $p ) {
 		global $wpdb;
@@ -1559,10 +1561,10 @@ class Stockland_Activator {
 	}
 
 	/**
-	 * v16 convergence: make every required module/schema line up under one clean production contract.
+	 * V16 convergence: make every required module/schema line up under one clean production contract.
 	 *
 	 * @param string $p WordPress table prefix.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When the required schema migration cannot be completed.
 	 */
 	private static function apply_schema_1600_migrations( $p ) {
 		global $wpdb;
@@ -1616,6 +1618,7 @@ class Stockland_Activator {
 				array( 'source_system', 'VARCHAR(80) NOT NULL DEFAULT \'POS\'' ),
 			) as $c ) {
 				if ( ! $has_col( $sb, $c[0] ) ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment is selected from the fixed migration allowlist; table and column identifiers are bound.
 					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $c[1], $sb, $c[0] ) );
 				}
 			}
