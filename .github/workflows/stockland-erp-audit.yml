@@ -230,7 +230,7 @@ jobs:
               for message in result.get("messages", []):
                   sources[message.get("source", "unknown")] += 1
           print(
-              "FULL-SOURCE PHPCS INVENTORY (diagnostic, non-gating): "
+              "FULL-SOURCE PHPCS INVENTORY (result consumed by final blocking gate): "
               f"exit={status}, errors={totals.get('errors', 0)}, "
               f"warnings={totals.get('warnings', 0)}, "
               f"fixable={totals.get('fixable', 0)}, files={len(files)}"
@@ -268,15 +268,6 @@ jobs:
             full-source-phpcs-report.txt
           if-no-files-found: warn
           retention-days: 14
-
-      - name: Enforce zero full-source PHPCS/WPCS findings
-        working-directory: stockland-erp-app
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The diagnostic report is uploaded first so failures retain evidence.
-          # Do not weaken or exclude the full profile to obtain a green build.
-          vendor/bin/phpcs --standard=phpcs-full-audit.xml.dist
 
       - name: Remove CI-only Composer vendor tree and PHPUnit cache before runtime QA and packaging
         shell: bash
@@ -332,12 +323,12 @@ jobs:
               text = text.split("\n## Rebuilt package ", 1)[0]
           text = text.rstrip()
           text += (
-              "\n\n## Rebuilt package (verified after successful CI)\n\n"
-              "- Package: audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n"
-              "- SHA-256: " + sys.argv[1] + "\n"
-              "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\n"
-              "- Full-source inventory is diagnostic until its findings are resolved; the production-service coding-standard gate is separate.\n"
-              "- CI build/static checks passed; live WordPress/MariaDB staging certification remains separate.\n"
+              "\\n\\n## Rebuilt candidate package (automated build evidence)\\n\\n"
+              "- Package: audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\\n"
+              "- SHA-256: " + sys.argv[1] + "\\n"
+              "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\\n"
+              "- The full-runtime PHPCS/WPCS result is evaluated by the final workflow gate. A non-zero result leaves this artifact review-only and blocks release.\\n"
+              "- CI syntax, unit and static QA results are separate from authenticated WordPress/MariaDB staging certification, which remains required.\\n"
           )
           p.write_text(text, encoding="utf-8")
           PY
@@ -366,3 +357,17 @@ jobs:
             audit/packages/STOCKLAND_ERP_16.1.57_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
           if-no-files-found: error
           retention-days: 30
+
+      - name: Enforce zero full-runtime PHPCS/WPCS findings
+        if: always()
+        shell: bash
+        env:
+          PHPCS_EXIT: ${{ steps.full-source-phpcs.outputs.phpcs_exit }}
+        run: |
+          set -euo pipefail
+          if [[ "${PHPCS_EXIT:-2}" =~ ^[0-9]+$ ]] && [[ "$PHPCS_EXIT" -eq 0 ]]; then
+            echo "PASS: full-runtime PHPCS/WPCS reported zero findings."
+          else
+            echo "::error::Full-runtime PHPCS/WPCS returned ${PHPCS_EXIT:-missing}. The candidate is for review only; fix the findings before release."
+            exit 1
+          fi
