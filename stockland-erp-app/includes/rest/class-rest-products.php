@@ -10,7 +10,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Model: STYLE/PRODUCT -> VARIANT SKU -> COLOR + SIZE + BARCODE/GTIN.
  * Each stockable color/size combination is its own SKU row so the existing
  * ledger remains compatible while inventory becomes dimension-aware.
-	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 class Stockland_REST_Products extends Stockland_REST_Base {
 	/**
@@ -370,6 +369,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return rest_ensure_response( $saved );
 	}
 
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 * @throws Exception When validation, migration or transaction processing fails.
 	/** Create a color × size matrix from one Style template without creating duplicate combinations. */
 	public function generate_variants( WP_REST_Request $request ) {
