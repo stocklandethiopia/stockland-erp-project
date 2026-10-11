@@ -612,31 +612,36 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	private function transfer_snapshot( $scope = null ) {
 		global $wpdb;
-		$args = array();
-		$sql  = 'SELECT t.transfer_id,t.transfer_date,t.from_location_id,t.to_location_id,t.sku,t.quantity,t.status,f.location_name from_location_name,to_l.location_name to_location_name,p.product_name
-              FROM ' . Stockland_DB::table( 'transfers' ) . ' t
-              JOIN ' . Stockland_DB::table( 'locations' ) . ' f ON f.id=t.from_location_id
-              JOIN ' . Stockland_DB::table( 'locations' ) . ' to_l ON to_l.id=t.to_location_id
-              JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE 1=1';
+		$args = array(
+			Stockland_DB::table( 'transfers' ),
+			Stockland_DB::table( 'locations' ),
+			Stockland_DB::table( 'locations' ),
+			Stockland_DB::table( 'products' ),
+		);
+		$sql = 'SELECT t.transfer_id,t.transfer_date,t.from_location_id,t.to_location_id,t.sku,t.quantity,t.status,f.location_name from_location_name,to_l.location_name to_location_name,p.product_name
+              FROM %i t
+              JOIN %i f ON f.id=t.from_location_id
+              JOIN %i to_l ON to_l.id=t.to_location_id
+              JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE 1=1';
 		if ( is_array( $scope ) ) {
-			$ph = implode( ',', array_fill( 0, count( $scope ), '%d' ) );
-			foreach ( $scope as $id ) {
-				$args[] = $id;
-				$args[] = $id;}
+			$ph  = implode( ',', array_fill( 0, count( $scope ), '%d' ) );
+			$ids = array_map( 'intval', $scope );
+			$args = array_merge( $args, $ids, $ids );
 			$sql .= " AND (t.from_location_id IN({$ph}) OR t.to_location_id IN({$ph}))";
 		} elseif ( null !== $scope ) {
 			$sql   .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
-			$args[] = $scope;
-			$args[] = $scope; }
+			$args[] = (int) $scope;
+			$args[] = (int) $scope;
+		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 100';
-		return $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		return $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 	}
 
 	private function dashboard( $scope = null ) {
 		global $wpdb;
 		$sales       = Stockland_DB::table( 'sales' );
 		$wh          = Stockland_DB::table( 'wholesale_sales' );
-		$bal         = '(SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM ' . Stockland_DB::table( 'transactions' ) . ' WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id)';
+		$transactions = Stockland_DB::table( 'transactions' );
 		$loc         = Stockland_DB::table( 'locations' );
 		$prod        = Stockland_DB::table( 'products' );
 		$scope_ids   = is_array( $scope ) ? array_values( array_unique( array_map( 'intval', $scope ) ) ) : ( null !== $scope ? array( (int) $scope ) : null );
@@ -662,7 +667,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			) : $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM %i", $wh ), ARRAY_A );
 
 			$inv_args = array();
-			$inv_sql  = "SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0) FROM %i b JOIN %i p ON p.variant_id=b.variant_id";
+			$inv_sql  = "SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0) FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b JOIN %i p ON p.variant_id=b.variant_id";
 			if ( is_array( $scope_ids ) ) {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$inv_sql .= " WHERE b.location_id IN({$ph})";
@@ -670,10 +675,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$inv_sql         .= ' WHERE b.location_id=%d';
 						$inv_args = $scope_ids;}
-			$inv = (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, array_merge( array( $bal, $prod ), $inv_args ) ) );
+			$inv = (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, array_merge( array( $transactions, $prod ), $inv_args ) ) );
 
 			$low_args = array();
-			$low_sql  = "SELECT COUNT(*) FROM %i p CROSS JOIN %i l LEFT JOIN %i b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch')";
+			$low_sql  = "SELECT COUNT(*) FROM %i p CROSS JOIN %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch')";
 			if ( is_array( $scope_ids ) ) {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$low_sql .= " AND l.id IN({$ph})";
@@ -682,7 +687,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$low_sql         .= ' AND l.id=%d';
 						$low_args = $scope_ids;}
 			$low_sql .= " AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level)";
-			$low      = (int) $wpdb->get_var( $wpdb->prepare( $low_sql, array_merge( array( $prod, $loc, $bal ), $low_args ) ) );
+			$low = (int) $wpdb->get_var( $wpdb->prepare( $low_sql, array_merge( array( $prod, $loc, $transactions ), $low_args ) ) );
 
 			$today       = 'Y-m-d';
 			$today_value = current_time( $today );
@@ -693,7 +698,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$today_sales = (float) $wpdb->get_var( $wpdb->prepare( $today_sql, array_merge( array( $sales ), $today_args ) ) );
 
 			$req_args = array();
-			$req_sql  = 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'requisitions' ) . " WHERE status IN('Requested','Reviewed','Approved','Reserved','Picked')";
+			$req_sql  = "SELECT COUNT(*) FROM %i WHERE status IN('Requested','Reviewed','Approved','Reserved','Picked')";
+			$req_args = array( Stockland_DB::table( 'requisitions' ) );
 			if ( is_array( $scope_ids ) ) {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$req_sql .= " AND branch_location_id IN({$ph})";
@@ -701,7 +707,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$req_sql         .= ' AND branch_location_id=%d';
 						$req_args = $scope_ids;}
-			$pending = $req_args ? (int) $wpdb->get_var( $wpdb->prepare( $req_sql, $req_args ) ) : (int) $wpdb->get_var( $req_sql );
+			$pending = (int) $wpdb->get_var( $wpdb->prepare( $req_sql, $req_args ) );
 
 			$approval_queue       = 0;
 			$warehouse_queue      = 0;
@@ -715,23 +721,25 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 
 			$pr_args = array();
-			$pr_sql  = 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'transfers' ) . " WHERE status='Picked'";
+			$pr_sql  = "SELECT COUNT(*) FROM %i WHERE status='Picked'";
+			$pr_args = array( Stockland_DB::table( 'transfers' ) );
 			if ( is_array( $scope_ids ) ) {
 				$ph      = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$pr_sql .= " AND (from_location_id IN({$ph}) OR to_location_id IN({$ph}))";
-				$pr_args = array_merge( $scope_ids, $scope_ids );
+				$pr_args = array_merge( $pr_args, $scope_ids, $scope_ids );
 			} elseif ( null !== $scope_ids ) {
 				$pr_sql         .= ' AND (from_location_id=%d OR to_location_id=%d)';
-						$pr_args = array( (int) $scope_ids[0], (int) $scope_ids[0] );}
-				$pending_branch_receipts = $pr_args ? (int) $wpdb->get_var( $wpdb->prepare( $pr_sql, $pr_args ) ) : (int) $wpdb->get_var( $pr_sql );
+						$pr_args = array_merge( $pr_args, array( (int) $scope_ids[0], (int) $scope_ids[0] ) );}
+				$pending_branch_receipts = (int) $wpdb->get_var( $wpdb->prepare( $pr_sql, $pr_args ) );
 
-				$month_sql = "SELECT COALESCE(SUM(sales_total),0) FROM {$sales} WHERE posting_status='CLOSED' AND sale_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01'){$sales_where}";
-				$month     = $sales_args ? (float) $wpdb->get_var( $wpdb->prepare( $month_sql, $sales_args ) ) : (float) $wpdb->get_var( $month_sql );
-				$year_sql  = "SELECT COALESCE(SUM(sales_total),0) FROM {$sales} WHERE posting_status='CLOSED' AND YEAR(sale_date)=YEAR(CURDATE()){$sales_where}";
-				$year      = $sales_args ? (float) $wpdb->get_var( $wpdb->prepare( $year_sql, $sales_args ) ) : (float) $wpdb->get_var( $year_sql );
+				$month_sql = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01'){$sales_where}";
+				$month = (float) $wpdb->get_var( $wpdb->prepare( $month_sql, array_merge( array( $sales ), $sales_args ) ) );
+				$year_sql  = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND YEAR(sale_date)=YEAR(CURDATE()){$sales_where}";
+				$year = (float) $wpdb->get_var( $wpdb->prepare( $year_sql, array_merge( array( $sales ), $sales_args ) ) );
 
 				$stock_args = array();
-				$stock_sql  = "SELECT l.id,l.location_name,COALESCE(SUM(b.physical_stock),0) stock FROM {$loc} l LEFT JOIN {$bal} b ON b.location_id=l.id WHERE l.location_type IN('Warehouse','Branch')";
+				$stock_sql  = "SELECT l.id,l.location_name,COALESCE(SUM(b.physical_stock),0) stock FROM %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.location_id=l.id WHERE l.location_type IN('Warehouse','Branch')";
+			$stock_args = array( $loc, $transactions );
 			if ( is_array( $scope_ids ) ) {
 				$ph         = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$stock_sql .= " AND l.id IN({$ph})";
@@ -740,15 +748,18 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$stock_sql         .= ' AND l.id=%d';
 						$stock_args = $scope_ids;}
 				$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
-				$stock_by_location = $stock_args ? $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A ) : $wpdb->get_results( $stock_sql, ARRAY_A );
+				$stock_by_location = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
-				$stock_total_sql = "SELECT COALESCE(SUM(b.physical_stock),0) FROM {$bal} b";
+				$stock_total_sql  = "SELECT COALESCE(SUM(b.physical_stock),0) FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b";
+			$stock_total_args = array( $transactions );
 			if ( is_array( $scope_ids ) ) {
 				$stock_total_sql .= ' WHERE b.location_id IN(' . implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) ) . ')';
+				$stock_total_args = array_merge( $stock_total_args, $scope_ids );
 			} elseif ( null !== $scope_ids ) {
 				$stock_total_sql .= ' WHERE b.location_id=%d';
+				$stock_total_args[] = (int) $scope_ids[0];
 			}
-				$stock_total = null === $scope_ids ? (float) $wpdb->get_var( $stock_total_sql ) : (float) $wpdb->get_var( $wpdb->prepare( $stock_total_sql, $scope_ids ) );
+				$stock_total = (float) $wpdb->get_var( $wpdb->prepare( $stock_total_sql, $stock_total_args ) );
 
 				return array(
 					'today_sales'             => $today_sales,
