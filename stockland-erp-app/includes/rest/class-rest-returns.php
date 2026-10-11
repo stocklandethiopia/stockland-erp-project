@@ -44,14 +44,14 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$table = Stockland_DB::table( 'returns' );
-		$sql   = "SELECT * FROM {$table} WHERE 1=1";
-		$args  = array();
+		$sql   = 'SELECT * FROM %i WHERE 1=1';
+		$args  = array( $table );
 		if ( $location_id ) {
 			$sql   .= ' AND location_id = %d';
 			$args[] = $location_id;
 		}
 		$sql .= ' ORDER BY created_at DESC LIMIT 500';
-		$rows = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return rest_ensure_response( $rows );
 	}
 
@@ -194,7 +194,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 				throw new Exception( 'Could not record return.' );
 			}
 
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $id ), ARRAY_A );
 			if ( 'Adjustment' === $p['return_type'] ) {
 				return rest_ensure_response( $row ); // protected above; retained for defensive compatibility
 			}
@@ -208,7 +208,7 @@ class Stockland_REST_Returns extends Stockland_REST_Base {
 				$unit_cost  = (float) ( $prod['purchase_cost'] ?? 0 );
 				$unit_price = (float) ( $prod['retail_price'] ?? 0 );
 				if ( ! empty( $row['reference_sale_id'] ) ) {
-					$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT selling_price,sales_total,net_sales_excl_vat,vat_amount,cogs,quantity_sold FROM ' . Stockland_DB::table( 'sales' ) . ' WHERE sale_id=%s AND (variant_id=%d OR (variant_id IS NULL AND sku=%s)) LIMIT 1', $row['reference_sale_id'], (int) $row['variant_id'], $row['sku'] ), ARRAY_A );
+					$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT selling_price,sales_total,net_sales_excl_vat,vat_amount,cogs,quantity_sold FROM %i WHERE sale_id=%s AND (variant_id=%d OR (variant_id IS NULL AND sku=%s)) LIMIT 1', Stockland_DB::table( 'sales' ), $row['reference_sale_id'], (int) $row['variant_id'], $row['sku'] ), ARRAY_A );
 					if ( $sale ) {
 						$unit_price = Stockland_Money::divide( $sale['sales_total'], $sale['quantity_sold'] );
 						$unit_cost  = Stockland_Money::divide( $sale['cogs'], $sale['quantity_sold'] );}
