@@ -1,23 +1,8 @@
 <?php
-/**
- * REST application controller for Stockland ERP operations.
- *
- * @package Stockland_ERP
- */
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-/**
- * Registers the Stockland ERP application REST endpoints and operational query handlers.
- *
- * @package Stockland_ERP
- */
 class Stockland_REST_App extends Stockland_REST_Base {
-	/**
-	 * Registers the application REST controller with the Stockland ERP route loader.
-	 */
-
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
 
@@ -47,10 +32,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return false;
 		}
 	}
-
-	/**
-	 * Registers the REST routes used by the Stockland ERP application.
-	 */
 
 	public function routes() {
 		register_rest_route(
@@ -416,9 +397,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return (bool) Stockland_Roles::get_profile( $uid );
 	}
 
-	/** Synchronize only the safe WordPress identity fields used by the ERP UI. 	 * @param mixed $wp_user_id The WordPress user ID.
-	 * @param mixed $payload The validated request payload.
-*/
+	/** Synchronize only the safe WordPress identity fields used by the ERP UI. */
 	private function sync_user_identity( $wp_user_id, $payload ) {
 		$id = (int) $wp_user_id;
 		if ( $id <= 0 || ! get_userdata( $id ) ) {
@@ -460,10 +439,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return $ids ? $ids : false;
 	}
 
-	/** Append an IN (...) filter for a location column. Null means company-wide; false means deny. 	 * @param mixed $column The validated column name.
-	 * @param mixed $args The prepared query arguments.
-	 * @param mixed $scope The authorized location scope.
-*/
+	/** Append an IN (...) filter for a location column. Null means company-wide; false means deny. */
 	private function append_scope_filter( $column, &$args, $scope ) {
 		if ( null === $scope ) {
 			return '';
@@ -477,10 +453,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		return ' AND ' . $column . ' IN(' . $ph . ')';
 	}
-
-	/**
-	 * Builds the initial data payload for the Stockland ERP application.
-	 */
 
 	public function bootstrap() {
 		// Native WP administrators are the fresh-install bootstrap account. Their
@@ -638,12 +610,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 	}
 
-	/**
-	 * Retrieves the latest transfers visible in the requested location scope.
-	 *
-	 * @param mixed $scope The authorized location scope.
-	 */
-
 	private function transfer_snapshot( $scope = null ) {
 		global $wpdb;
 		$args = array(
@@ -670,12 +636,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 100';
 		return $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 	}
-
-	/**
-	 * Builds dashboard totals and queues for the current location scope.
-	 *
-	 * @param mixed $scope The authorized location scope.
-	 */
 
 	private function dashboard( $scope = null ) {
 		global $wpdb;
@@ -821,10 +781,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				);
 	}
 
-	/**
-	 * Returns read-only health information for the ERP REST service.
-	 */
-
 	public function ping() {
 		return rest_ensure_response(
 			array(
@@ -838,12 +794,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			)
 		);
 	}
-	/**
-	 * Searches active Product Master variants by SKU, name, barcode, or related product fields.
-	 *
-	 * @param mixed $request The REST request.
-	 */
-
 	public function sku_search( WP_REST_Request $request ) {
 		global $wpdb;
 		try {
@@ -881,12 +831,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'sku_search_failed', 'Live SKU search encountered a server error. No ERP data was changed.', array( 'status' => 500 ) );
 		}
 	}
-
-	/**
-	 * Returns integrity and audit-chain information permitted for the current user.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function audit( WP_REST_Request $r ) {
 		global $wpdb;
@@ -1121,8 +1065,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * The previous default performed full-table ledger/GL reconciliation and loaded every
 	 * audit-log row into one PHP request, which could exhaust CPU/memory and return HTTP 502.
 	 * A deep scan is opt-in only (?mode=deep); it is never triggered by the normal UI button.
-	 	 * @param mixed $request The REST request.
-*/
+	 */
 	public function health( $request = null ) {
 		if ( ! ( $request instanceof WP_REST_Request ) || 'deep' !== (string) $request->get_param( 'mode' ) ) {
 			return $this->health_quick();
@@ -1693,12 +1636,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			)
 		);
 	}
-	/**
-	 * Parses an imported date into the ERP business-date format.
-	 *
-	 * @param mixed $v The v value.
-	 */
-
 	private function parse_import_date( $v ) {
 		if ( is_numeric( $v ) && $v > 30000 && $v < 70000 ) {
 			$base = new DateTime( '1899-12-30', new DateTimeZone( 'UTC' ) );
@@ -1713,24 +1650,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return false;
 	}
 
-	/**
-	 * Normalizes a date value for report or import processing.
-	 *
-	 * @param mixed $v The v value.
-	 */
-
 	private function date_value( $v ) {
 		$d = $this->parse_import_date( $v );
 		return $d ? $d : current_time( 'Y-m-d' );
 	}
-
-	/**
-	 * Validates and normalizes a set of permitted ERP location IDs.
-	 *
-	 * @param mixed $role The requested ERP role.
-	 * @param mixed $primary The primary value.
-	 * @param mixed $requested The requested value.
-	 */
 
 	private function normalize_location_ids( $role, $primary, $requested ) {
 		$raw = is_array( $requested ) ? $requested : preg_split( '/\s*,\s*/', (string) $requested, -1, PREG_SPLIT_NO_EMPTY );
@@ -1784,15 +1707,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return $valid;
 	}
 
-	/**
-	 * Synchronizes the selected ERP location assignments for a WordPress user.
-	 *
-	 * @param mixed $wp_user_id The WordPress user ID.
-	 * @param mixed $ids The list of record identifiers.
-	 * @param mixed $primary The primary value.
-	 * @param mixed $created_by The created by value.
-	 */
-
 	private function sync_location_assignments( $wp_user_id, $ids, $primary, $created_by = null ) {
 		global $wpdb;
 		$table                  = Stockland_DB::table( 'user_locations' );
@@ -1821,10 +1735,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$ok  = $wpdb->query( $wpdb->prepare( $sql, array_merge( array( $table ), $values ) ) );
 		return false !== $ok;
 	}
-
-	/**
-	 * Lists ERP users and their active role and location assignments.
-	 */
 
 	public function users() {
 		global $wpdb;
@@ -1875,10 +1785,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * native wp-admin access remains intact for technical administrators.
 	 * Returns previous Stockland roles so callers can restore them if the ERP
 	 * profile transaction later fails.
-	 	 * @param mixed $wp_user_id The WordPress user ID.
-	 * @param mixed $role The requested ERP role.
-	 * @param mixed $active Whether the ERP account should be active.
-	 * @throws \Throwable If the operation fails validation or cannot be completed.
 	 */
 	private function apply_stockland_role( $wp_user_id, $role, $active = true ) {
 		$user = new WP_User( (int) $wp_user_id );
@@ -1904,10 +1810,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return $previous;
 	}
 
-	/** Restore only the Stockland-role portion of a WordPress account. 	 * @param mixed $wp_user_id The WordPress user ID.
-	 * @param mixed $roles The allowed ERP role values.
-	 * @throws \Throwable If the operation fails validation or cannot be completed.
-	 */
+	/** Restore only the Stockland-role portion of a WordPress account. */
 	private function restore_stockland_roles( $wp_user_id, $roles ) {
 		$user = new WP_User( (int) $wp_user_id );
 		if ( ! $user || ! $user->exists() ) {
@@ -1925,11 +1828,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 	}
 
-	/** Resolve and validate the role/location assignment used by create, edit and activation. 	 * @param mixed $role The requested ERP role.
-	 * @param mixed $requested_primary The requested primary location ID.
-	 * @param mixed $requested_locations The requested location assignments.
-	 * @throws \Throwable If the operation fails validation or cannot be completed.
-	 */
+	/** Resolve and validate the role/location assignment used by create, edit and activation. */
 	private function validated_assignment( $role, $requested_primary, $requested_locations ) {
 		if ( ! in_array( $role, Stockland_Roles::supported_roles(), true ) ) {
 			return new WP_Error( 'invalid_role', 'Invalid Stockland role.', array( 'status' => 400 ) );
@@ -1963,12 +1862,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			'branch_location_id' => null,
 		);
 	}
-
-	/**
-	 * Creates an ERP user profile and its authorized location assignments.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function create_user( WP_REST_Request $r ) {
 		$p     = $r->get_json_params();
@@ -2043,7 +1936,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	/**
 	 * Existing WordPress accounts needing ERP profile activation or role repair.
 	 * The ERP remains the source of truth for operational role + location scope.
-	 	 * @throws \Throwable If the operation fails validation or cannot be completed.
 	 */
 	public function available_wp_users() {
 		global $wpdb;
@@ -2094,7 +1986,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * reach the ERP's User & Organization activation workflow when their Stockland
 	 * profile has not yet been created, while ordinary unactivated users receive a
 	 * read-only pending-activation screen instead of a hard bootstrap failure.
-	 	 * @throws \Throwable If the operation fails validation or cannot be completed.
 	 */
 	public function access_bootstrap() {
 		$this->ensure_native_admin_profile();
@@ -2119,12 +2010,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		return rest_ensure_response( $result );
 	}
-
-	/**
-	 * Activates an existing WordPress user in the ERP permission model.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function activate_existing_user( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2191,10 +2076,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'activation_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
-	/**
-	 * Returns active branch and warehouse locations available for assignment.
-	 */
-
 	private function locations_for_assignment() {
 		static $rows = null;
 		if ( null !== $rows ) {
@@ -2204,12 +2085,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Branch','Warehouse') ORDER BY id", Stockland_DB::table( 'locations' ) ), ARRAY_A );
 		return $rows;
 	}
-
-	/**
-	 * Updates an ERP user's role, activation state, and location assignments.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function update_user( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2287,10 +2162,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'update_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
-	/**
-	 * Returns editable ERP business settings while excluding protected sequence state.
-	 */
-
 	public function settings() {
 		global $wpdb;
 		$sequence_pattern = $wpdb->esc_like( Stockland_Sequence::KEY_PREFIX ) . '%';
@@ -2304,12 +2175,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 		return rest_ensure_response( $rows );
 	}
-	/**
-	 * Validates and persists permitted ERP business settings with an audit record.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function save_settings( WP_REST_Request $r ) {
 		$p       = $r->get_json_params();
 		$allowed = array( 'vat_rate', 'vat_basis', 'business_name', 'tagline', 'branch_reorder_alert_level', 'central_reorder_alert_level' );
@@ -2353,12 +2218,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'settings_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
-	/**
-	 * Builds a location-scoped summary of sales, returns, transfers, counts, and stock.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function reports_summary( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
@@ -2503,12 +2362,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 	}
 
-	/**
-	 * Returns date-scoped sales, warehouse receipts, transfer receipts, and closing records.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function daily_operations( WP_REST_Request $r ) {
 		global $wpdb;
 		$scope = $this->resolve_branch_for_user( $r->get_param( 'location_id' ) );
@@ -2595,12 +2448,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			)
 		);
 	}
-
-	/**
-	 * Builds the management overview for sales, people, transfer variances, and low stock.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function operations_overview( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2699,20 +2546,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 	}
 
-	/**
-	 * Handles the allowed recon location operation in the Stockland ERP application.
-	 *
-	 * @param mixed $requested The requested value.
-	 */
-
 	private function allowed_recon_location( $requested ) {
 		return $this->resolve_branch_for_user( $requested );}
-	/**
-	 * Lists stock adjustments with request and approval details in the permitted scope.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function reconciliation_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$scope = $this->allowed_recon_location( $r->get_param( 'location_id' ) );
@@ -2728,12 +2563,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql .= ' ORDER BY a.created_at DESC LIMIT 300';
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
-	/**
-	 * Validates and processes the create reconciliation operation.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function create_reconciliation( WP_REST_Request $r ) {
 		global $wpdb;
 		$p   = $r->get_json_params();
@@ -2805,12 +2634,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$wpdb->query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
-	/**
-	 * Handles the reconciliation decision operation in the Stockland ERP application.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function reconciliation_decision( WP_REST_Request $r ) {
 		global $wpdb;
 		$id       = (int) $r['id'];
@@ -2933,12 +2756,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'adjustment_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
-	/**
-	 * Handles the count location operation in the Stockland ERP application.
-	 *
-	 * @param mixed $requested The requested value.
-	 */
-
 	private function count_location( $requested ) {
 		$loc = $this->resolve_branch_for_user( $requested );
 		if ( is_wp_error( $loc ) ) {
@@ -2950,20 +2767,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return 0;
 	}
 
-	/**
-	 * Validates or resolves the normalize count key operation.
-	 *
-	 * @param mixed $v The v value.
-	 */
-
 	private function normalize_count_key( $v ) {
 		return strtolower( trim( preg_replace( '/\\s+/', ' ', sanitize_text_field( (string) $v ) ) ) );}
-
-	/**
-	 * Validates or resolves the resolve count product operation.
-	 *
-	 * @param mixed $row The row value.
-	 */
 
 	private function resolve_count_product( $row ) {
 		global $wpdb;
@@ -3001,12 +2806,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		return count( $matches ) === 1 ? $matches[0] : null;
 	}
 
-	/**
-	 * Lists physical-count batches and their variance summaries.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function counts_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$scope = $this->resolve_branch_for_user( $r->get_param( 'location_id' ) );
@@ -3022,12 +2821,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 100';
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
-
-	/**
-	 * Validates and previews a physical-count workbook before it is staged.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function count_preview( WP_REST_Request $r ) {
 		// REST auth/nonce validation and the permission callback run before this handler.
@@ -3138,12 +2931,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		} catch ( Throwable $e ) {
 			return new WP_Error( 'count_parse', $e->getMessage(), array( 'status' => 400 ) );}
 	}
-
-	/**
-	 * Handles the count commit operation in the Stockland ERP application.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function count_commit( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3289,12 +3076,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		} finally {
 			Stockland_DB::release_day_lock( $lock );}
 	}
-
-	/**
-	 * Handles the count decision operation in the Stockland ERP application.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function count_decision( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3459,12 +3240,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );}
 	}
 
-	/**
-	 * Handles the count report operation in the Stockland ERP application.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function count_report( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = sanitize_text_field( $r['id'] );
@@ -3503,12 +3278,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 	}
 
-	/**
-	 * Handles the notifications operation in the Stockland ERP application.
-	 *
-	 * @param mixed $r The REST request.
-	 */
-
 	public function notifications( WP_REST_Request $r ) {
 		global $wpdb;
 		$scope = $this->scope_locations();
@@ -3525,12 +3294,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql .= ' ORDER BY e.id DESC LIMIT 50';
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
-
-	/**
-	 * Returns workflow transitions visible to the current user and location scope.
-	 *
-	 * @param mixed $r The REST request.
-	 */
 
 	public function workflow_history( WP_REST_Request $r ) {
 		global $wpdb;
