@@ -30,7 +30,9 @@ final class Stockland_Runtime_Diagnostics {
 		// Store the path only. Query strings commonly contain WP REST nonces,
 		// setup cache-busters, and application-specific tokens; they are never
 		// required to identify a failing route.
-		$uri   = self::request_path( (string) ( $_SERVER['REQUEST_URI'] ?? '' ) );
+		// This is diagnostic-only request metadata; never retain query strings or nonces.
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$uri = self::request_path( $request_uri );
 		$entry = array(
 			'reference'    => 'FATAL-' . gmdate( 'YmdHis' ) . '-' . substr( hash( 'sha256', $message . '|' . $file . '|' . $line . '|' . $uri ), 0, 8 ),
 			'time_gmt'     => gmdate( 'Y-m-d H:i:s' ),
@@ -39,7 +41,7 @@ final class Stockland_Runtime_Diagnostics {
 			'file'         => basename( $file ),
 			'line'         => $line,
 			'stage'        => self::$stage,
-			'method'       => self::clean( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ), 20 ),
+			'method'       => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
 			'request_path' => $uri,
 			'memory_usage' => function_exists( 'memory_get_usage' ) ? memory_get_usage( true ) : null,
 			'memory_limit' => function_exists( 'ini_get' ) ? (string) ini_get( 'memory_limit' ) : '',
