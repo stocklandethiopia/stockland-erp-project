@@ -307,6 +307,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 		}
 		try {
 			Stockland_Notifications::notify_product_master( 'CREATED', $saved );} catch ( Throwable $ignore ) {
+				// Notification delivery is best-effort after the database transaction commits.
 			}
 			return rest_ensure_response( $saved );
 	}
@@ -460,6 +461,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						'created_skus'  => $created,
 					)
 				);} catch ( Throwable $ignore ) {
+				// Notification delivery is best-effort and must not undo committed variant data.
 				}
 		}
 		return rest_ensure_response(
