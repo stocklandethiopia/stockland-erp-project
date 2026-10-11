@@ -165,6 +165,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 	 * @param WP_REST_Request $request REST request containing sale header and lines.
 	 * @return mixed REST response containing the committed sale or a WP_Error.
 	 * @throws Exception When the sale transaction cannot satisfy a posting invariant.
+	 * @throws InvalidArgumentException When quantity, price or VAT input is invalid.
 	 */
 	public function create_sale( WP_REST_Request $request ) {
 		$p       = $request->get_json_params();
@@ -509,7 +510,8 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 	 * locks the day itself in wp_stock_daily_closings. After this, normal
 	 * users cannot edit any transaction from that day (section 7).
 	 *
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @param WP_REST_Request $request REST request containing branch and business date.
+	 * @throws Exception When validation or end-of-day posting fails.
 	 */
 	public function close_day( WP_REST_Request $request ) {
 		$p                  = $request->get_json_params();
