@@ -1201,7 +1201,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 		$safe_tables                                  = array( 'transactions', 'products', 'locations', 'transfers', 'receipts', 'reservations', 'balances' );
 		$data_ready                                   = empty( array_diff( $safe_tables, $found_keys ) );
-		$balance_columns                              = $data_ready ? (array) $wpdb->get_col( 'SHOW COLUMNS FROM ' . Stockland_DB::table( 'balances' ), 0 ) : array();
+		$balance_columns                              = $data_ready ? (array) $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', Stockland_DB::table( 'balances' ) ), 0 ) : array();
 		$balance_model_ok                             = in_array( 'physical_qty', $balance_columns, true );
 		$checks['balance_model_contract']             = $balance_model_ok;
 		$diagnostics['balance_model_missing_columns'] = array_values( array_diff( array( 'physical_qty' ), $balance_columns ) );
@@ -1211,42 +1211,52 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$loc                              = Stockland_DB::table( 'locations' );
 			$tr                               = Stockland_DB::table( 'transfers' );
 			$rc                               = Stockland_DB::table( 'receipts' );
-			$diagnostics['transaction_rows']  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tx}" );
-			$diagnostics['product_rows']      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$prod} WHERE product_type<>'STYLE'" );
-			$diagnostics['location_rows']     = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$loc} WHERE is_active=1" );
-			$diagnostics['orphan_ledger_sku'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tx} t LEFT JOIN {$prod} p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE p.variant_id IS NULL" );
-			$diagnostics['ledger_missing_variant_identity'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tx} WHERE variant_id IS NULL" );
-			$diagnostics['orphan_ledger_location']          = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tx} t LEFT JOIN {$loc} l ON l.id=t.location_id WHERE l.id IS NULL" );
-			$diagnostics['negative_stock_pairs']            = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT location_id,COALESCE(variant_id,0) variant_id,sku FROM {$tx} GROUP BY location_id,COALESCE(variant_id,0),sku HAVING SUM(quantity_signed)<0) x" );
-			$diagnostics['completed_transfer_field_gaps']   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tr} WHERE status='Completed' AND (dispatched_qty=0 OR received_qty=0 OR received_at IS NULL)" );
-			$diagnostics['completed_receipt_field_gaps']    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$rc} WHERE status='Completed' AND (actual_quantity_received IS NULL OR received_at IS NULL)" );
+			$diagnostics['transaction_rows']  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $tx ) );
+			$diagnostics['product_rows']      = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE product_type<>'STYLE'", $prod ) );
+			$diagnostics['location_rows']     = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE is_active=1', $loc ) );
+			$diagnostics['orphan_ledger_sku'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i t LEFT JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE p.variant_id IS NULL', $tx, $prod ) );
+			$diagnostics['ledger_missing_variant_identity'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id IS NULL', $tx ) );
+			$diagnostics['orphan_ledger_location']          = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i t LEFT JOIN %i l ON l.id=t.location_id WHERE l.id IS NULL', $tx, $loc ) );
+			$diagnostics['negative_stock_pairs']            = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM (SELECT location_id,COALESCE(variant_id,0) variant_id,sku FROM %i GROUP BY location_id,COALESCE(variant_id,0),sku HAVING SUM(quantity_signed)<0) x', $tx ) );
+			$diagnostics['completed_transfer_field_gaps']   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Completed' AND (dispatched_qty=0 OR received_qty=0 OR received_at IS NULL)", $tr ) );
+			$diagnostics['completed_receipt_field_gaps']    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Completed' AND (actual_quantity_received IS NULL OR received_at IS NULL)", $rc ) );
 			$bal                                       = Stockland_DB::table( 'balances' );
 			$diagnostics['balance_ledger_mismatches']  = (int) $wpdb->get_var(
-				"SELECT COUNT(*) FROM (
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM (
                 SELECT x.location_id,x.variant_id,ROUND(x.ledger_qty,2) ledger_qty,ROUND(COALESCE(b.physical_qty,0),2) balance_qty
-                FROM (SELECT location_id,variant_id,SUM(quantity_signed) ledger_qty FROM {$tx} WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) x
-                LEFT JOIN {$bal} b ON b.location_id=x.location_id AND b.variant_id=x.variant_id
+                FROM (SELECT location_id,variant_id,SUM(quantity_signed) ledger_qty FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) x
+                LEFT JOIN %i b ON b.location_id=x.location_id AND b.variant_id=x.variant_id
                 WHERE ABS(x.ledger_qty-COALESCE(b.physical_qty,0))>0.00001
                 UNION ALL
                 SELECT b.location_id,b.variant_id,0 ledger_qty,ROUND(b.physical_qty,2) balance_qty
-                FROM {$bal} b LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) ledger_qty FROM {$tx} WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) x
+                FROM %i b LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) ledger_qty FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) x
                   ON x.location_id=b.location_id AND x.variant_id=b.variant_id
                 WHERE x.variant_id IS NULL AND ABS(b.physical_qty)>0.00001
-            ) z"
+            ) z",
+					$tx,
+					$bal,
+					$bal,
+					$tx
+				)
 			);
 			$res                                       = Stockland_DB::table( 'reservations' );
-			$diagnostics['orphan_reservations']        = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$res} r LEFT JOIN {$prod} p ON p.variant_id=r.variant_id WHERE r.variant_id IS NULL OR p.variant_id IS NULL" );
+			$diagnostics['orphan_reservations']        = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i r LEFT JOIN %i p ON p.variant_id=r.variant_id WHERE r.variant_id IS NULL OR p.variant_id IS NULL', $res, $prod ) );
 			$diagnostics['over_reserved_pairs']        = (int) $wpdb->get_var(
-				"SELECT COUNT(*) FROM (
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM (
                 SELECT r.location_id,r.variant_id,SUM(r.quantity_reserved) reserved_qty,COALESCE(b.physical_qty,0) physical_qty
-                FROM {$res} r LEFT JOIN {$bal} b ON b.location_id=r.location_id AND b.variant_id=r.variant_id
+                FROM %i r LEFT JOIN %i b ON b.location_id=r.location_id AND b.variant_id=r.variant_id
                 WHERE r.status='Active'
                 GROUP BY r.location_id,r.variant_id
                 HAVING SUM(r.quantity_reserved)>COALESCE(MAX(b.physical_qty),0)+0.00001
-            ) q"
+            ) q",
+					$res,
+					$bal
+				)
 			);
-			$diagnostics['duplicate_product_barcodes'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT barcode FROM {$prod} WHERE barcode IS NOT NULL AND barcode<>'' GROUP BY barcode HAVING COUNT(*)>1) d" );
-			$diagnostics['duplicate_product_gtins']    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT gtin FROM {$prod} WHERE gtin IS NOT NULL AND gtin<>'' GROUP BY gtin HAVING COUNT(*)>1) d" );
+			$diagnostics['duplicate_product_barcodes'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM (SELECT barcode FROM %i WHERE barcode IS NOT NULL AND barcode<>'' GROUP BY barcode HAVING COUNT(*)>1) d", $prod ) );
+			$diagnostics['duplicate_product_gtins']    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM (SELECT gtin FROM %i WHERE gtin IS NOT NULL AND gtin<>'' GROUP BY gtin HAVING COUNT(*)>1) d", $prod ) );
 			$checks['identifier_integrity']            = 0 === $diagnostics['duplicate_product_barcodes'] && 0 === $diagnostics['duplicate_product_gtins'];
 			$checks['ledger_references']               = ( 0 === $diagnostics['orphan_ledger_sku'] && 0 === $diagnostics['ledger_missing_variant_identity'] && 0 === $diagnostics['orphan_ledger_location'] );
 			$checks['no_negative_stock']               = 0 === $diagnostics['negative_stock_pairs'];
