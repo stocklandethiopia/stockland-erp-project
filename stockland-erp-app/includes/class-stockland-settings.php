@@ -1,4 +1,10 @@
 <?php
+/**
+ * Settings persistence with audit and configuration validation.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
