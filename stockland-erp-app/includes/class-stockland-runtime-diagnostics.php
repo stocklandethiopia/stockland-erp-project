@@ -46,10 +46,14 @@ final class Stockland_Runtime_Diagnostics {
 			'memory_usage' => function_exists( 'memory_get_usage' ) ? memory_get_usage( true ) : null,
 			'memory_limit' => function_exists( 'ini_get' ) ? (string) ini_get( 'memory_limit' ) : '',
 		);
+		$persistence_failed = false;
 		try {
-			update_option( self::OPTION, $entry, false );} catch ( Throwable $e ) {
-			}
-			error_log( 'Stockland ERP FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri );
+			update_option( self::OPTION, $entry, false );
+		} catch ( Throwable $e ) {
+			// The shutdown logger below is the fallback when the option write fails.
+			$persistence_failed = true;
+		}
+		error_log( 'Stockland ERP FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri . ' persistence_failed=' . ( $persistence_failed ? 'yes' : 'no' ) );
 	}
 	public static function last_fatal() {
 		$v = get_option( self::OPTION, array() );
@@ -70,7 +74,7 @@ final class Stockland_Runtime_Diagnostics {
 	}
 	/** Return a bounded path without query or fragment data. */
 	private static function request_path( $uri ) {
-		$path = parse_url( (string) $uri, PHP_URL_PATH );
+		$path = wp_parse_url( (string) $uri, PHP_URL_PATH );
 		if ( ! is_string( $path ) || $path === '' ) {
 			$path = '/';
 		}
@@ -95,8 +99,11 @@ final class Stockland_Runtime_Diagnostics {
 		);
 		if ( $wpdb ) {
 			try {
-				$e['db_select_ok'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );} catch ( Throwable $x ) {
-				}
+				$e['db_select_ok'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );
+			} catch ( Throwable $x ) {
+				// Fail closed: the database probe remains false when the query throws.
+				$e['db_select_ok'] = false;
+			}
 		}
 		return $e;
 	}
