@@ -570,7 +570,7 @@ class Stockland_Accounting {
 	 * are backfilled only where an exact active Product Master SKU match exists.
 	 *
 	 * @param string $p WordPress database table prefix.
-		 * @return void
+	 * @return void
 	 * @throws RuntimeException When an expected table/column/index or backfill is invalid.
 	 */
 	private static function upgrade_variant_identity_columns( $p ) {
