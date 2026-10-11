@@ -61,7 +61,7 @@ class Stockland_Requisition_Service {
 		$id = null;
 		try {
 			$id = Stockland_Sequence::next( 'REQ-', current_time( 'Y-m-d' ) );
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'requisitions' ),
 				array(
 					'requisition_id'     => $id,
@@ -74,7 +74,7 @@ class Stockland_Requisition_Service {
 			) ) {
 				throw new Exception( 'Could not create requisition.' );}
 			foreach ( $clean as $it ) {
-				if ( false === $wpdb->insert(
+				if ( false === Stockland_DB::insert_record(
 					Stockland_DB::table( 'requisition_items' ),
 					array(
 						'requisition_id'      => $id,
