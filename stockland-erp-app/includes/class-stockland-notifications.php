@@ -101,7 +101,7 @@ class Stockland_Notifications {
 		$assigned_table = $wpdb->prefix . 'stock_user_locations';
 		$sql            = 'SELECT n.*,l.location_name FROM %i n LEFT JOIN %i l ON l.id=n.location_id WHERE n.is_read=0 AND (n.user_id=%d OR (n.audience_role=%s AND (n.location_id IS NULL OR n.location_id=%d OR EXISTS (SELECT 1 FROM %i sul WHERE sul.wp_user_id=%d AND sul.location_id=n.location_id AND sul.is_active=1 AND (sul.effective_from IS NULL OR sul.effective_from<=CURDATE()) AND (sul.effective_to IS NULL OR sul.effective_to>=CURDATE()))))) ORDER BY n.id DESC LIMIT %d';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is a fixed query template with placeholders for both tables, the capped LIMIT and every user/role/location value; execution always passes through prepare().
-		return $wpdb->get_results( $wpdb->prepare( $sql, Stockland_DB::table( 'notifications' ), Stockland_DB::table( 'locations' ), (int) $user_id, $role, $loc, $assigned_table, (int) $user_id, $limit ), ARRAY_A );
+		return Stockland_DB::read_results( $wpdb->prepare( $sql, Stockland_DB::table( 'notifications' ), Stockland_DB::table( 'locations' ), (int) $user_id, $role, $loc, $assigned_table, (int) $user_id, $limit ), ARRAY_A );
 	}
 	/**
 	 * Marks a notification read only when it is visible to the user.
