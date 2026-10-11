@@ -963,6 +963,7 @@ class Stockland_Activator {
 				);
 			} elseif ( $fresh_namespace ) {
 				// Fresh-install path: execute the already-normalized final DDL directly.
+				$result = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fresh-install CREATE TABLE SQL comes from the plugin-owned fixed schema array and uses only the trusted WordPress prefix.
 				$result = $wpdb->query( $sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
@@ -1069,7 +1070,7 @@ class Stockland_Activator {
 			foreach ( $req_fields_1301 as $field => $definition ) {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
-					$wpdb->query( "ALTER TABLE {$p}stock_requisitions ADD COLUMN {$field} {$definition}" );}
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
 			}
 			$transfer_fields_1301 = array(
 				'pickup_date' => 'DATE NULL AFTER requisition_item_id',
@@ -1613,7 +1614,7 @@ class Stockland_Activator {
 				array( 'source_system', 'VARCHAR(80) NOT NULL DEFAULT \'POS\'' ),
 			) as $c ) {
 				if ( ! $has_col( $sb, $c[0] ) ) {
-					$wpdb->query( "ALTER TABLE {$sb} ADD COLUMN {$c[0]} {$c[1]}" );
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $c[1], $sb, $c[0] ) );
 				}
 			}
 			if ( $has_index( $sb, 'job' ) ) {
