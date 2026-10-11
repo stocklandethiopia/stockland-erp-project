@@ -817,8 +817,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$args   = array_fill( 0, 9, $like );
 				$order  = $wpdb->prepare( 'CASE WHEN sku = %s THEN 0 WHEN barcode = %s THEN 1 WHEN gtin = %s THEN 2 ELSE 3 END, sku ASC', $q, $q, $q );
 			}
-			$sql    = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM {$table} WHERE {$where} ORDER BY {$order} LIMIT %d";
+			$sql    = "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,color,size,barcode,gtin FROM %i WHERE {$where} ORDER BY {$order} LIMIT %d";
 			$args[] = $limit;
+			$args   = array_merge( array( $table ), $args );
 			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
@@ -865,7 +866,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'missing_columns' => $cols,
 					);
 					continue;}
-				$present = $wpdb->get_col( 'SHOW COLUMNS FROM ' . $table, 0 );
+				$present = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
 				if ( $wpdb->last_error ) {
 					$out['schema'][ $logical ] = array(
 						'table_present' => true,
