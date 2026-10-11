@@ -577,11 +577,15 @@ class Stockland_REST_Import_V16 {
 	}
 
 	private function uploaded_file( $key = 'file' ) {
-		if ( empty( $_FILES[ $key ] ) || ! is_array( $_FILES[ $key ] ) ) {
+		// Import endpoints are registered WordPress REST callbacks; REST auth/nonce and
+			// permission checks run before this upload validator is called.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- REST validates nonce/auth and the route capability; all consumed upload fields are type-checked, normalized and verified below.
+		$upload = isset( $_FILES[ $key ] ) && is_array( $_FILES[ $key ] ) ? $_FILES[ $key ] : array();
+		if ( empty( $upload ) ) {
 			throw new Exception( 'Please select an .xlsx file.' );
 		}
-		$upload = $_FILES[ $key ];
-		if ( ! empty( $upload['error'] ) && (int) $upload['error'] !== UPLOAD_ERR_OK ) {
+		$file_error = isset( $upload['error'] ) ? (int) $upload['error'] : UPLOAD_ERR_NO_FILE;
+		if ( UPLOAD_ERR_OK !== $file_error ) {
 			$messages = array(
 				UPLOAD_ERR_INI_SIZE   => 'The XLSX upload exceeds the server upload limit.',
 				UPLOAD_ERR_FORM_SIZE  => 'The XLSX upload exceeds the form upload limit.',
@@ -591,16 +595,17 @@ class Stockland_REST_Import_V16 {
 				UPLOAD_ERR_CANT_WRITE => 'The hosting server could not write the uploaded file.',
 				UPLOAD_ERR_EXTENSION  => 'The hosting server rejected the uploaded file.',
 			);
-			throw new Exception( $messages[ (int) $upload['error'] ] ?? 'The XLSX upload failed.' );
+			throw new Exception( $messages[ $file_error ] ?? 'The XLSX upload failed.' );
 		}
-		$path = (string) ( $upload['tmp_name'] ?? '' );
+		$path = isset( $upload['tmp_name'] ) && is_string( $upload['tmp_name'] ) ? sanitize_text_field( wp_unslash( $upload['tmp_name'] ) ) : '';
 		if ( $path === '' || ! is_file( $path ) || ! is_readable( $path ) ) {
 			throw new Exception( 'The uploaded XLSX file could not be read.' );
 		}
 		if ( function_exists( 'is_uploaded_file' ) && ! is_uploaded_file( $path ) ) {
 			throw new Exception( 'The import file is not a valid HTTP upload. Please upload the workbook again.' );
 		}
-		$name = sanitize_file_name( $upload['name'] ?? '' );
+		$file_name_input = isset( $upload['name'] ) && is_string( $upload['name'] ) ? wp_unslash( $upload['name'] ) : '';
+		$name = sanitize_file_name( $file_name_input );
 		if ( strtolower( pathinfo( $name, PATHINFO_EXTENSION ) ) !== 'xlsx' ) {
 			throw new Exception( 'Only XLSX files are accepted.' );
 		}
