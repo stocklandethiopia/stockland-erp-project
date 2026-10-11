@@ -629,7 +629,6 @@ class Stockland_REST_Requisition_V16 {
 	 * @param WP_REST_Request $r REST request with requisition identifier and action.
 	 * @return mixed REST response or a WP_Error.
 	 * @throws Exception When a guarded warehouse transaction fails.
-	 * @throws RuntimeException When an inventory or ledger invariant fails.
 	 */
 	public function warehouse_action( WP_REST_Request $r ) {
 		global $wpdb;
@@ -810,6 +809,7 @@ class Stockland_REST_Requisition_V16 {
 	 *
 	 * @param WP_REST_Request $r REST request containing the requisition identifier.
 	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When receipt quantities, transfer state or ledger invariants fail.
 	 */
 	public function receive_info( WP_REST_Request $r ) {
 		global $wpdb;
