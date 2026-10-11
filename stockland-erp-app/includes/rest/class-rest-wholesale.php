@@ -56,7 +56,7 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			$rate  = (float) Stockland_DB::get_vat_rate();
 			$gross = Stockland_Money::multiply( $q, $price );
 			$basis = Stockland_DB::get_vat_basis();
-			if ( $basis === 'INCLUSIVE' ) {
+			if ( 'INCLUSIVE' === $basis ) {
 				$vat = Stockland_Money::inclusive_tax( $gross, $rate );
 				$net = Stockland_Money::subtract( $gross, $vat );
 			} else {
@@ -98,7 +98,7 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			if ( ! in_array( $payment_status, array( 'PAID', 'UNPAID', 'PARTIAL' ), true ) ) {
 				throw new Exception( 'Invalid wholesale payment status.' );
 			}
-			$debit_account = $payment_status === 'PAID' ? '1000' : '1100';
+			$debit_account = 'PAID' === $payment_status ? '1000' : '1100';
 			$jid           = Stockland_Accounting::post_journal(
 				$date,
 				'WHOLESALE_SALE',

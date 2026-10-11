@@ -27,7 +27,7 @@ class Stockland_Sourcing {
 			if ( $variant_id > 0 ) {
 				$variant_ids[] = $variant_id;
 			}
-			if ( $sku !== '' ) {
+			if ( '' !== $sku ) {
 				$skus[] = $sku;
 			}
 		}
@@ -45,7 +45,7 @@ class Stockland_Sourcing {
 		$transfer_table  = Stockland_DB::table( 'transfers' );
 
 		$products = self::load_products( $products_table, $variant_ids, $skus );
-		if ( $products === null ) {
+		if ( null === $products ) {
 			return self::unavailable_rows( $items, 'Product Master could not be read safely.' );
 		}
 		if ( ! $products ) {
@@ -70,13 +70,13 @@ class Stockland_Sourcing {
 			$id                     = (int) $loc['id'];
 			$locations_by_id[ $id ] = $loc;
 			$location_ids[]         = $id;
-			if ( $loc['location_type'] === 'Warehouse' && strcasecmp( (string) $loc['location_name'], 'Central Warehouse' ) === 0 ) {
+			if ( 'Warehouse' === $loc['location_type'] && strcasecmp( (string) $loc['location_name'], 'Central Warehouse' ) === 0 ) {
 				$central_id = $id;
 			}
 		}
 		if ( ! $central_id ) {
 			foreach ( (array) $locations as $loc ) {
-				if ( $loc['location_type'] === 'Warehouse' ) {
+				if ( 'Warehouse' === $loc['location_type'] ) {
 					$central_id = (int) $loc['id'];
 					break;
 				}
@@ -102,13 +102,13 @@ class Stockland_Sourcing {
 			'reserved_qty',
 			" AND r.status='Active'"
 		);
-		if ( $physical === null || $reserved === null ) {
+		if ( null === $physical || null === $reserved ) {
 			return self::unavailable_rows( $items, 'Live stock availability could not be read safely.' );
 		}
 
 		$sales   = self::branch_sales_30d( $sales_table, $products_table, $requesting_location_id, $variant_ids, $skus );
 		$pending = self::pending_branch_receipts( $transfer_table, $products_table, $requesting_location_id, $variant_ids, $skus );
-		if ( $sales === null || $pending === null ) {
+		if ( null === $sales || null === $pending ) {
 			return self::unavailable_rows( $items, 'Demand or pending-transfer data could not be read safely.' );
 		}
 
@@ -121,7 +121,7 @@ class Stockland_Sourcing {
 				return $products[ 'v:' . $variant_id ];
 			}
 			$sku = sanitize_text_field( (string) ( $item['sku'] ?? '' ) );
-			if ( $sku !== '' && isset( $products[ 's:' . $sku ] ) ) {
+			if ( '' !== $sku && isset( $products[ 's:' . $sku ] ) ) {
 				return $products[ 's:' . $sku ];
 			}
 			return null;
@@ -170,9 +170,9 @@ class Stockland_Sourcing {
 					continue;
 				}
 
-				$type    = $loc['location_type'] === 'Warehouse' ? 'CENTRAL_WAREHOUSE' : 'PEER_BRANCH';
-				$surplus = $type === 'PEER_BRANCH' ? max( 0, $available - $reorder ) : $available;
-				if ( $type === 'PEER_BRANCH' && $reorder > 0 && $available <= $reorder ) {
+				$type    = 'Warehouse' === $loc['location_type'] ? 'CENTRAL_WAREHOUSE' : 'PEER_BRANCH';
+				$surplus = 'PEER_BRANCH' === $type ? max( 0, $available - $reorder ) : $available;
+				if ( 'PEER_BRANCH' === $type && $reorder > 0 && $available <= $reorder ) {
 					continue;
 				}
 				$claimable = min( $need, $surplus );
@@ -186,8 +186,8 @@ class Stockland_Sourcing {
 					'available'         => $available,
 					'surplus_available' => $surplus,
 					'claimable'         => $claimable,
-					'priority'          => $type === 'CENTRAL_WAREHOUSE' ? 1 : 2,
-					'reason'            => $type === 'CENTRAL_WAREHOUSE'
+					'priority'          => 'CENTRAL_WAREHOUSE' === $type ? 1 : 2,
+					'reason'            => 'CENTRAL_WAREHOUSE' === $type
 						? 'Central Warehouse has live available stock for this SKU.'
 						: 'Peer branch has stock above its Product Master reorder level; the system identifies it as a safer source for inter-branch seeking.',
 				);
@@ -215,7 +215,7 @@ class Stockland_Sourcing {
 				if ( (int) $source['location_id'] === $central_id ) {
 					$central_available = (float) $source['available'];
 				}
-				if ( $source['location_type'] === 'PEER_BRANCH' ) {
+				if ( 'PEER_BRANCH' === $source['location_type'] ) {
 					$peer_total += (float) $source['available'];
 				}
 			}
@@ -297,7 +297,7 @@ class Stockland_Sourcing {
 			return array();
 		}
 
-		$alias       = $table === Stockland_DB::table( 'transactions' ) ? 't' : 'r';
+		$alias       = Stockland_DB::table === $table( 'transactions' ) ? 't' : 'r';
 		$location_ph = implode( ',', array_fill( 0, count( $location_ids ), '%d' ) );
 		$conditions  = array();
 		$args        = $location_ids;
@@ -434,7 +434,7 @@ class Stockland_Sourcing {
 			$requested  = max( 0, (float) ( $item['quantity_requested'] ?? $item['quantity'] ?? 0 ) );
 			$sku        = sanitize_text_field( (string) ( $item['sku'] ?? '' ) );
 			$variant_id = (int) ( $item['variant_id'] ?? 0 );
-			$resolved   = ( $variant_id > 0 && isset( $products[ 'v:' . $variant_id ] ) ) || ( $sku !== '' && isset( $products[ 's:' . $sku ] ) );
+			$resolved   = ( $variant_id > 0 && isset( $products[ 'v:' . $variant_id ] ) ) || ( '' !== $sku && isset( $products[ 's:' . $sku ] ) );
 			if ( ! $resolved ) {
 				$out[] = array(
 					'item_id'   => (int) ( $item['id'] ?? 0 ),

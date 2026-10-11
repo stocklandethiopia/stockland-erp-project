@@ -408,11 +408,11 @@ class Stockland_Accounting {
 		}
 		$journal_date = $journal_date ?: current_time( 'Y-m-d' );
 		$token        = substr( hash( 'sha256', uniqid( 'stockland_ob_', true ) ), 0, 10 );
-		$source_type  = $party_type === 'SUPPLIER' ? 'SUPPLIER_OPENING_BALANCE' : 'CUSTOMER_OPENING_BALANCE';
-		$source_id    = ( $party_type === 'SUPPLIER' ? 'SUP-OB-' : 'CUS-OB-' ) . $party_id . '-' . $token;
+		$source_type  = 'SUPPLIER' === $party_type ? 'SUPPLIER_OPENING_BALANCE' : 'CUSTOMER_OPENING_BALANCE';
+		$source_id    = ( 'SUPPLIER' === $party_type ? 'SUP-OB-' : 'CUS-OB-' ) . $party_id . '-' . $token;
 		$amount       = abs( $delta );
 		$lines        = array();
-		if ( $party_type === 'SUPPLIER' ) {
+		if ( 'SUPPLIER' === $party_type ) {
 			if ( $delta > 0 ) {
 				$lines = array(
 					array(
@@ -493,7 +493,7 @@ class Stockland_Accounting {
 			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.credit-l.debit),0) FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' AND l.supplier_id=%d AND j.source_type='SUPPLIER_OPENING_BALANCE'", $id ) ) ) );
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'SUPPLIER', $id, $posted, $desired, get_current_user_id() );
-				if ( $jid === false ) {
+				if ( false === $jid ) {
 					throw new RuntimeException( 'Could not synchronize supplier opening balance ' . $id . ' to Accounts Payable.' );
 				}
 			}
@@ -503,7 +503,7 @@ class Stockland_Accounting {
 			}
 		}
 		$remaining = max( 0, $limit - $processed );
-		if ( $remaining === 0 ) {
+		if ( 0 === $remaining ) {
 			return true;
 		}
 		$customers = $wpdb->get_results( "SELECT id,opening_balance FROM {$cus} WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT {$remaining}", ARRAY_A );
@@ -513,7 +513,7 @@ class Stockland_Accounting {
 			$posted  = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(l.debit-l.credit),0) FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' AND l.customer_id=%d AND j.source_type='CUSTOMER_OPENING_BALANCE'", $id ) ) ) );
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'CUSTOMER', $id, $posted, $desired, get_current_user_id() );
-				if ( $jid === false ) {
+				if ( false === $jid ) {
 					throw new RuntimeException( 'Could not synchronize customer opening balance ' . $id . ' to Accounts Receivable.' );
 				}
 			}
@@ -787,7 +787,7 @@ class Stockland_Accounting {
 		// Verify each code's active state and account class before permitting statutory posting.
 		foreach ( $accounts as $a ) {
 			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT account_type,is_active FROM %i WHERE account_code=%s LIMIT 1', $table, $a[0] ), ARRAY_A );
-			if ( ! $row || strtoupper( (string) $row['account_type'] ) !== $a[2] || (int) $row['is_active'] !== 1 ) {
+			if ( ! $row || strtoupper( (string) $row['account_type'] ) !== $a[2] || 1 !== (int) $row['is_active'] ) {
 				return false;
 			}
 		}
@@ -807,12 +807,12 @@ class Stockland_Accounting {
 		$map = array();
 		foreach ( (array) $lines as $line ) {
 			$code = sanitize_text_field( (string) ( $line['account_code'] ?? '' ) );
-			if ( $code === '' ) {
+			if ( '' === $code ) {
 				return false;
 			}
-			$location = array_key_exists( 'location_id', $line ) && $line['location_id'] !== null ? (int) $line['location_id'] : null;
-			$supplier = array_key_exists( 'supplier_id', $line ) && $line['supplier_id'] !== null ? (int) $line['supplier_id'] : null;
-			$customer = array_key_exists( 'customer_id', $line ) && $line['customer_id'] !== null ? (int) $line['customer_id'] : null;
+			$location = array_key_exists( 'location_id', $line ) && null !== $line['location_id'] ? (int) $line['location_id'] : null;
+			$supplier = array_key_exists( 'supplier_id', $line ) && null !== $line['supplier_id'] ? (int) $line['supplier_id'] : null;
+			$customer = array_key_exists( 'customer_id', $line ) && null !== $line['customer_id'] ? (int) $line['customer_id'] : null;
 			$key      = wp_json_encode( array( $code, $location, $supplier, $customer ) );
 			if ( ! isset( $map[ $key ] ) ) {
 				$map[ $key ] = array(
@@ -843,7 +843,7 @@ class Stockland_Accounting {
 		}
 		$want = self::canonical_journal_lines( $lines );
 		$have = self::canonical_journal_lines( $existing );
-		if ( $want === false || $have === false || count( $want ) !== count( $have ) ) {
+		if ( false === $want || false === $have || count( $want ) !== count( $have ) ) {
 			return false;
 		}
 		foreach ( $want as $i => $row ) {

@@ -78,7 +78,7 @@ class Stockland_REST_Inventory_Report_V16 {
 			$qty                        = (float) $row['reserved_qty'];
 			$vid                        = (int) $row['variant_id'];
 			$map[ $loc . '|v:' . $vid ] = $qty;
-			if ( (string) $row['sku'] !== '' ) {
+			if ( '' !== (string) $row['sku'] ) {
 				$map[ $loc . '|s:' . (string) $row['sku'] ] = $qty;
 			}
 		}
@@ -458,9 +458,9 @@ class Stockland_REST_Inventory_Report_V16 {
 				$m            = $movement[ $loc_id . '|v:' . $vid ] ?? array();
 				$bkey         = $loc_id . '|v:' . $vid;
 				$f            = $financial[ $loc_id . '|v:' . $vid ] ?? ( $financial[ $loc_id . '|s:' . $sku ] ?? null );
-				$has_activity = isset( $movement[ $bkey ] ) || isset( $balance_map[ $bkey ] ) || isset( $reserved_map[ $loc_id . '|v:' . $vid ] ) || $f !== null;
-				$reorder_raw  = $loc['location_type'] === 'Warehouse' ? $x['central_reorder_level'] : $x['branch_reorder_level'];
-				if ( ! $has_activity && $reorder_raw === null ) {
+				$has_activity = isset( $movement[ $bkey ] ) || isset( $balance_map[ $bkey ] ) || isset( $reserved_map[ $loc_id . '|v:' . $vid ] ) || null !== $f;
+				$reorder_raw  = 'Warehouse' === $loc['location_type'] ? $x['central_reorder_level'] : $x['branch_reorder_level'];
+				if ( ! $has_activity && null === $reorder_raw ) {
 					continue;
 				}
 				++$matching_rows;
@@ -479,8 +479,8 @@ class Stockland_REST_Inventory_Report_V16 {
 				}
 				$reserved            = (float) ( $reserved_map[ $loc_id . '|v:' . $vid ] ?? ( $reserved_map[ $loc_id . '|s:' . $sku ] ?? 0 ) );
 				$available           = $closing - $reserved;
-				$reorder_level       = $reorder_raw === null ? null : (float) $reorder_raw;
-				$reorder_qty         = $reorder_level === null ? 0 : max( 0, $reorder_level - $closing );
+				$reorder_level       = null === $reorder_raw ? null : (float) $reorder_raw;
+				$reorder_qty         = null === $reorder_level ? 0 : max( 0, $reorder_level - $closing );
 				$warehouse_avail     = 0;
 				$warehouse_fillable  = 0;
 				$warehouse_shortfall = 0;
@@ -490,7 +490,7 @@ class Stockland_REST_Inventory_Report_V16 {
 					$warehouse_shortfall = max( 0, $reorder_qty - $warehouse_avail );
 				} else {
 					$warehouse_avail = max( 0, $available );}
-				$status = $reorder_level === null ? 'NO_LEVEL' : ( $reorder_qty > 0 ? ( $warehouse_shortfall > 0 ? 'SHORTFALL' : 'REORDER' ) : 'OK' );
+				$status = null === $reorder_level ? 'NO_LEVEL' : ( $reorder_qty > 0 ? ( $warehouse_shortfall > 0 ? 'SHORTFALL' : 'REORDER' ) : 'OK' );
 
 				$gross                             = (float) ( $f['gross_sales'] ?? 0 );
 				$net                               = (float) ( $f['net_sales'] ?? 0 );
@@ -544,7 +544,7 @@ class Stockland_REST_Inventory_Report_V16 {
 						'closing'               => round( $closing, 2 ),
 						'reserved'              => round( $reserved, 2 ),
 						'available'             => round( $available, 2 ),
-						'reorder_level'         => $reorder_level === null ? null : round( $reorder_level, 2 ),
+						'reorder_level'         => null === $reorder_level ? null : round( $reorder_level, 2 ),
 						'reorder_qty'           => round( $reorder_qty, 2 ),
 						'warehouse_available'   => round( $warehouse_avail, 2 ),
 						'warehouse_fulfillable' => round( $warehouse_fillable, 2 ),
@@ -555,8 +555,8 @@ class Stockland_REST_Inventory_Report_V16 {
 						'sales_cogs'            => round( $cogs, 2 ),
 						'sales_gross_profit'    => round( $gp, 2 ),
 						'sales_lines'           => $sale_lines,
-						'purchase_cost'         => $x['purchase_cost'] === null ? null : round( (float) $x['purchase_cost'], 2 ),
-						'master_price'          => $x['retail_price'] === null ? null : round( (float) $x['retail_price'], 2 ),
+						'purchase_cost'         => null === $x['purchase_cost'] ? null : round( (float) $x['purchase_cost'], 2 ),
+						'master_price'          => null === $x['retail_price'] ? null : round( (float) $x['retail_price'], 2 ),
 						'reorder_status'        => $status,
 					);
 				}

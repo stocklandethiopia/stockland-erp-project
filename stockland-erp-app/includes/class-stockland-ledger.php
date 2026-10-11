@@ -9,10 +9,10 @@ class Stockland_Ledger {
 	private static function begin_unit_of_work( &$owns_transaction, &$savepoint ) {
 		global $wpdb;
 		$state = $wpdb->get_var( 'SELECT @@session.in_transaction' );
-		if ( $state === null ) {
+		if ( null === $state ) {
 			return false; // Unknown transaction state is unsafe; fail closed.
 		}
-		$owns_transaction = ( (int) $state === 0 );
+		$owns_transaction = ( 0 === (int) $state );
 		$savepoint        = '';
 		if ( $owns_transaction ) {
 			return false !== $wpdb->query( 'START TRANSACTION' );
@@ -25,7 +25,7 @@ class Stockland_Ledger {
 		if ( $owns_transaction ) {
 			$wpdb->query( 'ROLLBACK' );
 			return;}
-		if ( $savepoint !== '' ) {
+		if ( '' !== $savepoint ) {
 			$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
 			$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
 	}
@@ -132,7 +132,7 @@ class Stockland_Ledger {
 			if ( ! $product ) {
 				throw new RuntimeException( 'Cannot rebuild balance: Product Master variant not found.' );
 			}
-			$sku  = $new_sku !== null ? (string) $new_sku : (string) $product['sku'];
+			$sku  = null !== $new_sku ? (string) $new_sku : (string) $product['sku'];
 			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM %i WHERE variant_id=%d GROUP BY location_id', $tx, $variant_id ), ARRAY_A );
 			if ( $wpdb->last_error || ! is_array( $rows ) ) {
 				throw new RuntimeException( 'Could not read ledger rows for balance rebuild.' );
@@ -180,7 +180,7 @@ class Stockland_Ledger {
 			}
 			$vid = (int) $product['variant_id'];
 			$qty = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND variant_id=%d', $tx, (int) $location_id, $vid ) );
-			if ( $qty === null || $wpdb->last_error ) {
+			if ( null === $qty || $wpdb->last_error ) {
 				throw new RuntimeException( 'Could not read inventory ledger total.' );
 			}
 			if ( false === $wpdb->delete(
@@ -252,9 +252,9 @@ class Stockland_Ledger {
 	public static function post_wholesale_sale( $sale, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $sale['sku'], 'WHOLESALE_SALE', -abs( (float) $sale['quantity'] ), 'wholesale_sale', $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['sale_id'] );}
 	public static function post_return( $ret, $user_id ) {
-		$sign = ( $ret['return_type'] === 'Return' ) ? 1 : -1;
-		if ( $ret['return_type'] === 'Adjustment' && isset( $ret['adjustment_sign'] ) ) {
+		$sign = ( 'Return' === $ret['return_type'] ) ? 1 : -1;
+		if ( 'Adjustment' === $ret['return_type'] && isset( $ret['adjustment_sign'] ) ) {
 			$sign = (int) $ret['adjustment_sign'];
-		}$movement = $ret['return_type'] === 'Return' ? 'RETURN_IN' : ( $ret['return_type'] === 'Damage' ? 'DAMAGE_LOSS' : 'ADJUSTMENT' );
+		}$movement = 'Return' === $ret['return_type'] ? 'RETURN_IN' : ( 'Damage' === $ret['return_type'] ? 'DAMAGE_LOSS' : 'ADJUSTMENT' );
 		return self::record( $ret['location_id'], $ret['sku'], $movement, $sign * abs( (float) $ret['quantity'] ), 'return', (string) $ret['id'], $ret['return_date'], $user_id, (string) $ret['id'] );}
 }

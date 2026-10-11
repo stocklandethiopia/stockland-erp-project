@@ -82,7 +82,7 @@ class Stockland_Requisition_Service {
 				throw new Exception( 'Requisition create commit failed.' );
 			}
 			$role = Stockland_Authority::role( $user_id );
-			if ( $role !== Stockland_Authority::BRANCH_MANAGER ) {
+			if ( Stockland_Authority::BRANCH_MANAGER !== $role ) {
 				Stockland_Notifications::push_role( 'branch_manager', $branch, 'requisition_review', 'Requisition awaiting review', 'Requisition ' . $id . ' was requested and is waiting for Branch Manager review.', 'requisition', $id, 'action' );
 			}
 			return rest_ensure_response(

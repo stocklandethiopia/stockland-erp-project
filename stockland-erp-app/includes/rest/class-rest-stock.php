@@ -87,7 +87,7 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		foreach ( $rows as &$row ) {
 			$current       = (float) $row['current_stock'];
 			$level         = (float) $row['reorder_level'];
-			$row['status'] = $current == 0 ? 'CRITICAL' : ( $current <= $level ? 'REORDER NOW' : 'OK' );}
+			$row['status'] = 0 == $current ? 'CRITICAL' : ( $current <= $level ? 'REORDER NOW' : 'OK' );}
 		return rest_ensure_response( $rows );
 	}
 }

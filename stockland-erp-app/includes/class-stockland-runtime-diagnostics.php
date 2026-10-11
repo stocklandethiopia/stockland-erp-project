@@ -13,7 +13,7 @@ final class Stockland_Runtime_Diagnostics {
 	}
 	public static function stage( $name ) {
 		$name        = sanitize_key( (string) $name );
-		self::$stage = substr( $name !== '' ? $name : 'unknown', 0, 80 );
+		self::$stage = substr( '' !== $name ? $name : 'unknown', 0, 80 );
 	}
 	public static function capture_fatal() {
 		$last = error_get_last();
@@ -67,7 +67,7 @@ final class Stockland_Runtime_Diagnostics {
 		}
 		foreach ( array( 'reference', 'message', 'file', 'stage', 'method' ) as $key ) {
 			if ( isset( $v[ $key ] ) && is_string( $v[ $key ] ) ) {
-				$v[ $key ] = self::clean( $v[ $key ], $key === 'message' ? self::MAX_TEXT : 300 );
+				$v[ $key ] = self::clean( $v[ $key ], 'message' === $key ? self::MAX_TEXT : 300 );
 			}
 		}
 		return $v;
@@ -78,7 +78,7 @@ final class Stockland_Runtime_Diagnostics {
 		$path    = function_exists( 'wp_parse_url' )
 			? wp_parse_url( $raw_uri, PHP_URL_PATH )
 			: preg_replace( '/[?#].*$/', '', preg_replace( '#^[a-z][a-z0-9+.-]*://[^/]*#i', '', $raw_uri ) );
-		if ( ! is_string( $path ) || $path === '' ) {
+		if ( ! is_string( $path ) || '' === $path ) {
 			$path = '/';
 		}
 		$path = preg_replace( '/[\x00-\x1F\x7F]/', '', $path );

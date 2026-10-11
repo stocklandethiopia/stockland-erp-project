@@ -366,7 +366,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( $wpdb->last_error ) {
 				return false;
 			}
-		} elseif ( (int) $row['is_active'] !== 1 || (string) $row['role'] !== 'owner' ) {
+		} elseif ( 1 !== (int) $row['is_active'] || 'owner' !== (string) $row['role'] ) {
 			$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
@@ -419,10 +419,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	/** Append an IN (...) filter for a location column. Null means company-wide; false means deny. */
 	private function append_scope_filter( $column, &$args, $scope ) {
-		if ( $scope === null ) {
+		if ( null === $scope ) {
 			return '';
 		}
-		if ( $scope === false ) {
+		if ( false === $scope ) {
 			return ' AND 1=0';
 		}
 		$ph = implode( ',', array_fill( 0, count( $scope ), '%d' ) );
@@ -438,7 +438,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		// request running under an authenticated administrator context.
 		$this->ensure_native_admin_profile();
 		$scope = $this->scope_locations();
-		if ( $scope === false ) {
+		if ( false === $scope ) {
 			return new WP_Error( 'no_profile', 'This account has no Stockland role or authorized location scope.', array( 'status' => 403 ) );
 		}
 		global $wpdb;
@@ -602,7 +602,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$args[] = $id;
 				$args[] = $id;}
 			$sql .= " AND (t.from_location_id IN({$ph}) OR t.to_location_id IN({$ph}))";
-		} elseif ( $scope !== null ) {
+		} elseif ( null !== $scope ) {
 			$sql   .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
 			$args[] = $scope;
 			$args[] = $scope; }
@@ -617,21 +617,21 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$bal         = '(SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM ' . Stockland_DB::table( 'transactions' ) . ' WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id)';
 		$loc         = Stockland_DB::table( 'locations' );
 		$prod        = Stockland_DB::table( 'products' );
-		$scope_ids   = is_array( $scope ) ? array_values( array_unique( array_map( 'intval', $scope ) ) ) : ( $scope !== null ? array( (int) $scope ) : null );
+		$scope_ids   = is_array( $scope ) ? array_values( array_unique( array_map( 'intval', $scope ) ) ) : ( null !== $scope ? array( (int) $scope ) : null );
 		$sales_where = '';
 		$sales_args  = array();
 		if ( is_array( $scope_ids ) ) {
 			$ph          = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 			$sales_where = " AND branch_location_id IN({$ph})";
 			$sales_args  = $scope_ids;
-		} elseif ( $scope_ids !== null ) {
+		} elseif ( null !== $scope_ids ) {
 			$sales_where = ' AND branch_location_id=%d';
 			$sales_args  = $scope_ids;}
 			$rt_sql = "SELECT COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity_sold),0) units FROM {$sales} WHERE posting_status='CLOSED'{$sales_where}";
 			$rt     = $sales_args ? $wpdb->get_row( $wpdb->prepare( $rt_sql, $sales_args ), ARRAY_A ) : $wpdb->get_row( $rt_sql, ARRAY_A );
 			// Wholesale sales are company-level in the current data model and are therefore
 			// included only for company-wide dashboards, not branch-scoped dashboards.
-			$wt = $scope_ids !== null ? array(
+			$wt = null !== $scope_ids ? array(
 				'revenue' => 0,
 				'net'     => 0,
 				'profit'  => 0,
@@ -645,7 +645,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$inv_sql .= " WHERE b.location_id IN({$ph})";
 				$inv_args = $scope_ids;
-			} elseif ( $scope_ids !== null ) {
+			} elseif ( null !== $scope_ids ) {
 				$inv_sql         .= ' WHERE b.location_id=%d';
 						$inv_args = $scope_ids;}
 			$inv = $inv_args ? (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, $inv_args ) ) : (float) $wpdb->get_var( $inv_sql );
@@ -656,7 +656,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$low_sql .= " AND l.id IN({$ph})";
 				$low_args = $scope_ids;
-			} elseif ( $scope_ids !== null ) {
+			} elseif ( null !== $scope_ids ) {
 				$low_sql         .= ' AND l.id=%d';
 						$low_args = $scope_ids;}
 			$low_sql .= " AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level)";
@@ -676,7 +676,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ph       = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$req_sql .= " AND branch_location_id IN({$ph})";
 				$req_args = $scope_ids;
-			} elseif ( $scope_ids !== null ) {
+			} elseif ( null !== $scope_ids ) {
 				$req_sql         .= ' AND branch_location_id=%d';
 						$req_args = $scope_ids;}
 			$pending = $req_args ? (int) $wpdb->get_var( $wpdb->prepare( $req_sql, $req_args ) ) : (int) $wpdb->get_var( $req_sql );
@@ -698,7 +698,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ph      = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$pr_sql .= " AND (from_location_id IN({$ph}) OR to_location_id IN({$ph}))";
 				$pr_args = array_merge( $scope_ids, $scope_ids );
-			} elseif ( $scope_ids !== null ) {
+			} elseif ( null !== $scope_ids ) {
 				$pr_sql         .= ' AND (from_location_id=%d OR to_location_id=%d)';
 						$pr_args = array( (int) $scope_ids[0], (int) $scope_ids[0] );}
 				$pending_branch_receipts = $pr_args ? (int) $wpdb->get_var( $wpdb->prepare( $pr_sql, $pr_args ) ) : (int) $wpdb->get_var( $pr_sql );
@@ -714,7 +714,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ph         = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 				$stock_sql .= " AND l.id IN({$ph})";
 				$stock_args = $scope_ids;
-			} elseif ( $scope_ids !== null ) {
+			} elseif ( null !== $scope_ids ) {
 				$stock_sql         .= ' AND l.id=%d';
 						$stock_args = $scope_ids;}
 				$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
@@ -723,10 +723,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$stock_total_sql = "SELECT COALESCE(SUM(b.physical_stock),0) FROM {$bal} b";
 			if ( is_array( $scope_ids ) ) {
 				$stock_total_sql .= ' WHERE b.location_id IN(' . implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) ) . ')';
-			} elseif ( $scope_ids !== null ) {
+			} elseif ( null !== $scope_ids ) {
 				$stock_total_sql .= ' WHERE b.location_id=%d';
 			}
-				$stock_total = $scope_ids === null ? (float) $wpdb->get_var( $stock_total_sql ) : (float) $wpdb->get_var( $wpdb->prepare( $stock_total_sql, $scope_ids ) );
+				$stock_total = null === $scope_ids ? (float) $wpdb->get_var( $stock_total_sql ) : (float) $wpdb->get_var( $wpdb->prepare( $stock_total_sql, $scope_ids ) );
 
 				return array(
 					'today_sales'             => $today_sales,
@@ -770,14 +770,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 			// In-place compatibility: old/new frontend caches may use either parameter name.
 			$q = trim( (string) $request->get_param( 'q' ) );
-			if ( $q === '' ) {
+			if ( '' === $q ) {
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
 			$limit = min( 200, max( 1, (int) ( $request->get_param( 'limit' ) ?: 100 ) ) );
 			$args  = array();
 			$where = "is_active=1 AND product_type<>'STYLE'";
 			$order = 'sku ASC';
-			if ( $q !== '' ) {
+			if ( '' !== $q ) {
 				$like   = '%' . $wpdb->esc_like( $q ) . '%';
 				$where .= ' AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s)';
 				$args   = array_fill( 0, 9, $like );
@@ -862,7 +862,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		} catch ( Throwable $e ) {
 			$db_value = null;
 		}
-		$checks['db']                         = ( (string) $db_value === '1' && empty( $wpdb->last_error ) );
+		$checks['db']                         = ( '1' === (string) $db_value && empty( $wpdb->last_error ) );
 		$diagnostics['health_mode']           = 'quick';
 		$diagnostics['deep_integrity_status'] = 'DEFERRED_NOT_RUN';
 		$diagnostics['php_runtime']           = PHP_VERSION;
@@ -889,7 +889,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['php_runtime']                = version_compare( PHP_VERSION, '8.4', '>=' );
 		$to_bytes                             = function ( $value ) {
 			$value = trim( (string) $value );
-			if ( $value === '' ) {
+			if ( '' === $value ) {
 				return 0;
 			}
 			$last = strtolower( substr( $value, -1 ) );
@@ -957,7 +957,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			array_filter(
 				array_keys( $routes ),
 				static function ( $route ) {
-					return strpos( $route, '/stockland/v16/' ) === 0 || $route === '/stockland/v16';
+					return strpos( $route, '/stockland/v16/' ) === 0 || '/stockland/v16' === $route;
 				}
 			)
 		);
@@ -1055,7 +1055,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['php_runtime']              = version_compare( PHP_VERSION, '8.4', '>=' );
 		$to_bytes                           = function ( $value ) {
 			$value = trim( (string) $value );
-			if ( $value === '' ) {
+			if ( '' === $value ) {
 				return 0;
 			}$last = strtolower( substr( $value, -1 ) );
 			$n     = (float) $value;
@@ -1147,7 +1147,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			array_filter(
 				array_keys( $routes ),
 				function ( $route ) {
-					return strpos( $route, '/stockland/v16/' ) === 0 || $route === '/stockland/v16';
+					return strpos( $route, '/stockland/v16/' ) === 0 || '/stockland/v16' === $route;
 				}
 			)
 		);
@@ -1224,11 +1224,11 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			);
 			$diagnostics['duplicate_product_barcodes'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT barcode FROM {$prod} WHERE barcode IS NOT NULL AND barcode<>'' GROUP BY barcode HAVING COUNT(*)>1) d" );
 			$diagnostics['duplicate_product_gtins']    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT gtin FROM {$prod} WHERE gtin IS NOT NULL AND gtin<>'' GROUP BY gtin HAVING COUNT(*)>1) d" );
-			$checks['identifier_integrity']            = $diagnostics['duplicate_product_barcodes'] === 0 && $diagnostics['duplicate_product_gtins'] === 0;
-			$checks['ledger_references']               = ( $diagnostics['orphan_ledger_sku'] === 0 && $diagnostics['ledger_missing_variant_identity'] === 0 && $diagnostics['orphan_ledger_location'] === 0 );
-			$checks['no_negative_stock']               = $diagnostics['negative_stock_pairs'] === 0;
-			$checks['balance_reconciled']              = $diagnostics['balance_ledger_mismatches'] === 0;
-			$checks['reservation_integrity']           = ( $diagnostics['orphan_reservations'] === 0 && $diagnostics['over_reserved_pairs'] === 0 );
+			$checks['identifier_integrity']            = 0 === $diagnostics['duplicate_product_barcodes'] && 0 === $diagnostics['duplicate_product_gtins'];
+			$checks['ledger_references']               = ( 0 === $diagnostics['orphan_ledger_sku'] && 0 === $diagnostics['ledger_missing_variant_identity'] && 0 === $diagnostics['orphan_ledger_location'] );
+			$checks['no_negative_stock']               = 0 === $diagnostics['negative_stock_pairs'];
+			$checks['balance_reconciled']              = 0 === $diagnostics['balance_ledger_mismatches'];
+			$checks['reservation_integrity']           = ( 0 === $diagnostics['orphan_reservations'] && 0 === $diagnostics['over_reserved_pairs'] );
 		} else {
 			if ( $data_ready && ! $balance_model_ok ) {
 				$diagnostics['balance_ledger_mismatches'] = null;
@@ -1255,7 +1255,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$gll = Stockland_DB::table( 'gl_lines' );
 			$diagnostics['supplier_ap_reconciliation_mismatches'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$sup} s LEFT JOIN (SELECT supplier_id,SUM(total_amount) total FROM {$si} WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id LEFT JOIN (SELECT supplier_id,SUM(amount) total FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id LEFT JOIN (SELECT l.supplier_id,SUM(l.credit-l.debit) balance FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' GROUP BY l.supplier_id) g ON g.supplier_id=s.id WHERE ABS(ROUND(COALESCE(s.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01" );
 			$diagnostics['customer_ar_reconciliation_mismatches'] = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$cus} c LEFT JOIN (SELECT customer_id,SUM(total_amount) total FROM {$ci} WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) total FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id LEFT JOIN (SELECT l.customer_id,SUM(l.debit-l.credit) balance FROM {$gll} l JOIN {$glj} j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' GROUP BY l.customer_id) g ON g.customer_id=c.id WHERE ABS(ROUND(COALESCE(c.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01" );
-			$checks['ap_ar_reconciled']                           = ( $diagnostics['supplier_ap_reconciliation_mismatches'] === 0 && $diagnostics['customer_ar_reconciliation_mismatches'] === 0 );
+			$checks['ap_ar_reconciled']                           = ( 0 === $diagnostics['supplier_ap_reconciliation_mismatches'] && 0 === $diagnostics['customer_ar_reconciliation_mismatches'] );
 		} else {
 			$diagnostics['supplier_ap_reconciliation_mismatches'] = null;
 			$diagnostics['customer_ar_reconciliation_mismatches'] = null;
@@ -1265,7 +1265,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( in_array( 'gl_journals', $found_keys, true ) && in_array( 'gl_lines', $found_keys, true ) ) {
 			$diagnostics['unbalanced_gl_journals'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'gl_journals' ) . ' j JOIN (SELECT journal_id,SUM(debit) d,SUM(credit) c FROM ' . Stockland_DB::table( 'gl_lines' ) . " GROUP BY journal_id) x ON x.journal_id=j.id WHERE j.status='POSTED' AND ABS(x.d-x.c)>0.01" );
 			$diagnostics['orphan_gl_lines']        = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'gl_lines' ) . ' l LEFT JOIN ' . Stockland_DB::table( 'gl_journals' ) . ' j ON j.id=l.journal_id WHERE j.id IS NULL' );
-			$checks['general_ledger_balanced']     = $diagnostics['unbalanced_gl_journals'] === 0 && $diagnostics['orphan_gl_lines'] === 0;
+			$checks['general_ledger_balanced']     = 0 === $diagnostics['unbalanced_gl_journals'] && 0 === $diagnostics['orphan_gl_lines'];
 		} else {
 			$diagnostics['unbalanced_gl_journals'] = null;
 			$diagnostics['orphan_gl_lines']        = null;
@@ -1274,7 +1274,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( in_array( 'purchase_order_items', $found_keys, true ) && in_array( 'purchase_orders', $found_keys, true ) && in_array( 'invoice_items', $found_keys, true ) && in_array( 'customer_invoices', $found_keys, true ) ) {
 			$diagnostics['orphan_po_items']      = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' i LEFT JOIN ' . Stockland_DB::table( 'purchase_orders' ) . ' p ON p.id=i.po_id WHERE p.id IS NULL' );
 			$diagnostics['orphan_invoice_items'] = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'invoice_items' ) . ' i LEFT JOIN ' . Stockland_DB::table( 'customer_invoices' ) . ' h ON h.id=i.invoice_id WHERE h.id IS NULL' );
-			$checks['procurement_references']    = $diagnostics['orphan_po_items'] === 0 && $diagnostics['orphan_invoice_items'] === 0;
+			$checks['procurement_references']    = 0 === $diagnostics['orphan_po_items'] && 0 === $diagnostics['orphan_invoice_items'];
 		} else {
 			$diagnostics['orphan_po_items']      = null;
 			$diagnostics['orphan_invoice_items'] = null;
@@ -1335,7 +1335,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$excluded        = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$employees_table} WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s)", $as_of, $as_of ) );
 			$diagnostics['payroll_compensation_classification']['unresolved_active_employees']         = $unresolved;
 			$diagnostics['payroll_compensation_classification']['excluded_retainer_service_contracts'] = $excluded;
-			$checks['payroll_compensation_classification'] = ( $unresolved === 0 );
+			$checks['payroll_compensation_classification'] = ( 0 === $unresolved );
 		}
 
 		// Source/runtime boundary checks are deliberately narrow: only executable
@@ -1351,7 +1351,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$trigger_hits     = array();
 		foreach ( $source_files as $source_file ) {
 			$src = @file_get_contents( $source_file );
-			if ( $src === false ) {
+			if ( false === $src ) {
 				continue;
 			}
 			if ( preg_match( '/\bwp_remote_(?:get|post|request|head|retrieve|delete|put)\s*\(/i', $src ) || preg_match( '/\bcurl_(?:init|exec|setopt|multi_init)\s*\(/i', $src ) ) {
@@ -1389,7 +1389,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$import_source                          = @file_get_contents( STOCKLAND_PLUGIN_DIR . 'includes/rest/class-rest-import-v16.php' );
 		$xlsx_source                            = @file_get_contents( STOCKLAND_PLUGIN_DIR . 'includes/class-stockland-xlsx.php' );
 		$sourcing_source                        = @file_get_contents( STOCKLAND_PLUGIN_DIR . 'includes/class-stockland-sourcing.php' );
-		$checks['four_layer_import_contract']   = $import_source !== false
+		$checks['four_layer_import_contract']   = false !== $import_source
 			&& strpos( $import_source, 'layer_1_file_integrity' ) !== false
 			&& strpos( $import_source, 'layer_2_identity_mapping' ) !== false
 			&& strpos( $import_source, 'layer_3_business_validation' ) !== false
@@ -1397,16 +1397,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			&& strpos( $import_source, 'STAGED_ONLY_NO_AUTO_POST' ) !== false;
 		// Prove both preview rejection and commit-time defense-in-depth. This avoids
 		// brittle dependence on whitespace or a magic literal that the real code need not use.
-		$checks['product_master_no_stock_contract'] = $import_source !== false
+		$checks['product_master_no_stock_contract'] = false !== $import_source
 			&& strpos( $import_source, 'is not permitted in Product Master import. Use Warehouse Receiving for physical stock.' ) !== false
 			&& strpos( $import_source, 'Product Master commit rejected physical stock field' ) !== false
 			&& strpos( $import_source, "array('initial_stock','opening_stock','stock_quantity','quantity','qty','stock')" ) !== false;
-		$checks['xlsx_stream_contract']             = $xlsx_source !== false
+		$checks['xlsx_stream_contract']             = false !== $xlsx_source
 			&& strpos( $xlsx_source, 'ZipArchive' ) !== false
 			&& strpos( $xlsx_source, 'XMLReader' ) !== false
 			&& strpos( $xlsx_source, 'getStream(' ) !== false
 			&& strpos( $xlsx_source, 'stream_rows(' ) !== false;
-		$checks['sourcing_no_mutation_contract']    = $sourcing_source !== false
+		$checks['sourcing_no_mutation_contract']    = false !== $sourcing_source
 			&& strpos( $sourcing_source, 'INFORMATIONAL_ONLY' ) !== false
 			&& strpos( $sourcing_source, 'action_policy' ) !== false;
 		$checks['no_advisor_runtime']               = true;
@@ -1503,7 +1503,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['live_ready'] = ( $checks['db'] && $checks['php_runtime'] && $checks['xlsx_upload_capacity'] && $checks['balance_model_contract'] && $checks['core_schema'] && $checks['full_schema'] && $checks['schema_contract_exact_49'] && $checks['ledger_runtime'] && $checks['rest_v16'] && $checks['frontend_route'] && $checks['ssl'] && $checks['xlsx_reader'] && $checks['xlsx_streaming_reader'] && $checks['xlsx_xmlreader_stream'] && $checks['sourcing_service'] && $checks['no_advisor_runtime'] && $checks['logo_asset'] && $checks['audit_chain'] && $checks['identifier_integrity'] && $checks['ledger_references'] && $checks['no_negative_stock'] && $checks['balance_reconciled'] && $checks['ap_ar_reconciled'] && $checks['reservation_integrity'] && $checks['general_ledger_balanced'] && $checks['procurement_references'] && $checks['authorization_scope_table'] && $checks['import_rows_schema'] && $checks['notifications_schema'] && $checks['product_master_contract'] && $checks['daily_pos_contract'] && $checks['warehouse_receiving_contract'] && $checks['sku_mapping_contract'] && $checks['variant_first_product_identity'] && $checks['four_layer_import_contract'] && $checks['product_master_no_stock_contract'] && $checks['xlsx_stream_contract'] && $checks['sourcing_no_mutation_contract'] && $checks['no_external_provider_runtime'] && $checks['no_scheduler_dependency'] && $checks['no_database_trigger'] && $checks['pwa_registration_source'] && $checks['payroll_statutory_model'] && $checks['payroll_compensation_classification'] && $checks['supplemental_integrity_scan'] );
 		$failed_checks        = array();
 		foreach ( $checks as $check_key => $check_value ) {
-			if ( $check_key !== 'live_ready' && $check_key !== 'ok' && ! $check_value ) {
+			if ( 'live_ready' !== $check_key && 'ok' !== $check_key && ! $check_value ) {
 				$failed_checks[] = $check_key;
 			}
 		}
@@ -1563,7 +1563,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$ids[] = $id;
 			}
 		}
-		if ( ! $ids && $primary !== null ) {
+		if ( ! $ids && null !== $primary ) {
 			$ids[] = (int) $primary;
 		}
 		$ids = array_values( array_unique( $ids ) );
@@ -1579,14 +1579,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$central = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( in_array( $role, array( Stockland_Roles::ROLE_WAREHOUSE_EMPLOYEE, Stockland_Roles::ROLE_WAREHOUSE_MANAGER ), true ) ) {
-			return $central > 0 && isset( $types[ $central ] ) && $types[ $central ] === 'Warehouse' ? array( $central ) : array();
+			return $central > 0 && isset( $types[ $central ] ) && 'Warehouse' === $types[ $central ] ? array( $central ) : array();
 		}
 		if ( ! in_array( $role, array( Stockland_Roles::ROLE_BRANCH_MANAGER, Stockland_Roles::ROLE_SALES_EMPLOYEE ), true ) ) {
 			return array();
 		}
 		$valid = array();
 		foreach ( $ids as $id ) {
-			if ( isset( $types[ $id ] ) && $types[ $id ] === 'Branch' ) {
+			if ( isset( $types[ $id ] ) && 'Branch' === $types[ $id ] ) {
 				$valid[] = $id;
 			}
 		}
@@ -1596,9 +1596,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		usort(
 			$valid,
 			function ( $a, $b ) use ( $primary ) {
-				if ( $primary !== null && $a === (int) $primary ) {
+				if ( null !== $primary && $a === (int) $primary ) {
 					return -1;
-				}if ( $primary !== null && $b === (int) $primary ) {
+				}if ( null !== $primary && $b === (int) $primary ) {
 					return 1;
 				}return $a <=> $b;
 			}
@@ -1610,7 +1610,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		global $wpdb;
 		$table                  = Stockland_DB::table( 'user_locations' );
 		static $table_available = null;
-		if ( $table_available === null ) {
+		if ( null === $table_available ) {
 			$table_available = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) === $table );
 		}
 		if ( ! $table_available ) {
@@ -1626,7 +1626,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$values       = array();
 		$placeholders = array();
 		foreach ( $ids as $index => $loc ) {
-			$is_primary     = ( (int) $loc === (int) $primary || ( $primary === null && $index === 0 ) ) ? 1 : 0;
+			$is_primary     = ( (int) $loc === (int) $primary || ( null === $primary && 0 === $index ) ) ? 1 : 0;
 			$placeholders[] = '(%d,%d,%d,1,%d)';
 			array_push( $values, $user_id, $loc, $is_primary, $created );
 		}
@@ -1725,7 +1725,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! in_array( $role, Stockland_Roles::supported_roles(), true ) ) {
 			return new WP_Error( 'invalid_role', 'Invalid Stockland role.', array( 'status' => 400 ) );
 		}
-		if ( $role === Stockland_Roles::ROLE_OWNER && ! Stockland_Authority::is_owner() ) {
+		if ( Stockland_Roles::ROLE_OWNER === $role && ! Stockland_Authority::is_owner() ) {
 			return new WP_Error( 'owner_only', 'Only the current Owner may assign the Owner role.', array( 'status' => 403 ) );
 		}
 		if ( in_array( $role, array( Stockland_Roles::ROLE_BRANCH_MANAGER, Stockland_Roles::ROLE_SALES_EMPLOYEE ), true ) ) {
@@ -1761,10 +1761,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$email = sanitize_email( $p['email'] ?? '' );
 		$pass  = (string) ( $p['password'] ?? '' );
 		$role  = sanitize_key( $p['role'] ?? Stockland_Roles::ROLE_SALES_EMPLOYEE );
-		if ( $login === '' || strlen( $pass ) < 10 ) {
+		if ( '' === $login || strlen( $pass ) < 10 ) {
 			return new WP_Error( 'invalid_user_input', 'Username and a password of at least 10 characters are required.', array( 'status' => 400 ) );
 		}
-		$primary    = array_key_exists( 'branch_location_id', $p ) && $p['branch_location_id'] !== '' ? (int) $p['branch_location_id'] : null;
+		$primary    = array_key_exists( 'branch_location_id', $p ) && '' !== $p['branch_location_id'] ? (int) $p['branch_location_id'] : null;
 		$assignment = $this->validated_assignment( $role, $primary, $p['location_ids'] ?? array() );
 		if ( is_wp_error( $assignment ) ) {
 			return $assignment;
@@ -1853,12 +1853,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$native          = array_values( (array) ( $wu ? $wu->roles : array() ) );
 			$erp_role        = $row['erp_role'] ? 'stockland_' . sanitize_key( $row['erp_role'] ) : '';
 			$active          = ( (int) ( $row['erp_is_active'] ?? 0 ) === 1 );
-			$wp_role_present = $erp_role !== '' && in_array( $erp_role, $native, true );
+			$wp_role_present = '' !== $erp_role && in_array( $erp_role, $native, true );
 			if ( $active && $wp_role_present ) {
 				continue;
 			}
 			$row['native_roles']          = $native;
-			$row['has_stockland_profile'] = $row['erp_role'] !== null && $row['erp_role'] !== '';
+			$row['has_stockland_profile'] = null !== $row['erp_role'] && '' !== $row['erp_role'];
 			$row['is_erp_active']         = $active;
 			$row['erp_role']              = $erp_role;
 			$row['status_label']          = $active ? 'ERP role not active on account' : 'ERP profile not active';
@@ -1915,7 +1915,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'not_found', 'WordPress user account not found.', array( 'status' => 404 ) );
 		}
 		$role       = sanitize_key( $p['role'] ?? Stockland_Roles::ROLE_SALES_EMPLOYEE );
-		$primary    = array_key_exists( 'branch_location_id', $p ) && $p['branch_location_id'] !== '' ? (int) $p['branch_location_id'] : null;
+		$primary    = array_key_exists( 'branch_location_id', $p ) && '' !== $p['branch_location_id'] ? (int) $p['branch_location_id'] : null;
 		$assignment = $this->validated_assignment( $role, $primary, $p['location_ids'] ?? array() );
 		if ( is_wp_error( $assignment ) ) {
 			return $assignment;
@@ -1970,7 +1970,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 	private function locations_for_assignment() {
 		static $rows = null;
-		if ( $rows !== null ) {
+		if ( null !== $rows ) {
 			return $rows;
 		}
 		global $wpdb;
@@ -1990,16 +1990,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'self_deactivate', 'You cannot deactivate your own account.', array( 'status' => 409 ) );
 		}
 		$role = sanitize_key( $p['role'] ?? ( 'stockland_' . $row['role'] ) );
-		if ( $row['role'] === 'owner' && ! Stockland_Authority::is_owner() ) {
+		if ( 'owner' === $row['role'] && ! Stockland_Authority::is_owner() ) {
 			return new WP_Error( 'owner_only', 'Owner accounts can be administered only by the Owner.', array( 'status' => 403 ) );
 		}
-		$primary    = array_key_exists( 'branch_location_id', $p ) && $p['branch_location_id'] !== '' ? (int) $p['branch_location_id'] : null;
+		$primary    = array_key_exists( 'branch_location_id', $p ) && '' !== $p['branch_location_id'] ? (int) $p['branch_location_id'] : null;
 		$assignment = $this->validated_assignment( $role, $primary, array_key_exists( 'location_ids', $p ) ? $p['location_ids'] : Stockland_Authority::location_ids( $target ) );
 		if ( is_wp_error( $assignment ) ) {
 			return $assignment;
 		}
 		$active = isset( $p['is_active'] ) ? (bool) $p['is_active'] : (bool) $row['is_active'];
-		if ( $row['role'] === 'management' && ! $active ) {
+		if ( 'management' === $row['role'] && ! $active ) {
 			$remaining = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Stockland_DB::table( 'users' ) . " WHERE role='management' AND is_active=1 AND wp_user_id<>%d", $target ) );
 			if ( $remaining < 1 ) {
 				return new WP_Error( 'last_management', 'At least one active Management user must remain.', array( 'status' => 409 ) );
@@ -2069,7 +2069,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		foreach ( $allowed as $k ) {
 			if ( ! array_key_exists( $k, $p ) ) {
 				continue;
-			}if ( $k === 'vat_rate' ) {
+			}if ( 'vat_rate' === $k ) {
 				$v = (float) $p[ $k ];
 				if ( $v < 0 || $v > 1 ) {
 					return new WP_Error( 'invalid_vat', 'VAT rate must be between 0 and 100%.', array( 'status' => 400 ) );
@@ -2108,7 +2108,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'invalid_date_range', 'Use a valid From/To date range.', array( 'status' => 400 ) );
 		}
 		$scope = $this->scope_location();
-		if ( $scope === false ) {
+		if ( false === $scope ) {
 			return new WP_Error( 'location_scope_unavailable', 'A valid assigned location is required for this report. Ask Management to correct your ERP location assignment.', array( 'status' => 403 ) );
 		}
 		$sales = Stockland_DB::table( 'sales' );
@@ -2373,7 +2373,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sku     = sanitize_text_field( $p['sku'] ?? '' );
 		$counted = isset( $p['counted_qty'] ) ? (float) $p['counted_qty'] : -1;
 		$reason  = sanitize_text_field( $p['reason'] ?? '' );
-		if ( ! $sku || $counted < 0 || $reason === '' ) {
+		if ( ! $sku || $counted < 0 || '' === $reason ) {
 			return new WP_Error( 'invalid', 'SKU, counted quantity and reason are required.', array( 'status' => 400 ) );
 		} if ( ! Stockland_DB::get_product( $sku ) ) {
 			return new WP_Error( 'sku', 'SKU not found.', array( 'status' => 404 ) );
@@ -2460,15 +2460,15 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! empty( $a['count_batch_id'] ) ) {
 				throw new Exception( 'This adjustment belongs to physical count ' . $a['count_batch_id'] . '. Approve or reject the whole count batch instead.' );
 			}
-			if ( $a['status'] !== 'Pending' ) {
+			if ( 'Pending' !== $a['status'] ) {
 				throw new Exception( 'Adjustment request is already ' . $a['status'] . '.' );
 			}
 			$current_system = Stockland_DB::get_physical_stock( (int) $a['location_id'], $a['sku'] );
 			if ( abs( (float) $current_system - (float) $a['system_qty'] ) > 0.00001 ) {
 				throw new Exception( 'Stock changed after this count was submitted. Recount is required before approval.' );
 			}
-			if ( $decision === 'Rejected' ) {
-				if ( $reason === '' ) {
+			if ( 'Rejected' === $decision ) {
+				if ( '' === $reason ) {
 					throw new Exception( 'Rejection reason is required.' );
 				}
 				if ( false === $wpdb->update(
@@ -2657,7 +2657,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$date     = $this->parse_import_date( $row['Count Date'] ?? $row['Date'] ?? '' );
 				$location = sanitize_text_field( $row['Location'] ?? '' );
 				$qty      = isset( $row['Quantity Found'] ) ? (float) $row['Quantity Found'] : ( isset( $row['Counted Qty'] ) ? (float) $row['Counted Qty'] : -1 );
-				if ( ! $date || $qty < 0 || $location === '' ) {
+				if ( ! $date || $qty < 0 || '' === $location ) {
 					$errors[] = 'Row ' . $rn . ': Count Date, Location and non-negative Quantity Found are required.';
 					continue; }
 				$loc_id = Stockland_DB::get_location_id( $location );
@@ -2886,10 +2886,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $b ) {
 			return new WP_Error( 'not_found', 'Physical count batch not found.', array( 'status' => 404 ) );
 		}
-		if ( $b['status'] !== 'Pending' ) {
+		if ( 'Pending' !== $b['status'] ) {
 			return new WP_Error( 'already_decided', 'Physical count is already ' . $b['status'] . '.', array( 'status' => 409 ) );
 		}
-		if ( $decision === 'Rejected' && $reason === '' ) {
+		if ( 'Rejected' === $decision && '' === $reason ) {
 			return new WP_Error( 'reason_required', 'Rejection reason is required.', array( 'status' => 400 ) );
 		}
 		$lock = Stockland_DB::acquire_day_lock( (int) $b['location_id'], $b['count_date'] );
@@ -2901,10 +2901,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count decision transaction.', array( 'status' => 500 ) );}
 		try {
 			$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'count_batches' ) . ' WHERE id=%d FOR UPDATE', $id ), ARRAY_A );
-			if ( ! $batch || $batch['status'] !== 'Pending' ) {
+			if ( ! $batch || 'Pending' !== $batch['status'] ) {
 				throw new Exception( 'Physical count is no longer pending.' );
 			}
-			if ( $decision === 'Rejected' ) {
+			if ( 'Rejected' === $decision ) {
 				if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'adjustments' ) . " SET status='Rejected',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status='Pending'", get_current_user_id(), current_time( 'mysql' ), $reason, $batch['batch_id'] ) ) ) {
 					throw new Exception( 'Could not reject pending physical-count adjustments.' );
 				}
@@ -3078,7 +3078,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function notifications( WP_REST_Request $r ) {
 		global $wpdb;
 		$scope = $this->scope_locations();
-		if ( $scope === false ) {
+		if ( false === $scope ) {
 			return new WP_Error( 'no_profile', 'This account has no Stockland role or authorized location scope.', array( 'status' => 403 ) );
 		}
 		$sql  = 'SELECT e.id,e.entity_type,e.entity_id,e.from_status,e.to_status,e.user_id,e.location_id,e.meta,e.created_at,u.display_name,l.location_name FROM ' . Stockland_DB::table( 'workflow_events' ) . " e LEFT JOIN {$wpdb->users} u ON u.ID=e.user_id LEFT JOIN " . Stockland_DB::table( 'locations' ) . ' l ON l.id=e.location_id WHERE 1=1';
@@ -3096,7 +3096,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$type  = sanitize_key( $r['type'] );
 		$id    = sanitize_text_field( $r['id'] );
 		$scope = $this->scope_location();
-		if ( $scope === false ) {
+		if ( false === $scope ) {
 			return new WP_Error( 'no_profile', 'This account has no Stockland role or branch assignment.', array( 'status' => 403 ) );
 		} $args = array( $type, $id );
 		$sql    = 'SELECT e.*,u.display_name,l.location_name FROM ' . Stockland_DB::table( 'workflow_events' ) . " e LEFT JOIN {$wpdb->users} u ON u.ID=e.user_id LEFT JOIN " . Stockland_DB::table( 'locations' ) . ' l ON l.id=e.location_id WHERE e.entity_type=%s AND e.entity_id=%s';

@@ -38,7 +38,7 @@ class Stockland_DB {
 				$key
 			)
 		);
-		return $value !== null ? $value : $default;
+		return null !== $value ? $value : $default;
 	}
 
 	/** Current VAT rate, e.g. 0.15. Centrally controlled — never sent by the client. */
@@ -79,7 +79,7 @@ class Stockland_DB {
 		global $wpdb;
 		$source_system = sanitize_text_field( (string) $source_system );
 		$external_code = sanitize_text_field( (string) $external_code );
-		if ( $external_code === '' ) {
+		if ( '' === $external_code ) {
 			return null;
 		}
 
@@ -170,14 +170,14 @@ class Stockland_DB {
 	public static function acquire_named_lock( $key, $timeout = 10 ) {
 		global $wpdb;
 		$raw = sanitize_key( (string) $key );
-		if ( $raw === '' ) {
+		if ( '' === $raw ) {
 			$raw = 'generic';
 		}
 		// GET_LOCK names are connection-scoped strings; hash keeps them short and stable.
 		$name = 'stockland_' . substr( hash( 'sha256', $raw ), 0, 48 );
 		$got  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, max( 0, (int) $timeout ) ) );
 		return array(
-			'ok'   => ( (string) $got === '1' ),
+			'ok'   => ( '1' === (string) $got ),
 			'name' => $name,
 			'key'  => $raw,
 		);
@@ -250,7 +250,7 @@ class Stockland_DB {
 	public static function get_product_by_identifier( $code ) {
 		global $wpdb;
 		$code = sanitize_text_field( (string) $code );
-		if ( $code === '' ) {
+		if ( '' === $code ) {
 			return null;
 		}
 		$table = self::table( 'products' );

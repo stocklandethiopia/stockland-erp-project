@@ -211,7 +211,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		if ( in_array( $new, array( 'Received', 'Completed' ), true ) && ! $this->can_receive( $t ) ) {
 			return new WP_Error( 'forbidden', 'Only an authorized destination branch receiver can receive this transfer.', array( 'status' => 403 ) );
 		}
-		if ( $new === 'Approved' ) {
+		if ( 'Approved' === $new ) {
 			if ( ! current_user_can( 'stockland_approve_transfers' ) || ! Stockland_Authority::company_scope() ) {
 				return new WP_Error( 'forbidden', 'Only Management or Owner can approve a standalone transfer request.', array( 'status' => 403 ) );
 			}
@@ -219,7 +219,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				return new WP_Error( 'invalid_transition', 'Requisition-linked transfers are approved by the requisition approval workflow.', array( 'status' => 409 ) );
 			}
 		}
-		if ( $new === 'Reserved' && ! Stockland_Authority::can_reserve_requisition() ) {
+		if ( 'Reserved' === $new && ! Stockland_Authority::can_reserve_requisition() ) {
 			return new WP_Error( 'forbidden', 'Only the Store/Warehouse Manager can reserve a transfer.', array( 'status' => 403 ) );
 		}
 		if ( in_array( $new, array( 'Picked', 'In Transit' ), true ) && ! Stockland_Authority::can_pick_requisition() ) {
@@ -235,10 +235,10 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		if ( in_array( $new, array( 'Reserved', 'Picked', 'In Transit' ), true ) ) {
 			$lock_locations[] = $source;
 		}
-		if ( $new === 'Received' ) {
+		if ( 'Received' === $new ) {
 			$lock_locations[] = $destination;
 		}
-		if ( $new === 'Completed' && $destination ) {
+		if ( 'Completed' === $new && $destination ) {
 			$lock_locations[] = $destination;
 		}
 		$location_locks = Stockland_DB::acquire_location_locks( $lock_locations, current_time( 'Y-m-d' ) );
@@ -256,7 +256,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			$qty    = (float) $current['quantity'];
 			$source = (int) $current['from_location_id'];
 			$sku    = $current['sku'];
-			if ( $new === 'Reserved' ) {
+			if ( 'Reserved' === $new ) {
 				if ( Stockland_DB::get_available_stock( $source, $sku ) < $qty ) {
 					throw new Exception( 'Insufficient available source stock for ' . $sku . '. Available quantity is ' . Stockland_DB::get_available_stock( $source, $sku ) . '.' );
 				}
@@ -291,8 +291,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					}
 				}
 			}
-			if ( $new === 'Picked' ) {
-				$dispatch = isset( $p['dispatched_qty'] ) && $p['dispatched_qty'] !== '' ? (float) $p['dispatched_qty'] : $qty;
+			if ( 'Picked' === $new ) {
+				$dispatch = isset( $p['dispatched_qty'] ) && '' !== $p['dispatched_qty'] ? (float) $p['dispatched_qty'] : $qty;
 				if ( $dispatch <= 0 || $dispatch > $qty ) {
 					throw new Exception( 'Dispatched quantity must be greater than zero and cannot exceed requested quantity (' . $qty . ').' );
 				}
@@ -310,7 +310,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					throw new Exception( 'Source stock ledger could not be posted.' );
 				}
 				$released = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'reservations' ) . " SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", current_time( 'mysql' ), $id ) );
-				if ( $released === false ) {
+				if ( false === $released ) {
 					throw new Exception( 'Could not release the active warehouse reservation.' );
 				}
 				if ( false === $wpdb->update(
@@ -325,8 +325,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				) ) {
 					throw new Exception( 'Could not save transfer dispatch.' );
 				}
-			} elseif ( $new === 'In Transit' ) {
-				if ( $current['status'] !== 'Picked' ) {
+			} elseif ( 'In Transit' === $new ) {
+				if ( 'Picked' !== $current['status'] ) {
 					throw new Exception( 'A transfer must be Picked before it can enter In Transit.' );
 				}
 				if ( (float) $current['dispatched_qty'] <= 0 ) {
@@ -335,12 +335,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( false === $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'status' => 'In Transit' ), array( 'transfer_id' => $id ) ) ) {
 					throw new Exception( 'Could not save transfer In Transit state.' );
 				}
-			} elseif ( $new === 'Received' ) {
+			} elseif ( 'Received' === $new ) {
 				$dispatch = (float) $current['dispatched_qty'];
 				if ( $dispatch <= 0 ) {
 					throw new Exception( 'Transfer must be dispatched before it can be received.' );
 				}
-				$received = isset( $p['received_qty'] ) && $p['received_qty'] !== '' ? (float) $p['received_qty'] : $dispatch;
+				$received = isset( $p['received_qty'] ) && '' !== $p['received_qty'] ? (float) $p['received_qty'] : $dispatch;
 				if ( $received < 0 ) {
 					throw new Exception( 'Received quantity cannot be negative.' );
 				}
@@ -381,8 +381,8 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 						}
 					}
 				}
-			} elseif ( $new === 'Completed' ) {
-				if ( $current['status'] !== 'Received' ) {
+			} elseif ( 'Completed' === $new ) {
+				if ( 'Received' !== $current['status'] ) {
 					throw new Exception( 'A transfer must be Received before it can be Completed.' );
 				}
 				$done_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'status' => 'Completed' ), array( 'transfer_id' => $id ) );
@@ -392,7 +392,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			} else {
 				if ( in_array( $new, array( 'Rejected', 'Cancelled' ), true ) ) {
 					$released = $wpdb->query( $wpdb->prepare( 'UPDATE ' . Stockland_DB::table( 'reservations' ) . " SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", current_time( 'mysql' ), $id ) );
-					if ( $released === false ) {
+					if ( false === $released ) {
 						throw new Exception( 'Could not release the active warehouse reservation.' );
 					}
 				}
@@ -400,7 +400,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( false === $tr_status_ok ) {
 					throw new Exception( 'Could not save transfer status.' );
 				}
-				if ( $new === 'Approved' ) {
+				if ( 'Approved' === $new ) {
 					$tr_approve_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'approved_by' => $user ), array( 'transfer_id' => $id ) );
 					if ( false === $tr_approve_ok ) {
 						throw new Exception( 'Could not save transfer approval.' );
@@ -423,7 +423,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					throw new Exception( 'Transfer workflow event could not be recorded.' );
 				}
 			}
-			$audit_qty = $new === 'Received' ? ( isset( $received ) ? $received : $current['received_qty'] ) : $qty;
+			$audit_qty = 'Received' === $new ? ( isset( $received ) ? $received : $current['received_qty'] ) : $qty;
 			if ( ! Stockland_Audit::log( $user, (int) $current['to_location_id'], 'TRANSFER_STATUS_CHANGE', $sku, $audit_qty, $current['status'], $new, $current['requisition_id'] ?: null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; transfer was not committed.' );
 			}
@@ -434,7 +434,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				throw new Exception( 'Transfer commit failed.' );
 			}
 			Stockland_DB::release_day_locks( $location_locks['locks'] );
-			if ( $new === 'Received' ) {
+			if ( 'Received' === $new ) {
 				$variance_value = isset( $variance ) ? (float) $variance : 0.0;
 				$reason         = sanitize_text_field( (string) ( $p['reason'] ?? '' ) );
 				if ( abs( $variance_value ) > 0.00001 ) {
@@ -481,7 +481,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			),
 			ARRAY_A
 		);
-		if ( ! $req || $req['status'] === $new || $req['status'] === 'Completed' ) {
+		if ( ! $req || $req['status'] === $new || 'Completed' === $req['status'] ) {
 			return;
 		}
 		$allowed = array( 'Reserved', 'Picked', 'Received', 'Completed', 'Cancelled' );
