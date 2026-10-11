@@ -28,13 +28,29 @@ class Stockland_XLSX {
 	const MAX_ZIP_UNCOMPRESSED_BYTES = 96 * 1024 * 1024;
 	const MAX_ZIP_RATIO              = 200;
 
-	/** @var ZipArchive|null Open workbook archive. */
+	/**
+	 * Active workbook ZIP archive.
+	 *
+	 * @var ZipArchive|null
+	 */
 	private $zip = null;
-	/** @var mixed Reserved compatibility field for legacy reader implementations. */
+	/**
+	 * Legacy PclZip reader kept for older integration compatibility.
+	 *
+	 * @var mixed
+	 */
 	private $pcl = null;
-	/** @var array<int, string> Shared strings loaded from the workbook. */
+	/**
+	 * Workbook shared-string table indexed by zero-based identifier.
+	 *
+	 * @var array<int, string>
+	 */
 	private $shared = array();
-	/** @var array<string, string> Worksheet names mapped to archive paths. */
+	/**
+	 * Worksheet names mapped to their normalized ZIP entry paths.
+	 *
+	 * @var array<string, string>
+	 */
 	private $sheets = array();
 
 	/**
@@ -114,7 +130,7 @@ class Stockland_XLSX {
 	 * Resolves a workbook relationship target to its archive entry.
 	 *
 	 * @param string $name Relationship target name.
-	 * @return string Normalized archive path.
+	 * @return string|null Raw archive entry contents, or null when not found.
 	 */
 	private function get_from_name( $name ) {
 		if ( $this->zip ) {
@@ -128,7 +144,7 @@ class Stockland_XLSX {
 	/**
 	 * Returns the uncompressed size of a workbook archive entry.
 	 *
-	 * @param string $path Archive entry path.
+	 * @param string $name Archive entry path.
 	 * @return int|null Entry size, or null when the archive cannot report it.
 	 */
 	private function entry_size( $name ) {
@@ -145,8 +161,8 @@ class Stockland_XLSX {
 	/**
 	 * Loads a bounded XML metadata entry from the workbook.
 	 *
-	 * @param string $path Archive entry path.
-	 * @return SimpleXMLElement|false Parsed XML or false on failure.
+	 * @param string $name Archive entry path.
+	 * @return SimpleXMLElement|null Parsed XML, null when missing or false when malformed.
 	 */
 	private function xml( $name ) {
 		$raw = $this->get_from_name( $name );
@@ -295,7 +311,7 @@ class Stockland_XLSX {
 	/**
 	 * Converts an Excel cell reference into a zero-based column index.
 	 *
-	 * @param string $cell_ref Excel cell reference, such as A1.
+	 * @param string $ref Excel cell reference, such as A1.
 	 * @return int Zero-based column index.
 	 */
 	private function col( $ref ) {
@@ -489,6 +505,7 @@ class Stockland_XLSX {
 			return array();
 		}
 		$all = array();
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- `sheetData` is the external SpreadsheetML element name and must retain its XML spelling.
 		foreach ( $x->sheetData->row as $row ) {
 			$vals = array();
 			foreach ( $row->c as $c ) {
