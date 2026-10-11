@@ -419,6 +419,8 @@ jobs:
             stockland-erp-app/includes/class-stockland-authority.php \
             stockland-erp-app/includes/class-stockland-product-service.php \
             stockland-erp-app/includes/class-stockland-sourcing.php \
+            stockland-erp-app/includes/class-stockland-ledger.php \
+            stockland-erp-app/includes/rest/class-rest-inventory-report-v16.php \
             stockland-erp-app/includes/rest/class-rest-accounting.php \
             stockland-erp-app/includes/rest/class-rest-app.php \
             stockland-erp-app/includes/rest/class-rest-hr.php \
@@ -434,7 +436,7 @@ jobs:
           fi
           while IFS= read -r changed; do
             case "$changed" in
-              stockland-erp-app/includes/class-stockland-authority.php|stockland-erp-app/includes/class-stockland-product-service.php|stockland-erp-app/includes/class-stockland-sourcing.php|stockland-erp-app/includes/rest/class-rest-accounting.php|stockland-erp-app/includes/rest/class-rest-app.php|stockland-erp-app/includes/rest/class-rest-hr.php|stockland-erp-app/includes/rest/class-rest-import-v16.php|stockland-erp-app/includes/rest/class-rest-products.php|stockland-erp-app/includes/rest/class-rest-sales.php|stockland-erp-app/includes/rest/class-rest-stock.php) ;;
+              stockland-erp-app/includes/class-stockland-authority.php|stockland-erp-app/includes/class-stockland-product-service.php|stockland-erp-app/includes/class-stockland-sourcing.php|stockland-erp-app/includes/class-stockland-ledger.php|stockland-erp-app/includes/rest/class-rest-inventory-report-v16.php|stockland-erp-app/includes/rest/class-rest-accounting.php|stockland-erp-app/includes/rest/class-rest-app.php|stockland-erp-app/includes/rest/class-rest-hr.php|stockland-erp-app/includes/rest/class-rest-import-v16.php|stockland-erp-app/includes/rest/class-rest-products.php|stockland-erp-app/includes/rest/class-rest-sales.php|stockland-erp-app/includes/rest/class-rest-stock.php) ;;
               *) echo "::error::Unexpected staged file: $changed"; exit 1 ;;
             esac
           done <<EOF
