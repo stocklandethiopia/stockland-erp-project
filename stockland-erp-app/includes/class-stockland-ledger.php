@@ -31,10 +31,10 @@ class Stockland_Ledger {
 		$owns_transaction = ( 0 === (int) $state );
 		$savepoint        = '';
 		if ( $owns_transaction ) {
-			return false !== $wpdb->query( 'START TRANSACTION' );
+			return false !== Stockland_DB::execute_query( 'START TRANSACTION' );
 		}
 		$savepoint = 'sl_ledger_' . wp_rand( 100000, 999999 );
-		return false !== $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
+		return false !== Stockland_DB::execute_query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
 	}
 	/**
 	 * Roll back the owned transaction or restore the caller's savepoint.
@@ -46,11 +46,11 @@ class Stockland_Ledger {
 	private static function rollback_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
 		if ( $owns_transaction ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return;}
 		if ( '' !== $savepoint ) {
-			$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
-			$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
+			Stockland_DB::execute_query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
 	}
 	/**
 	 * Commit the owned transaction or release a nested savepoint.
@@ -61,7 +61,7 @@ class Stockland_Ledger {
 	 */
 	private static function commit_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
-		$ok = $owns_transaction ? $wpdb->query( 'COMMIT' ) : $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
+		$ok = $owns_transaction ? Stockland_DB::execute_query( 'COMMIT' ) : Stockland_DB::execute_query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
 		if ( false !== $ok ) {
 			return true;
 		}
@@ -142,7 +142,7 @@ class Stockland_Ledger {
 			}
 			$balances = Stockland_DB::table( 'balances' );
 			if ( Stockland_DB::table_exists( $balances ) ) {
-				$balance_ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
+				$balance_ok = Stockland_DB::execute_query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
 				if ( false === $balance_ok ) {
 					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
@@ -190,7 +190,7 @@ class Stockland_Ledger {
 			if ( $wpdb->last_error || ! is_array( $rows ) ) {
 				throw new RuntimeException( 'Could not read ledger rows for balance rebuild.' );
 			}
-			if ( false === $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE variant_id=%d', $bal, $variant_id ) ) ) {
+			if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'DELETE FROM %i WHERE variant_id=%d', $bal, $variant_id ) ) ) {
 				throw new RuntimeException( 'Could not clear derived balance rows.' );
 			}
 			foreach ( $rows as $row ) {
