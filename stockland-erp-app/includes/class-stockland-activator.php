@@ -64,7 +64,7 @@ class Stockland_Activator {
 		global $wpdb;
 		$prefix     = $wpdb->prefix . 'stock_';
 		$like       = $wpdb->esc_like( $prefix ) . '%';
-		$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) );
+		$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) );
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
 			if ( strpos( $table, $prefix ) === 0 ) {
@@ -116,7 +116,7 @@ class Stockland_Activator {
 		// error: "Value of type null is not callable". Keep the helpers local to this
 		// activation scope so both bounded and full in-place repair paths are safe.
 		$has_col   = function ( $table, $column ) use ( $wpdb ) {
-			return (bool) $wpdb->get_var(
+			return (bool) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s',
 					DB_NAME,
@@ -126,7 +126,7 @@ class Stockland_Activator {
 			);
 		};
 		$has_index = function ( $table, $index ) use ( $wpdb ) {
-			return (bool) $wpdb->get_var(
+			return (bool) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME=%s',
 					DB_NAME,
@@ -143,7 +143,7 @@ class Stockland_Activator {
 		// non-destructive and schema-diff aware.
 		$stock_prefix          = $p . 'stock_';
 		$like_stock            = $wpdb->esc_like( $stock_prefix ) . '%';
-		$existing_stock_tables = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like_stock ) );
+		$existing_stock_tables = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like_stock ) );
 		$fresh_namespace       = empty( $existing_stock_tables );
 
 		$tables = array();
@@ -893,7 +893,7 @@ class Stockland_Activator {
 		// install before dbDelta/DDL touches the staged import table. Fresh installs use
 		// source_row_number directly, while this compatibility path preserves old data.
 		$import_rows_table = Stockland_DB::table( 'import_rows' );
-		$table_exists      = $wpdb->get_var(
+		$table_exists      = Stockland_DB::read_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 				DB_NAME,
@@ -901,14 +901,14 @@ class Stockland_Activator {
 			)
 		);
 		if ( $table_exists ) {
-			$legacy_col = $wpdb->get_var(
+			$legacy_col = Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='row_number'",
 					DB_NAME,
 					$import_rows_table
 				)
 			);
-			$new_col    = $wpdb->get_var(
+			$new_col    = Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='source_row_number'",
 					DB_NAME,
@@ -1024,7 +1024,7 @@ class Stockland_Activator {
 		if ( ! $fresh_namespace ) {
 			// Safe schema upgrade for the physical-count link. Never run an
 			// unconditional ALTER because activation is intentionally idempotent.
-			$has_count_batch = $wpdb->get_var(
+			$has_count_batch = Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='count_batch_id'",
 					DB_NAME,
@@ -1054,7 +1054,7 @@ class Stockland_Activator {
 				'owner_approval_notes'      => 'VARCHAR(255) NULL AFTER owner_approved_at',
 			);
 			foreach ( $req_fields as $field => $definition ) {
-				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
+				$exists = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
 					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
@@ -1069,7 +1069,7 @@ class Stockland_Activator {
 				'warehouse_picked_at'   => 'DATETIME NULL AFTER warehouse_picked_by',
 			);
 			foreach ( $req_fields_1301 as $field => $definition ) {
-				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
+				$exists = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The definition is selected from the fixed $req_fields_1301 migration map; identifiers remain bound.
 					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );
@@ -1083,13 +1083,13 @@ class Stockland_Activator {
 				'picked_at'   => 'DATETIME NULL AFTER picked_by',
 			);
 			foreach ( $transfer_fields_1301 as $field => $definition ) {
-				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_transfers', $field ) );
+				$exists = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_transfers', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
 					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );
 				}
 			}
-			$expense_loc = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='location_id'", DB_NAME, $p . 'stock_expenses' ) );
+			$expense_loc = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='location_id'", DB_NAME, $p . 'stock_expenses' ) );
 			if ( ! $expense_loc ) {
 				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $p . 'stock_expenses', 'location_id', 'expense_date' ) );
 				$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i,%i)', $p . 'stock_expenses', 'location_date', 'location_id', 'expense_date' ) );}
@@ -1099,7 +1099,7 @@ class Stockland_Activator {
 			// CREATE TABLE above is the source of truth; live business rows are never
 			// fabricated here.
 			if ( self::table_exists_static( $p . 'stock_import_rows' ) ) {
-				$legacy_indexes = $wpdb->get_col(
+				$legacy_indexes = Stockland_DB::read_col(
 					$wpdb->prepare(
 						"SELECT DISTINCT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME IN('job','branch_date')",
 						DB_NAME,
@@ -1116,7 +1116,7 @@ class Stockland_Activator {
 
 			// 15.0: reservation identity follows immutable variant_id. Existing rows are
 			// backfilled from the current Product Master without rewriting historical quantities.
-			$has_res_variant = (int) $wpdb->get_var(
+			$has_res_variant = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='variant_id'",
 					DB_NAME,
@@ -1160,7 +1160,7 @@ class Stockland_Activator {
 
 			// 10.5: historical audit rows are preserved as hash_version=1. New events use
 			// canonical v2 hashing; no historical audit hash is rewritten.
-			$has_hash_version = $wpdb->get_var(
+			$has_hash_version = Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='hash_version'",
 					DB_NAME,
@@ -1249,7 +1249,7 @@ class Stockland_Activator {
 		$uid = get_current_user_id();
 		if ( $uid ) {
 			global $wpdb;
-			$existing_profile = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE wp_user_id=%d LIMIT 1', $p . 'stock_users', $uid ) );
+			$existing_profile = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE wp_user_id=%d LIMIT 1', $p . 'stock_users', $uid ) );
 			if ( ! $existing_profile ) {
 				$wpdb->query(
 					$wpdb->prepare(
@@ -1342,7 +1342,7 @@ class Stockland_Activator {
 	 */
 	private static function table_exists_static( $table_name ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var(
+		return (bool) Stockland_DB::read_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 				DB_NAME,
@@ -1392,7 +1392,7 @@ class Stockland_Activator {
 	 */
 	private static function backfill_location_codes( $p ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,branch_code FROM %i ORDER BY id', $p . 'stock_locations' ), ARRAY_A );
+		$rows = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_name,location_type,branch_code FROM %i ORDER BY id', $p . 'stock_locations' ), ARRAY_A );
 		if ( ! $rows ) {
 			return;
 		}
@@ -1402,7 +1402,7 @@ class Stockland_Activator {
 			}
 			$prefix    = 'Warehouse' === $row['location_type'] ? 'WH' : ( 'Sales channel' === $row['location_type'] ? 'SC' : 'BR' );
 			$candidate = $prefix . str_pad( (string) ( (int) $row['id'] ), 3, '0', STR_PAD_LEFT );
-			$exists    = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE branch_code=%s AND id<>%d LIMIT 1', $p . 'stock_locations', $candidate, (int) $row['id'] ) );
+			$exists    = Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE branch_code=%s AND id<>%d LIMIT 1', $p . 'stock_locations', $candidate, (int) $row['id'] ) );
 			if ( $exists ) {
 				$candidate = $prefix . str_pad( (string) ( (int) $row['id'] ), 4, '0', STR_PAD_LEFT );
 			}
@@ -1534,20 +1534,20 @@ class Stockland_Activator {
 		if ( ! self::table_exists_static( $table ) ) {
 			return;
 		}
-		$pk            = $wpdb->get_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $table ), ARRAY_A );
+		$pk            = Stockland_DB::read_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $table ), ARRAY_A );
 		$is_variant_pk = ( is_array( $pk ) && count( $pk ) === 1 && ( ( $pk[0]['COLUMN_NAME'] ?? '' ) === 'variant_id' ) );
 		if ( $is_variant_pk ) {
 			return;
 		}
-		$dup_sku = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i GROUP BY sku HAVING COUNT(*)>1 LIMIT 1', $table ) );
+		$dup_sku = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i GROUP BY sku HAVING COUNT(*)>1 LIMIT 1', $table ) );
 		if ( $dup_sku > 0 ) {
 			throw new RuntimeException( 'Cannot enforce variant-first Product Master identity: duplicate SKU values exist. Resolve duplicates before continuing.' );
 		}
-		$dup_vid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM (SELECT variant_id FROM %i GROUP BY variant_id HAVING COUNT(*)>1) x', $table ) );
+		$dup_vid = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM (SELECT variant_id FROM %i GROUP BY variant_id HAVING COUNT(*)>1) x', $table ) );
 		if ( $dup_vid > 0 ) {
 			throw new RuntimeException( 'Cannot enforce variant-first Product Master identity: duplicate variant_id values exist.' );
 		}
-		$has_sku_unique = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='sku' AND NON_UNIQUE=0", DB_NAME, $table ) );
+		$has_sku_unique = (bool) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='sku' AND NON_UNIQUE=0", DB_NAME, $table ) );
 		if ( false === $has_sku_unique ) {
 			$has_sku_unique = false; }
 		$sku_clause       = $has_sku_unique ? '' : ', ADD UNIQUE KEY sku (sku)';
@@ -1571,7 +1571,7 @@ class Stockland_Activator {
 	private static function apply_schema_1600_migrations( $p ) {
 		global $wpdb;
 		$has_col   = function ( $table, $column ) use ( $wpdb ) {
-			return (bool) $wpdb->get_var(
+			return (bool) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s',
 					DB_NAME,
@@ -1581,7 +1581,7 @@ class Stockland_Activator {
 			);
 		};
 		$has_index = function ( $table, $index ) use ( $wpdb ) {
-			return (bool) $wpdb->get_var(
+			return (bool) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME=%s',
 					DB_NAME,
@@ -1684,12 +1684,12 @@ class Stockland_Activator {
 					throw new RuntimeException( 'Could not add updated_at to stock_balances.' );
 				}
 			}
-			$unresolved = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i b LEFT JOIN %i p ON p.sku=b.sku WHERE b.variant_id IS NULL AND p.variant_id IS NULL', $bal, $p . 'stock_products' ) );
+			$unresolved = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i b LEFT JOIN %i p ON p.sku=b.sku WHERE b.variant_id IS NULL AND p.variant_id IS NULL', $bal, $p . 'stock_products' ) );
 			if ( $unresolved > 0 ) {
 				throw new RuntimeException( 'Cannot migrate stock_balances: ' . esc_html( (string) $unresolved ) . ' derived balance row(s) have no matching Product Master variant.' );
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE %i b INNER JOIN %i p ON p.sku=b.sku SET b.variant_id=p.variant_id WHERE b.variant_id IS NULL', $bal, $p . 'stock_products' ) );
-			$pk_cols        = $wpdb->get_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $bal ), ARRAY_A );
+			$pk_cols        = Stockland_DB::read_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $bal ), ARRAY_A );
 			$has_variant_pk = ( is_array( $pk_cols ) && count( $pk_cols ) === 2 && ( ( $pk_cols[0]['COLUMN_NAME'] ?? '' ) === 'location_id' ) && ( ( $pk_cols[1]['COLUMN_NAME'] ?? '' ) === 'variant_id' ) );
 			if ( ! $has_variant_pk ) {
 				$suffix = gmdate( 'YmdHis' );
@@ -1727,8 +1727,8 @@ class Stockland_Activator {
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not populate staged balance read model.' );
 				}
-				$source_total = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(physical_qty),0) FROM %i', $bal ) );
-				$stage_total  = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(physical_qty),0) FROM %i', $stage ) );
+				$source_total = (float) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COALESCE(SUM(physical_qty),0) FROM %i', $bal ) );
+				$stage_total  = (float) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COALESCE(SUM(physical_qty),0) FROM %i', $stage ) );
 				if ( abs( $source_total - $stage_total ) > 0.00001 ) {
 					throw new RuntimeException( 'Derived balance reconciliation failed before cutover. Live read model was preserved.' );
 				}
