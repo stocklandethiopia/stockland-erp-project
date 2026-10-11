@@ -19,6 +19,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * Registers accounting and procurement routes for the ERP REST controller.
 	 *
 	 * @return void Registers controller hooks.
+	 * @throws Exception When validation or database transaction processing fails.
 	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
@@ -727,6 +728,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$args[] = $p;
 		}
 		$sql         .= ' ORDER BY po.id DESC LIMIT 500';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The query is assembled only from fixed SQL fragments and %i/%d/%s placeholders; all identifiers and values are passed in the matching prepare arguments.
 		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		$finance_view = $this->can( 'stockland_view_financials' );
 		$uid          = get_current_user_id();
