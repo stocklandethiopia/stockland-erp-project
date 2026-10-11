@@ -1671,9 +1671,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return array();
 		}
 		global $wpdb;
-		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table is bound as %i; the only dynamic SQL fragment is a comma-separated list of %d placeholders generated from unique integer-cast IDs.
-		$rows         = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM %i WHERE is_active=1 AND id IN(' . $placeholders . ')', array_merge( array( Stockland_DB::table( 'locations' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
+		// IDs are cast to positive integers above. FIND_IN_SET keeps the value list in a single prepared string and avoids constructing SQL placeholders from request data.
+		$rows         = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM %i WHERE is_active=1 AND FIND_IN_SET(id,%s)', Stockland_DB::table( 'locations' ), implode( ',', $ids ) ), ARRAY_A );
 		$types        = array();
 		foreach ( $rows as $row ) {
 			$types[ (int) $row['id'] ] = (string) $row['location_type'];
@@ -2204,7 +2203,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function reports_summary( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
-		$from           = sanitize_text_field( $requested_from ? $requested_from : date( 'Y-m-01', current_time( 'timestamp' ) ) );
+		$from           = sanitize_text_field( $requested_from ? $requested_from : wp_date( 'Y-m-01' ) );
 		$requested_to   = $r->get_param( 'to' );
 		$to             = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! $this->parse_import_date( $from ) || ! $this->parse_import_date( $to ) || $from > $to ) {
