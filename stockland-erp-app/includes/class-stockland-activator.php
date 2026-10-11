@@ -941,8 +941,8 @@ class Stockland_Activator {
 				// proof that the physical table exists. Each table is verified immediately.
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is built from the fixed Core schema array and the trusted WordPress prefix; SQL structure cannot be bound as a data value.
-				$result     = $wpdb->query( $direct_sql );
-				$db_error   = (string) $wpdb->last_error;
+				$result   = $wpdb->query( $direct_sql );
+				$db_error = (string) $wpdb->last_error;
 				if ( false === $result ) {
 					$detail = 'Core table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( '' !== $db_error ) {
@@ -996,7 +996,7 @@ class Stockland_Activator {
 				$fallback_sql     = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fallback CREATE TABLE DDL is derived from the same fixed Core schema allowlist; no request data is included.
-				$result           = $wpdb->query( $fallback_sql );
+				$result = $wpdb->query( $fallback_sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
 				}
@@ -1057,7 +1057,7 @@ class Stockland_Activator {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_requisitions', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_requisitions', $field ) );}
 			}
 			// Warehouse-controlled reservation / picking + branch pickup appointment.
 			$req_fields_1301 = array(
@@ -1083,7 +1083,7 @@ class Stockland_Activator {
 				$exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME=%s', DB_NAME, $p . 'stock_transfers', $field ) );
 				if ( ! $exists ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The SQL type/default fragment comes from the fixed required-columns allowlist; table and column identifiers are bound below.
-			$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );}
+					$wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i ' . $definition, $p . 'stock_transfers', $field ) );}
 			}
 			$expense_loc = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='location_id'", DB_NAME, $p . 'stock_expenses' ) );
 			if ( ! $expense_loc ) {
@@ -1194,7 +1194,7 @@ class Stockland_Activator {
 		// Seeded locations created after migration also receive stable codes immediately.
 		self::backfill_location_codes( $p );
 		self::seed_settings( $p );
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)", $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (setting_key,setting_value) VALUES (%s,%s)', $p . 'stock_settings', 'requisition_approval_mode', 'ONE_OF' ) );
 
 		// Roles must exist before accounting/procurement grants are applied.
 		Stockland_Roles::register_roles();
@@ -1699,14 +1699,17 @@ class Stockland_Activator {
 				}
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The table identifier is bound; the only appended fragment is wpdb's trusted charset/collation clause for this fixed migration DDL.
 				$wpdb->query(
-					$wpdb->prepare( "CREATE TABLE %i (
+					$wpdb->prepare(
+						'CREATE TABLE %i (
                     location_id BIGINT UNSIGNED NOT NULL,
                     sku VARCHAR(64) NOT NULL,
                     variant_id BIGINT UNSIGNED NOT NULL,
                     physical_qty DECIMAL(14,2) NOT NULL DEFAULT 0,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     PRIMARY KEY  (location_id,variant_id), KEY sku (sku), KEY location_sku (location_id,sku)
-                ) ENGINE=InnoDB", $stage ) . ' ' . $wpdb->get_charset_collate()
+                ) ENGINE=InnoDB',
+						$stage
+					) . ' ' . $wpdb->get_charset_collate()
 				);
 				if ( $wpdb->last_error ) {
 					throw new RuntimeException( 'Could not create staged balance read model.' );
