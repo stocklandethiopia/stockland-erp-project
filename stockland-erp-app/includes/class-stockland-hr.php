@@ -1,10 +1,4 @@
 <?php
-/**
- * Stockland ERP component.
- *
- * @package Stockland_ERP
- */
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -19,9 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Stockland_HR {
 	const DB_VERSION = STOCKLAND_HR_SCHEMA_VERSION;
 
-	/**
-	 * Handles table keys within the Stockland ERP component.
-	 */
 	public static function table_keys() {
 		return array( 'employees', 'employee_compensation', 'payroll_periods', 'payroll_lines' );
 	}
@@ -96,8 +87,7 @@ class Stockland_HR {
 		return $gaps;
 	}
 
-	/** Apply missing columns to one HR table per protected setup batch (or all tables for manual repair). 	 * @param mixed $limit_tables The limit tables value.
-*/
+	/** Apply missing columns to one HR table per protected setup batch (or all tables for manual repair). */
 	private static function upgrade_columns( $limit_tables = 0 ) {
 		global $wpdb;
 		$prefix    = $wpdb->prefix . 'stock_';
@@ -149,9 +139,6 @@ class Stockland_HR {
 		);
 	}
 
-	/**
-	 * Handles missing tables within the Stockland ERP component.
-	 */
 	public static function missing_tables() {
 		global $wpdb;
 		$prefix     = $wpdb->prefix . 'stock_';
@@ -165,9 +152,6 @@ class Stockland_HR {
 		return array_values( array_diff( self::table_keys(), $found_keys ) );
 	}
 
-	/**
-	 * Handles maybe install within the Stockland ERP component.
-	 */
 	public static function maybe_install() {
 		// Schema installation is never a public/front-end operation. It is an
 		// Owner/Administrator setup/repair action, matching the shared-hosting model.
@@ -205,11 +189,6 @@ class Stockland_HR {
 		delete_transient( $lock_key );
 	}
 
-	/**
-	 * Handles install within the Stockland ERP component.
-	 *
-	 * @param mixed $batch_size The batch size value.
-	 */
 	public static function install( $batch_size = 0 ) {
 		$batch_size = max( 0, (int) $batch_size );
 		global $wpdb;
