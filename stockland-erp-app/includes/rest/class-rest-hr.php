@@ -528,7 +528,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( $key === '' || ! $start || ! $end || $start > $end ) {
 			return new WP_Error( 'invalid', 'Valid period_key, start_date and end_date are required.', array( 'status' => 400 ) );
 		}$month_start = substr( $start, 0, 7 ) . '-01';
-		$month_end    = date( 'Y-m-t', strtotime( $start ) );
+		$month_end    = gmdate( 'Y-m-t', strtotime( $start . ' 00:00:00 UTC' ) );
 		if ( $start !== $month_start || $end !== $month_end || $key !== substr( $start, 0, 7 ) ) {
 			return new WP_Error( 'payroll_month_required', 'Statutory PAYE is monthly: use period key YYYY-MM with the first and last date of that same calendar month.', array( 'status' => 400 ) );
 		}if ( $start < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
