@@ -177,7 +177,7 @@ class Stockland_Admin {
 		);
 
 		$like        = $wpdb->esc_like( $wpdb->prefix . 'stock_' ) . '%';
-		$found       = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) );
+		$found       = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) );
 		$prefix_len  = strlen( $wpdb->prefix . 'stock_' );
 		$found_short = array_map(
 			function ( $t ) use ( $prefix_len ) {
