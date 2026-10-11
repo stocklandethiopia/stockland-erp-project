@@ -97,6 +97,73 @@ class Stockland_DB {
 	}
 
 
+
+	/**
+	 * Inserts one row into an ERP or supporting application table.
+	 *
+	 * Values and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $data Column values keyed by column name.
+	 * @param array|null $format Optional wpdb value formats.
+	 * @return int|false Insert ID or false on error.
+	 */
+	public static function insert_record( $table, $data, $format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's insert() performs value preparation and preserves the caller-owned transaction.
+		return $wpdb->insert( $table, $data, $format );
+	}
+
+	/**
+	 * Updates rows in an ERP or supporting application table.
+	 *
+	 * Values and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $data Column values keyed by column name.
+	 * @param array      $where Row-selection criteria keyed by column name.
+	 * @param array|null $format Optional value formats.
+	 * @param array|null $where_format Optional WHERE value formats.
+	 * @return int|false Number of affected rows, or false on error.
+	 */
+	public static function update_record( $table, $data, $where, $format = null, $where_format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's update() prepares values and preserves the caller-owned transaction.
+		return $wpdb->update( $table, $data, $where, $format, $where_format );
+	}
+
+	/**
+	 * Deletes rows from an ERP or supporting application table.
+	 *
+	 * Criteria and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $where Row-selection criteria keyed by column name.
+	 * @param array|null $where_format Optional WHERE value formats.
+	 * @return int|false Number of affected rows, or false on error.
+	 */
+	public static function delete_record( $table, $where, $where_format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's delete() prepares values and preserves the caller-owned transaction.
+		return $wpdb->delete( $table, $where, $where_format );
+	}
+
+	/**
+	 * Replaces one row in an ERP or supporting application table.
+	 *
+	 * Values and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $data Column values keyed by column name.
+	 * @param array|null $format Optional wpdb value formats.
+	 * @return int|false Insert ID or false on error.
+	 */
+	public static function replace_record( $table, $data, $format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's replace() prepares values and preserves the caller-owned transaction.
+		return $wpdb->replace( $table, $data, $format );
+	}
+
 	/**
 	 * Executes uncached SQL for live ERP transactional data and transaction control.
 	 *
