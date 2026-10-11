@@ -247,9 +247,8 @@ class Stockland_XLSX {
 					}
 				}
 				$reader->close();
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- ZipArchive returns a native resource handle that must be closed directly.
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- XMLReader consumes this native stream from ZipArchive; WordPress filesystem abstractions cannot close the ZipArchive stream resource.
-			fclose( $stream );
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- This native stream comes from ZipArchive and must be closed directly.
+				fclose( $stream );
 				return;
 			}
 		}
@@ -451,6 +450,7 @@ class Stockland_XLSX {
 			}
 			$reader->close();
 		} finally {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- XMLReader consumes this native ZipArchive stream; WP_Filesystem cannot close the returned stream resource.
 			fclose( $stream );
 			if ( $temp_xml && is_file( $temp_xml ) ) {
 				wp_delete_file( $temp_xml );
