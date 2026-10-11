@@ -460,7 +460,7 @@ class Stockland_REST_Requisition_V16 {
 						throw new Exception( 'Audit event could not be recorded.' );
 					}
 				} else {
-					$lines_to_create = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.size,p.color,p.barcode,p.gtin,p.variant_id FROM ' . Stockland_DB::table( 'requisition_items' ) . ' ri JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s AND ri.quantity_approved>0', $id ), ARRAY_A );
+					$lines_to_create = $wpdb->get_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.size,p.color,p.barcode,p.gtin,p.variant_id FROM %i ri JOIN %i p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s AND ri.quantity_approved>0', Stockland_DB::table( 'requisition_items' ), Stockland_DB::table( 'products' ), $id ), ARRAY_A );
 					foreach ( $lines_to_create as $item ) {
 						$q = (float) $item['quantity_approved'];
 						if ( $q <= 0 ) {
