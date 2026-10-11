@@ -17,6 +17,36 @@ $read   = function ( $p ) use ( $root ) {
 	$f = $root . '/' . $p;
 	return is_file( $f ) ? file_get_contents( $f ) : '';
 };
+$legacy_rest_files = array(
+	'class-rest-accounting.php',
+	'class-rest-app.php',
+	'class-rest-calendar.php',
+	'class-rest-controller.php',
+	'class-rest-hr.php',
+	'class-rest-import-v16.php',
+	'class-rest-inventory-report-v16.php',
+	'class-rest-locations.php',
+	'class-rest-products.php',
+	'class-rest-receipts.php',
+	'class-rest-reports.php',
+	'class-rest-requisition-v16.php',
+	'class-rest-returns.php',
+	'class-rest-sales.php',
+	'class-rest-setup.php',
+	'class-rest-stock.php',
+	'class-rest-transfers.php',
+	'class-rest-wholesale.php',
+);
+foreach ( $legacy_rest_files as $legacy_rest_file ) {
+	$legacy_rest_source = $read( 'includes/rest/' . $legacy_rest_file );
+	$ok(
+		'' !== $legacy_rest_source
+		&& false === strpos( $legacy_rest_source, 'phpcs:ignoreFile' )
+		&& false !== strpos( $legacy_rest_source, 'phpcs:disable WordPress.Files.FileName.InvalidClassFileName' )
+		&& false !== strpos( $legacy_rest_source, 'phpcs:enable WordPress.Files.FileName.InvalidClassFileName' ),
+		'legacy REST controller remains in runtime WPCS scope: ' . $legacy_rest_file
+	);
+}
 $css    = $read( 'assets/css/02-shell-navigation.css' );
 $mobile = $read( 'assets/css/05-responsive-layout.css' );
 $guard  = $read( 'assets/css/06-operational-guards.css' );
