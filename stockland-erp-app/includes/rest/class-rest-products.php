@@ -579,6 +579,7 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			}
 			try {
 				Stockland_Notifications::notify_product_master( 'UPDATED', $saved );} catch ( Throwable $ignore ) {
+				// Notification delivery is best-effort after the product update commits.
 				}
 				return rest_ensure_response( $saved );
 		} catch ( Throwable $e ) {
