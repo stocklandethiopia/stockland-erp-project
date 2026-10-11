@@ -2211,7 +2211,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function reports_summary( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
-		$from           = sanitize_text_field( $requested_from ? $requested_from : date( 'Y-m-01', current_time( 'timestamp' ) ) );
+		$from           = sanitize_text_field( $requested_from ? $requested_from : wp_date( 'Y-m-01' ) );
 		$requested_to   = $r->get_param( 'to' );
 		$to             = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! $this->parse_import_date( $from ) || ! $this->parse_import_date( $to ) || $from > $to ) {
@@ -2442,7 +2442,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function operations_overview( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
-		$from           = sanitize_text_field( $requested_from ? $requested_from : gmdate( 'Y-m-01' ) );
+		$from           = sanitize_text_field( $requested_from ? $requested_from : wp_date( 'Y-m-01' ) );
 		$requested_to   = $r->get_param( 'to' );
 		$to             = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ) {
