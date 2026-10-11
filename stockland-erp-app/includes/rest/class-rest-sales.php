@@ -183,7 +183,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			// Idempotent client retry: an explicitly repeated sale_id must describe the
 			// same transaction, otherwise return a conflict rather than double-posting.
 			if ( '' !== $sale_id_input ) {
-				$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE", $sales_table, $sale_id_input ), ARRAY_A );
+				$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE', $sales_table, $sale_id_input ), ARRAY_A );
 				if ( $existing ) {
 					$requested_price = '0' === $selling_price_input ? $existing['selling_price'] : Stockland_Money::decimal( Stockland_Money::minor( $selling_price_input ) );
 					if ( (int) $existing['branch_location_id'] !== (int) $branch_location_id ||
@@ -263,7 +263,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not record POS sale.' );
 			}
 
-			$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE", $sales_table, $sale_id ), ARRAY_A );
+			$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE', $sales_table, $sale_id ), ARRAY_A );
 			if ( ! $sale ) {
 				throw new Exception( 'POS sale was inserted but could not be re-read for posting.' );
 			}
@@ -340,7 +340,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		$table     = Stockland_DB::table( 'sales' );
 		$user_id   = get_current_user_id();
 		$sale_id   = sanitize_text_field( $request['sale_id'] );
-		$sale_date = (string) $wpdb->get_var( $wpdb->prepare( "SELECT sale_date FROM %i WHERE sale_id=%s", $table, $sale_id ) );
+		$sale_date = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT sale_date FROM %i WHERE sale_id=%s', $table, $sale_id ) );
 		if ( ! $sale_date ) {
 			return new WP_Error( 'not_found', 'Sale not found.', array( 'status' => 404 ) );
 		}
@@ -363,7 +363,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			if ( Stockland_DB::is_day_closed( $sale['branch_location_id'], $sale_date ) ) {
 				throw new Exception( 'This business day is already closed.' );
 			}
-			$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE sale_id=%s FOR UPDATE", $table, $sale_id ), ARRAY_A );
+			$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s FOR UPDATE', $table, $sale_id ), ARRAY_A );
 			if ( ! $sale ) {
 				throw new Exception( 'Sale not found.' );
 			}
@@ -474,7 +474,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start day-close transaction.', array( 'status' => 500 ) );}
 		try {
-			$existing = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s FOR UPDATE", $closings_table, $branch_location_id, $business_date ) );
+			$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s FOR UPDATE', $closings_table, $branch_location_id, $business_date ) );
 			if ( 'CLOSED' === $existing ) {
 				throw new Exception( 'This business day is already closed.' );
 			}
