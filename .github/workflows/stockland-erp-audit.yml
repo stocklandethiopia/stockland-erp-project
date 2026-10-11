@@ -308,7 +308,7 @@ jobs:
           PHPCS_EXIT: ${{ steps.full-source-phpcs.outputs.phpcs_exit }}
         run: |
           set -euo pipefail
-          if [[ "${PHPCS_EXIT:-2}" =~ ^[0-9]+$ ]] && [[ "$PHPCS_EXIT" -eq 0 ]]; then
+          if [[ "${PHPCS_EXIT:-}" == "0" ]]; then
             echo "PASS: full-runtime PHPCS/WPCS reported zero findings."
           else
             echo "::error::Full-runtime PHPCS/WPCS returned ${PHPCS_EXIT:-missing}. The candidate is for review only; fix the findings before release."
