@@ -20,6 +20,7 @@ class Stockland_Settings {
 	 * @param mixed  $value New setting value.
 	 * @param int    $wp_user_id User performing the change.
 	 * @return true|WP_Error True when committed, or a structured failure.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public static function update( $key, $value, $wp_user_id ) {
 		if ( ! user_can( $wp_user_id, 'stockland_manage_settings' ) ) {
