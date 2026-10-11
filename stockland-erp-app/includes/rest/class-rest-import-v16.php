@@ -1550,8 +1550,9 @@ class Stockland_REST_Import_V16 {
 				continue;
 			}
 			$ph   = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$sql  = 'SELECT variant_id,sku,product_name,product_type,parent_sku,retail_price,purchase_cost,wholesale_price,is_active FROM ' . Stockland_DB::table( 'products' ) . " WHERE sku IN({$ph})";
-			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $chunk ), ARRAY_A );
+			$sql  = "SELECT variant_id,sku,product_name,product_type,parent_sku,retail_price,purchase_cost,wholesale_price,is_active FROM %i WHERE sku IN({$ph})";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic SQL fragment is a %s placeholder list built from unique sanitized SKU strings; the table name is bound as %i.
+			$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( Stockland_DB::table( 'products' ) ), $chunk ) ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new Exception( 'Could not batch-read Product Master identities.' );
 			}
@@ -1588,12 +1589,13 @@ class Stockland_REST_Import_V16 {
 				continue;
 			}
 			$ph   = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$args = array( 'THIRD_PARTY_POS' );
+			$args = array( $maps, 'THIRD_PARTY_POS' );
 			foreach ( $chunk as $c ) {
 				$args[] = $c;
 			}$args[] = $business_date;
 			$args[]  = $business_date;
-			$sql     = "SELECT external_code,live_sku,effective_from,id FROM {$maps} WHERE source_system=%s AND external_code IN({$ph}) AND is_active=1 AND (effective_from IS NULL OR effective_from<=%s) AND (effective_to IS NULL OR effective_to>=%s) ORDER BY external_code ASC,effective_from DESC,id DESC";
+			$sql     = "SELECT external_code,live_sku,effective_from,id FROM %i WHERE source_system=%s AND external_code IN({$ph}) AND is_active=1 AND (effective_from IS NULL OR effective_from<=%s) AND (effective_to IS NULL OR effective_to>=%s) ORDER BY external_code ASC,effective_from DESC,id DESC";
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic SQL fragment is a %s placeholder list built from sanitized POS codes; the table uses %i and dates/system code use %s.
 			$rows    = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new Exception( 'Could not batch-read POS code mappings.' );
@@ -1731,7 +1733,7 @@ class Stockland_REST_Import_V16 {
 				throw new Exception( 'Product Master import exceeds ' . self::MAX_IMPORT_ROWS . ' rows. Split the workbook.' );
 			}$hash    = hash_file( 'sha256', $file['path'] );
 			$job_key  = hash( 'sha256', $hash . '|PRODUCT_MASTER' );
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . ' WHERE import_key=%s LIMIT 1', $job_key ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE import_key=%s LIMIT 1', Stockland_DB::table( 'import_jobs' ), $job_key ), ARRAY_A );
 			if ( $existing && 'CANCELLED' !== $existing['status'] ) {
 				return rest_ensure_response(
 					array(
@@ -2011,7 +2013,8 @@ class Stockland_REST_Import_V16 {
 		global $wpdb;
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT source_row_number AS row_number,COALESCE(mapped_sku,sku) AS sku,variant_id,status FROM ' . Stockland_DB::table( 'import_rows' ) . " WHERE job_id=%d AND status='POSTED' ORDER BY source_row_number LIMIT %d",
+				"SELECT source_row_number AS row_number,COALESCE(mapped_sku,sku) AS sku,variant_id,status FROM %i WHERE job_id=%d AND status='POSTED' ORDER BY source_row_number LIMIT %d",
+				Stockland_DB::table( 'import_rows' ),
 				(int) $job_id,
 				self::MAX_IMPORT_ROWS
 			),
@@ -2029,7 +2032,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! $job_id ) {
 				throw new Exception( 'Product import job ID is required. Preview the workbook first.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . " WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1", $job_id ), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1", Stockland_DB::table( 'import_jobs' ), $job_id ), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Product import job not found.' );
 			}
@@ -2064,7 +2067,7 @@ class Stockland_REST_Import_V16 {
 				); }
 			$mapping = array();
 			if ( ! empty( $job['mapping_profile_id'] ) ) {
-				$profile = $wpdb->get_row( $wpdb->prepare( 'SELECT mapping_json FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE id=%d LIMIT 1', (int) $job['mapping_profile_id'] ), ARRAY_A );
+				$profile = $wpdb->get_row( $wpdb->prepare( 'SELECT mapping_json FROM %i WHERE id=%d LIMIT 1', Stockland_DB::table( 'import_profiles' ), (int) $job['mapping_profile_id'] ), ARRAY_A );
 				if ( $profile && ! empty( $profile['mapping_json'] ) ) {
 					$mapping = json_decode( (string) $profile['mapping_json'], true );
 				}
@@ -2072,7 +2075,7 @@ class Stockland_REST_Import_V16 {
 					$mapping = array();
 				}
 			}
-			$candidate_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT *,source_row_number AS row_number FROM ' . Stockland_DB::table( 'import_rows' ) . " WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", $job_id, self::MAX_IMPORT_ROWS ), ARRAY_A );
+			$candidate_rows = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM %i WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", Stockland_DB::table( 'import_rows' ), $job_id, self::MAX_IMPORT_ROWS ), ARRAY_A );
 			$rows           = array();
 			$variant_rows   = array();
 			foreach ( (array) $candidate_rows as $candidate ) {
@@ -2105,7 +2108,7 @@ class Stockland_REST_Import_V16 {
 				}
 			}
 			if ( empty( $rows ) ) {
-				$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT *,source_row_number AS row_number FROM ' . Stockland_DB::table( 'import_rows' ) . " WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", $job_id, self::PRODUCT_CHUNK ), ARRAY_A );
+				$rows = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM %i WHERE job_id=%d AND status='VALID' ORDER BY source_row_number ASC LIMIT %d", Stockland_DB::table( 'import_rows' ), $job_id, self::PRODUCT_CHUNK ), ARRAY_A );
 			}
 			if ( empty( $rows ) ) {
 				$wpdb->update(
@@ -2138,7 +2141,7 @@ class Stockland_REST_Import_V16 {
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 				throw new Exception( 'Could not start Product Master import transaction.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . " WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1 FOR UPDATE", $job_id ), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND import_type='PRODUCT_MASTER' LIMIT 1 FOR UPDATE", Stockland_DB::table( 'import_jobs' ), $job_id ), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Product import job disappeared before commit.' );
 			}
@@ -2210,7 +2213,7 @@ class Stockland_REST_Import_V16 {
 					}
 					Stockland_Product_Service::replace_sku( (int) $prior['variant_id'], $sku, $replace_reason ? $replace_reason : 'Product Master XLSX SKU replacement', 'PRODUCT_IMPORT|' . $job_id . '|' . $row['row_number'], false );
 				}
-				$old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'products' ) . ' WHERE sku=%s LIMIT 1 FOR UPDATE', $sku ), ARRAY_A );
+				$old = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sku=%s LIMIT 1 FOR UPDATE', Stockland_DB::table( 'products' ), $sku ), ARRAY_A );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not read existing Product Master row ' . $sku . '.' );
 				}
