@@ -218,16 +218,6 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			 * placeholder order. The nine LIKE values precede the exact-SKU sort
 			 * values; prepending the exact-SKU value breaks search parameter binding.
 			 */
-			$prepare_args = array_merge(
-				array(
-					$can ? 1 : 0,
-					$table,
-					$include_inactive ? 1 : 0,
-					$q,
-				),
-				array_fill( 0, 9, $like ),
-				array( $q, $q, $limit )
-			);
 			$rows = Stockland_DB::read_results(
 				$wpdb->prepare(
 					'SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,collection_name,season,material,fit,country_of_origin,image_url,barcode,gtin,color,color_code,size,size_code,size_system,category,gender,age_group,unit,CASE WHEN %d = 1 THEN purchase_cost ELSE NULL END AS purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level,is_active
@@ -236,7 +226,22 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 						AND (%s = \'\' OR (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR style_code LIKE %s OR brand LIKE %s OR color LIKE %s OR size LIKE %s OR barcode LIKE %s OR gtin LIKE %s))
 					ORDER BY CASE WHEN %s <> \'\' AND sku = %s THEN 0 ELSE 1 END, COALESCE(parent_sku,sku), color, size, sku
 					LIMIT %d',
-...$prepare_args
+					$can ? 1 : 0,
+					$table,
+					$include_inactive ? 1 : 0,
+					$q,
+					$like,
+					$like,
+					$like,
+					$like,
+					$like,
+					$like,
+					$like,
+					$like,
+					$like,
+					$q,
+					$q,
+					$limit
 				),
 				ARRAY_A
 			);
