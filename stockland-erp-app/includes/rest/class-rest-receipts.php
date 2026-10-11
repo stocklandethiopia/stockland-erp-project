@@ -53,7 +53,7 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 		$table = Stockland_DB::table( 'receipts' );
 		// This table is retained for historical/manual receipt evidence only. New
 		// external supplier stock is received through an Owner-approved PO.
-		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY created_at DESC LIMIT 500', $table ), ARRAY_A ) );
+		return rest_ensure_response( Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY created_at DESC LIMIT 500', $table ), ARRAY_A ) );
 	}
 
 	public function create_receipt( WP_REST_Request $request ) {
@@ -79,6 +79,6 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 	private function get_receipt( $receipt_id ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'receipts' );
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE receipt_id = %s', $table, $receipt_id ), ARRAY_A );
+		return Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE receipt_id = %s', $table, $receipt_id ), ARRAY_A );
 	}
 }
