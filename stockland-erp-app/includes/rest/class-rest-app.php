@@ -23,7 +23,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * Initializes the ERP REST controller and registers its route hooks.
 	 *
 	 * @return void Initializes the controller.
-
 	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
@@ -540,7 +539,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql     .= ' ORDER BY v.location_id,p.sku';
 		$sql_args = array_merge( array( Stockland_DB::table( 'transactions' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'reservations' ) ), $args );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$stock    = Stockland_DB::read_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
+		$stock = Stockland_DB::read_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 
 		$dashboard = $this->dashboard( $scope );
 		$can_cost  = (bool) current_user_can( 'stockland_view_cost_and_profit' );
@@ -716,7 +715,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sales_args  = $scope_ids;}
 			$rt_sql = "SELECT COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity_sold),0) units FROM %i WHERE posting_status='CLOSED'{$sales_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$rt     = Stockland_DB::read_row( $wpdb->prepare( $rt_sql, array_merge( array( $sales ), $sales_args ) ), ARRAY_A );
+			$rt = Stockland_DB::read_row( $wpdb->prepare( $rt_sql, array_merge( array( $sales ), $sales_args ) ), ARRAY_A );
 			// Wholesale sales are company-level in the current data model and are therefore
 			// included only for company-wide dashboards, not branch-scoped dashboards.
 			$wt = null !== $scope_ids ? array(
@@ -750,7 +749,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						$low_args = array_merge( $low_args, $scope_ids );}
 			$low_sql .= " AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level)";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$low      = (int) Stockland_DB::read_var( $wpdb->prepare( $low_sql, $low_args ) );
+			$low = (int) Stockland_DB::read_var( $wpdb->prepare( $low_sql, $low_args ) );
 
 			$today       = 'Y-m-d';
 			$today_value = current_time( $today );
@@ -798,10 +797,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 				$month_sql = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01'){$sales_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$month     = (float) Stockland_DB::read_var( $wpdb->prepare( $month_sql, array_merge( array( $sales ), $sales_args ) ) );
-				$year_sql  = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND YEAR(sale_date)=YEAR(CURDATE()){$sales_where}";
+				$month    = (float) Stockland_DB::read_var( $wpdb->prepare( $month_sql, array_merge( array( $sales ), $sales_args ) ) );
+				$year_sql = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND YEAR(sale_date)=YEAR(CURDATE()){$sales_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$year      = (float) Stockland_DB::read_var( $wpdb->prepare( $year_sql, array_merge( array( $sales ), $sales_args ) ) );
+				$year = (float) Stockland_DB::read_var( $wpdb->prepare( $year_sql, array_merge( array( $sales ), $sales_args ) ) );
 
 				$stock_sql  = "SELECT l.id,l.location_name,COALESCE(SUM(b.physical_stock),0) stock FROM %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.location_id=l.id WHERE l.location_type IN('Warehouse','Branch')";
 				$stock_args = array( $loc, $tx );
@@ -812,7 +811,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			} elseif ( null !== $scope_ids ) {
 				$stock_sql         .= ' AND l.id=%d';
 						$stock_args = array_merge( $stock_args, $scope_ids );}
-				$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
+				$stock_sql .= ' GROUP BY l.id ORDER BY l.id';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 				$stock_by_location = Stockland_DB::read_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
@@ -895,7 +894,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 			$args[] = $limit;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$rows   = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+			$rows = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'sku_search_failed', 'Live SKU search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );
@@ -1013,10 +1012,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			switch ( $last ) {
 				case 'g':
 					$n *= 1024;
-				// Intentional fall-through: apply the next 1024 multiplier for smaller units.
+					// Intentional fall-through: apply the next 1024 multiplier for smaller units.
 				case 'm':
 					$n *= 1024;
-				// Intentional fall-through: apply the final 1024 multiplier for bytes.
+					// Intentional fall-through: apply the final 1024 multiplier for bytes.
 				case 'k':
 					$n *= 1024; }
 			return (int) $n;
@@ -1182,10 +1181,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			switch ( $last ) {
 				case 'g':
 																																					$n *= 1024;
-				// Intentional fall-through: apply the next 1024 multiplier for smaller units.
+					// Intentional fall-through: apply the next 1024 multiplier for smaller units.
 				case 'm':
 																																					$n *= 1024;
-				// Intentional fall-through: apply the final 1024 multiplier for bytes.
+					// Intentional fall-through: apply the final 1024 multiplier for bytes.
 				case 'k':
 																																					$n *= 1024;
 			}return (int) $n;
@@ -1883,7 +1882,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$rows            = Stockland_DB::read_results(
+		$rows = Stockland_DB::read_results(
 			$wpdb->prepare(
 				$sql,
 				$users_table,
@@ -2435,7 +2434,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
                     COALESCE(SUM(quantity_sold),0) units
              FROM %i WHERE posting_status='CLOSED' AND sale_date BETWEEN %s AND %s" . $rt_scope;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$rt     = Stockland_DB::read_row( $wpdb->prepare( $rt_sql, $rt_args ), ARRAY_A );
+		$rt = Stockland_DB::read_row( $wpdb->prepare( $rt_sql, $rt_args ), ARRAY_A );
 
 		$wt = $scope ? array(
 			'sales'  => 0,
@@ -2471,7 +2470,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$branch_sql .= ' GROUP BY l.id ORDER BY retail_sales DESC';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$branch      = Stockland_DB::read_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
+		$branch = Stockland_DB::read_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
 
 		$top_sql  = "SELECT s.sku,p.product_name,COALESCE(SUM(s.quantity_sold),0) units,
                     COALESCE(SUM(s.sales_total),0) sales,COALESCE(SUM(s.gross_profit),0) profit
@@ -2484,7 +2483,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$top_sql .= ' GROUP BY s.sku,p.product_name ORDER BY units DESC LIMIT 10';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$top      = Stockland_DB::read_results( $wpdb->prepare( $top_sql, $top_args ), ARRAY_A );
+		$top = Stockland_DB::read_results( $wpdb->prepare( $top_sql, $top_args ), ARRAY_A );
 
 		$returns_sql  = 'SELECT COALESCE(SUM(quantity),0) units,COUNT(*) rows FROM %i WHERE return_date BETWEEN %s AND %s';
 		$returns_args = array( $ret, $from, $to );
@@ -2512,7 +2511,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$stock_sql .= ' ORDER BY l.location_name,p.sku';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$stock      = Stockland_DB::read_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
+		$stock = Stockland_DB::read_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 		$transfers_sql = 'SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,f.location_name from_location_name,to_l.location_name to_location_name,
                     t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty
@@ -2529,7 +2528,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$transfers_sql .= ' ORDER BY t.created_at DESC LIMIT 500';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$transfer_rows  = Stockland_DB::read_results( $wpdb->prepare( $transfers_sql, $targs ), ARRAY_A );
+		$transfer_rows = Stockland_DB::read_results( $wpdb->prepare( $transfers_sql, $targs ), ARRAY_A );
 
 		$people_sql  = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,
                     COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue
@@ -2543,7 +2542,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$people_sql .= ' GROUP BY l.id,s.staff_user_id,u.display_name ORDER BY revenue DESC LIMIT 200';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$people      = Stockland_DB::read_results( $wpdb->prepare( $people_sql, $people_args ), ARRAY_A );
+		$people = Stockland_DB::read_results( $wpdb->prepare( $people_sql, $people_args ), ARRAY_A );
 
 		$variance_sql  = "SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,
                     f.location_name from_location_name,to_l.location_name to_location_name,
@@ -2562,7 +2561,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$variance_sql .= ' ORDER BY t.received_at DESC LIMIT 500';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$variances     = Stockland_DB::read_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
+		$variances = Stockland_DB::read_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
 
 		$count_sql = 'SELECT b.batch_id,b.count_date,b.status,l.location_name,b.uploaded_by,b.approved_by,
                     COUNT(cl.id) lines,SUM(CASE WHEN ABS(cl.variance_qty)>0.00001 THEN 1 ELSE 0 END) variance_lines,
@@ -2576,7 +2575,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$count_sql .= ' AND b.location_id=%d';
 			$cargs[]    = (int) $scope;
 		}
-		$count_sql    .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 200';
+		$count_sql .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 200';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$count_batches = Stockland_DB::read_results( $wpdb->prepare( $count_sql, $cargs ), ARRAY_A );
 		if ( ! current_user_can( 'stockland_view_cost_and_profit' ) ) {
@@ -2670,7 +2669,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			WHERE r.receipt_date=%s' . $receipt_scope_sql . ' ORDER BY r.created_at DESC';
 		$receipt_args = array( Stockland_DB::table( 'receipts' ), Stockland_DB::table( 'products' ), $wpdb->users, $date );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$receipts     = Stockland_DB::read_results( $wpdb->prepare( $receipt_sql, $receipt_args ), ARRAY_A );
+		$receipts = Stockland_DB::read_results( $wpdb->prepare( $receipt_sql, $receipt_args ), ARRAY_A );
 
 		$summary_scope_sql = $scope ? ' AND s.branch_location_id=%d' : '';
 		$summary_sql       = "SELECT COUNT(*) sale_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit

@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *    Stockland_Ledger::post_sale_closed().
  *  - Once a sale is CLOSED it cannot be edited through this controller —
  *    corrections must go through /returns as an Adjustment (section 7/15).
-	 */
+ */
 class Stockland_REST_Sales extends Stockland_REST_Base {
 
 	/**
@@ -503,6 +503,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 	 * End-of-day: closes every remaining OPEN sale for the branch/date, then
 	 * locks the day itself in wp_stock_daily_closings. After this, normal
 	 * users cannot edit any transaction from that day (section 7).
+	 *
 	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function close_day( WP_REST_Request $request ) {

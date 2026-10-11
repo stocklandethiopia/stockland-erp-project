@@ -4,7 +4,7 @@
  * Stockland ERP employee, compensation, and payroll REST endpoints.
  *
  * @package Stockland_ERP
-	 */
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

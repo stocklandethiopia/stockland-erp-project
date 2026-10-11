@@ -4,7 +4,7 @@
  * Stockland ERP import, mapping, workbook validation, and commit endpoints.
  *
  * @package Stockland_ERP
-	 */
+ */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -592,7 +592,7 @@ class Stockland_REST_Import_V16 {
 				$sql          = "SELECT sku,%i FROM %i WHERE %i IN({$placeholders}) AND %i<>''";
 				$sql_args     = array_merge( array( $field, Stockland_DB::table( 'products' ), $field, $field ), $chunk );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL text is assembled from fixed fragments and placeholders; all request values and dynamic identifiers are bound at the immediately following prepare call.
-				$rows         = Stockland_DB::read_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
+				$rows = Stockland_DB::read_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not verify Product Master ' . esc_html( $field ) . ' uniqueness.' );
 				}

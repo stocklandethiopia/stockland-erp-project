@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Model: STYLE/PRODUCT -> VARIANT SKU -> COLOR + SIZE + BARCODE/GTIN.
  * Each stockable color/size combination is its own SKU row so the existing
  * ledger remains compatible while inventory becomes dimension-aware.
-	 */
+ */
 class Stockland_REST_Products extends Stockland_REST_Base {
 	/**
 	 * Registers Product Master route callbacks.
