@@ -25,6 +25,9 @@ if ( false === $start || false === $end ) {
 	exit( 1 );
 }
 $methods = substr( $source, $start, $end - $start );
+$like_position = strpos( $methods, 'array_fill( 0, 9, $like )' );
+$exact_args_match = preg_match( '/array\\(\\s*\\$q,\\s*\\$q,\\s*\\$limit,\\s*\\)/', $methods, $exact_args, PREG_OFFSET_CAPTURE );
+$exact_args_position = 1 === $exact_args_match ? $exact_args[0][1] : false;
 
 $checks = array(
 	'Identifier uniqueness uses prepared table and column identifiers' =>
@@ -34,8 +37,9 @@ $checks = array(
 	'Search query has a static prepared SQL template' =>
 		false !== strpos( $methods, '$wpdb->prepare(' ) && false === strpos( $methods, '$sql' ) && false === strpos( $methods, '$where' ),
 	'Nine LIKE values are bound before exact-SKU and limit values' =>
-		false !== strpos( $methods, 'array_fill( 0, 9, $like )' ) &&
-		false !== strpos( $methods, 'array( $q, $q, $limit )' ) &&
+		false !== $like_position &&
+		false !== $exact_args_position &&
+		$like_position < $exact_args_position &&
 		false === strpos( $methods, 'array_unshift( $args, $q )' ),
 	'Search limit remains bounded to at most 500 rows' =>
 		false !== strpos( $methods, 'min( 500, max( 1,' ),
