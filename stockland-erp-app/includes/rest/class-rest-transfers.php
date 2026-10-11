@@ -99,14 +99,14 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		$req_id      = sanitize_text_field( $p['requisition_id'] ?? '' );
 		$req_item_id = isset( $p['requisition_item_id'] ) ? (int) $p['requisition_item_id'] : null;
 
-		if ( ! $from || ! $to || $from === $to || ! $sku || $q <= 0 ) {
+		if ( ! $from || ! $to || $to === $from || ! $sku || $q <= 0 ) {
 			return new WP_Error( 'invalid', 'Invalid transfer.', array( 'status' => 400 ) );
 		}
 
 		if ( $to === (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
 			return new WP_Error( 'invalid_destination', 'Transfers cannot be received back into Central Warehouse through a branch transfer.', array( 'status' => 400 ) );
 		}
-		if ( ! current_user_can( 'stockland_view_all_branches' ) && $from !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+		if ( ! current_user_can( 'stockland_view_all_branches' ) && (int) Stockland_DB::get_location_id( 'Central Warehouse' ) !== $from ) {
 			return new WP_Error( 'forbidden', 'Branch users cannot move stock out of arbitrary locations.', array( 'status' => 403 ) );
 		}
 

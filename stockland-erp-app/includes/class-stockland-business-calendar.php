@@ -109,7 +109,7 @@ final class Stockland_Business_Calendar {
 	}
 
 	public static function is_business_day( $date ) {
-		return self::status( $date )['status'] === 'OPEN';
+		return 'OPEN' === self::status( $date )['status'];
 	}
 
 	public static function assert_business_day( $date ) {

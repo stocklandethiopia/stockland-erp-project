@@ -529,7 +529,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'invalid', 'Valid period_key, start_date and end_date are required.', array( 'status' => 400 ) );
 		}$month_start = substr( $start, 0, 7 ) . '-01';
 		$month_end    = gmdate( 'Y-m-t', strtotime( $start . ' 00:00:00 UTC' ) );
-		if ( $start !== $month_start || $end !== $month_end || $key !== substr( $start, 0, 7 ) ) {
+		if ( $start !== $month_start || $end !== $month_end || substr( $start, 0, 7 ) !== $key ) {
 			return new WP_Error( 'payroll_month_required', 'Statutory PAYE is monthly: use period key YYYY-MM with the first and last date of that same calendar month.', array( 'status' => 400 ) );
 		}if ( $start < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
 			return new WP_Error( 'historical_tax_rule_unavailable', 'This statutory rule set must not be applied to historical periods before ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. Preserve prior payroll and use the historically applicable certified rule.', array( 'status' => 400 ) );
@@ -794,7 +794,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Only DRAFT payroll periods can be generated.' );
 			}
 			$month_start = substr( $period['start_date'], 0, 7 ) . '-01';
-			if ( $period['start_date'] !== $month_start || $period['end_date'] !== date( 'Y-m-t', strtotime( $period['start_date'] ) ) || $period['period_key'] !== substr( $period['start_date'], 0, 7 ) ) {
+			if ( $period['start_date'] !== $month_start || date( 'Y-m-t', strtotime( $period['start_date'] ) ) !== $period['end_date'] || substr( $period['start_date'], 0, 7 ) !== $period['period_key'] ) {
 				throw new Exception( 'Payroll period must be a full calendar month with key YYYY-MM.' );
 			}
 			if ( $period['start_date'] < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
@@ -1113,7 +1113,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( 'SUBMITTED' !== $p['status'] || 'management' !== $creator_role ) {
 				throw new Exception( 'Payroll must be submitted by Management and show SUBMITTED before Owner approval. Legacy Owner-created drafts require Management to review and submit before approval.' );
 			}
-			if ( (int) $p['created_by'] === get_current_user_id() ) {
+			if ( get_current_user_id() === (int) $p['created_by'] ) {
 				throw new Exception( 'The submitter cannot approve their own payroll.' );
 			}
 			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'payroll_lines' ) . ' WHERE period_id=%d FOR UPDATE', $id ), ARRAY_A );

@@ -1998,7 +1998,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $row ) {
 			return new WP_Error( 'not_found', 'Stockland user not found.', array( 'status' => 404 ) );
 		}
-		if ( $target === get_current_user_id() && isset( $p['is_active'] ) && ! (bool) $p['is_active'] ) {
+		if ( get_current_user_id() === $target && isset( $p['is_active'] ) && ! (bool) $p['is_active'] ) {
 			return new WP_Error( 'self_deactivate', 'You cannot deactivate your own account.', array( 'status' => 409 ) );
 		}
 		$role = sanitize_key( $p['role'] ?? ( 'stockland_' . $row['role'] ) );

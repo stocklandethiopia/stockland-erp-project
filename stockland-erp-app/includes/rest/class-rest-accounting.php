@@ -2058,7 +2058,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			if ( (int) $row['created_by'] === get_current_user_id() ) {
+			if ( get_current_user_id() === (int) $row['created_by'] ) {
 				throw new Exception( 'Separate approval is required; an Owner cannot approve their own submission.' );
 			}
 			$creator_role = Stockland_Authority::role( (int) $row['created_by'] );
@@ -2541,7 +2541,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $invoice['status'] ) {
 				throw new Exception( 'Only PENDING supplier invoices can be approved/rejected.' );
 			}
-			if ( (int) $invoice['created_by'] === get_current_user_id() || Stockland_Authority::role( (int) $invoice['created_by'] ) !== 'management' ) {
+			if ( get_current_user_id() === (int) $invoice['created_by'] || Stockland_Authority::role( (int) $invoice['created_by'] ) !== 'management' ) {
 				throw new Exception( 'Supplier invoice requires a different active Owner approving a Management-submitted invoice.' );
 			}
 			$poid = (int) ( $invoice['po_id'] ?? 0 );
@@ -2706,7 +2706,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $payment['status'] ) {
 				throw new Exception( 'Only PENDING payments can be approved/rejected.' );
 			}
-			if ( (int) $payment['created_by'] === get_current_user_id() || Stockland_Authority::role( (int) $payment['created_by'] ) !== 'management' ) {
+			if ( get_current_user_id() === (int) $payment['created_by'] || Stockland_Authority::role( (int) $payment['created_by'] ) !== 'management' ) {
 				throw new Exception( 'A different active Owner must approve a Management-submitted payment.' );
 			}
 			$amount = $this->money( $payment['amount'] );

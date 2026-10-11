@@ -191,7 +191,7 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 						(string) $existing['sku'] !== $sku ||
 						abs( (float) $existing['quantity_sold'] - $quantity ) > 0.00001 ||
 						! Stockland_Sale_Math::same_money( $existing['selling_price'], $requested_price ) ||
-						(string) $existing['vat_mode'] !== strtoupper( (string) $p['vat_mode'] ) ) {
+						strtoupper( (string) $p['vat_mode'] ) !== (string) $existing['vat_mode'] ) {
 						throw new Exception( 'sale_id is already used by a different POS transaction.' );
 					}
 					if ( false === $wpdb->query( 'COMMIT' ) ) {
