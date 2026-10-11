@@ -2567,13 +2567,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( is_wp_error( $scope ) ) {
 			return $scope;
 		}
-		$sql  = 'SELECT a.*,l.location_name,p.product_name,u.display_name requested_by_name,au.display_name approved_by_name FROM ' . Stockland_DB::table( 'adjustments' ) . ' a JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=a.location_id JOIN ' . Stockland_DB::table( 'products' ) . " p ON (p.variant_id=a.variant_id OR (a.variant_id IS NULL AND p.sku=a.sku)) LEFT JOIN {$wpdb->users} u ON u.ID=a.requested_by LEFT JOIN {$wpdb->users} au ON au.ID=a.approved_by WHERE 1=1";
-		$args = array();
+		$sql = 'SELECT a.*,l.location_name,p.product_name,u.display_name requested_by_name,au.display_name approved_by_name FROM %i a JOIN %i l ON l.id=a.location_id JOIN %i p ON (p.variant_id=a.variant_id OR (a.variant_id IS NULL AND p.sku=a.sku)) LEFT JOIN %i u ON u.ID=a.requested_by LEFT JOIN %i au ON au.ID=a.approved_by WHERE 1=1';
+		$args = array( Stockland_DB::table( 'adjustments' ), Stockland_DB::table( 'locations' ), Stockland_DB::table( 'products' ), $wpdb->users, $wpdb->users );
 		if ( $scope ) {
 			$sql   .= ' AND a.location_id=%d';
-			$args[] = $scope;
-		} $sql .= ' ORDER BY a.created_at DESC LIMIT 300';
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+			$args[] = (int) $scope;
+		}
+		$sql .= ' ORDER BY a.created_at DESC LIMIT 300';
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
 	public function create_reconciliation( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2824,13 +2825,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( is_wp_error( $scope ) ) {
 			return $scope;
 		}
-		$sql  = 'SELECT b.*,l.location_name,u.display_name uploaded_by_name,au.display_name approved_by_name,COUNT(cl.id) line_count,SUM(ABS(cl.variance_qty)) total_abs_variance FROM ' . Stockland_DB::table( 'count_batches' ) . ' b JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=b.location_id LEFT JOIN {$wpdb->users} u ON u.ID=b.uploaded_by LEFT JOIN {$wpdb->users} au ON au.ID=b.approved_by LEFT JOIN " . Stockland_DB::table( 'count_lines' ) . ' cl ON cl.batch_id=b.batch_id WHERE 1=1';
-		$args = array();
+		$sql = 'SELECT b.*,l.location_name,u.display_name uploaded_by_name,au.display_name approved_by_name,COUNT(cl.id) line_count,SUM(ABS(cl.variance_qty)) total_abs_variance FROM %i b JOIN %i l ON l.id=b.location_id LEFT JOIN %i u ON u.ID=b.uploaded_by LEFT JOIN %i au ON au.ID=b.approved_by LEFT JOIN %i cl ON cl.batch_id=b.batch_id WHERE 1=1';
+		$args = array( Stockland_DB::table( 'count_batches' ), Stockland_DB::table( 'locations' ), $wpdb->users, $wpdb->users, Stockland_DB::table( 'count_lines' ) );
 		if ( $scope ) {
 			$sql   .= ' AND b.location_id=%d';
-			$args[] = $scope;}
+			$args[] = (int) $scope;
+		}
 		$sql .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 100';
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
 
 	public function count_preview( WP_REST_Request $r ) {
@@ -3295,14 +3297,15 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( false === $scope ) {
 			return new WP_Error( 'no_profile', 'This account has no Stockland role or authorized location scope.', array( 'status' => 403 ) );
 		}
-		$sql  = 'SELECT e.id,e.entity_type,e.entity_id,e.from_status,e.to_status,e.user_id,e.location_id,e.meta,e.created_at,u.display_name,l.location_name FROM ' . Stockland_DB::table( 'workflow_events' ) . " e LEFT JOIN {$wpdb->users} u ON u.ID=e.user_id LEFT JOIN " . Stockland_DB::table( 'locations' ) . ' l ON l.id=e.location_id WHERE 1=1';
-		$args = array();
+		$sql = 'SELECT e.id,e.entity_type,e.entity_id,e.from_status,e.to_status,e.user_id,e.location_id,e.meta,e.created_at,u.display_name,l.location_name FROM %i e LEFT JOIN %i u ON u.ID=e.user_id LEFT JOIN %i l ON l.id=e.location_id WHERE 1=1';
+		$args = array( Stockland_DB::table( 'workflow_events' ), $wpdb->users, Stockland_DB::table( 'locations' ) );
 		if ( is_array( $scope ) ) {
-			$ph   = implode( ',', array_fill( 0, count( $scope ), '%d' ) );
-			$sql .= " AND e.location_id IN({$ph})";
-			$args = $scope;}
+			$ph    = implode( ',', array_fill( 0, count( $scope ), '%d' ) );
+			$sql  .= " AND e.location_id IN({$ph})";
+			$args  = array_merge( $args, array_map( 'intval', $scope ) );
+		}
 		$sql .= ' ORDER BY e.id DESC LIMIT 50';
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
 	}
 
 	public function workflow_history( WP_REST_Request $r ) {
@@ -3312,11 +3315,13 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$scope = $this->scope_location();
 		if ( false === $scope ) {
 			return new WP_Error( 'no_profile', 'This account has no Stockland role or branch assignment.', array( 'status' => 403 ) );
-		} $args = array( $type, $id );
-		$sql    = 'SELECT e.*,u.display_name,l.location_name FROM ' . Stockland_DB::table( 'workflow_events' ) . " e LEFT JOIN {$wpdb->users} u ON u.ID=e.user_id LEFT JOIN " . Stockland_DB::table( 'locations' ) . ' l ON l.id=e.location_id WHERE e.entity_type=%s AND e.entity_id=%s';
+		} 
+		$args = array( Stockland_DB::table( 'workflow_events' ), $wpdb->users, Stockland_DB::table( 'locations' ), $type, $id );
+		$sql  = 'SELECT e.*,u.display_name,l.location_name FROM %i e LEFT JOIN %i u ON u.ID=e.user_id LEFT JOIN %i l ON l.id=e.location_id WHERE e.entity_type=%s AND e.entity_id=%s';
 		if ( $scope ) {
 			$sql   .= ' AND e.location_id=%d';
-			$args[] = $scope;}
+			$args[] = (int) $scope;
+		}
 		$sql .= ' ORDER BY e.id DESC LIMIT 500';
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return rest_ensure_response( $rows );
