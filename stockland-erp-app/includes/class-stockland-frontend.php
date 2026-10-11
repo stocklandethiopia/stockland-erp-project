@@ -374,7 +374,7 @@ class Stockland_Frontend {
 		}
 		$direct_flag = isset( $_GET['stockland_erp'] ) ? sanitize_text_field( wp_unslash( $_GET['stockland_erp'] ) ) : '';
 		$direct      = '1' === $direct_flag;
-		$direct = $direct || $this->is_direct_request_path();
+		$direct      = $direct || $this->is_direct_request_path();
 		if ( $direct || $this->is_shortcode_page() ) {
 			$shell = STOCKLAND_PLUGIN_DIR . 'templates/erp-shell.php';
 			if ( file_exists( $shell ) ) {
@@ -501,7 +501,7 @@ class Stockland_Frontend {
 		if ( ! $nonce || ! wp_verify_nonce( $nonce, 'stockland_login' ) ) {
 			wp_die( esc_html__( 'Security check failed. Please reload the ERP login page and try again.' ), esc_html__( 'Stockland ERP' ), array( 'response' => 403 ) );
 		}
-		$login    = sanitize_user( wp_unslash( $_POST['log'] ?? '' ) );
+		$login = sanitize_user( wp_unslash( $_POST['log'] ?? '' ) );
 		// Passwords must not be text-sanitized because that can mutate valid credentials; unslash only before authentication.
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Passwords are deliberately not sanitized; unslash preserves the user's exact credential for wp_signon().
 		$pass     = isset( $_POST['pwd'] ) ? (string) wp_unslash( $_POST['pwd'] ) : '';

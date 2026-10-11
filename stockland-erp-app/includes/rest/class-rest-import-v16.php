@@ -605,7 +605,7 @@ class Stockland_REST_Import_V16 {
 			throw new Exception( 'The import file is not a valid HTTP upload. Please upload the workbook again.' );
 		}
 		$file_name_input = isset( $upload['name'] ) && is_string( $upload['name'] ) ? wp_unslash( $upload['name'] ) : '';
-		$name = sanitize_file_name( $file_name_input );
+		$name            = sanitize_file_name( $file_name_input );
 		if ( strtolower( pathinfo( $name, PATHINFO_EXTENSION ) ) !== 'xlsx' ) {
 			throw new Exception( 'Only XLSX files are accepted.' );
 		}
