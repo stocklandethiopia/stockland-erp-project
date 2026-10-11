@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <ruleset name="Stockland ERP Full-Source Audit">
-    <description>Full-scope WordPress PHP coding-standard audit profile. Run separately to surface legacy and new-source findings across the whole plugin; this profile is not represented as passing until PHPCS/WPCS executes in an environment with Composer dependencies.</description>
+    <description>Full WordPress Coding Standards inventory for deployable ERP PHP. CLI QA harnesses and tests are covered by PHP lint, PHPUnit and deterministic QA but excluded from runtime WPCS because they intentionally mock WordPress globals and emit CLI output. This profile remains blocking while in-scope findings exist.</description>
     <arg name="basepath" value="."/>
     <arg name="colors"/>
     <arg name="extensions" value="php"/>
@@ -8,13 +8,55 @@
     <rule ref="WordPress"/>
     <rule ref="WordPress-Extra"/>
     <rule ref="WordPress-Docs"/>
+    <!-- Product-specific capabilities are registered by the ERP role map. -->
+    <rule ref="WordPress.WP.Capabilities">
+        <properties>
+            <property name="custom_capabilities" type="array">
+                <element value="stockland_view_all_branches"/>
+                <element value="stockland_manage_settings"/>
+                <element value="stockland_manage_products"/>
+                <element value="stockland_view_cost_and_profit"/>
+                <element value="stockland_view_warehouse"/>
+                <element value="stockland_view_financials"/>
+                <element value="stockland_install_schema"/>
+                <element value="stockland_view_branch_reports"/>
+                <element value="stockland_manage_expenses"/>
+                <element value="stockland_receive_transfer"/>
+                <element value="stockland_request_adjustment"/>
+                <element value="stockland_approve_transfers"/>
+                <element value="stockland_record_return"/>
+                <element value="stockland_view_audit_log"/>
+                <element value="stockland_manage_customers"/>
+                <element value="stockland_close_day"/>
+                <element value="stockland_manage_transfers"/>
+                <element value="stockland_owner"/>
+                <element value="stockland_manage_purchase_orders"/>
+                <element value="stockland_receive_warehouse"/>
+                <element value="stockland_manage_hr"/>
+                <element value="stockland_manage_payroll"/>
+                <element value="stockland_create_sale"/>
+                <element value="stockland_create_wholesale"/>
+                <element value="stockland_request_stock"/>
+                <element value="stockland_view_warehouse_availability"/>
+                <element value="stockland_daily_import"/>
+                <element value="stockland_approve_purchase_orders"/>
+                <element value="stockland_view_payroll"/>
+                <element value="stockland_view_own_branch"/>
+                <element value="stockland_review_requisitions"/>
+                <element value="stockland_manage_suppliers"/>
+                <element value="stockland_manage_payments"/>
+                <element value="stockland_manage_payables"/>
+                <element value="stockland_manage_receivables"/>
+                <element value="stockland_manage_reservations"/>
+            </property>
+        </properties>
+    </rule>
     <config name="minimum_supported_wp_version" value="6.8"/>
     <config name="testVersion" value="8.4-"/>
     <file>stockland-inventory.php</file>
     <file>uninstall.php</file>
     <file>includes</file>
     <file>templates</file>
-    <file>tests</file>
-    <file>tools/qa</file>
+    <!-- tests/ and tools/qa/ remain under whole-package PHP lint and automated test gates, not the runtime WPCS profile. -->
     <exclude-pattern>*/vendor/*</exclude-pattern>
 </ruleset>
