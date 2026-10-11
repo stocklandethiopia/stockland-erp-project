@@ -92,7 +92,7 @@ class Stockland_REST_Inventory_Report_V16 {
 		}
 		$t    = Stockland_DB::table( 'reservations' );
 		$ph   = implode( ',', array_fill( 0, count( $location_ids ), '%d' ) );
-		$rows = $wpdb->get_results(
+		$rows = Stockland_DB::read_results(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only repeated %d placeholders; every location ID is passed separately to prepare().
 				'SELECT location_id,COALESCE(variant_id,0) variant_id,sku,COALESCE(SUM(quantity_reserved),0) reserved_qty FROM %i WHERE location_id IN(' . $ph . ") AND status='Active' GROUP BY location_id,COALESCE(variant_id,0),sku",
@@ -129,7 +129,7 @@ class Stockland_REST_Inventory_Report_V16 {
 		// aggregating the entire immutable ledger inside a daily report request.
 		// The balances table is the authoritative derived read model and exists
 		// specifically to keep operational reads bounded on InfinityFree/MariaDB.
-		$rows = $wpdb->get_results(
+		$rows = Stockland_DB::read_results(
 			$wpdb->prepare(
 				"SELECT b.variant_id,b.sku,
                     COALESCE(b.physical_qty,0)-COALESCE(r.reserved_qty,0) available_qty
@@ -170,7 +170,7 @@ class Stockland_REST_Inventory_Report_V16 {
 	private function product_rows() {
 		global $wpdb;
 		$p    = Stockland_DB::table( 'products' );
-		$rows = $wpdb->get_results(
+		$rows = Stockland_DB::read_results(
 			$wpdb->prepare( "SELECT variant_id,sku,product_name,unit,purchase_cost,retail_price,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY product_name,sku", $p ),
 			ARRAY_A
 		);
@@ -269,7 +269,7 @@ class Stockland_REST_Inventory_Report_V16 {
 					)
 				);
 			}
-			$present = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 ) );
+			$present = array_map( 'strval', (array) Stockland_DB::read_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 ) );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland Daily Inventory schema inspection failed for ' . $table . ': ' . $wpdb->last_error );
 				return new WP_Error( 'daily_inventory_schema_check_failed', 'Daily Inventory could not verify its database schema safely. Open System Health before retrying.', array( 'status' => 500 ) );
@@ -291,9 +291,9 @@ class Stockland_REST_Inventory_Report_V16 {
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_locations' );
 		if ( ! $location ) {
-			$locs = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", $locations_t ), ARRAY_A );
+			$locs = Stockland_DB::read_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Warehouse','Branch') ORDER BY (location_type='Warehouse') DESC,location_name", $locations_t ), ARRAY_A );
 		} else {
-			$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type FROM %i WHERE id=%d AND is_active=1 LIMIT 1', $locations_t, $location ), ARRAY_A );
+			$locs = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_name,location_type FROM %i WHERE id=%d AND is_active=1 LIMIT 1', $locations_t, $location ), ARRAY_A );
 		}
 		if ( empty( $locs ) ) {
 			return rest_ensure_response(
@@ -379,7 +379,7 @@ class Stockland_REST_Inventory_Report_V16 {
               AND p.product_type<>'STYLE'
             GROUP BY t.location_id,t.variant_id,p.sku";
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_ledger' );
-		$movement_rows = $wpdb->get_results(
+		$movement_rows = Stockland_DB::read_results(
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $movement_select is a fixed SQL template; its generated IN placeholders are paired with integer-only location values in prepare().
 			$wpdb->prepare( $movement_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date, $tx_t, $products_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ),
 			ARRAY_A
@@ -421,7 +421,7 @@ class Stockland_REST_Inventory_Report_V16 {
               AND p.product_type<>'STYLE'
             GROUP BY t.location_id,p.variant_id,p.sku";
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_legacy_ledger' );
-		$legacy_rows = $wpdb->get_results(
+		$legacy_rows = Stockland_DB::read_results(
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $legacy_select is a fixed SQL template; its generated IN placeholders are paired with integer-only location values in prepare().
 			$wpdb->prepare( $legacy_select, array_merge( array( $date, $date, $date, $date, $date, $date, $date, $date, $tx_t, $products_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ),
 			ARRAY_A
@@ -454,7 +454,7 @@ class Stockland_REST_Inventory_Report_V16 {
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_balances' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- The only dynamic SQL fragment is a %d placeholder list generated from authorized, integer-cast location IDs; table uses %i.
-		$balance_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id,variant_id,sku,physical_qty FROM %i WHERE location_id IN(' . $loc_ph . ')', array_merge( array( $bal_t ), array_map( 'intval', $loc_ids ) ) ), ARRAY_A );
+		$balance_rows = Stockland_DB::read_results( $wpdb->prepare( 'SELECT location_id,variant_id,sku,physical_qty FROM %i WHERE location_id IN(' . $loc_ph . ')', array_merge( array( $bal_t ), array_map( 'intval', $loc_ids ) ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			error_log( 'Stockland Daily Inventory balance query: ' . $wpdb->last_error );
 			return new WP_Error( 'daily_inventory_balance_query_failed', 'Current inventory balance could not be loaded safely.', array( 'status' => 500 ) );}
@@ -464,7 +464,7 @@ class Stockland_REST_Inventory_Report_V16 {
 
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_sales' );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- The only dynamic SQL fragment is a %d placeholder list generated from authorized, integer-cast location IDs; table and date use %i/%s.
-		$sales_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT branch_location_id,variant_id,sku,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(net_sales_excl_vat),0) net_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs,COALESCE(SUM(gross_profit),0) gross_profit,COUNT(*) sale_lines FROM %i WHERE branch_location_id IN(' . $loc_ph . ') AND sale_date=%s GROUP BY branch_location_id,variant_id,sku', array_merge( array( $sales_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ), ARRAY_A );
+		$sales_rows = Stockland_DB::read_results( $wpdb->prepare( 'SELECT branch_location_id,variant_id,sku,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(net_sales_excl_vat),0) net_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs,COALESCE(SUM(gross_profit),0) gross_profit,COUNT(*) sale_lines FROM %i WHERE branch_location_id IN(' . $loc_ph . ') AND sale_date=%s GROUP BY branch_location_id,variant_id,sku', array_merge( array( $sales_t ), array_map( 'intval', $loc_ids ), array( $date ) ) ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			error_log( 'Stockland Daily Inventory sales query: ' . $wpdb->last_error );
 			return new WP_Error( 'daily_inventory_sales_query_failed', 'Daily sales summary could not be loaded safely.', array( 'status' => 500 ) );}
