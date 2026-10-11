@@ -275,7 +275,7 @@ class Stockland_Sourcing {
 			return array();
 		}
 
-		$sql  = "SELECT p.variant_id,p.sku,p.product_name,p.branch_reorder_level
+		$sql = "SELECT p.variant_id,p.sku,p.product_name,p.branch_reorder_level
                 FROM %i p
                 WHERE p.is_active=1 AND p.product_type<>'STYLE'
                   AND (" . implode( ' OR ', $where ) . ')';
@@ -360,7 +360,7 @@ class Stockland_Sourcing {
 			$args         = array_merge( $args, $skus );
 		}
 
-		$sql  = "SELECT COALESCE(s.variant_id,p.variant_id) AS variant_id,
+		$sql = "SELECT COALESCE(s.variant_id,p.variant_id) AS variant_id,
                        SUM(s.quantity_sold) AS qty
                 FROM %i s
                 LEFT JOIN %i p ON p.sku=s.sku
@@ -399,7 +399,7 @@ class Stockland_Sourcing {
 			$args         = array_merge( $args, $skus );
 		}
 
-		$sql  = "SELECT COALESCE(t.variant_id,p.variant_id) AS variant_id,
+		$sql = "SELECT COALESCE(t.variant_id,p.variant_id) AS variant_id,
                        SUM(GREATEST(COALESCE(t.dispatched_qty,t.quantity)-COALESCE(t.received_qty,0),0)) AS qty
                 FROM %i t
                 LEFT JOIN %i p ON p.sku=t.sku

@@ -224,7 +224,8 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			// Lock the authoritative master row before reading price/cost/variant identity.
 			$product = $wpdb->get_row(
 				$wpdb->prepare(
-					'SELECT * FROM %i WHERE sku=%s AND is_active=1 LIMIT 1 FOR UPDATE', Stockland_DB::table( 'products' ),
+					'SELECT * FROM %i WHERE sku=%s AND is_active=1 LIMIT 1 FOR UPDATE',
+					Stockland_DB::table( 'products' ),
 					$sku
 				),
 				ARRAY_A

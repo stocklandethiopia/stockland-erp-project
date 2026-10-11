@@ -131,7 +131,7 @@ class Stockland_Authority {
 	/**
 	 * Checks whether a positive location ID is inside the user's authorized scope.
 	 *
-	 * @param int|string $location_id Location ID to validate.
+	 * @param int|string      $location_id Location ID to validate.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the location falls within the user's authorized scope.
 	 */
@@ -160,7 +160,7 @@ class Stockland_Authority {
 	/**
 	 * Checks a WordPress capability for the specified user.
 	 *
-	 * @param string $cap WordPress capability to check.
+	 * @param string          $cap WordPress capability to check.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the user has the requested capability.
 	 */
@@ -215,7 +215,7 @@ class Stockland_Authority {
 	/**
 	 * Management-only submission authority for financial/procurement records; Owner decides separately.
 	 *
-	 * @param string $capability WordPress capability to check.
+	 * @param string          $capability WordPress capability to check.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the user may prepare the specified finance operation.
 	 */
@@ -256,7 +256,7 @@ class Stockland_Authority {
 	/**
 	 * Supplier/AP transactions are restricted to active Owner or Management profiles.
 	 *
-	 * @param string $capability WordPress capability to check.
+	 * @param string          $capability WordPress capability to check.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the user may manage supplier/AP operations.
 	 */
@@ -421,7 +421,7 @@ class Stockland_Authority {
 	/**
 	 * Checks authority for the requested Management or Owner requisition-approval stage.
 	 *
-	 * @param string $stage Requested requisition approval stage.
+	 * @param string          $stage Requested requisition approval stage.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the user may approve the given requisition stage.
 	 */
@@ -546,7 +546,7 @@ class Stockland_Authority {
 	/**
 	 * Maps a named ERP workflow action to its role-specific authorization check.
 	 *
-	 * @param string $action Named ERP workflow action.
+	 * @param string          $action Named ERP workflow action.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the action is authorized for the user.
 	 */
@@ -596,7 +596,7 @@ class Stockland_Authority {
 	/**
 	 * Verifies that a requested location is within the user's authorized branch scope.
 	 *
-	 * @param int|string $location_id Location ID to validate.
+	 * @param int|string      $location_id Location ID to validate.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return true|WP_Error True for authorized scope, or a REST error when access is denied.
 	 */
@@ -617,7 +617,7 @@ class Stockland_Authority {
 	/**
 	 * Verifies that the user is allowed to operate at Central Warehouse.
 	 *
-	 * @param int|string $location_id Location ID to validate.
+	 * @param int|string      $location_id Location ID to validate.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return true|WP_Error True for authorized warehouse access, or a REST error.
 	 */

@@ -155,9 +155,9 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 				$q = trim( (string) $request->get_param( 'search' ) );
 			}
 
-			$like             = '%' . $wpdb->esc_like( $q ) . '%';
-			$requested_limit  = $request->get_param( 'limit' );
-			$limit            = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
+			$like            = '%' . $wpdb->esc_like( $q ) . '%';
+			$requested_limit = $request->get_param( 'limit' );
+			$limit           = min( 500, max( 1, (int) ( $requested_limit ? $requested_limit : 500 ) ) );
 
 			/*
 			 * Keep this SQL template static so every data value is bound in SQL

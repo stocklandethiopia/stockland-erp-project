@@ -604,13 +604,13 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( ! $rows ) {
 			return rest_ensure_response( array() );
 		}
-		$ids   = array_map(
+		$ids = array_map(
 			static function ( $x ) {
 				return (int) $x['id'];
 			},
 			$rows
 		);
-		$ph    = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$ph  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only one %d token per integer-cast period ID; table name and IDs are passed to prepare in order.
 		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id IN(' . $ph . ') ORDER BY period_id,employee_name', array_merge( array( Stockland_DB::table( 'payroll_lines' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
 		$by    = array();
@@ -942,7 +942,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}
 			$employees                  = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))<>'RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s) ORDER BY full_name", Stockland_DB::table( 'employees' ),
+					"SELECT * FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))<>'RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s) ORDER BY full_name",
+					Stockland_DB::table( 'employees' ),
 					$period['end_date'],
 					$period['start_date']
 				),
@@ -950,7 +951,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			);
 			$excluded_service_contracts = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT employee_id,full_name FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s) ORDER BY employee_id", Stockland_DB::table( 'employees' ),
+					"SELECT employee_id,full_name FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s) ORDER BY employee_id",
+					Stockland_DB::table( 'employees' ),
 					$period['end_date'],
 					$period['start_date']
 				),

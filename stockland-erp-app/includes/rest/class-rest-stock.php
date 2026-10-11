@@ -113,5 +113,4 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		}
 		return rest_ensure_response( $rows );
 	}
-
 }

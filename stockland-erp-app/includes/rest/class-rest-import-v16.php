@@ -1261,7 +1261,7 @@ class Stockland_REST_Import_V16 {
 			}$ph    = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 			$where .= " AND j.branch_location_id IN({$ph})";
 			$args   = $scope_ids;}
-		$sql = "SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id LEFT JOIN %i u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
+		$sql      = "SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id LEFT JOIN %i u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
 		$sql_args = array_merge( array( Stockland_DB::table( 'import_jobs' ), Stockland_DB::table( 'locations' ), $wpdb->users ), $args );
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A ) );
 	}
@@ -1476,7 +1476,7 @@ class Stockland_REST_Import_V16 {
 				if ( '' !== $external_receipt ) {
 					$cross_job_batch = $wpdb->get_row(
 						$wpdb->prepare(
-							"SELECT id,job_id,status FROM %i WHERE branch_location_id=%d AND business_date=%s AND source_system=%s AND external_receipt_no=%s LIMIT 1 FOR UPDATE",
+							'SELECT id,job_id,status FROM %i WHERE branch_location_id=%d AND business_date=%s AND source_system=%s AND external_receipt_no=%s LIMIT 1 FOR UPDATE',
 							$batches,
 							(int) $job['branch_location_id'],
 							$job['business_date'],
@@ -1696,7 +1696,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! $job_id || ! $row_id ) {
 				throw new Exception( 'job_id and row_id are required.' );
 			}
-			$job = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d LIMIT 1', 'import_jobs', $job_id), ARRAY_A );
+			$job = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d LIMIT 1', 'import_jobs', $job_id ), ARRAY_A );
 			if ( ! $job ) {
 				throw new Exception( 'Import job not found.' );
 			}
@@ -1710,7 +1710,7 @@ class Stockland_REST_Import_V16 {
 			if ( ! in_array( $job['status'], array( 'READY', 'PARTIAL' ), true ) || (int) $job['processed_rows'] > 0 ) {
 				throw new Exception( 'Only unreleased Daily POS rows can be edited.' );
 			}
-			$row = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d AND job_id=%d LIMIT 1', 'import_rows',  $row_id,  $job_id ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND job_id=%d LIMIT 1', 'import_rows', $row_id, $job_id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Import row not found.' );
 			}
@@ -1761,7 +1761,7 @@ class Stockland_REST_Import_V16 {
 			) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save the staged row edit.' );
 			}
-			$agg = $wpdb->get_row( $wpdb->prepare('SELECT COUNT(*) total_rows,SUM(status=\'VALID\') valid_rows,SUM(status=\'ERROR\') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN vat_amount ELSE 0 END),0) vat FROM %i WHERE job_id=%d', 'import_rows', $job_id), ARRAY_A );
+			$agg = $wpdb->get_row( $wpdb->prepare( 'SELECT COUNT(*) total_rows,SUM(status=\'VALID\') valid_rows,SUM(status=\'ERROR\') error_rows,SUM(COALESCE(quantity,0)) units,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN sales_total ELSE 0 END),0) gross,COALESCE(SUM(CASE WHEN status=\'VALID\' THEN vat_amount ELSE 0 END),0) vat FROM %i WHERE job_id=%d', 'import_rows', $job_id ), ARRAY_A );
 			if ( false === $wpdb->update(
 				Stockland_DB::table( 'import_jobs' ),
 				array(
@@ -1814,8 +1814,8 @@ class Stockland_REST_Import_V16 {
 			if ( ! $chunk ) {
 				continue;
 			}
-			$ph   = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$sql  = "SELECT variant_id,sku,product_name,product_type,parent_sku,retail_price,purchase_cost,wholesale_price,is_active FROM %i WHERE sku IN({$ph})";
+			$ph  = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
+			$sql = "SELECT variant_id,sku,product_name,product_type,parent_sku,retail_price,purchase_cost,wholesale_price,is_active FROM %i WHERE sku IN({$ph})";
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic SQL fragment is a %s placeholder list built from unique sanitized SKU strings; the table name is bound as %i.
 			$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( Stockland_DB::table( 'products' ) ), $chunk ) ), ARRAY_A );
 			if ( $wpdb->last_error ) {
@@ -1866,7 +1866,7 @@ class Stockland_REST_Import_V16 {
 			$args[]  = $business_date;
 			$sql     = "SELECT external_code,live_sku,effective_from,id FROM %i WHERE source_system=%s AND external_code IN({$ph}) AND is_active=1 AND (effective_from IS NULL OR effective_from<=%s) AND (effective_to IS NULL OR effective_to>=%s) ORDER BY external_code ASC,effective_from DESC,id DESC";
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only dynamic SQL fragment is a %s placeholder list built from sanitized POS codes; the table uses %i and dates/system code use %s.
-			$rows    = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new Exception( 'Could not batch-read POS code mappings.' );
 			}
@@ -2789,7 +2789,7 @@ class Stockland_REST_Import_V16 {
 		global $wpdb;
 		$requested_source_system = $r->get_param( 'source_system' );
 		$source                  = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
-		$rows                    = $wpdb->get_results( $wpdb->prepare('SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM %i m LEFT JOIN %i p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', 'product_code_maps', $source, 'products'), ARRAY_A );
+		$rows                    = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM %i m LEFT JOIN %i p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', 'product_code_maps', $source, 'products' ), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	/**
 	 * Creates or updates an external product-code mapping after validation.
@@ -2898,7 +2898,7 @@ class Stockland_REST_Import_V16 {
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start code-mapping deactivation.', array( 'status' => 500 ) );
 		}try {
-			$row = $wpdb->get_row( $wpdb->prepare('SELECT * FROM %i WHERE id=%d FOR UPDATE', 'product_code_maps', $id), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'product_code_maps', $id ), ARRAY_A );
 			if ( ! $row ) {
 				throw new Exception( 'Mapping not found.' );
 			}$ok = $wpdb->update(
