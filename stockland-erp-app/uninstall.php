@@ -4,6 +4,7 @@
  *
  * @package Stockland_ERP
  */
+
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
