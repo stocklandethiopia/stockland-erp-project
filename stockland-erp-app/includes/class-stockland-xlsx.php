@@ -165,7 +165,8 @@ class Stockland_XLSX {
 	 * Loads a bounded XML metadata entry from the workbook.
 	 *
 	 * @param string $name Archive entry path.
-	 * @return SimpleXMLElement|null Parsed XML, null when missing or false when malformed.
+	 * @return SimpleXMLElement|null Parsed XML, or null when the entry is missing.
+	 * @throws Exception When the workbook XML is malformed.
 	 */
 	private function xml( $name ) {
 		$raw = $this->get_from_name( $name );
@@ -247,8 +248,7 @@ class Stockland_XLSX {
 				}
 				$reader->close();
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- ZipArchive returns a native resource handle that must be closed directly.
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- ZipArchive returns a native resource handle that must be closed directly.
-			fclose( $stream );
+				fclose( $stream );
 				return;
 			}
 		}
