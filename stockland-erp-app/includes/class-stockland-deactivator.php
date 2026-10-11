@@ -1,5 +1,7 @@
 <?php
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 /**
  * Deactivation intentionally does NOT drop any wp_stock_* tables or data.
@@ -10,9 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * the plugin.
  */
 class Stockland_Deactivator {
-    public static function deactivate() {
-        // Intentionally empty. Flush rewrite rules only, in case any were
-        // registered for the PWA app-shell route.
-        flush_rewrite_rules();
-    }
+	public static function deactivate() {
+		// Intentionally empty. Flush rewrite rules only, in case any were
+		// registered for the PWA app-shell route.
+		flush_rewrite_rules();
+	}
 }
