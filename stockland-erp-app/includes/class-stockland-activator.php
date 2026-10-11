@@ -941,8 +941,8 @@ class Stockland_Activator {
 				// proof that the physical table exists. Each table is verified immediately.
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is built from the fixed Core schema array and the trusted WordPress prefix; SQL structure cannot be bound as a data value.
-				$result     = Stockland_DB::execute_query( $direct_sql );
-				$db_error   = (string) $wpdb->last_error;
+				$result   = Stockland_DB::execute_query( $direct_sql );
+				$db_error = (string) $wpdb->last_error;
 				if ( false === $result ) {
 					$detail = 'Core table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
 					if ( '' !== $db_error ) {
@@ -996,7 +996,7 @@ class Stockland_Activator {
 				$fallback_sql     = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fallback CREATE TABLE DDL is derived from the same fixed Core schema allowlist; no request data is included.
-				$result           = Stockland_DB::execute_query( $fallback_sql );
+				$result = Stockland_DB::execute_query( $fallback_sql );
 				if ( false === $result && ! empty( $wpdb->last_error ) ) {
 					$delta_errors[] = $wpdb->last_error;
 				}
