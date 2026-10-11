@@ -9,7 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * edit the company's VAT/tax rate"). Every REST route that touches
  * settings must require the stockland_manage_settings capability,
  * which only the Management role has (see Stockland_Roles).
- */
+	 * @throws Exception When validation, migration or transaction processing fails.
+	 */
 class Stockland_Settings {
 
 	/**
