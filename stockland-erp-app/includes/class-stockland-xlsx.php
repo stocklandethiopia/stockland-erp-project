@@ -163,6 +163,7 @@ class Stockland_XLSX {
 	 *
 	 * @param string $name Archive entry name.
 	 * @return SimpleXMLElement|null Parsed XML, or null when the archive entry is unavailable.
+	 * @throws Exception When the workbook XML is malformed or invalid.
 	 */
 	private function xml( $name ) {
 		$raw = $this->get_from_name( $name );
