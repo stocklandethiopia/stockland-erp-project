@@ -39,7 +39,7 @@ $req      = $read( 'includes/class-stockland-requisition-service.php' );
 $app      = $read( 'includes/rest/class-rest-app.php' );
 $imports  = $read( 'includes/rest/class-rest-import-v16.php' );
 $ok( preg_match_all( '/if\s*\(\s*false\s*===\s*\$wpdb->query\(\s*\'START TRANSACTION\'\s*\)\s*\)/', $products ) >= 3 && str_contains( $products, 'No-change Product Master verification commit failed' ), 'Product Master create, variant and update transactions fail closed' );
-$ok( 1 === preg_match( '/return\s+new\s+WP_Error\(\s*\'transaction_failed\'\s*,\s*\'Could not start requisition transaction\.'/',$req ), 'requisition transaction-start failure is handled' );
+$ok( 1 === preg_match( "~return\\s+new\\s+WP_Error\\(\\s*'transaction_failed'\\s*,\\s*'Could not start requisition transaction\\.~", $req ), 'requisition transaction-start failure is handled' );
 $ok( preg_match_all( '/if\s*\(\s*false\s*===\s*\$wpdb->query\(\s*\'START TRANSACTION\'\s*\)\s*\)/', $app ) >= 7 && str_contains( $app, 'Physical count rejection commit failed' ) && str_contains( $app, 'Could not reject pending physical-count adjustments' ), 'stock reconciliation/count and settings/user transactions fail closed' );
 $ok( str_contains( $imports, 'Product Master already-posted verification commit failed' ) && str_contains( $imports, 'Daily Sales preview commit failed' ) && str_contains( $imports, 'Product Master import commit failed' ), 'import preview, retry and commit paths check transaction outcomes' );
 $accountingRoutes = $read( 'includes/rest/class-rest-accounting.php' );
