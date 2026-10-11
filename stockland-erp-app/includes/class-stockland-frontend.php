@@ -345,7 +345,7 @@ class Stockland_Frontend {
 
 	/** Shared exact-path fallback for hosts where saved rewrite rules are unreliable. */
 	private function is_direct_request_path() {
-		$request_uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		$request_uri  = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 		$request_path = wp_parse_url( $request_uri, PHP_URL_PATH );
 		$home_path    = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
 		$base         = '/' . trim( (string) $home_path, '/' );
@@ -372,7 +372,8 @@ class Stockland_Frontend {
 		if ( is_admin() ) {
 			return $template;
 		}
-		$direct = isset( $_GET['stockland_erp'] ) && '1' === (string) $_GET['stockland_erp'];
+		$direct_flag = isset( $_GET['stockland_erp'] ) ? sanitize_text_field( wp_unslash( $_GET['stockland_erp'] ) ) : '';
+		$direct      = '1' === $direct_flag;
 		$direct = $direct || $this->is_direct_request_path();
 		if ( $direct || $this->is_shortcode_page() ) {
 			$shell = STOCKLAND_PLUGIN_DIR . 'templates/erp-shell.php';
@@ -453,6 +454,7 @@ class Stockland_Frontend {
 		header( 'Content-Type: application/javascript; charset=utf-8' );
 		header( 'Service-Worker-Allowed: ' . $path );
 		header( 'X-Content-Type-Options: nosniff' );
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- This endpoint returns JavaScript, not HTML; dynamic asset URLs are JSON-encoded above and cache/version components are sanitized.
 		echo $js;
 		exit;
 	}
@@ -500,7 +502,9 @@ class Stockland_Frontend {
 			wp_die( esc_html__( 'Security check failed. Please reload the ERP login page and try again.' ), esc_html__( 'Stockland ERP' ), array( 'response' => 403 ) );
 		}
 		$login    = sanitize_user( wp_unslash( $_POST['log'] ?? '' ) );
-		$pass     = (string) ( $_POST['pwd'] ?? '' );
+		// Passwords must not be text-sanitized because that can mutate valid credentials; unslash only before authentication.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Passwords are deliberately not sanitized; unslash preserves the user's exact credential for wp_signon().
+		$pass     = isset( $_POST['pwd'] ) ? (string) wp_unslash( $_POST['pwd'] ) : '';
 		$remember = ! empty( $_POST['rememberme'] );
 		if ( ! $login || ! $pass ) {
 			wp_safe_redirect( add_query_arg( 'sl_login', 'missing', self::page_url() ) );
