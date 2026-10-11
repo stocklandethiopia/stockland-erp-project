@@ -401,7 +401,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$table  = Stockland_DB::table( 'users' );
-		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+		$exists = Stockland_DB::read_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
 		if ( $exists !== $table ) {
 			return false;
 		}
@@ -409,14 +409,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( $uid <= 0 ) {
 			return false;
 		}
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT id,role,is_active FROM %i WHERE wp_user_id=%d LIMIT 1', $table, $uid ), ARRAY_A );
+		$row = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,role,is_active FROM %i WHERE wp_user_id=%d LIMIT 1', $table, $uid ), ARRAY_A );
 		if ( ! $row ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $table, $uid ) );
+			Stockland_DB::execute_query( $wpdb->prepare( "INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $table, $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
 			}
 		} elseif ( 1 !== (int) $row['is_active'] || 'owner' !== (string) $row['role'] ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE %i SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $table, $uid ) );
+			Stockland_DB::execute_query( $wpdb->prepare( "UPDATE %i SET role='owner',branch_location_id=NULL,is_active=1 WHERE wp_user_id=%d", $table, $uid ) );
 			if ( $wpdb->last_error ) {
 				return false;
 			}
@@ -510,8 +510,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$location_table = Stockland_DB::table( 'locations' );
 		$central_id     = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( Stockland_Authority::company_scope() ) {
-			$locs             = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 ORDER BY id', $location_table ), ARRAY_A );
-			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
+			$locs             = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 ORDER BY id', $location_table ), ARRAY_A );
+			$central_location = $central_id ? Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
 		} else {
 			$allowed = array_values( array_unique( array_filter( array_map( 'intval', $scope ) ) ) );
 			// Do not inject Central Warehouse into the ordinary operational location
@@ -521,13 +521,13 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$locs = array();
 			} else {
 				$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
-				$locs = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
+				$locs = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
 			}
-			$central_location = $central_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
+			$central_location = $central_id ? Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE id=%d LIMIT 1', $location_table, $central_id ), ARRAY_A ) : null;
 		}
 		$products = current_user_can( 'stockland_view_cost_and_profit' )
-			? $wpdb->get_results( $wpdb->prepare( "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A )
-			: $wpdb->get_results( $wpdb->prepare( "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A );
+			? Stockland_DB::read_results( $wpdb->prepare( "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A )
+			: Stockland_DB::read_results( $wpdb->prepare( "SELECT variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A );
 
 		$args     = array();
 		$sql      = "SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
@@ -540,7 +540,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$sql     .= ' ORDER BY v.location_id,p.sku';
 		$sql_args = array_merge( array( Stockland_DB::table( 'transactions' ), Stockland_DB::table( 'products' ), Stockland_DB::table( 'reservations' ) ), $args );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$stock    = $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
+		$stock    = Stockland_DB::read_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 
 		$dashboard = $this->dashboard( $scope );
 		$can_cost  = (bool) current_user_can( 'stockland_view_cost_and_profit' );
@@ -688,7 +688,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 100';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		return $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		return Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 	}
 
 	/**
@@ -716,7 +716,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sales_args  = $scope_ids;}
 			$rt_sql = "SELECT COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity_sold),0) units FROM %i WHERE posting_status='CLOSED'{$sales_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$rt     = $wpdb->get_row( $wpdb->prepare( $rt_sql, array_merge( array( $sales ), $sales_args ) ), ARRAY_A );
+			$rt     = Stockland_DB::read_row( $wpdb->prepare( $rt_sql, array_merge( array( $sales ), $sales_args ) ), ARRAY_A );
 			// Wholesale sales are company-level in the current data model and are therefore
 			// included only for company-wide dashboards, not branch-scoped dashboards.
 			$wt = null !== $scope_ids ? array(
@@ -725,7 +725,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'profit'  => 0,
 				'vat'     => 0,
 				'units'   => 0,
-			) : $wpdb->get_row( $wpdb->prepare( 'SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM %i', $wh ), ARRAY_A );
+			) : Stockland_DB::read_row( $wpdb->prepare( 'SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM %i', $wh ), ARRAY_A );
 
 			$inv_sql  = 'SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0) FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b JOIN %i p ON p.variant_id=b.variant_id';
 			$inv_args = array( $tx, $prod );
@@ -737,7 +737,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$inv_sql         .= ' WHERE b.location_id=%d';
 						$inv_args = array_merge( $inv_args, $scope_ids );}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$inv = (float) $wpdb->get_var( $wpdb->prepare( $inv_sql, $inv_args ) );
+			$inv = (float) Stockland_DB::read_var( $wpdb->prepare( $inv_sql, $inv_args ) );
 
 			$low_sql  = "SELECT COUNT(*) FROM %i p CROSS JOIN %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.variant_id=p.variant_id AND b.location_id=l.id WHERE p.is_active=1 AND l.location_type IN('Warehouse','Branch')";
 			$low_args = array( $prod, $loc, $tx );
@@ -750,7 +750,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						$low_args = array_merge( $low_args, $scope_ids );}
 			$low_sql .= " AND COALESCE(b.physical_stock,0)<=IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level)";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$low      = (int) $wpdb->get_var( $wpdb->prepare( $low_sql, $low_args ) );
+			$low      = (int) Stockland_DB::read_var( $wpdb->prepare( $low_sql, $low_args ) );
 
 			$today       = 'Y-m-d';
 			$today_value = current_time( $today );
@@ -759,7 +759,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$today_args  = array_merge( $today_args, $sales_args );
 			$today_sql   = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date=%s{$today_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$today_sales = (float) $wpdb->get_var( $wpdb->prepare( $today_sql, array_merge( array( $sales ), $today_args ) ) );
+			$today_sales = (float) Stockland_DB::read_var( $wpdb->prepare( $today_sql, array_merge( array( $sales ), $today_args ) ) );
 
 			$req_sql  = "SELECT COUNT(*) FROM %i WHERE status IN('Requested','Reviewed','Approved','Reserved','Picked')";
 			$req_args = array( Stockland_DB::table( 'requisitions' ) );
@@ -771,17 +771,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$req_sql         .= ' AND branch_location_id=%d';
 						$req_args = array_merge( $req_args, $scope_ids );}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$pending = (int) $wpdb->get_var( $wpdb->prepare( $req_sql, $req_args ) );
+			$pending = (int) Stockland_DB::read_var( $wpdb->prepare( $req_sql, $req_args ) );
 
 			$approval_queue       = 0;
 			$warehouse_queue      = 0;
 			$receiving_exceptions = 0;
 			if ( Stockland_Authority::is_management() || Stockland_Authority::is_owner() ) {
-				$approval_queue       = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Reviewed'", Stockland_DB::table( 'requisitions' ) ) );
-				$receiving_exceptions = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Received' AND ABS(COALESCE(variance_qty,0))>0.00001", Stockland_DB::table( 'transfers' ) ) );
+				$approval_queue       = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Reviewed'", Stockland_DB::table( 'requisitions' ) ) );
+				$receiving_exceptions = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Received' AND ABS(COALESCE(variance_qty,0))>0.00001", Stockland_DB::table( 'transfers' ) ) );
 			}
 			if ( Stockland_Authority::can_warehouse_operate_requisition() ) {
-				$warehouse_queue = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status IN('Approved','Reserved')", Stockland_DB::table( 'requisitions' ) ) );
+				$warehouse_queue = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status IN('Approved','Reserved')", Stockland_DB::table( 'requisitions' ) ) );
 			}
 
 			$pr_sql  = "SELECT COUNT(*) FROM %i WHERE status='Picked'";
@@ -794,14 +794,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$pr_sql         .= ' AND (from_location_id=%d OR to_location_id=%d)';
 						$pr_args = array_merge( $pr_args, array( (int) $scope_ids[0], (int) $scope_ids[0] ) );}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$pending_branch_receipts = (int) $wpdb->get_var( $wpdb->prepare( $pr_sql, $pr_args ) );
+				$pending_branch_receipts = (int) Stockland_DB::read_var( $wpdb->prepare( $pr_sql, $pr_args ) );
 
 				$month_sql = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND sale_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01'){$sales_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$month     = (float) $wpdb->get_var( $wpdb->prepare( $month_sql, array_merge( array( $sales ), $sales_args ) ) );
+				$month     = (float) Stockland_DB::read_var( $wpdb->prepare( $month_sql, array_merge( array( $sales ), $sales_args ) ) );
 				$year_sql  = "SELECT COALESCE(SUM(sales_total),0) FROM %i WHERE posting_status='CLOSED' AND YEAR(sale_date)=YEAR(CURDATE()){$sales_where}";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$year      = (float) $wpdb->get_var( $wpdb->prepare( $year_sql, array_merge( array( $sales ), $sales_args ) ) );
+				$year      = (float) Stockland_DB::read_var( $wpdb->prepare( $year_sql, array_merge( array( $sales ), $sales_args ) ) );
 
 				$stock_sql  = "SELECT l.id,l.location_name,COALESCE(SUM(b.physical_stock),0) stock FROM %i l LEFT JOIN (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b ON b.location_id=l.id WHERE l.location_type IN('Warehouse','Branch')";
 				$stock_args = array( $loc, $tx );
@@ -814,7 +814,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						$stock_args = array_merge( $stock_args, $scope_ids );}
 				$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$stock_by_location = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
+				$stock_by_location = Stockland_DB::read_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 				$stock_total_sql  = 'SELECT COALESCE(SUM(b.physical_stock),0) FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b';
 				$stock_total_args = array( $tx );
@@ -826,7 +826,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$stock_total_args = array_merge( $stock_total_args, array_map( 'intval', $scope_ids ) );
 			}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-				$stock_total = (float) $wpdb->get_var( $wpdb->prepare( $stock_total_sql, $stock_total_args ) );
+				$stock_total = (float) Stockland_DB::read_var( $wpdb->prepare( $stock_total_sql, $stock_total_args ) );
 
 				return array(
 					'today_sales'             => $today_sales,
@@ -895,7 +895,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 			$args[] = $limit;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-			$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+			$rows   = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				error_log( 'Stockland SKU search DB error: ' . $wpdb->last_error );
 				return new WP_Error( 'sku_search_failed', 'Live SKU search could not be completed. No ERP data was changed.', array( 'status' => 500 ) );
@@ -916,7 +916,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function audit( WP_REST_Request $r ) {
 		global $wpdb;
 		$t    = Stockland_DB::table( 'audit_logs' );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT a.*,u.display_name,l.location_name FROM %i a LEFT JOIN %i u ON u.ID=a.user_id LEFT JOIN %i l ON l.id=a.branch_location_id ORDER BY a.action_time DESC LIMIT 500', $t, $wpdb->users, Stockland_DB::table( 'locations' ) ), ARRAY_A );
+		$rows = Stockland_DB::read_results( $wpdb->prepare( 'SELECT a.*,u.display_name,l.location_name FROM %i a LEFT JOIN %i u ON u.ID=a.user_id LEFT JOIN %i l ON l.id=a.branch_location_id ORDER BY a.action_time DESC LIMIT 500', $t, $wpdb->users, Stockland_DB::table( 'locations' ) ), ARRAY_A );
 		return rest_ensure_response( $rows );}
 	/** Minimal read-only endpoint that remains usable even when a larger health query fails. */
 	public function runtime_diagnostics() {
@@ -947,7 +947,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'missing_columns' => $cols,
 					);
 					continue;}
-				$present = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
+				$present = Stockland_DB::read_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
 				if ( $wpdb->last_error ) {
 					$out['schema'][ $logical ] = array(
 						'table_present' => true,
@@ -974,7 +974,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$diagnostics = array();
 		$db_value    = null;
 		try {
-			$db_value = $wpdb->get_var( 'SELECT 1' );
+			$db_value = Stockland_DB::read_var( 'SELECT 1' );
 		} catch ( Throwable $e ) {
 			$db_value = null;
 		}
@@ -983,7 +983,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$diagnostics['deep_integrity_status'] = 'DEFERRED_NOT_RUN';
 		$diagnostics['php_runtime']           = PHP_VERSION;
 		$diagnostics['wordpress_runtime']     = get_bloginfo( 'version' );
-		$diagnostics['database_server']       = $checks['db'] ? (string) $wpdb->get_var( 'SELECT VERSION()' ) : 'unavailable';
+		$diagnostics['database_server']       = $checks['db'] ? (string) Stockland_DB::read_var( 'SELECT VERSION()' ) : 'unavailable';
 		$diagnostics['upload_max_filesize']   = (string) ini_get( 'upload_max_filesize' );
 		$diagnostics['post_max_size']         = (string) ini_get( 'post_max_size' );
 		$diagnostics['memory_limit']          = (string) ini_get( 'memory_limit' );
@@ -1035,7 +1035,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$prefix              = $wpdb->prefix . 'stock_';
 		$found               = array();
 		if ( $checks['db'] ) {
-			$found = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+			$found = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 		}
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
@@ -1158,12 +1158,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		global $wpdb;
 		$checks       = array();
 		$diagnostics  = array();
-		$checks['db'] = ( 1 === (int) $wpdb->get_var( 'SELECT 1' ) );
+		$checks['db'] = ( 1 === (int) Stockland_DB::read_var( 'SELECT 1' ) );
 		// Environment diagnostics are read-only and contain no credentials. They make
 		// the live acceptance evidence self-contained on constrained shared hosting.
 		$diagnostics['php_runtime']         = PHP_VERSION;
 		$diagnostics['wordpress_runtime']   = get_bloginfo( 'version' );
-		$diagnostics['database_server']     = ( $checks['db'] ? (string) $wpdb->get_var( 'SELECT VERSION()' ) : 'unavailable' );
+		$diagnostics['database_server']     = ( $checks['db'] ? (string) Stockland_DB::read_var( 'SELECT VERSION()' ) : 'unavailable' );
 		$diagnostics['upload_max_filesize'] = (string) ini_get( 'upload_max_filesize' );
 		$diagnostics['post_max_size']       = (string) ini_get( 'post_max_size' );
 		$diagnostics['memory_limit']        = (string) ini_get( 'memory_limit' );
@@ -1198,7 +1198,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$full_expected       = array_values( array_unique( array_merge( $core_expected, $accounting_expected, $hr_expected ) ) );
 
 		$prefix     = $wpdb->prefix . 'stock_';
-		$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+		$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
 			if ( strpos( $table, $prefix ) === 0 ) {
@@ -1300,7 +1300,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 		$safe_tables                                  = array( 'transactions', 'products', 'locations', 'transfers', 'receipts', 'reservations', 'balances' );
 		$data_ready                                   = empty( array_diff( $safe_tables, $found_keys ) );
-		$balance_columns                              = $data_ready ? (array) $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', Stockland_DB::table( 'balances' ) ), 0 ) : array();
+		$balance_columns                              = $data_ready ? (array) Stockland_DB::read_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', Stockland_DB::table( 'balances' ) ), 0 ) : array();
 		$balance_model_ok                             = in_array( 'physical_qty', $balance_columns, true );
 		$checks['balance_model_contract']             = $balance_model_ok;
 		$diagnostics['balance_model_missing_columns'] = array_values( array_diff( array( 'physical_qty' ), $balance_columns ) );
@@ -1310,17 +1310,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$loc                              = Stockland_DB::table( 'locations' );
 			$tr                               = Stockland_DB::table( 'transfers' );
 			$rc                               = Stockland_DB::table( 'receipts' );
-			$diagnostics['transaction_rows']  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $tx ) );
-			$diagnostics['product_rows']      = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE product_type<>'STYLE'", $prod ) );
-			$diagnostics['location_rows']     = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE is_active=1', $loc ) );
-			$diagnostics['orphan_ledger_sku'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i t LEFT JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE p.variant_id IS NULL', $tx, $prod ) );
-			$diagnostics['ledger_missing_variant_identity'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id IS NULL', $tx ) );
-			$diagnostics['orphan_ledger_location']          = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i t LEFT JOIN %i l ON l.id=t.location_id WHERE l.id IS NULL', $tx, $loc ) );
-			$diagnostics['negative_stock_pairs']            = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM (SELECT location_id,COALESCE(variant_id,0) variant_id,sku FROM %i GROUP BY location_id,COALESCE(variant_id,0),sku HAVING SUM(quantity_signed)<0) x', $tx ) );
-			$diagnostics['completed_transfer_field_gaps']   = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Completed' AND (dispatched_qty=0 OR received_qty=0 OR received_at IS NULL)", $tr ) );
-			$diagnostics['completed_receipt_field_gaps']    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Completed' AND (actual_quantity_received IS NULL OR received_at IS NULL)", $rc ) );
+			$diagnostics['transaction_rows']  = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $tx ) );
+			$diagnostics['product_rows']      = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE product_type<>'STYLE'", $prod ) );
+			$diagnostics['location_rows']     = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE is_active=1', $loc ) );
+			$diagnostics['orphan_ledger_sku'] = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i t LEFT JOIN %i p ON (p.variant_id=t.variant_id OR (t.variant_id IS NULL AND p.sku=t.sku)) WHERE p.variant_id IS NULL', $tx, $prod ) );
+			$diagnostics['ledger_missing_variant_identity'] = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE variant_id IS NULL', $tx ) );
+			$diagnostics['orphan_ledger_location']          = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i t LEFT JOIN %i l ON l.id=t.location_id WHERE l.id IS NULL', $tx, $loc ) );
+			$diagnostics['negative_stock_pairs']            = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM (SELECT location_id,COALESCE(variant_id,0) variant_id,sku FROM %i GROUP BY location_id,COALESCE(variant_id,0),sku HAVING SUM(quantity_signed)<0) x', $tx ) );
+			$diagnostics['completed_transfer_field_gaps']   = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Completed' AND (dispatched_qty=0 OR received_qty=0 OR received_at IS NULL)", $tr ) );
+			$diagnostics['completed_receipt_field_gaps']    = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Completed' AND (actual_quantity_received IS NULL OR received_at IS NULL)", $rc ) );
 			$bal                                       = Stockland_DB::table( 'balances' );
-			$diagnostics['balance_ledger_mismatches']  = (int) $wpdb->get_var(
+			$diagnostics['balance_ledger_mismatches']  = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM (
                 SELECT x.location_id,x.variant_id,ROUND(x.ledger_qty,2) ledger_qty,ROUND(COALESCE(b.physical_qty,0),2) balance_qty
@@ -1340,8 +1340,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				)
 			);
 			$res                                       = Stockland_DB::table( 'reservations' );
-			$diagnostics['orphan_reservations']        = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i r LEFT JOIN %i p ON p.variant_id=r.variant_id WHERE r.variant_id IS NULL OR p.variant_id IS NULL', $res, $prod ) );
-			$diagnostics['over_reserved_pairs']        = (int) $wpdb->get_var(
+			$diagnostics['orphan_reservations']        = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i r LEFT JOIN %i p ON p.variant_id=r.variant_id WHERE r.variant_id IS NULL OR p.variant_id IS NULL', $res, $prod ) );
+			$diagnostics['over_reserved_pairs']        = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM (
                 SELECT r.location_id,r.variant_id,SUM(r.quantity_reserved) reserved_qty,COALESCE(b.physical_qty,0) physical_qty
@@ -1354,8 +1354,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					$bal
 				)
 			);
-			$diagnostics['duplicate_product_barcodes'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM (SELECT barcode FROM %i WHERE barcode IS NOT NULL AND barcode<>'' GROUP BY barcode HAVING COUNT(*)>1) d", $prod ) );
-			$diagnostics['duplicate_product_gtins']    = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM (SELECT gtin FROM %i WHERE gtin IS NOT NULL AND gtin<>'' GROUP BY gtin HAVING COUNT(*)>1) d", $prod ) );
+			$diagnostics['duplicate_product_barcodes'] = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM (SELECT barcode FROM %i WHERE barcode IS NOT NULL AND barcode<>'' GROUP BY barcode HAVING COUNT(*)>1) d", $prod ) );
+			$diagnostics['duplicate_product_gtins']    = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM (SELECT gtin FROM %i WHERE gtin IS NOT NULL AND gtin<>'' GROUP BY gtin HAVING COUNT(*)>1) d", $prod ) );
 			$checks['identifier_integrity']            = 0 === $diagnostics['duplicate_product_barcodes'] && 0 === $diagnostics['duplicate_product_gtins'];
 			$checks['ledger_references']               = ( 0 === $diagnostics['orphan_ledger_sku'] && 0 === $diagnostics['ledger_missing_variant_identity'] && 0 === $diagnostics['orphan_ledger_location'] );
 			$checks['no_negative_stock']               = 0 === $diagnostics['negative_stock_pairs'];
@@ -1385,7 +1385,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$pay = Stockland_DB::table( 'payments' );
 			$glj = Stockland_DB::table( 'gl_journals' );
 			$gll = Stockland_DB::table( 'gl_lines' );
-			$diagnostics['supplier_ap_reconciliation_mismatches'] = (int) $wpdb->get_var(
+			$diagnostics['supplier_ap_reconciliation_mismatches'] = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM %i s LEFT JOIN (SELECT supplier_id,SUM(total_amount) total FROM %i WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id LEFT JOIN (SELECT supplier_id,SUM(amount) total FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id LEFT JOIN (SELECT l.supplier_id,SUM(l.credit-l.debit) balance FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='2000' GROUP BY l.supplier_id) g ON g.supplier_id=s.id WHERE ABS(ROUND(COALESCE(s.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01",
 					$sup,
@@ -1395,7 +1395,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					$glj
 				)
 			);
-			$diagnostics['customer_ar_reconciliation_mismatches'] = (int) $wpdb->get_var(
+			$diagnostics['customer_ar_reconciliation_mismatches'] = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM %i c LEFT JOIN (SELECT customer_id,SUM(total_amount) total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id LEFT JOIN (SELECT l.customer_id,SUM(l.debit-l.credit) balance FROM %i l JOIN %i j ON j.id=l.journal_id WHERE j.status='POSTED' AND l.account_code='1100' GROUP BY l.customer_id) g ON g.customer_id=c.id WHERE ABS(ROUND(COALESCE(c.opening_balance,0)+COALESCE(i.total,0)-COALESCE(p.total,0)-COALESCE(g.balance,0),2))>0.01",
 					$cus,
@@ -1413,14 +1413,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 
 		if ( in_array( 'gl_journals', $found_keys, true ) && in_array( 'gl_lines', $found_keys, true ) ) {
-			$diagnostics['unbalanced_gl_journals'] = (int) $wpdb->get_var(
+			$diagnostics['unbalanced_gl_journals'] = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM %i j JOIN (SELECT journal_id,SUM(debit) d,SUM(credit) c FROM %i GROUP BY journal_id) x ON x.journal_id=j.id WHERE j.status='POSTED' AND ABS(x.d-x.c)>0.01",
 					Stockland_DB::table( 'gl_journals' ),
 					Stockland_DB::table( 'gl_lines' )
 				)
 			);
-			$diagnostics['orphan_gl_lines']        = (int) $wpdb->get_var(
+			$diagnostics['orphan_gl_lines']        = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i l LEFT JOIN %i j ON j.id=l.journal_id WHERE j.id IS NULL',
 					Stockland_DB::table( 'gl_lines' ),
@@ -1434,14 +1434,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$checks['general_ledger_balanced']     = $checks['full_schema'];
 		}
 		if ( in_array( 'purchase_order_items', $found_keys, true ) && in_array( 'purchase_orders', $found_keys, true ) && in_array( 'invoice_items', $found_keys, true ) && in_array( 'customer_invoices', $found_keys, true ) ) {
-			$diagnostics['orphan_po_items']      = (int) $wpdb->get_var(
+			$diagnostics['orphan_po_items']      = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i i LEFT JOIN %i p ON p.id=i.po_id WHERE p.id IS NULL',
 					Stockland_DB::table( 'purchase_order_items' ),
 					Stockland_DB::table( 'purchase_orders' )
 				)
 			);
-			$diagnostics['orphan_invoice_items'] = (int) $wpdb->get_var(
+			$diagnostics['orphan_invoice_items'] = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i i LEFT JOIN %i h ON h.id=i.invoice_id WHERE h.id IS NULL',
 					Stockland_DB::table( 'invoice_items' ),
@@ -1498,7 +1498,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$employees_table = Stockland_DB::table( 'employees' );
 			$comp_table      = Stockland_DB::table( 'employee_compensation' );
 			$as_of           = current_time( 'Y-m-d' );
-			$unresolved      = (int) $wpdb->get_var(
+			$unresolved      = (int) Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM %i e LEFT JOIN %i c ON c.id=(SELECT c2.id FROM %i c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) WHERE e.status='ACTIVE' AND UPPER(COALESCE(e.employment_type,''))<>'RETAINER_SERVICE' AND (e.hire_date IS NULL OR e.hire_date<=%s) AND (e.termination_date IS NULL OR e.termination_date>=%s) AND (c.id IS NULL OR c.statutory_classification_status<>'OWNER_CLASSIFIED' OR c.taxable_allowance_total IS NULL OR c.exempt_allowance_total IS NULL OR c.pensionable_salary IS NULL)",
 					$employees_table,
@@ -1509,7 +1509,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					$as_of
 				)
 			);
-			$excluded        = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s)", $employees_table, $as_of, $as_of ) );
+			$excluded        = (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s)", $employees_table, $as_of, $as_of ) );
 			$diagnostics['payroll_compensation_classification']['unresolved_active_employees']         = $unresolved;
 			$diagnostics['payroll_compensation_classification']['excluded_retainer_service_contracts'] = $excluded;
 			$checks['payroll_compensation_classification'] = ( 0 === $unresolved );
@@ -1566,7 +1566,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['product_master_contract'] = false;
 		if ( in_array( 'products', $found_keys, true ) ) {
 			$required_product_columns                      = array( 'variant_id', 'sku', 'product_name', 'product_type', 'parent_sku', 'brand', 'color', 'size', 'barcode', 'gtin', 'purchase_cost', 'retail_price', 'wholesale_price', 'branch_reorder_level', 'central_reorder_level', 'is_active' );
-			$product_cols                                  = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', Stockland_DB::table( 'products' ) ), 0 );
+			$product_cols                                  = Stockland_DB::read_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', Stockland_DB::table( 'products' ) ), 0 );
 			$checks['product_master_contract']             = empty( array_diff( $required_product_columns, (array) $product_cols ) );
 			$diagnostics['product_master_missing_columns'] = array_values( array_diff( $required_product_columns, (array) $product_cols ) );
 		}
@@ -1606,13 +1606,13 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 
 		if ( in_array( 'notifications', $found_keys, true ) ) {
-			$diagnostics['notification_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'notifications' ) ) );
+			$diagnostics['notification_rows'] = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'notifications' ) ) );
 		}
 		if ( in_array( 'import_jobs', $found_keys, true ) ) {
-			$diagnostics['import_job_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'import_jobs' ) ) );
+			$diagnostics['import_job_rows'] = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'import_jobs' ) ) );
 		}
 		if ( in_array( 'receipts', $found_keys, true ) ) {
-			$diagnostics['receipt_rows'] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'receipts' ) ) );
+			$diagnostics['receipt_rows'] = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Stockland_DB::table( 'receipts' ) ) );
 		}
 
 		// Release gate dependencies must be explicitly evaluated before live_ready.
@@ -1621,8 +1621,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$checks['variant_first_product_identity'] = false;
 		if ( in_array( 'products', $found_keys, true ) ) {
 			$product_table  = Stockland_DB::table( 'products' );
-			$variant_col    = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', $product_table, 'variant_id' ), ARRAY_A );
-			$indexes        = (array) $wpdb->get_results( $wpdb->prepare( 'SHOW INDEX FROM %i', $product_table ), ARRAY_A );
+			$variant_col    = Stockland_DB::read_row( $wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', $product_table, 'variant_id' ), ARRAY_A );
+			$indexes        = (array) Stockland_DB::read_results( $wpdb->prepare( 'SHOW INDEX FROM %i', $product_table ), ARRAY_A );
 			$has_variant_pk = false;
 			$has_sku_unique = false;
 			foreach ( $indexes as $ix ) {
@@ -1666,7 +1666,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					'missing_columns' => $need,
 				);
 				continue; }
-			$cols                                     = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
+			$cols                                     = Stockland_DB::read_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
 			$diagnostics['target_schema'][ $logical ] = array(
 				'table_present'   => true,
 				'missing_columns' => array_values( array_diff( $need, (array) $cols ) ),
@@ -1780,7 +1780,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		// IDs are cast to positive integers above. FIND_IN_SET keeps the value list in a single prepared string and avoids constructing SQL placeholders from request data.
-		$rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT id,location_type FROM %i WHERE is_active=1 AND FIND_IN_SET(id,%s)', Stockland_DB::table( 'locations' ), implode( ',', $ids ) ), ARRAY_A );
+		$rows  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_type FROM %i WHERE is_active=1 AND FIND_IN_SET(id,%s)', Stockland_DB::table( 'locations' ), implode( ',', $ids ) ), ARRAY_A );
 		$types = array();
 		foreach ( $rows as $row ) {
 			$types[ (int) $row['id'] ] = (string) $row['location_type'];
@@ -1828,13 +1828,13 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$table                  = Stockland_DB::table( 'user_locations' );
 		static $table_available = null;
 		if ( null === $table_available ) {
-			$table_available = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) === $table );
+			$table_available = ( Stockland_DB::read_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) === $table );
 		}
 		if ( ! $table_available ) {
 			return true;
 		}
 		$user_id = (int) $wp_user_id;
-		$wpdb->delete( $table, array( 'wp_user_id' => $user_id ) );
+		Stockland_DB::delete_record( $table, array( 'wp_user_id' => $user_id ) );
 		$ids = array_values( array_unique( array_filter( array_map( 'intval', (array) $ids ) ) ) );
 		if ( ! $ids ) {
 			return true;
@@ -1849,7 +1849,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$sql = 'INSERT INTO %i (wp_user_id,location_id,is_primary,is_active,created_by) VALUES ' . implode( ',', $placeholders );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name is bound as %i; all remaining values are supplied via generated %d placeholders from integer-cast IDs.
-		$ok = $wpdb->query( $wpdb->prepare( $sql, array_merge( array( $table ), $values ) ) );
+		$ok = Stockland_DB::execute_query( $wpdb->prepare( $sql, array_merge( array( $table ), $values ) ) );
 		return false !== $ok;
 	}
 
@@ -1883,7 +1883,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
              ) scope ON scope.wp_user_id=su.wp_user_id
              ORDER BY u.display_name,u.user_login";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$rows            = $wpdb->get_results(
+		$rows            = Stockland_DB::read_results(
 			$wpdb->prepare(
 				$sql,
 				$users_table,
@@ -2029,7 +2029,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return $id;
 		}
 		global $wpdb;
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 			wp_delete_user( $id );
 			return new WP_Error( 'transaction_failed', 'Could not start ERP user setup transaction.', array( 'status' => 500 ) );
@@ -2042,7 +2042,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'branch_location_id' => $assignment['branch_location_id'],
 				'is_active'          => 1,
 			);
-			if ( false === $wpdb->insert( Stockland_DB::table( 'users' ), $profile ) ) {
+			if ( false === Stockland_DB::insert_record( Stockland_DB::table( 'users' ), $profile ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create the Stockland user profile.' );
 			}
 			if ( ! $this->sync_location_assignments( $id, $assignment['location_ids'], $assignment['branch_location_id'], get_current_user_id() ) ) {
@@ -2060,7 +2060,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $assignment['branch_location_id'], 'USER_CREATE', null, null, null, $role, 'User ' . $login, 'WP#' . (string) $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; user was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'User create commit failed.' );
 			}
 			return rest_ensure_response(
@@ -2073,7 +2073,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			$this->restore_stockland_roles( $id, $previous );
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 			wp_delete_user( $id );
@@ -2087,7 +2087,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function available_wp_users() {
 		global $wpdb;
 		$stock_table = Stockland_DB::table( 'users' );
-		$rows        = $wpdb->get_results(
+		$rows        = Stockland_DB::read_results(
 			$wpdb->prepare(
 				'SELECT u.ID,u.user_login,u.display_name,u.user_email,u.user_registered,
                 su.role AS erp_role,su.is_active AS erp_is_active
@@ -2187,11 +2187,11 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return $assignment;
 		}
 		$stock_table = Stockland_DB::table( 'users' );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start ERP user activation transaction.', array( 'status' => 500 ) );
 		}$previous = array();
 		try {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d FOR UPDATE', $stock_table, $target ), ARRAY_A );
+			$existing = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d FOR UPDATE', $stock_table, $target ), ARRAY_A );
 			$old_ref  = $existing ? $existing['role'] : 'UNLINKED';
 			$previous = $this->apply_stockland_role( $target, $role, true );
 			$data     = array(
@@ -2200,10 +2200,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'is_active'          => 1,
 			);
 			if ( $existing ) {
-				if ( false === $wpdb->update( $stock_table, $data, array( 'wp_user_id' => $target ) ) ) {
+				if ( false === Stockland_DB::update_record( $stock_table, $data, array( 'wp_user_id' => $target ) ) ) {
 					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not activate the Stockland user profile.' );
 				}
-			} elseif ( false === $wpdb->insert( $stock_table, array_merge( array( 'wp_user_id' => $target ), $data ) ) ) {
+			} elseif ( false === Stockland_DB::insert_record( $stock_table, array_merge( array( 'wp_user_id' => $target ), $data ) ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create the Stockland user profile.' );
 			}
 			if ( ! $this->sync_location_assignments( $target, $assignment['location_ids'], $assignment['branch_location_id'], get_current_user_id() ) ) {
@@ -2215,7 +2215,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $assignment['branch_location_id'], 'USER_ACTIVATE', null, null, $old_ref, $role, 'Activated existing WordPress account', 'WP#' . (string) $target ) ) {
 				throw new Exception( 'Audit event could not be recorded; activation was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'User activation commit failed.' );
 			}
 			return rest_ensure_response(
@@ -2229,7 +2229,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			$this->restore_stockland_roles( $target, $previous );
 			return new WP_Error( 'activation_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
@@ -2245,7 +2245,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return $rows;
 		}
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Branch','Warehouse') ORDER BY id", Stockland_DB::table( 'locations' ) ), ARRAY_A );
+		$rows = Stockland_DB::read_results( $wpdb->prepare( "SELECT id,location_name,location_type FROM %i WHERE is_active=1 AND location_type IN('Branch','Warehouse') ORDER BY id", Stockland_DB::table( 'locations' ) ), ARRAY_A );
 		return $rows;
 	}
 
@@ -2260,7 +2260,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		global $wpdb;
 		$target = (int) $r['id'];
 		$p      = $r->get_json_params();
-		$row    = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d', 'users', $target ), ARRAY_A );
+		$row    = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d', 'users', $target ), ARRAY_A );
 		if ( ! $row ) {
 			return new WP_Error( 'not_found', 'Stockland user not found.', array( 'status' => 404 ) );
 		}
@@ -2278,7 +2278,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$active = isset( $p['is_active'] ) ? (bool) $p['is_active'] : (bool) $row['is_active'];
 		if ( 'management' === $row['role'] && ! $active ) {
-			$remaining = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE role=\'management\' AND is_active=1 AND wp_user_id<>%d', 'users', $target ) );
+			$remaining = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE role=\'management\' AND is_active=1 AND wp_user_id<>%d', 'users', $target ) );
 			if ( $remaining < 1 ) {
 				return new WP_Error( 'last_management', 'At least one active Management user must remain.', array( 'status' => 409 ) );
 			}
@@ -2288,12 +2288,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			return new WP_Error( 'not_found', 'WordPress user account not found.', array( 'status' => 404 ) );
 		}
 		$old_roles = array_values( array_intersect( (array) $wp_user->roles, Stockland_Roles::supported_roles() ) );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start ERP user update transaction.', array( 'status' => 500 ) );
 		}
 		try {
 			$branch = $assignment['branch_location_id'];
-			if ( false === $wpdb->update(
+			if ( false === Stockland_DB::update_record(
 				Stockland_DB::table( 'users' ),
 				array(
 					'role'               => str_replace( 'stockland_', '', $role ),
@@ -2314,7 +2314,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $branch, 'USER_UPDATE', null, null, $row['role'] . '/' . $row['branch_location_id'], $active ? $role : 'INACTIVE', null, (string) $target ) ) {
 				throw new Exception( 'Audit event could not be recorded; user update was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'User update commit failed.' );
 			}
 			return rest_ensure_response(
@@ -2327,7 +2327,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			$this->restore_stockland_roles( $target, $old_roles );
 			return new WP_Error( 'update_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
@@ -2339,7 +2339,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 */
 	public function settings() {
 		global $wpdb;
-		return rest_ensure_response( $wpdb->get_results( 'SELECT setting_key,setting_value,updated_at FROM ' . Stockland_DB::table( 'settings' ) . " WHERE setting_key NOT LIKE '__stockland_sequence__%' ORDER BY setting_key", ARRAY_A ) );}
+		return rest_ensure_response( Stockland_DB::read_results( 'SELECT setting_key,setting_value,updated_at FROM ' . Stockland_DB::table( 'settings' ) . " WHERE setting_key NOT LIKE '__stockland_sequence__%' ORDER BY setting_key", ARRAY_A ) );}
 	/**
 	 * Validates and saves permitted ERP settings with audit logging.
 	 *
@@ -2370,24 +2370,24 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( empty( $changes ) ) {
 			return $this->settings();
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start settings transaction.', array( 'status' => 500 ) );
 		}
 		try {
 			foreach ( $changes as $k => $v ) {
 				$old = Stockland_DB::get_setting( $k, null );
-				if ( false === $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (setting_key,setting_value,updated_by) VALUES(%s,%s,%d) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by=VALUES(updated_by)', 'settings', $k, $v, get_current_user_id() ) ) ) {
+				if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'INSERT INTO %i (setting_key,setting_value,updated_by) VALUES(%s,%s,%d) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_by=VALUES(updated_by)', 'settings', $k, $v, get_current_user_id() ) ) ) {
 					throw new Exception( 'Could not save setting ' . $k . '.' );
 				}
 				if ( (string) $old !== (string) $v && ! Stockland_Audit::log( get_current_user_id(), null, 'SETTING_UPDATE', null, null, $old, $v, 'Management setting update', $k ) ) {
 					throw new Exception( 'Audit event could not be recorded; settings were not committed.' );
 				}
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Settings commit failed.' );
 			} return $this->settings();
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'settings_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 	/**
@@ -2435,7 +2435,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
                     COALESCE(SUM(quantity_sold),0) units
              FROM %i WHERE posting_status='CLOSED' AND sale_date BETWEEN %s AND %s" . $rt_scope;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$rt     = $wpdb->get_row( $wpdb->prepare( $rt_sql, $rt_args ), ARRAY_A );
+		$rt     = Stockland_DB::read_row( $wpdb->prepare( $rt_sql, $rt_args ), ARRAY_A );
 
 		$wt = $scope ? array(
 			'sales'  => 0,
@@ -2443,7 +2443,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			'vat'    => 0,
 			'profit' => 0,
 			'units'  => 0,
-		) : $wpdb->get_row(
+		) : Stockland_DB::read_row(
 			$wpdb->prepare(
 				'SELECT COALESCE(SUM(sales_value),0) sales,COALESCE(SUM(net_sales_excl_vat),0) net,
                     COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit,
@@ -2471,7 +2471,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$branch_sql .= ' GROUP BY l.id ORDER BY retail_sales DESC';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$branch      = $wpdb->get_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
+		$branch      = Stockland_DB::read_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
 
 		$top_sql  = "SELECT s.sku,p.product_name,COALESCE(SUM(s.quantity_sold),0) units,
                     COALESCE(SUM(s.sales_total),0) sales,COALESCE(SUM(s.gross_profit),0) profit
@@ -2484,7 +2484,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$top_sql .= ' GROUP BY s.sku,p.product_name ORDER BY units DESC LIMIT 10';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$top      = $wpdb->get_results( $wpdb->prepare( $top_sql, $top_args ), ARRAY_A );
+		$top      = Stockland_DB::read_results( $wpdb->prepare( $top_sql, $top_args ), ARRAY_A );
 
 		$returns_sql  = 'SELECT COALESCE(SUM(quantity),0) units,COUNT(*) rows FROM %i WHERE return_date BETWEEN %s AND %s';
 		$returns_args = array( $ret, $from, $to );
@@ -2493,7 +2493,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$returns_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$returns = $wpdb->get_row( $wpdb->prepare( $returns_sql, $returns_args ), ARRAY_A );
+		$returns = Stockland_DB::read_row( $wpdb->prepare( $returns_sql, $returns_args ), ARRAY_A );
 
 		$stock_sql  = "SELECT l.location_name,p.sku,p.product_name,p.brand,p.size,p.color,
                     COALESCE(b.physical_stock,0) physical_stock,COALESCE(a.reserved_stock,0) reserved_stock,
@@ -2512,7 +2512,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$stock_sql .= ' ORDER BY l.location_name,p.sku';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$stock      = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
+		$stock      = Stockland_DB::read_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 		$transfers_sql = 'SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,f.location_name from_location_name,to_l.location_name to_location_name,
                     t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty
@@ -2529,7 +2529,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$transfers_sql .= ' ORDER BY t.created_at DESC LIMIT 500';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$transfer_rows  = $wpdb->get_results( $wpdb->prepare( $transfers_sql, $targs ), ARRAY_A );
+		$transfer_rows  = Stockland_DB::read_results( $wpdb->prepare( $transfers_sql, $targs ), ARRAY_A );
 
 		$people_sql  = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,
                     COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue
@@ -2543,7 +2543,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$people_sql .= ' GROUP BY l.id,s.staff_user_id,u.display_name ORDER BY revenue DESC LIMIT 200';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$people      = $wpdb->get_results( $wpdb->prepare( $people_sql, $people_args ), ARRAY_A );
+		$people      = Stockland_DB::read_results( $wpdb->prepare( $people_sql, $people_args ), ARRAY_A );
 
 		$variance_sql  = "SELECT t.transfer_id,t.status,t.transfer_date,t.sku,p.product_name,
                     f.location_name from_location_name,to_l.location_name to_location_name,
@@ -2562,7 +2562,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$variance_sql .= ' ORDER BY t.received_at DESC LIMIT 500';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$variances     = $wpdb->get_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
+		$variances     = Stockland_DB::read_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
 
 		$count_sql = 'SELECT b.batch_id,b.count_date,b.status,l.location_name,b.uploaded_by,b.approved_by,
                     COUNT(cl.id) lines,SUM(CASE WHEN ABS(cl.variance_qty)>0.00001 THEN 1 ELSE 0 END) variance_lines,
@@ -2578,7 +2578,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$count_sql    .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 200';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$count_batches = $wpdb->get_results( $wpdb->prepare( $count_sql, $cargs ), ARRAY_A );
+		$count_batches = Stockland_DB::read_results( $wpdb->prepare( $count_sql, $cargs ), ARRAY_A );
 		if ( ! current_user_can( 'stockland_view_cost_and_profit' ) ) {
 			$rt['profit'] = 0;
 			foreach ( $branch as &$br ) {
@@ -2646,7 +2646,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sales_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$sales = $wpdb->get_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
+		$sales = Stockland_DB::read_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
 
 		$transfer_sql  = 'SELECT t.transfer_id,t.sku,p.product_name,t.quantity,t.dispatched_qty,t.received_qty,t.variance_qty,t.from_location_id,t.to_location_id,f.location_name from_location_name,to_l.location_name to_location_name,t.status,t.received_at,u.display_name received_by_name
 			FROM %i t
@@ -2661,7 +2661,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$transfer_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$received = $wpdb->get_results( $wpdb->prepare( $transfer_sql, $transfer_args ), ARRAY_A );
+		$received = Stockland_DB::read_results( $wpdb->prepare( $transfer_sql, $transfer_args ), ARRAY_A );
 
 		$receipt_sql  = 'SELECT r.receipt_id,r.sku,p.product_name,r.quantity_received expected_qty,COALESCE(r.actual_quantity_received,0) actual_qty,r.supplier_source,r.status,r.received_at,u.display_name received_by_name
 			FROM %i r
@@ -2670,7 +2670,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			WHERE r.receipt_date=%s' . $receipt_scope_sql . ' ORDER BY r.created_at DESC';
 		$receipt_args = array( Stockland_DB::table( 'receipts' ), Stockland_DB::table( 'products' ), $wpdb->users, $date );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$receipts     = $wpdb->get_results( $wpdb->prepare( $receipt_sql, $receipt_args ), ARRAY_A );
+		$receipts     = Stockland_DB::read_results( $wpdb->prepare( $receipt_sql, $receipt_args ), ARRAY_A );
 
 		$summary_scope_sql = $scope ? ' AND s.branch_location_id=%d' : '';
 		$summary_sql       = "SELECT COUNT(*) sale_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) revenue,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(gross_profit),0) profit
@@ -2680,7 +2680,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$summary_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$summary = $wpdb->get_row( $wpdb->prepare( $summary_sql, $summary_args ), ARRAY_A );
+		$summary = Stockland_DB::read_row( $wpdb->prepare( $summary_sql, $summary_args ), ARRAY_A );
 
 		$closing_scope_sql = $scope ? ' AND dc.branch_location_id=%d' : '';
 		$closing_sql       = 'SELECT dc.branch_location_id,l.location_name,dc.status,dc.closed_at,dc.closed_by,dc.total_sales,dc.total_vat,dc.total_gross_profit FROM %i dc JOIN %i l ON l.id=dc.branch_location_id WHERE dc.business_date=%s' . $closing_scope_sql . ' ORDER BY l.location_name';
@@ -2689,7 +2689,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$closing_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$closings = $wpdb->get_results( $wpdb->prepare( $closing_sql, $closing_args ), ARRAY_A );
+		$closings = Stockland_DB::read_results( $wpdb->prepare( $closing_sql, $closing_args ), ARRAY_A );
 
 		return rest_ensure_response(
 			array(
@@ -2728,7 +2728,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( is_wp_error( $scope ) ) {
 			return $scope;
 		}
-		if ( $scope && ! (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE id=%d AND is_active=1 AND location_type IN('Branch','Warehouse')", Stockland_DB::table( 'locations' ), (int) $scope ) ) ) {
+		if ( $scope && ! (int) Stockland_DB::read_var( $wpdb->prepare( "SELECT id FROM %i WHERE id=%d AND is_active=1 AND location_type IN('Branch','Warehouse')", Stockland_DB::table( 'locations' ), (int) $scope ) ) ) {
 			return new WP_Error( 'invalid_location', 'Selected location is not an active branch or warehouse.', array( 'status' => 400 ) );
 		}
 
@@ -2747,7 +2747,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sales_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$sales = $wpdb->get_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
+		$sales = Stockland_DB::read_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
 
 		$by_product_sql = "SELECT l.location_name,s.sku,s.variant_id,p.product_name,p.brand,p.color,p.size,p.size_system,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue,COALESCE(SUM(s.gross_profit),0) profit
 			FROM %i s
@@ -2759,7 +2759,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$product_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$by_product = $wpdb->get_results( $wpdb->prepare( $by_product_sql, $product_args ), ARRAY_A );
+		$by_product = Stockland_DB::read_results( $wpdb->prepare( $by_product_sql, $product_args ), ARRAY_A );
 
 		$by_person_sql = "SELECT l.location_name,u.display_name,COUNT(s.sale_id) sales_count,COALESCE(SUM(s.quantity_sold),0) units,COALESCE(SUM(s.sales_total),0) revenue
 			FROM %i s
@@ -2771,7 +2771,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$person_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$by_person = $wpdb->get_results( $wpdb->prepare( $by_person_sql, $person_args ), ARRAY_A );
+		$by_person = Stockland_DB::read_results( $wpdb->prepare( $by_person_sql, $person_args ), ARRAY_A );
 
 		$variance_sql  = "SELECT t.transfer_id,f.location_name from_location_name,to_l.location_name to_location_name,t.sku,p.product_name,t.dispatched_qty,t.received_qty,t.variance_qty,t.receipt_reason,t.received_at
 			FROM %i t
@@ -2785,7 +2785,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$variance_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$variance = $wpdb->get_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
+		$variance = Stockland_DB::read_results( $wpdb->prepare( $variance_sql, $variance_args ), ARRAY_A );
 
 		$low_sql  = "SELECT l.location_name,p.sku,p.product_name,COALESCE(b.physical_stock,0) current_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level
 			FROM %i p CROSS JOIN %i l
@@ -2796,7 +2796,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$low_args[] = (int) $scope;
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$low = $wpdb->get_results( $wpdb->prepare( $low_sql, $low_args ), ARRAY_A );
+		$low = Stockland_DB::read_results( $wpdb->prepare( $low_sql, $low_args ), ARRAY_A );
 
 		return rest_ensure_response(
 			array(
@@ -2839,7 +2839,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$args[] = $scope;
 		} $sql .= ' ORDER BY a.created_at DESC LIMIT 300';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		return rest_ensure_response( $args ? Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : Stockland_DB::read_results( $sql, ARRAY_A ) );
 	}
 	/**
 	 * Creates a reconciliation draft within the user's authorized scope.
@@ -2870,13 +2870,13 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( abs( $variance ) < 0.00001 ) {
 			return new WP_Error( 'no_variance', 'Count matches system stock; no adjustment is required.', array( 'status' => 409 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start stock-adjustment transaction.', array( 'status' => 500 ) );
 		}
 		$id = null;
 		try {
 			$id = Stockland_Sequence::next( 'ADJ-', current_time( 'Y-m-d' ) );
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'adjustments' ),
 				array(
 					'adjustment_id' => $id,
@@ -2911,12 +2911,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $loc, 'ADJUSTMENT_REQUEST', $sku, $variance, (string) $system, (string) $counted, $reason, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; adjustment was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Reconciliation commit failed.' );
 			}
-			return rest_ensure_response( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE adjustment_id=%s', 'adjustments', $id ), ARRAY_A ) );
+			return rest_ensure_response( Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE adjustment_id=%s', 'adjustments', $id ), ARRAY_A ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 	/**
@@ -2935,7 +2935,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! in_array( $decision, array( 'Approved', 'Rejected' ), true ) ) {
 			return new WP_Error( 'invalid_decision', 'Decision must be Approved or Rejected.', array( 'status' => 400 ) );
 		}
-		$peek = $wpdb->get_row( $wpdb->prepare( 'SELECT location_id FROM %i WHERE id=%d', 'adjustments', $id ), ARRAY_A );
+		$peek = Stockland_DB::read_row( $wpdb->prepare( 'SELECT location_id FROM %i WHERE id=%d', 'adjustments', $id ), ARRAY_A );
 		if ( ! $peek ) {
 			return new WP_Error( 'not_found', 'Adjustment request not found.', array( 'status' => 404 ) );
 		}
@@ -2943,11 +2943,11 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $lock['ok'] ) {
 			return new WP_Error( 'busy', 'Another inventory operation is being processed for this location. Please retry.', array( 'status' => 409 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start adjustment decision transaction.', array( 'status' => 500 ) );}
 		try {
-			$a = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'adjustments', $id ), ARRAY_A );
+			$a = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'adjustments', $id ), ARRAY_A );
 			if ( ! $a ) {
 				throw new Exception( 'Adjustment request not found.' );
 			}
@@ -2965,7 +2965,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				if ( '' === $reason ) {
 					throw new Exception( 'Rejection reason is required.' );
 				}
-				if ( false === $wpdb->update(
+				if ( false === Stockland_DB::update_record(
 					Stockland_DB::table( 'adjustments' ),
 					array(
 						'status'           => 'Rejected',
@@ -2981,7 +2981,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				if ( ! Stockland_Audit::log( get_current_user_id(), $a['location_id'], 'ADJUSTMENT_REJECT', $a['sku'], $a['variance_qty'], 'Pending', 'Rejected', $reason, $a['adjustment_id'] ) ) {
 					throw new Exception( 'Audit event could not be recorded; adjustment was not committed.' );
 				}
-				if ( false === $wpdb->query( 'COMMIT' ) ) {
+				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 					throw new Exception( 'Adjustment rejection commit failed.' );
 				} Stockland_DB::release_day_lock( $lock );
 				return rest_ensure_response( $a );
@@ -3024,7 +3024,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					throw new Exception( 'Adjustment financial journal failed.' );
 				}
 			}
-			if ( false === $wpdb->update(
+			if ( false === Stockland_DB::update_record(
 				Stockland_DB::table( 'adjustments' ),
 				array(
 					'status'      => 'Approved',
@@ -3039,12 +3039,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $a['location_id'], 'ADJUSTMENT_APPROVE', $a['sku'], $a['variance_qty'], 'Pending', 'Approved', $a['reason'], $a['adjustment_id'] ) ) {
 				throw new Exception( 'Audit event could not be recorded; adjustment was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Adjustment approval commit failed.' );
 			} Stockland_DB::release_day_lock( $lock );
 			return rest_ensure_response( $a );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'adjustment_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
@@ -3092,7 +3092,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			}
 		}
 		if ( $barcode ) {
-			$p = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE is_active=1 AND (barcode=%s OR gtin=%s) LIMIT 2', $products, $barcode, $barcode ), ARRAY_A );
+			$p = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE is_active=1 AND (barcode=%s OR gtin=%s) LIMIT 2', $products, $barcode, $barcode ), ARRAY_A );
 			if ( $p ) {
 				return $p;
 			}
@@ -3104,7 +3104,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $brand || ! $name ) {
 			return null;
 		}
-		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE is_active=1 AND LOWER(TRIM(brand))=%s AND LOWER(TRIM(product_name))=%s', $products, $brand, $name ), ARRAY_A );
+		$rows    = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE is_active=1 AND LOWER(TRIM(brand))=%s AND LOWER(TRIM(product_name))=%s', $products, $brand, $name ), ARRAY_A );
 		$matches = array_values(
 			array_filter(
 				$rows,
@@ -3135,7 +3135,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$args[] = $scope;}
 		$sql .= ' GROUP BY b.id ORDER BY b.created_at DESC LIMIT 100';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		return rest_ensure_response( $args ? Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : Stockland_DB::read_results( $sql, ARRAY_A ) );
 	}
 
 	/**
@@ -3283,16 +3283,16 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $lock['ok'] ) {
 			return new WP_Error( 'busy', 'Another operation is being processed for this location/date. Please retry.', array( 'status' => 409 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count transaction.', array( 'status' => 500 ) );}
 		try {
-			$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT batch_id FROM %i WHERE location_id=%d AND count_date=%s AND status IN(\'Pending\',\'Approved\') LIMIT 1', 'count_batches', $loc, $date ) );
+			$exists = Stockland_DB::read_var( $wpdb->prepare( 'SELECT batch_id FROM %i WHERE location_id=%d AND count_date=%s AND status IN(\'Pending\',\'Approved\') LIMIT 1', 'count_batches', $loc, $date ) );
 			if ( $exists ) {
 				throw new Exception( 'A physical count is already open for this location and date: ' . $exists . '. Complete or resolve it before uploading another count.' );
 			}
 			$batch = Stockland_Sequence::next( 'CNT-', $date );
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'count_batches' ),
 				array(
 					'batch_id'    => $batch,
@@ -3318,7 +3318,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				if ( abs( $variance ) > 0.00001 ) {
 					$reason        = 'Physical count ' . $batch . ( $row['notes'] ? ' — ' . $row['notes'] : '' );
 					$adjustment_id = Stockland_Sequence::next( 'ADJ-', $date );
-					$wpdb->insert(
+					Stockland_DB::insert_record(
 						Stockland_DB::table( 'adjustments' ),
 						array(
 							'adjustment_id'  => $adjustment_id,
@@ -3359,7 +3359,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						throw new Exception( 'Could not record the physical-count workflow event for ' . $row['sku'] . '.' );
 					}
 				}
-				if ( false === $wpdb->insert(
+				if ( false === Stockland_DB::insert_record(
 					Stockland_DB::table( 'count_lines' ),
 					array(
 						'batch_id'      => $batch,
@@ -3387,7 +3387,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $loc, 'PHYSICAL_COUNT_CREATE', null, null, null, $batch, 'Lines ' . $line_count . '; variance lines ' . $variance_lines, $batch ) ) {
 				throw new Exception( 'Audit event could not be recorded; physical count was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Physical count commit failed.' );
 			}
 			delete_transient( $key );
@@ -3401,7 +3401,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'count_commit_failed', $e->getMessage(), array( 'status' => 409 ) );
 		} finally {
 			Stockland_DB::release_day_lock( $lock );}
@@ -3422,7 +3422,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! in_array( $decision, array( 'Approved', 'Rejected' ), true ) ) {
 			return new WP_Error( 'invalid_decision', 'Decision must be Approved or Rejected.', array( 'status' => 400 ) );
 		}
-		$b = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'count_batches', $id ), ARRAY_A );
+		$b = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'count_batches', $id ), ARRAY_A );
 		if ( ! $b ) {
 			return new WP_Error( 'not_found', 'Physical count batch not found.', array( 'status' => 404 ) );
 		}
@@ -3436,19 +3436,19 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! $lock['ok'] ) {
 			return new WP_Error( 'busy', 'Another operation is being processed for this location/date. Please retry.', array( 'status' => 409 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start physical-count decision transaction.', array( 'status' => 500 ) );}
 		try {
-			$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'count_batches', $id ), ARRAY_A );
+			$batch = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', 'count_batches', $id ), ARRAY_A );
 			if ( ! $batch || 'Pending' !== $batch['status'] ) {
 				throw new Exception( 'Physical count is no longer pending.' );
 			}
 			if ( 'Rejected' === $decision ) {
-				if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=\'Rejected\',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status=\'Pending\'', 'adjustments', get_current_user_id(), current_time( 'mysql' ), $reason, $batch['batch_id'] ) ) ) {
+				if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i SET status=\'Rejected\',approved_by=%d,approved_at=%s,rejection_reason=%s WHERE count_batch_id=%s AND status=\'Pending\'', 'adjustments', get_current_user_id(), current_time( 'mysql' ), $reason, $batch['batch_id'] ) ) ) {
 					throw new Exception( 'Could not reject pending physical-count adjustments.' );
 				}
-				if ( false === $wpdb->update(
+				if ( false === Stockland_DB::update_record(
 					Stockland_DB::table( 'count_batches' ),
 					array(
 						'status'      => 'Rejected',
@@ -3463,7 +3463,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				if ( ! Stockland_Audit::log( get_current_user_id(), $batch['location_id'], 'PHYSICAL_COUNT_REJECT', null, null, 'Pending', 'Rejected', $reason, $batch['batch_id'] ) ) {
 					throw new Exception( 'Audit event could not be recorded; physical count was not committed.' );
 				}
-				if ( false === $wpdb->query( 'COMMIT' ) ) {
+				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 					throw new Exception( 'Physical count rejection commit failed.' );
 				}return rest_ensure_response(
 					array(
@@ -3472,14 +3472,14 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					)
 				);
 			}
-			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE batch_id=%s ORDER BY id FOR UPDATE', 'count_lines', $batch['batch_id'] ), ARRAY_A );
+			$lines = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE batch_id=%s ORDER BY id FOR UPDATE', 'count_lines', $batch['batch_id'] ), ARRAY_A );
 			foreach ( $lines as $line ) {
 				$current = Stockland_DB::get_physical_stock( (int) $batch['location_id'], $line['sku'] );
 				if ( abs( $current - (float) $line['system_qty'] ) > 0.00001 ) {
 					throw new Exception( 'Stock changed after the physical count for ' . $line['sku'] . '. Recount is required before this batch can be approved.' );
 				}
 			}
-			$adjustments = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE count_batch_id=%s AND status=\'Pending\' FOR UPDATE', 'adjustments', $batch['batch_id'] ), ARRAY_A );
+			$adjustments = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE count_batch_id=%s AND status=\'Pending\' FOR UPDATE', 'adjustments', $batch['batch_id'] ), ARRAY_A );
 			foreach ( $adjustments as $a ) {
 				if ( false === Stockland_Ledger::record( (int) $a['location_id'], $a['sku'], 'PHYSICAL_COUNT_ADJUSTMENT', (float) $a['variance_qty'], 'adjustment', (string) $a['id'], $batch['count_date'], get_current_user_id() ) ) {
 					throw new Exception( 'Could not post the physical-count adjustment for ' . $a['sku'] . '.' );
@@ -3519,7 +3519,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						throw new Exception( 'Physical count financial journal failed.' );
 					}
 				}
-				if ( false === $wpdb->update(
+				if ( false === Stockland_DB::update_record(
 					Stockland_DB::table( 'adjustments' ),
 					array(
 						'status'      => 'Approved',
@@ -3545,7 +3545,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					throw new Exception( 'Could not record workflow event for ' . $a['adjustment_id'] . '.' );
 				}
 			}
-			if ( false === $wpdb->update(
+			if ( false === Stockland_DB::update_record(
 				Stockland_DB::table( 'count_batches' ),
 				array(
 					'status'      => 'Approved',
@@ -3559,7 +3559,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $batch['location_id'], 'PHYSICAL_COUNT_APPROVE', null, null, 'Pending', 'Approved', 'Batch approved; ' . $batch['batch_id'], $batch['batch_id'] ) ) {
 				throw new Exception( 'Audit event could not be recorded; physical count was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Physical count approval commit failed.' );
 			}
 			return rest_ensure_response(
@@ -3571,7 +3571,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'count_decision_failed', $e->getMessage(), array( 'status' => 409 ) );
 		} finally {
 			Stockland_DB::release_day_lock( $lock );}
@@ -3586,7 +3586,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function count_report( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = sanitize_text_field( $r['id'] );
-		$b  = $wpdb->get_row( $wpdb->prepare( 'SELECT b.*,l.location_name,u.display_name uploaded_by_name,au.display_name approved_by_name FROM ' . Stockland_DB::table( 'count_batches' ) . ' b JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=b.location_id LEFT JOIN {$wpdb->users} u ON u.ID=b.uploaded_by LEFT JOIN {$wpdb->users} au ON au.ID=b.approved_by WHERE b.id=%d", (int) $id ), ARRAY_A );
+		$b  = Stockland_DB::read_row( $wpdb->prepare( 'SELECT b.*,l.location_name,u.display_name uploaded_by_name,au.display_name approved_by_name FROM ' . Stockland_DB::table( 'count_batches' ) . ' b JOIN ' . Stockland_DB::table( 'locations' ) . " l ON l.id=b.location_id LEFT JOIN {$wpdb->users} u ON u.ID=b.uploaded_by LEFT JOIN {$wpdb->users} au ON au.ID=b.approved_by WHERE b.id=%d", (int) $id ), ARRAY_A );
 		if ( ! $b ) {
 			return new WP_Error( 'not_found', 'Physical count batch not found.', array( 'status' => 404 ) );
 		}
@@ -3596,7 +3596,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}if ( $allowed && (int) $allowed !== (int) $b['location_id'] ) {
 			return new WP_Error( 'forbidden', 'You are not authorized to view this count.', array( 'status' => 403 ) );
 		}
-		$lines   = $wpdb->get_results( $wpdb->prepare( 'SELECT cl.*,p.retail_price,p.wholesale_price FROM %i cl LEFT JOIN %i p ON (p.variant_id=cl.variant_id OR (cl.variant_id IS NULL AND p.sku=cl.sku)) WHERE cl.batch_id=%s ORDER BY cl.id', 'count_lines', $b['batch_id'], 'products' ), ARRAY_A );
+		$lines   = Stockland_DB::read_results( $wpdb->prepare( 'SELECT cl.*,p.retail_price,p.wholesale_price FROM %i cl LEFT JOIN %i p ON (p.variant_id=cl.variant_id OR (cl.variant_id IS NULL AND p.sku=cl.sku)) WHERE cl.batch_id=%s ORDER BY cl.id', 'count_lines', $b['batch_id'], 'products' ), ARRAY_A );
 		$summary = array(
 			'lines'          => count( $lines ),
 			'system_qty'     => 0,
@@ -3641,7 +3641,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$args = $scope;}
 		$sql .= ' ORDER BY e.id DESC LIMIT 50';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		return rest_ensure_response( $args ? Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : Stockland_DB::read_results( $sql, ARRAY_A ) );
 	}
 
 	/**
@@ -3665,7 +3665,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$args[] = $scope;}
 		$sql .= ' ORDER BY e.id DESC LIMIT 500';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+		$rows = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		return rest_ensure_response( $rows );
 	}
 }
