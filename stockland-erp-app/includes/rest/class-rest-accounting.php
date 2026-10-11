@@ -706,7 +706,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function purchase_orders( WP_REST_Request $r ) {
 		global $wpdb;
-		$p     = $r->get_param( 'status' );
+		$p    = $r->get_param( 'status' );
 		$sql  = 'SELECT po.*,s.supplier_name,l.location_name
             FROM %i po
             JOIN %i s ON s.id=po.supplier_id

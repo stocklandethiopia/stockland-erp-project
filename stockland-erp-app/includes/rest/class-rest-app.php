@@ -525,7 +525,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( ! $allowed ) {
 				$locs = array();
 			} else {
-				$ph   = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
+				$ph = implode( ',', array_fill( 0, count( $allowed ), '%d' ) );
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only generated %d tokens; location IDs are integer-cast and all values are bound in prepare().
 				$locs = Stockland_DB::read_results( $wpdb->prepare( 'SELECT id,location_name,location_type,role_description,is_active FROM %i WHERE is_active=1 AND id IN(' . $ph . ') ORDER BY id', array_merge( array( $location_table ), $allowed ) ), ARRAY_A );
 			}
@@ -1898,7 +1898,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$scope_table,
 			$locations_table
 		);
-		$rows = Stockland_DB::read_results( $prepared_sql, ARRAY_A );
+		$rows         = Stockland_DB::read_results( $prepared_sql, ARRAY_A );
 		foreach ( $rows as &$row ) {
 			$row['location_ids']   = array_values( array_filter( array_map( 'intval', preg_split( '/\s*,\s*/', (string) ( $row['location_ids_csv'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY ) ) ) );
 			$row['location_names'] = array_values( array_filter( array_map( 'trim', explode( '||', (string) ( $row['location_names_csv'] ?? '' ) ) ) ) );
