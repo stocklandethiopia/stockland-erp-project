@@ -185,6 +185,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$gaps             = class_exists( 'Stockland_HR' ) ? Stockland_HR::upgrade_gaps() : array( 'employee_compensation.allowance_breakdown_json' );
 		$breakdown_select = in_array( 'employee_compensation.allowance_breakdown_json', $gaps, true ) ? 'NULL current_allowance_breakdown_json' : 'c.allowance_breakdown_json current_allowance_breakdown_json';
 		$sql              = "SELECT e.*,l.location_name,COALESCE(c.base_salary,0) current_base_salary,COALESCE(c.allowance_total,0) current_allowance_total,COALESCE(c.standard_deduction_total,0) current_deduction_total,c.taxable_allowance_total current_taxable_allowance_total,c.exempt_allowance_total current_exempt_allowance_total,c.pensionable_salary current_pensionable_salary,c.statutory_classification_status current_statutory_classification_status,c.statutory_classification_note current_statutory_classification_note,{$breakdown_select},c.effective_from compensation_effective_from FROM %i e LEFT JOIN %i l ON l.id=e.branch_location_id LEFT JOIN %i c ON c.id=(SELECT c2.id FROM %i c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) ORDER BY e.status DESC,e.full_name";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL uses a fixed two-choice allowance-column fragment; table names and the effective date are passed via %i/%s placeholders.
 		return $wpdb->get_results( $wpdb->prepare( $sql, $e, $l, $c, $c, current_time( 'Y-m-d' ) ), ARRAY_A );
 	}
 	private function payroll_rows() {
@@ -507,6 +508,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$rows
 		);
 		$ph    = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only one %d token per integer-cast period ID; table name and IDs are passed to prepare in order.
 		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id IN(' . $ph . ') ORDER BY period_id,employee_name', array_merge( array( Stockland_DB::table( 'payroll_lines' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
 		$by    = array();
 		foreach ( $lines as $line ) {
