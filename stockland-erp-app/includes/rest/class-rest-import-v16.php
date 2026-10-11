@@ -4,7 +4,6 @@
  * Stockland ERP import, mapping, workbook validation, and commit endpoints.
  *
  * @package Stockland_ERP
-	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 
 if ( ! defined( 'ABSPATH' ) ) {
