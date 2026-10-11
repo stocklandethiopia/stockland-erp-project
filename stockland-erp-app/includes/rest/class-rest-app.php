@@ -14,7 +14,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * Initializes the ERP REST controller and registers its route hooks.
 	 *
 	 * @return void Initializes the controller.
-	 * @throws Exception When validation or persistence cannot complete.
+
 	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
@@ -1904,6 +1904,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 * @param int    $wp_user_id WordPress user ID to update or validate.
 	 * @param string $role ERP role slug to assign or verify.
 	 * @param bool   $active Whether the ERP profile is active.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private function apply_stockland_role( $wp_user_id, $role, $active = true ) {
 		$user = new WP_User( (int) $wp_user_id );
@@ -1998,6 +1999,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function create_user( WP_REST_Request $r ) {
 		$p     = $r->get_json_params();
@@ -2156,6 +2158,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function activate_existing_user( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2242,6 +2245,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function update_user( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2833,6 +2837,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function create_reconciliation( WP_REST_Request $r ) {
 		global $wpdb;
@@ -2910,6 +2915,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function reconciliation_decision( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3128,6 +3134,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function count_preview( WP_REST_Request $r ) {
 		// REST auth/nonce validation and the permission callback run before this handler.
@@ -3244,6 +3251,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function count_commit( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3395,6 +3403,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function count_decision( WP_REST_Request $r ) {
 		global $wpdb;
@@ -3631,6 +3640,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	 *
 	 * @param WP_REST_Request $r REST request that supplies the operation parameters.
 	 * @return mixed The operation result.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function workflow_history( WP_REST_Request $r ) {
 		global $wpdb;
