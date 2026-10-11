@@ -26,9 +26,17 @@ class Stockland_Frontend {
 	const LEGACY_PAGE_OPTION = 'stockland_app_page_id';
 	const ROUTE_VERSION      = '16.1.57';
 
-	/** @var self|null Active frontend bridge instance. */
+	/**
+	 * Active frontend bridge instance.
+	 *
+	 * @var self|null
+	 */
 	private static $instance = null;
-	/** @var string|null Per-response nonce used by the standalone CSP. */
+	/**
+	 * Per-response nonce used by the standalone CSP.
+	 *
+	 * @var string|null
+	 */
 	private static $csp_nonce = null;
 
 	/**
@@ -737,8 +745,10 @@ elseif ( 'missing' === $status ) :
 <link rel="manifest" href="<?php echo esc_url( add_query_arg( 'stockland_pwa_manifest', '1', $page ) ); ?>">
 <link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( STOCKLAND_PLUGIN_URL . 'assets/icon-180.png' ); ?>">
 <link rel="icon" type="image/png" sizes="192x192" href="<?php echo esc_url( STOCKLAND_PLUGIN_URL . 'assets/icon-192.png' ); ?>">
+<?php // phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- The ERP emits a complete standalone document outside theme wp_head(); these are local, versioned stylesheets. ?>
 <link rel="stylesheet" href="<?php echo esc_url( self::asset_url( 'assets/bootstrap.min.css' ) ); ?>">
 <link rel="stylesheet" href="<?php echo esc_url( self::asset_url( $css ) ); ?>">
+<?php // phpcs:enable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet ?>
 <title>Stockland Ethiopia ERP</title>
 </head>
 <body class="stockland-erp-standalone sl-modern-saas">
