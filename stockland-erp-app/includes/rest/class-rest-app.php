@@ -485,7 +485,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$product_cols = current_user_can( 'stockland_view_cost_and_profit' )
 			? 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,purchase_cost,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level'
 			: 'variant_id,sku,product_name,product_type,parent_sku,style_code,brand,department,sub_category,color,color_code,size,size_code,size_system,barcode,gtin,category,gender,age_group,unit,retail_price,wholesale_price,notes,branch_reorder_level,central_reorder_level';
-		$products     = $wpdb->get_results( $wpdb->prepare( "SELECT " . $product_cols . " FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A );
+		$products     = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . $product_cols . " FROM %i WHERE is_active=1 AND product_type<>'STYLE' ORDER BY COALESCE(parent_sku,sku), color, size, sku", Stockland_DB::table( 'products' ) ), ARRAY_A );
 
 		$args       = array();
 		$stock_sql  = "SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.parent_sku,p.style_code,p.brand,p.color,p.color_code,p.size,p.size_code,p.size_system,p.barcode,p.gtin,p.category,p.gender,p.age_group,p.unit,p.retail_price,p.wholesale_price,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
@@ -504,7 +504,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			),
 			$args
 		);
-		$stock = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
+		$stock      = $wpdb->get_results( $wpdb->prepare( $stock_sql, $stock_args ), ARRAY_A );
 
 		$dashboard = $this->dashboard( $scope );
 		$can_cost  = (bool) current_user_can( 'stockland_view_cost_and_profit' );
@@ -646,8 +646,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$sql .= ' AND (t.from_location_id IN(' . $ph . ') OR t.to_location_id IN(' . $ph . '))';
 			$args = array_merge( $scope, $scope );
 		} elseif ( null !== $scope ) {
-			$sql  .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
-			$args  = array( (int) $scope, (int) $scope );
+			$sql .= ' AND (t.from_location_id=%d OR t.to_location_id=%d)';
+			$args = array( (int) $scope, (int) $scope );
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 100';
 		$args = array_merge(
@@ -714,7 +714,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			)
 			: $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM %i",
+					'SELECT COALESCE(SUM(sales_value),0) revenue,COALESCE(SUM(net_sales_excl_vat),0) net,COALESCE(SUM(gross_profit),0) profit,COALESCE(SUM(vat_amount),0) vat,COALESCE(SUM(quantity),0) units FROM %i',
 					$wholesale
 				),
 				ARRAY_A
@@ -764,7 +764,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$warehouse_queue      = 0;
 		$receiving_exceptions = 0;
 		if ( Stockland_Authority::is_management() || Stockland_Authority::is_owner() ) {
-			$approval_queue = (int) $wpdb->get_var(
+			$approval_queue       = (int) $wpdb->get_var(
 				$wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='Reviewed'", $requisitions )
 			);
 			$receiving_exceptions = (int) $wpdb->get_var(
@@ -804,7 +804,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$stock_sql .= ' AND l.id IN(' . $ph . ')';
 			$stock_args = $scope_ids;
 		}
-		$stock_sql .= ' GROUP BY l.id ORDER BY l.id';
+		$stock_sql        .= ' GROUP BY l.id ORDER BY l.id';
 		$stock_by_location = $wpdb->get_results(
 			$wpdb->prepare( $stock_sql, array_merge( array( $locations, $transactions ), $stock_args ) ),
 			ARRAY_A
