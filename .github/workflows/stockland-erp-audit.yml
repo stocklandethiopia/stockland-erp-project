@@ -140,6 +140,51 @@ jobs:
           composer install --prefer-dist --no-interaction --no-progress
           # Scan and test the committed source as-is; formatting changes belong in a reviewed source commit.
 
+      - name: Generate review-only PHPCBF patch on a disposable copy
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          preview="$RUNNER_TEMP/stockland-phpcbf-preview"
+          report="$RUNNER_TEMP/stockland-phpcbf-preview-report.json"
+          patch="$RUNNER_TEMP/stockland-phpcbf-preview.patch"
+          rm -rf "$preview"
+          mkdir -p "$preview"
+          cp -a stockland-erp-app/. "$preview/"
+          rm -rf "$preview/vendor" "$preview/.phpunit.cache"
+          git -C "$preview" init --quiet
+          git -C "$preview" config user.name "Stockland PHPCBF Preview"
+          git -C "$preview" config user.email "stockland-phpcbf-preview@users.noreply.github.com"
+          git -C "$preview" add -A
+          git -C "$preview" commit --quiet -m "Disposable pre-format source snapshot"
+          set +e
+          (
+            cd "$preview"
+            "$GITHUB_WORKSPACE/stockland-erp-app/vendor/bin/phpcbf" \
+              --standard=phpcs-full-audit.xml.dist \
+              --report=json \
+              --report-file="$report" .
+          )
+          phpcbf_status=$?
+          set -e
+          git -C "$preview" diff --binary > "$patch"
+          echo "PHPCBF preview exit: $phpcbf_status (unfixable findings can remain)."
+          git -C "$preview" diff --stat
+          echo "Patch bytes: $(wc -c < "$patch")"
+          echo "This step does not modify the checked-out repository or the candidate package."
+
+      - name: Upload review-only PHPCBF patch
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: stockland-phpcbf-review-patch
+          path: |
+            ${{ runner.temp }}/stockland-phpcbf-preview.patch
+            ${{ runner.temp }}/stockland-phpcbf-preview-report.json
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Enforce production-service coding standard
         working-directory: stockland-erp-app
         run: composer lint:php
