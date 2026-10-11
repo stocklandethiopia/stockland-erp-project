@@ -26,9 +26,17 @@ class Stockland_Frontend {
 	const LEGACY_PAGE_OPTION = 'stockland_app_page_id';
 	const ROUTE_VERSION      = '16.1.57';
 
-	/** @var self|null Active frontend bridge instance. */
+	/**
+	 * Active frontend bridge singleton used by WordPress route callbacks.
+	 *
+	 * @var self|null
+	 */
 	private static $instance = null;
-	/** @var string|null Per-response nonce used by the standalone CSP. */
+	/**
+	 * Per-response CSP nonce for the standalone document's inline bootstrap code.
+	 *
+	 * @var string|null
+	 */
 	private static $csp_nonce = null;
 
 	/**
@@ -737,7 +745,9 @@ elseif ( 'missing' === $status ) :
 <link rel="manifest" href="<?php echo esc_url( add_query_arg( 'stockland_pwa_manifest', '1', $page ) ); ?>">
 <link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( STOCKLAND_PLUGIN_URL . 'assets/icon-180.png' ); ?>">
 <link rel="icon" type="image/png" sizes="192x192" href="<?php echo esc_url( STOCKLAND_PLUGIN_URL . 'assets/icon-192.png' ); ?>">
+<?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- This route emits a complete standalone HTML document before the WordPress theme enqueue hooks; the stylesheet links are part of the document itself. ?>
 <link rel="stylesheet" href="<?php echo esc_url( self::asset_url( 'assets/bootstrap.min.css' ) ); ?>">
+<?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- This route emits a complete standalone HTML document before the WordPress theme enqueue hooks; the stylesheet links are part of the document itself. ?>
 <link rel="stylesheet" href="<?php echo esc_url( self::asset_url( $css ) ); ?>">
 <title>Stockland Ethiopia ERP</title>
 </head>
