@@ -1,4 +1,10 @@
 <?php
+/**
+ * Front-end entry page, standalone shell, login and PWA assets.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,9 +26,16 @@ class Stockland_Frontend {
 	const LEGACY_PAGE_OPTION = 'stockland_app_page_id';
 	const ROUTE_VERSION      = '16.1.57';
 
-	private static $instance  = null;
+	/** @var self|null Active frontend bridge instance. */
+	private static $instance = null;
+	/** @var string|null Per-response nonce used by the standalone CSP. */
 	private static $csp_nonce = null;
 
+	/**
+	 * Registers WordPress hooks for the ERP page and direct standalone route.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		self::$instance = $this;
 		// Proven frontend doorway.
@@ -52,6 +65,11 @@ class Stockland_Frontend {
 		return self::$csp_nonce;
 	}
 
+	/**
+	 * Returns the active frontend bridge instance.
+	 *
+	 * @return self|null Current instance, or null before initialization.
+	 */
 	public static function instance() {
 		return self::$instance;
 	}
@@ -134,6 +152,12 @@ class Stockland_Frontend {
 	 * On older installations /stockland/ may already belong to another theme or page
 	 * builder. In that case the plugin creates a separate deterministic ERP page.
 	 */
+	/**
+	 * Ensures the ERP entry page exists without repurposing unrelated pages.
+	 *
+	 * @param bool $allow_create Whether this call may create a missing ERP page.
+	 * @return int Existing or newly created page ID, or zero when unavailable.
+	 */
 	private function ensure_entry_page( $allow_create = false ) {
 		$id = (int) get_option( self::LEGACY_PAGE_OPTION );
 		if ( $id ) {
@@ -189,6 +213,12 @@ class Stockland_Frontend {
 	/** Return a stable per-file build version while preserving the ERP release number.
 	 * This prevents browsers/service workers from reusing an older release app.js/app.css after an in-place repair.
 	 */
+	/**
+	 * Builds a stable per-file version while preserving the ERP release number.
+	 *
+	 * @param string $relative Plugin-relative asset path.
+	 * @return string Release version plus file fingerprint.
+	 */
 	private static function asset_version( $relative ) {
 		$file        = STOCKLAND_PLUGIN_DIR . ltrim( $relative, '/' );
 		$fingerprint = '0';
@@ -203,8 +233,15 @@ class Stockland_Frontend {
 		}
 		return STOCKLAND_VERSION . '-' . preg_replace( '/[^0-9A-Za-z_-]/', '', $fingerprint );
 	}
+	/**
+	 * Returns a local asset URL with a release-safe cache-busting version.
+	 *
+	 * @param string $relative Plugin-relative asset path.
+	 * @return string Versioned local asset URL.
+	 */
 	private static function asset_url( $relative ) {
-		return add_query_arg( 'ver', self::asset_version( $relative ), STOCKLAND_PLUGIN_URL . ltrim( $relative, '/' ) );}
+		return add_query_arg( 'ver', self::asset_version( $relative ), STOCKLAND_PLUGIN_URL . ltrim( $relative, '/' ) );
+	}
 
 	/** Keep the old Page doorway clean if the direct standalone fallback is not engaged. */
 	public function assets() {
@@ -245,6 +282,12 @@ class Stockland_Frontend {
 		wp_localize_script( 'stockland-app', 'StocklandApp', $this->client_config( self::page_url() ) );
 	}
 
+	/**
+	 * Builds the public frontend bootstrap configuration for the current user.
+	 *
+	 * @param string $page Canonical ERP entry URL.
+	 * @return array Client configuration with REST, asset, user and PWA metadata.
+	 */
 	private function client_config( $page ) {
 		return array(
 			'api'            => esc_url_raw( rest_url( STOCKLAND_REST_NAMESPACE ) ),
@@ -281,6 +324,12 @@ class Stockland_Frontend {
 		);
 	}
 
+	/**
+	 * Registers the direct ERP route query variable.
+	 *
+	 * @param array $vars Existing WordPress query variables.
+	 * @return array Query variables including the ERP route flag.
+	 */
 	public function query_vars( $vars ) {
 		$vars[] = 'stockland_erp';
 		return $vars;
@@ -295,6 +344,11 @@ class Stockland_Frontend {
 		}
 	}
 
+	/**
+	 * Registers the direct ERP alias and updates its route-version marker.
+	 *
+	 * @return void
+	 */
 	public function register_route() {
 		self::register_rewrite_rule();
 		if ( get_option( 'stockland_frontend_route_version', '' ) !== self::ROUTE_VERSION ) {
@@ -330,6 +384,11 @@ class Stockland_Frontend {
 		return false;
 	}
 
+	/**
+	 * Checks whether the stored entry-page pointer references a published ERP page.
+	 *
+	 * @return bool Whether the stored ERP entry page is valid.
+	 */
 	private static function legacy_plugin_page_exists() {
 		$id = (int) get_option( self::LEGACY_PAGE_OPTION );
 		if ( ! $id ) {
@@ -342,6 +401,11 @@ class Stockland_Frontend {
 		return strpos( (string) $page->post_content, '[' . self::SHORTCODE ) !== false;
 	}
 
+	/**
+	 * Checks whether the current WordPress page contains the ERP shortcode.
+	 *
+	 * @return bool Whether the current page is an ERP shortcode page.
+	 */
 	private function is_shortcode_page() {
 		if ( ! function_exists( 'is_page' ) || ! is_page() ) {
 			return false;
@@ -377,6 +441,12 @@ class Stockland_Frontend {
 	 * from template_redirect. This is the clean WordPress mechanism for replacing a queried
 	 * page template while keeping native WordPress administration untouched.
 	 */
+	/**
+	 * Selects the standalone ERP template for the ERP page or direct route.
+	 *
+	 * @param string $template WordPress-selected template path.
+	 * @return string Existing or standalone ERP template path.
+	 */
 	public function template_include( $template ) {
 		if ( is_admin() ) {
 			return $template;
@@ -394,6 +464,11 @@ class Stockland_Frontend {
 		return $template;
 	}
 
+	/**
+	 * Serves the public PWA web-app manifest.
+	 *
+	 * @return void Sends the manifest response and exits.
+	 */
 	private function serve_manifest() {
 		$page     = self::page_url();
 		$manifest = array(
@@ -439,6 +514,11 @@ class Stockland_Frontend {
 		exit;
 	}
 
+	/**
+	 * Serves the local PWA service worker with a versioned asset cache.
+	 *
+	 * @return void Sends the service-worker response and exits.
+	 */
 	private function serve_service_worker() {
 		$page      = self::page_url();
 		$path      = wp_parse_url( $page, PHP_URL_PATH );
@@ -469,10 +549,22 @@ class Stockland_Frontend {
 		exit;
 	}
 
+	/**
+	 * Sets the browser title on the ERP page only.
+	 *
+	 * @param string $title Existing WordPress document title.
+	 * @return string ERP title or the existing title.
+	 */
 	public function document_title( $title ) {
 		return $this->is_shortcode_page() ? 'Stockland Ethiopia ERP' : $title;
 	}
 
+	/**
+	 * Marks the private ERP entry page as non-indexable.
+	 *
+	 * @param array $robots Existing WordPress robots directives.
+	 * @return array Updated robots directives.
+	 */
 	public function robots( $robots ) {
 		if ( $this->is_shortcode_page() ) {
 			$robots['noindex']   = true;
@@ -482,6 +574,12 @@ class Stockland_Frontend {
 		return $robots;
 	}
 
+	/**
+	 * Adds the ERP page class to the body class list.
+	 *
+	 * @param array $classes Existing body classes.
+	 * @return array Updated body classes.
+	 */
 	public function body_class( $classes ) {
 		if ( $this->is_shortcode_page() ) {
 			$classes[] = 'stockland-erp-page';
@@ -489,6 +587,11 @@ class Stockland_Frontend {
 		return $classes;
 	}
 
+	/**
+	 * Emits required PWA metadata and the response-specific CSP in the page head.
+	 *
+	 * @return void
+	 */
 	public function head() {
 		if ( $this->is_shortcode_page() ) {
 			echo '<link rel="manifest" href="' . esc_url( add_query_arg( 'stockland_pwa_manifest', '1', self::page_url() ) ) . '">';
@@ -503,6 +606,11 @@ class Stockland_Frontend {
 		}
 	}
 
+	/**
+	 * Handles the nonce-protected ERP login form without altering credentials.
+	 *
+	 * @return void Redirects after authentication or returns when no login was posted.
+	 */
 	public function process_login() {
 		if ( is_user_logged_in() || ! isset( $_POST['stockland_login'] ) ) {
 			return;
@@ -536,6 +644,11 @@ class Stockland_Frontend {
 		exit;
 	}
 
+	/**
+	 * Renders the ERP shortcode doorway for logged-in and logged-out users.
+	 *
+	 * @return string ERP loading shell or login form markup.
+	 */
 	public function shortcode() {
 		// This remains compatible for ordinary WordPress rendering, although template_redirect
 		// normally upgrades the page into the same standalone document before the theme runs.
@@ -589,6 +702,11 @@ elseif ( 'missing' === $status ) :
 		$this->render_document();
 	}
 
+	/**
+	 * Renders the full standalone ERP HTML document with local versioned assets.
+	 *
+	 * @return void Sends the document response and exits through the template.
+	 */
 	private function render_document() {
 		nocache_headers();
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
@@ -662,7 +780,9 @@ elseif ( 'missing' === $status ) :
 </div>
 		<?php endif; ?>
 <script nonce="<?php echo esc_attr( self::csp_nonce() ); ?>">window.StocklandApp=<?php echo wp_json_encode( $config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); ?>;</script>
+<?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- The standalone shell cannot use theme footer hooks; this local script URL is versioned and deferred. ?>
 <script src="<?php echo esc_url( self::asset_url( 'assets/app.js' ) ); ?>" defer></script>
+<?php // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- The standalone shell cannot use theme footer hooks; this local script URL is versioned and deferred. ?>
 <script src="<?php echo esc_url( self::asset_url( 'assets/pwa.js' ) ); ?>" defer></script>
 </body>
 </html>
