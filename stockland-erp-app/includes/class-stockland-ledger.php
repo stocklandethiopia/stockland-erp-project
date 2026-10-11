@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP source component.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,6 +26,12 @@ class Stockland_Ledger {
 		$savepoint = 'sl_ledger_' . wp_rand( 100000, 999999 );
 		return false !== $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
 	}
+	/**
+	 * Handles rollback unit of work within the Stockland ERP component.
+	 *
+	 * @param mixed $owns_transaction The owns transaction value.
+	 * @param mixed $savepoint The savepoint value.
+	 */
 	private static function rollback_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
 		if ( $owns_transaction ) {
@@ -29,6 +41,12 @@ class Stockland_Ledger {
 			$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
 			$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
 	}
+	/**
+	 * Validates and processes commit unit of work for the Stockland ERP operation.
+	 *
+	 * @param mixed $owns_transaction The owns transaction value.
+	 * @param mixed $savepoint The savepoint value.
+	 */
 	private static function commit_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
 		$ok = $owns_transaction ? $wpdb->query( 'COMMIT' ) : $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
@@ -38,6 +56,19 @@ class Stockland_Ledger {
 		self::rollback_unit_of_work( $owns_transaction, $savepoint );
 		return false;
 	}
+	/**
+	 * Validates and processes record for the Stockland ERP operation.
+	 *
+	 * @param mixed $location_id The location identifier.
+	 * @param mixed $sku The sku value.
+	 * @param mixed $movement_type The movement type value.
+	 * @param mixed $quantity_signed The quantity signed value.
+	 * @param mixed $reference_type The reference type value.
+	 * @param mixed $reference_id The reference id value.
+	 * @param mixed $transaction_date The transaction date value.
+	 * @param mixed $created_by The created by value.
+	 * @param mixed $source_line_id The source line id value.
+	 */
 	public static function record( $location_id, $sku, $movement_type, $quantity_signed, $reference_type, $reference_id, $transaction_date, $created_by = null, $source_line_id = '' ) {
 		global $wpdb;
 		$table          = Stockland_DB::table( 'transactions' );
@@ -111,6 +142,12 @@ class Stockland_Ledger {
 			return false;}
 	}
 
+	/**
+	 * Handles rebuild balance for variant within the Stockland ERP component.
+	 *
+	 * @param mixed $variant_id The variant id value.
+	 * @param mixed $new_sku The new sku value.
+	 */
 	public static function rebuild_balance_for_variant( $variant_id, $new_sku = null ) {
 		global $wpdb;
 		$variant_id = (int) $variant_id;
@@ -161,6 +198,12 @@ class Stockland_Ledger {
 			self::rollback_unit_of_work( $owns_transaction, $savepoint );
 			return false;}
 	}
+	/**
+	 * Handles rebuild balance within the Stockland ERP component.
+	 *
+	 * @param mixed $location_id The location identifier.
+	 * @param mixed $sku The sku value.
+	 */
 	public static function rebuild_balance( $location_id, $sku ) {
 		global $wpdb;
 		$bal = Stockland_DB::table( 'balances' );
@@ -212,12 +255,30 @@ class Stockland_Ledger {
 			return false;}
 	}
 
+	/**
+	 * Handles post transfer dispatched within the Stockland ERP component.
+	 *
+	 * @param mixed $transfer The transfer value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_transfer_dispatched( $transfer, $user_id ) {
 		$line = (string) ( $transfer['transfer_id'] . '-OUT' );
 		return self::record( $transfer['from_location_id'], $transfer['sku'], 'TRANSFER_OUT', -abs( (float) ( $transfer['dispatched_qty'] ?? $transfer['quantity'] ) ), 'transfer', $transfer['transfer_id'], $transfer['transfer_date'], $user_id, $line );}
+	/**
+	 * Handles post transfer received within the Stockland ERP component.
+	 *
+	 * @param mixed $transfer The transfer value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_transfer_received( $transfer, $user_id ) {
 		$line = (string) ( $transfer['transfer_id'] . '-IN' );
 		return self::record( $transfer['to_location_id'], $transfer['sku'], 'TRANSFER_IN', abs( (float) ( $transfer['received_qty'] ?? $transfer['quantity'] ) ), 'transfer', $transfer['transfer_id'], $transfer['transfer_date'], $user_id, $line );}
+	/**
+	 * Handles post transfer completed within the Stockland ERP component.
+	 *
+	 * @param mixed $transfer The transfer value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_transfer_completed( $transfer, $user_id ) {
 		$t                   = $transfer;
 		$t['dispatched_qty'] = (float) ( $t['dispatched_qty'] ?? $t['quantity'] );
@@ -245,12 +306,38 @@ class Stockland_Ledger {
 			return false;}
 	}
 
+	/**
+	 * Handles post receipt completed within the Stockland ERP component.
+	 *
+	 * @param mixed $receipt The receipt value.
+	 * @param mixed $warehouse_location_id The warehouse location id value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_receipt_completed( $receipt, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $receipt['sku'], 'RECEIPT', abs( (float) $receipt['quantity_received'] ), 'receipt', $receipt['receipt_id'], $receipt['receipt_date'], $user_id, (string) $receipt['receipt_id'] );}
+	/**
+	 * Handles post sale closed within the Stockland ERP component.
+	 *
+	 * @param mixed $sale The sale value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_sale_closed( $sale, $user_id ) {
 		return self::record( $sale['branch_location_id'], $sale['sku'], 'SALE', -abs( (float) $sale['quantity_sold'] ), 'sale', $sale['source_job_id'] ?? $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['source_row_number'] ? (string) $sale['source_row_number'] : (string) $sale['sale_id'] );}
+	/**
+	 * Handles post wholesale sale within the Stockland ERP component.
+	 *
+	 * @param mixed $sale The sale value.
+	 * @param mixed $warehouse_location_id The warehouse location id value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_wholesale_sale( $sale, $warehouse_location_id, $user_id ) {
 		return self::record( $warehouse_location_id, $sale['sku'], 'WHOLESALE_SALE', -abs( (float) $sale['quantity'] ), 'wholesale_sale', $sale['sale_id'], $sale['sale_date'], $user_id, (string) $sale['sale_id'] );}
+	/**
+	 * Handles post return within the Stockland ERP component.
+	 *
+	 * @param mixed $ret The ret value.
+	 * @param mixed $user_id The user ID.
+	 */
 	public static function post_return( $ret, $user_id ) {
 		$sign = ( 'Return' === $ret['return_type'] ) ? 1 : -1;
 		if ( 'Adjustment' === $ret['return_type'] && isset( $ret['adjustment_sign'] ) ) {

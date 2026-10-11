@@ -1,12 +1,24 @@
 <?php
+/**
+ * Stockland ERP source component.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 class Stockland_REST_Requisition_V16 {
 	const NS = 'stockland/v16';
+	/**
+	 * Initializes the component dependencies.
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) );}
+	/**
+	 * Registers REST endpoints for the component.
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -101,17 +113,39 @@ class Stockland_REST_Requisition_V16 {
 			)
 		);
 	}
+	/**
+	 * Handles deny within the Stockland ERP component.
+	 *
+	 * @param mixed $code The code value.
+	 * @param mixed $msg The msg value.
+	 * @param mixed $status The requested status.
+	 */
 	private function deny( $code, $msg, $status = 403 ) {
 		return new WP_Error( $code, $msg, array( 'status' => $status ) );}
+	/**
+	 * Handles req within the Stockland ERP component.
+	 *
+	 * @param mixed $id The record identifier.
+	 */
 	private function req( $id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,l.location_name FROM ' . Stockland_DB::table( 'requisitions' ) . ' r JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=r.branch_location_id WHERE r.requisition_id=%s', $id ), ARRAY_A );}
+	/**
+	 * Handles scope ok within the Stockland ERP component.
+	 *
+	 * @param mixed $req The req value.
+	 */
 	private function scope_ok( $req ) {
 		if ( Stockland_Authority::company_scope() ) {
 			return true;
 		}if ( Stockland_Authority::can_warehouse_operate_requisition() ) {
 			return in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked', 'Received', 'Completed' ), true );
 		}return Stockland_Authority::can_access_location( (int) $req['branch_location_id'] );}
+	/**
+	 * Handles availability within the Stockland ERP component.
+	 *
+	 * @param mixed $items The items value.
+	 */
 	private function availability( $items ) {
 		$wh  = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		$out = array();
@@ -139,6 +173,9 @@ class Stockland_REST_Requisition_V16 {
 			);}
 		return $out;
 	}
+	/**
+	 * Lists requisitions visible to the current user.
+	 */
 	public function list() {
 		global $wpdb;
 		$p     = Stockland_Authority::profile();
@@ -204,9 +241,19 @@ class Stockland_REST_Requisition_V16 {
 		}unset( $row );
 		return rest_ensure_response( $rows );
 	}
+	/**
+	 * Creates a requisition in its initial workflow state.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function create( WP_REST_Request $r ) {
 		return Stockland_Requisition_Service::create( $r->get_json_params(), get_current_user_id() ); }
 
+	/**
+	 * Handles detail within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$req = $this->req( sanitize_text_field( $r['id'] ) );
@@ -265,6 +312,11 @@ class Stockland_REST_Requisition_V16 {
 			)
 		);
 	}
+	/**
+	 * Handles decision within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function decision( WP_REST_Request $r ) {
 		global $wpdb;
 		$id       = sanitize_text_field( $r['id'] );
@@ -541,6 +593,11 @@ class Stockland_REST_Requisition_V16 {
 			return new WP_Error( 'requisition_decision_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Handles warehouse action within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function warehouse_action( WP_REST_Request $r ) {
 		global $wpdb;
 		$id      = sanitize_text_field( $r['id'] );
@@ -715,6 +772,11 @@ class Stockland_REST_Requisition_V16 {
 			return new WP_Error( 'warehouse_action_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Handles receive info within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function receive_info( WP_REST_Request $r ) {
 		global $wpdb;
 		if ( ! Stockland_Authority::can_receive_requisition() ) {

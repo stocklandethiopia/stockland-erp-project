@@ -1,4 +1,10 @@
 <?php
+/**
+ * Stockland ERP source component.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -20,26 +26,58 @@ class Stockland_REST_Import_V16 {
 	// A 5,000-row cap leaves headroom for WordPress, XML/shared-string buffers and DB payloads.
 	const MAX_IMPORT_ROWS = 5000;
 
+	/**
+	 * Initializes the component dependencies.
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
+	/**
+	 * Handles deny within the Stockland ERP component.
+	 *
+	 * @param mixed $code The code value.
+	 * @param mixed $message The message value.
+	 * @param mixed $status The requested status.
+	 */
 	private function deny( $code, $message, $status = 403 ) {
 		return new WP_Error( $code, $message, array( 'status' => $status ) ); }
+	/**
+	 * Handles capability daily within the Stockland ERP component.
+	 */
 	public function capability_daily() {
 		$p    = Stockland_Authority::profile();
 		$role = is_array( $p ) ? (string) ( $p['role'] ?? '' ) : '';
 		return ( in_array( $role, array( 'branch_manager', 'sales_employee' ), true ) && Stockland_Authority::can_daily_import() ) ? true : $this->deny( 'forbidden', 'Only an assigned Sales Employee or Branch Manager may upload and stage branch Daily POS Excel data; only a Branch Manager may release it.' ); }
+	/**
+	 * Handles capability product within the Stockland ERP component.
+	 */
 	public function capability_product() {
 		return Stockland_Authority::can_product_import() ? true : $this->deny( 'forbidden', 'Only Management or Owner may import the Product Master.' ); }
 
+	/**
+	 * Handles capability daily commit within the Stockland ERP component.
+	 */
 	public function capability_daily_commit() {
 		return Stockland_Authority::can_daily_commit() ? true : $this->deny( 'forbidden', 'Only an assigned Branch Manager may post the branch daily POS import.' ); }
+	/**
+	 * Handles capability mappings within the Stockland ERP component.
+	 */
 	public function capability_mappings() {
 		return Stockland_Authority::can_manage_import_mappings() ? true : $this->deny( 'forbidden', 'Only Management or Owner may manage import mappings.' ); }
+	/**
+	 * Handles header signature within the Stockland ERP component.
+	 *
+	 * @param mixed $headers The headers value.
+	 */
 	private function header_signature( $headers ) {
 		$n = array_map( array( $this, 'norm' ), (array) $headers );
 		$n = array_values( array_unique( array_filter( $n ) ) );
 		sort( $n, SORT_STRING );
 		return hash( 'sha256', implode( '|', $n ) ); }
+	/**
+	 * Handles aliases within the Stockland ERP component.
+	 *
+	 * @param mixed $type The type value.
+	 */
 	private function aliases( $type ) {
 		if ( 'PRODUCT_MASTER' === $type ) {
 			return array(
@@ -92,6 +130,12 @@ class Stockland_REST_Import_V16 {
 			'customer'      => array( 'customer', 'customer_name', 'client', 'buyer' ),
 		);
 	}
+	/**
+	 * Handles auto map headers within the Stockland ERP component.
+	 *
+	 * @param mixed $headers The headers value.
+	 * @param mixed $type The type value.
+	 */
 	private function auto_map_headers( $headers, $type ) {
 		$aliases      = $this->aliases( $type );
 		$norm_headers = array();
@@ -163,6 +207,12 @@ class Stockland_REST_Import_V16 {
 			'headers'    => array_values( (array) $headers ),
 		);
 	}
+	/**
+	 * Validates or resolves validate mapping contract for the Stockland ERP operation.
+	 *
+	 * @param mixed $found The found value.
+	 * @param mixed $type The type value.
+	 */
 	private function validate_mapping_contract( $found, $type ) {
 		$mapping  = is_array( $found['mapping'] ?? null ) ? $found['mapping'] : array();
 		$headers  = array_values( (array) ( $found['headers'] ?? array() ) );
@@ -211,6 +261,13 @@ class Stockland_REST_Import_V16 {
 		}
 		return true;
 	}
+	/**
+	 * Retrieves profile for the Stockland ERP operation.
+	 *
+	 * @param mixed $type The type value.
+	 * @param mixed $source_system The source system value.
+	 * @param mixed $signature The signature value.
+	 */
 	private function get_profile( $type, $source_system, $signature ) {
 		global $wpdb;
 		$t = Stockland_DB::table( 'import_profiles' );
@@ -224,6 +281,15 @@ class Stockland_REST_Import_V16 {
 			'id'      => (int) $row['id'],
 			'mapping' => $map,
 		) : null;}
+	/**
+	 * Validates and processes save profile for the Stockland ERP operation.
+	 *
+	 * @param mixed $type The type value.
+	 * @param mixed $source_system The source system value.
+	 * @param mixed $headers The headers value.
+	 * @param mixed $mapping The mapping value.
+	 * @param mixed $name The name value.
+	 */
 	private function save_profile( $type, $source_system, $headers, $mapping, $name = 'Learned mapping' ) {
 		global $wpdb;
 		$t = Stockland_DB::table( 'import_profiles' );
@@ -248,6 +314,13 @@ class Stockland_REST_Import_V16 {
 		}$data['created_by'] = get_current_user_id();
 		$wpdb->insert( $t, $data );
 		return (int) $wpdb->insert_id;}
+	/**
+	 * Handles scan workbook within the Stockland ERP component.
+	 *
+	 * @param mixed $xlsx The xlsx value.
+	 * @param mixed $type The type value.
+	 * @param mixed $source_system The source system value.
+	 */
 	private function scan_workbook( $xlsx, $type, $source_system ) {
 		Stockland_Runtime_Diagnostics::stage( 'PRODUCT_MASTER' === $type ? 'product_master_scan' : 'daily_pos_scan' );
 		foreach ( $xlsx->sheet_names() as $sheet ) {
@@ -348,6 +421,12 @@ class Stockland_REST_Import_V16 {
 		throw new Exception( 'PRODUCT_MASTER' === $type ? 'No Product Master worksheet could be mapped automatically. Required columns include Code/SKU and Name/Product Name.' : 'No daily POS worksheet could be mapped automatically. Required columns include SKU/product code and selling price or line total.' );
 	}
 
+	/**
+	 * Handles stream assoc row within the Stockland ERP component.
+	 *
+	 * @param mixed $values The values value.
+	 * @param mixed $headers The headers value.
+	 */
 	private function stream_assoc_row( $values, $headers ) {
 		$has = false;
 		$r   = array();
@@ -363,11 +442,24 @@ class Stockland_REST_Import_V16 {
 		}
 		return $has ? $r : null;
 	}
+	/**
+	 * Handles mapped value within the Stockland ERP component.
+	 *
+	 * @param mixed $row The imported row.
+	 * @param mixed $mapping The mapping value.
+	 * @param mixed $field The field value.
+	 */
 	private function mapped_value( $row, $mapping, $field ) {
 		if ( empty( $mapping[ $field ] ) ) {
 			return null;
 		}$h = $mapping[ $field ];
 		return array_key_exists( $h, $row ) ? $row[ $h ] : null;}
+	/**
+	 * Retrieves exact source for the Stockland ERP operation.
+	 *
+	 * @param mixed $row The imported row.
+	 * @param mixed $wanted The wanted value.
+	 */
 	private function find_exact_source( $row, $wanted ) {
 		$target = $this->norm( $wanted );
 		foreach ( (array) $row as $k => $v ) {
@@ -380,6 +472,11 @@ class Stockland_REST_Import_V16 {
 		}
 		return null;
 	}
+	/**
+	 * Validates or resolves parse active state for the Stockland ERP operation.
+	 *
+	 * @param mixed $v The v value.
+	 */
 	private function parse_active_state( $v ) {
 		if ( null === $v || trim( (string) $v ) === '' ) {
 			return null;
@@ -389,6 +486,11 @@ class Stockland_REST_Import_V16 {
 		}if ( in_array( $x, array( 'inactive', 'disabled', 'no', 'n', '0', 'false', 'closed' ), true ) ) {
 			return 0;
 		}return null;}
+	/**
+	 * Validates or resolves parse datetime for the Stockland ERP operation.
+	 *
+	 * @param mixed $v The v value.
+	 */
 	private function parse_datetime( $v ) {
 		if ( null === $v || '' === $v ) {
 			return null;
@@ -396,6 +498,13 @@ class Stockland_REST_Import_V16 {
 			return gmdate( 'Y-m-d H:i:s', strtotime( '1899-12-30 + ' . ( (int) $v ) . ' days' ) );
 		}$ts = strtotime( (string) $v );
 		return false === $ts ? null : gmdate( 'Y-m-d H:i:s', $ts );}
+	/**
+	 * Handles ignorable row within the Stockland ERP component.
+	 *
+	 * @param mixed $row The imported row.
+	 * @param mixed $mapping The mapping value.
+	 * @param mixed $type The type value.
+	 */
 	private function ignorable_row( $row, $mapping, $type ) {
 		$values = array();
 		foreach ( (array) $mapping as $field => $header ) {
@@ -422,6 +531,12 @@ class Stockland_REST_Import_V16 {
 		}
 		return 0 === $nonempty;
 	}
+	/**
+	 * Handles product identifier owners within the Stockland ERP component.
+	 *
+	 * @param mixed $barcodes The barcodes value.
+	 * @param mixed $gtins The gtins value.
+	 */
 	private function product_identifier_owners( $barcodes, $gtins ) {
 		global $wpdb;
 		$owners = array(
@@ -462,10 +577,20 @@ class Stockland_REST_Import_V16 {
 		return $owners;
 	}
 
+	/**
+	 * Validates or resolves resolve external code for the Stockland ERP operation.
+	 *
+	 * @param mixed $source The source value.
+	 * @param mixed $external The external value.
+	 * @param mixed $as_of_date The as of date value.
+	 */
 	private function resolve_external_code( $source, $external, $as_of_date = null ) {
 		$live = Stockland_DB::resolve_live_sku( $source, $external, $as_of_date );
 		return array( $live, $live && $live === $external ? 'LIVE_SKU' : ( $live ? 'CODE_MAP' : null ) );}
 
+	/**
+	 * Registers REST endpoints for the component.
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -577,6 +702,11 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Handles uploaded file within the Stockland ERP component.
+	 *
+	 * @param mixed $key The key value.
+	 */
 	private function uploaded_file( $key = 'file' ) {
 		// Import endpoints are registered WordPress REST callbacks; REST auth/nonce and
 			// permission checks run before this upload validator is called.
@@ -624,11 +754,22 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Handles norm within the Stockland ERP component.
+	 *
+	 * @param mixed $v The v value.
+	 */
 	private function norm( $v ) {
 		$v = strtolower( trim( (string) $v ) );
 		$v = preg_replace( '/[^a-z0-9]+/', '_', $v );
 		return trim( $v, '_' );
 	}
+	/**
+	 * Retrieves  for the Stockland ERP operation.
+	 *
+	 * @param mixed $row The imported row.
+	 * @param mixed $names The names value.
+	 */
 	private function find( $row, $names ) {
 		foreach ( $names as $n ) {
 			$nn = $this->norm( $n );
@@ -640,6 +781,12 @@ class Stockland_REST_Import_V16 {
 		}
 		return null;
 	}
+	/**
+	 * Handles date value within the Stockland ERP component.
+	 *
+	 * @param mixed $v The v value.
+	 * @param mixed $fallback The fallback value.
+	 */
 	private function date_value( $v, $fallback ) {
 		if ( is_numeric( $v ) && (float) $v > 20000 && (float) $v < 60000 ) {
 			$ts = gmdate( 'Y-m-d', strtotime( '1899-12-30 + ' . ( (int) $v ) . ' days' ) );
@@ -653,6 +800,11 @@ class Stockland_REST_Import_V16 {
 		}
 		return $fallback;
 	}
+	/**
+	 * Handles money within the Stockland ERP component.
+	 *
+	 * @param mixed $v The v value.
+	 */
 	private function money( $v ) {
 		if ( null === $v || '' === $v ) {
 			return null;
@@ -660,6 +812,11 @@ class Stockland_REST_Import_V16 {
 		$v = str_replace( array( ',', 'ETB', 'Birr' ), '', (string) $v );
 		return is_numeric( $v ) ? Stockland_Money::decimal( Stockland_Money::minor( $v ) ) : null;
 	}
+	/**
+	 * Handles qty within the Stockland ERP component.
+	 *
+	 * @param mixed $v The v value.
+	 */
 	private function qty( $v ) {
 		if ( null === $v || '' === $v ) {
 			return null;
@@ -667,6 +824,12 @@ class Stockland_REST_Import_V16 {
 		$v = str_replace( ',', '', (string) $v );
 		return is_numeric( $v ) ? (float) $v : null;
 	}
+	/**
+	 * Handles map vat mode within the Stockland ERP component.
+	 *
+	 * @param mixed $raw_mode The raw mode value.
+	 * @param mixed $basis The basis value.
+	 */
 	private function map_vat_mode( $raw_mode, $basis ) {
 		$raw = strtoupper( trim( (string) $raw_mode ) );
 		if ( in_array( $raw, array( 'VAT_INCLUDED', 'INCLUSIVE', 'INCLUDED', 'VAT INCLUSIVE', 'TAX INCLUDED' ), true ) ) {
@@ -677,6 +840,12 @@ class Stockland_REST_Import_V16 {
 		}
 		return strtoupper( (string) $basis ) === 'EXCLUSIVE' ? 'WITHOUT_VAT' : 'VAT_INCLUDED';
 	}
+	/**
+	 * Handles sheet rows within the Stockland ERP component.
+	 *
+	 * @param mixed $xlsx The xlsx value.
+	 * @param mixed $needles The needles value.
+	 */
 	private function sheet_rows( $xlsx, $needles ) {
 		$r = $xlsx->rows_by_headers( $needles, 10 );
 		if ( empty( $r['rows'] ) ) {
@@ -684,6 +853,11 @@ class Stockland_REST_Import_V16 {
 		}
 		return $r;
 	}
+	/**
+	 * Handles branch for user within the Stockland ERP component.
+	 *
+	 * @param mixed $requested The requested value.
+	 */
 	private function branch_for_user( $requested ) {
 		$p = Stockland_Authority::profile();
 		if ( ! $p ) {
@@ -706,6 +880,11 @@ class Stockland_REST_Import_V16 {
 			}return $id;}
 		return (int) $allowed[0];
 	}
+	/**
+	 * Handles ensure branch within the Stockland ERP component.
+	 *
+	 * @param mixed $id The record identifier.
+	 */
 	private function ensure_branch( $id ) {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
@@ -713,6 +892,11 @@ class Stockland_REST_Import_V16 {
 			throw new Exception( 'The selected sales branch is not an active retail branch.' );
 		} return $row;
 	}
+	/**
+	 * Handles qty headers within the Stockland ERP component.
+	 *
+	 * @param mixed $row The imported row.
+	 */
 	private function qty_headers( $row ) {
 		foreach ( array( 'qty', 'quantity', 'units', 'units_sold', 'qty_sold', 'sold_qty' ) as $n ) {
 			$v = $this->find( $row, array( $n ) );
@@ -722,6 +906,13 @@ class Stockland_REST_Import_V16 {
 		} return false;
 	}
 
+	/**
+	 * Validates or resolves validate staged daily row for the Stockland ERP operation.
+	 *
+	 * @param mixed $job The job value.
+	 * @param mixed $row The imported row.
+	 * @param mixed $product The product value.
+	 */
 	private function validate_staged_daily_row( $job, $row, $product ) {
 		$q = $this->qty( $row['quantity'] ?? null );
 		if ( null === $q || $q <= 0 ) {
@@ -764,6 +955,11 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Validates an uploaded daily POS workbook and returns a preview.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function daily_preview( WP_REST_Request $r ) {
 		global $wpdb;
 		try {
@@ -1006,6 +1202,11 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'daily_import_preview_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Handles daily jobs within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function daily_jobs( WP_REST_Request $r ) {
 		global $wpdb;
 		$company   = Stockland_Authority::company_scope();
@@ -1023,6 +1224,11 @@ class Stockland_REST_Import_V16 {
 		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A ) );
 	}
 
+	/**
+	 * Handles job detail within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function job_detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$id  = (int) $r['id'];
@@ -1044,6 +1250,11 @@ class Stockland_REST_Import_V16 {
 			)
 		);
 	}
+	/**
+	 * Posts a validated daily POS import to the ERP ledger.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function daily_commit( WP_REST_Request $r ) {
 		global $wpdb;
 		$id         = (int) ( $r->get_json_params()['job_id'] ?? 0 );
@@ -1426,6 +1637,11 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'daily_import_commit_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Handles daily edit row within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function daily_edit_row( WP_REST_Request $r ) {
 		global $wpdb;
 		try {
@@ -1636,6 +1852,13 @@ class Stockland_REST_Import_V16 {
 		}
 		return $wpdb->prepare( $format, $value );
 	}
+	/**
+	 * Handles stage import rows within the Stockland ERP component.
+	 *
+	 * @param mixed $job_id The job id value.
+	 * @param mixed $rows The imported rows.
+	 * @param mixed $type The type value.
+	 */
 	private function stage_import_rows( $job_id, $rows, $type ) {
 		global $wpdb;
 		$job_id = (int) $job_id;
@@ -1706,12 +1929,22 @@ class Stockland_REST_Import_V16 {
 		return true;
 	}
 
+	/**
+	 * Handles product rows within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	private function product_rows( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_upload_read' );
 		$file  = $this->uploaded_file( 'file' );
 		$xlsx  = new Stockland_XLSX( $file['path'] );
 		$found = $this->scan_workbook( $xlsx, 'PRODUCT_MASTER', 'STOCKLAND_MASTER' );
 		return array( $file, $found );}
+	/**
+	 * Validates a Product Master workbook before committing changes.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function product_preview( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
 		global $wpdb;
@@ -2007,6 +2240,11 @@ class Stockland_REST_Import_V16 {
 			return new WP_Error( 'product_import_preview_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Handles destination tracking rows within the Stockland ERP component.
+	 *
+	 * @param mixed $job_id The job id value.
+	 */
 	private function destination_tracking_rows( $job_id ) {
 		global $wpdb;
 		return $wpdb->get_results(
@@ -2019,6 +2257,11 @@ class Stockland_REST_Import_V16 {
 		);
 	}
 
+	/**
+	 * Commits authorized Product Master changes without creating sales.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function product_commit( WP_REST_Request $r ) {
 		if ( ! $this->capability_product() ) {
 			return $this->deny( 'forbidden', 'Only Management or Owner may import Product Master.' );
@@ -2434,12 +2677,22 @@ class Stockland_REST_Import_V16 {
 			}return new WP_Error( 'product_import_commit_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Handles mapping list within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function mapping_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( 'SELECT id,import_type,source_system,profile_name,header_signature,mapping_json,mapping_version,is_active,created_by,updated_by,created_at,updated_at FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE is_active=1 ORDER BY updated_at DESC LIMIT 100', ARRAY_A );
 		foreach ( $rows as &$x ) {
 			$x['mapping'] = json_decode( (string) $x['mapping_json'], true );
 		}return rest_ensure_response( $rows );}
+	/**
+	 * Handles mapping save within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function mapping_save( WP_REST_Request $r ) {
 		$p       = $r->get_json_params();
 		$type    = sanitize_key( $p['import_type'] ?? 'DAILY_SALES' );
@@ -2457,12 +2710,22 @@ class Stockland_REST_Import_V16 {
 				'message'          => 'Import mapping saved. Future matching files will reuse this profile automatically.',
 			)
 		);}
+	/**
+	 * Handles code map list within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function code_map_list( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_source_system = $r->get_param( 'source_system' );
 		$source                  = sanitize_text_field( $requested_source_system ? $requested_source_system : 'THIRD_PARTY_POS' );
 		$rows                    = $wpdb->get_results( $wpdb->prepare( 'SELECT m.id,m.source_system,m.external_code,m.live_sku,m.source_name,m.mapping_note,m.effective_from,m.effective_to,m.is_active,p.product_name FROM ' . Stockland_DB::table( 'product_code_maps' ) . ' m LEFT JOIN ' . Stockland_DB::table( 'products' ) . ' p ON (p.variant_id=m.variant_id OR (m.variant_id IS NULL AND p.sku=m.live_sku)) WHERE m.source_system=%s ORDER BY m.external_code LIMIT 500', $source ), ARRAY_A );
 		return rest_ensure_response( $rows );}
+	/**
+	 * Handles code map save within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function code_map_save( WP_REST_Request $r ) {
 		global $wpdb;
 		$p        = $r->get_json_params();
@@ -2552,6 +2815,11 @@ class Stockland_REST_Import_V16 {
 			$wpdb->query( 'ROLLBACK' );
 			return $this->deny( 'mapping_write_failed', $e->getMessage(), 409 );}
 	}
+	/**
+	 * Handles code map delete within the Stockland ERP component.
+	 *
+	 * @param WP_REST_Request $r The REST request.
+	 */
 	public function code_map_delete( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = (int) $r['id'];
