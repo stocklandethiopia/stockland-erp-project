@@ -162,7 +162,7 @@ class Stockland_Ledger {
 	 * @param int         $variant_id Product variant identifier.
 	 * @param string|null $new_sku Replacement SKU to persist in derived balances, if any.
 	 * @return bool True when the derived balances are rebuilt successfully.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When a ledger invariant prevents the derived balance rebuild.
 	 */
 	public static function rebuild_balance_for_variant( $variant_id, $new_sku = null ) {
 		global $wpdb;
@@ -220,7 +220,7 @@ class Stockland_Ledger {
 	 * @param int    $location_id Operational location identifier.
 	 * @param string $sku Product Master SKU.
 	 * @return bool True when the derived balance is rebuilt successfully.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When a ledger invariant prevents the derived balance rebuild.
 	 */
 	public static function rebuild_balance( $location_id, $sku ) {
 		global $wpdb;
@@ -299,7 +299,7 @@ class Stockland_Ledger {
 	 * @param array $transfer Completed transfer record.
 	 * @param int   $user_id User responsible for posting.
 	 * @return int|false Inbound movement identifier, or false when either leg fails.
-	 * @throws Exception When validation, migration or transaction processing fails.
+	 * @throws RuntimeException When a ledger invariant prevents the transfer movements from completing.
 	 */
 	public static function post_transfer_completed( $transfer, $user_id ) {
 		$t                   = $transfer;
