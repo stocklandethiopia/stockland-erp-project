@@ -369,9 +369,13 @@ class Stockland_REST_Products extends Stockland_REST_Base {
 			return rest_ensure_response( $saved );
 	}
 
-	 * @throws Exception When validation, migration or transaction processing fails.
-	 * @throws Exception When validation, migration or transaction processing fails.
-	/** Create a color × size matrix from one Style template without creating duplicate combinations. */
+	/**
+	 * Creates a color-by-size matrix from a Style template without duplicate combinations.
+	 *
+	 * @param WP_REST_Request $request REST request containing parent SKU, colors and sizes.
+	 * @return mixed Created variant matrix or WP_Error.
+	 * @throws Exception When validation or transaction processing fails.
+	 */
 	public function generate_variants( WP_REST_Request $request ) {
 		global $wpdb;
 		$p      = $request->get_json_params();
