@@ -890,7 +890,7 @@ class Stockland_Activator {
 					if ( '' !== $db_error ) {
 						$detail .= ': ' . esc_html( $db_error );
 					}
-					throw new RuntimeException( $detail );
+					throw new RuntimeException( esc_html( $detail ) );
 				}
 				if ( '' === $table_key || ! self::table_exists_static( $p . 'stock_' . $table_key ) ) {
 					$detail = 'Core table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.';
@@ -1484,7 +1484,7 @@ class Stockland_Activator {
 		// Perform the identity transition as one DDL statement after duplicate checks.
 		// MariaDB/MySQL DDL is still not transactional, but this removes avoidable
 		// intermediate states between dropping the legacy key and adding the invariant key.
-		$sql = "ALTER TABLE {$table} MODIFY variant_id BIGINT UNSIGNED NOT NULL, DROP PRIMARY KEY{$sku_clause}, ADD PRIMARY KEY  (variant_id)";
+		$sql = $wpdb->prepare( 'ALTER TABLE %i MODIFY variant_id BIGINT UNSIGNED NOT NULL, DROP PRIMARY KEY', $table ) . $sku_clause . ', ADD PRIMARY KEY (variant_id)';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The only unbound fragment is a fixed internal index clause selected from schema metadata; the table identifier is validated by the plugin-owned Product Master schema.
 		if ( false === $wpdb->query( $sql ) || $wpdb->last_error ) {
 			throw new RuntimeException( 'Could not enforce immutable variant_id primary key.' );
@@ -1613,7 +1613,7 @@ class Stockland_Activator {
 			}
 			$unresolved = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i b LEFT JOIN %i p ON p.sku=b.sku WHERE b.variant_id IS NULL AND p.variant_id IS NULL', $bal, $p . 'stock_products' ) );
 			if ( $unresolved > 0 ) {
-				throw new RuntimeException( 'Cannot migrate stock_balances: ' . $unresolved . ' derived balance row(s) have no matching Product Master variant.' );
+				throw new RuntimeException( 'Cannot migrate stock_balances: ' . esc_html( (string) $unresolved ) . ' derived balance row(s) have no matching Product Master variant.' );
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE %i b INNER JOIN %i p ON p.sku=b.sku SET b.variant_id=p.variant_id WHERE b.variant_id IS NULL', $bal, $p . 'stock_products' ) );
 			$pk_cols        = $wpdb->get_results( $wpdb->prepare( "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND INDEX_NAME='PRIMARY' ORDER BY SEQ_IN_INDEX", DB_NAME, $bal ), ARRAY_A );
