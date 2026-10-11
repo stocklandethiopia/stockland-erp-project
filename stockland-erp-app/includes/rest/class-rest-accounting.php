@@ -481,15 +481,47 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$finance = current_user_can( 'stockland_view_financials' );
 		$uid     = get_current_user_id();
 		$role    = Stockland_Authority::role( $uid );
-		$columns = $finance ? 'c.*,ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance' : 'c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.email,c.address,c.created_at';
-		$joins   = $finance ? " LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM {$inv} WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id" : '';
-		// Customer schema is intentionally unchanged (49-table contract has no location FK). Until a controlled migration exists, branch users only see customer records they registered; Finance/Management retain the approved master view.
+		// The branch-only view is intentionally restricted to records created by the current user.
 		if ( in_array( $role, array( 'branch_manager', 'sales_employee' ), true ) ) {
-			$sql  = "SELECT {$columns} FROM {$t} c{$joins} WHERE c.created_by=%d ORDER BY c.customer_name LIMIT 1000";
-			$rows = $wpdb->get_results( $wpdb->prepare( $sql, $uid ), ARRAY_A );
+			if ( $finance ) {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"SELECT c.*,ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance FROM %i c LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id WHERE c.created_by=%d ORDER BY c.customer_name LIMIT 1000",
+						$t,
+						$inv,
+						$pay,
+						$uid
+					),
+					ARRAY_A
+				);
+			} else {
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						'SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.email,c.address,c.created_at FROM %i c WHERE c.created_by=%d ORDER BY c.customer_name LIMIT 1000',
+						$t,
+						$uid
+					),
+					ARRAY_A
+				);
+			}
+		} elseif ( $finance ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT c.*,ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance FROM %i c LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id ORDER BY c.customer_name LIMIT 1000",
+					$t,
+					$inv,
+					$pay
+				),
+				ARRAY_A
+			);
 		} else {
-			$sql  = "SELECT {$columns} FROM {$t} c{$joins} ORDER BY c.customer_name LIMIT 1000";
-			$rows = $wpdb->get_results( $sql, ARRAY_A );
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.email,c.address,c.created_at FROM %i c ORDER BY c.customer_name LIMIT 1000',
+					$t
+				),
+				ARRAY_A
+			);
 		}
 		return rest_ensure_response( $rows );
 	}
