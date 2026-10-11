@@ -202,8 +202,8 @@ class Stockland_XLSX {
 		// SimpleXML direct property access may therefore return empty children on valid
 		// Excel files. Use local-name() XPath to recognize standard namespace-qualified XML.
 		$map               = array();
-		$relationshipNodes = $rels->xpath( '//*[local-name()="Relationship"]' );
-		foreach ( (array) $relationshipNodes as $r ) {
+		$relationship_nodes = $rels->xpath( '//*[local-name()="Relationship"]' );
+		foreach ( (array) $relationship_nodes as $r ) {
 			$target = (string) $r['Target'];
 			if ( '' === $target ) {
 				continue;
@@ -217,11 +217,11 @@ class Stockland_XLSX {
 			$map[ (string) $r['Id'] ] = $target;
 		}
 
-		$sheetNodes = $wb->xpath( '//*[local-name()="sheets"]/*[local-name()="sheet"]' );
-		if ( empty( $sheetNodes ) ) {
+		$sheet_nodes = $wb->xpath( '//*[local-name()="sheets"]/*[local-name()="sheet"]' );
+		if ( empty( $sheet_nodes ) ) {
 			throw new Exception( 'Invalid XLSX structure: no worksheet is present.' );
 		}
-		foreach ( (array) $sheetNodes as $s ) {
+		foreach ( (array) $sheet_nodes as $s ) {
 			$name  = (string) $s['name'];
 			$attrs = $s->attributes( 'http://schemas.openxmlformats.org/officeDocument/2006/relationships' );
 			$rid   = isset( $attrs['id'] ) ? (string) $attrs['id'] : '';

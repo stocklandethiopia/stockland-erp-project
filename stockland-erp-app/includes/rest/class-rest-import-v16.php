@@ -94,9 +94,9 @@ class Stockland_REST_Import_V16 {
 	}
 	private function auto_map_headers( $headers, $type ) {
 		$aliases     = $this->aliases( $type );
-		$normHeaders = array();
+		$norm_headers = array();
 		foreach ( (array) $headers as $h ) {
-			$normHeaders[ $this->norm( $h ) ] = (string) $h;}
+			$norm_headers[ $this->norm( $h ) ] = (string) $h;}
 		$mapping    = array();
 		$confidence = array();
 		foreach ( $aliases as $field => $list ) {
@@ -104,30 +104,30 @@ class Stockland_REST_Import_V16 {
 			$score = 0;
 			foreach ( $list as $a ) {
 				$na = $this->norm( $a );
-				if ( isset( $normHeaders[ $na ] ) ) {
-					$hit   = $normHeaders[ $na ];
+				if ( isset( $norm_headers[ $na ] ) ) {
+					$hit   = $norm_headers[ $na ];
 					$score = 100;
 					break;}
 			}
 			if ( ! $hit ) {
 				foreach ( $list as $a ) {
 					$na          = $this->norm( $a );
-					$aliasTokens = array_values( array_filter( explode( '_', $na ) ) );
-					foreach ( $normHeaders as $nh => $original ) {
-						$headerTokens = array_values( array_filter( explode( '_', $nh ) ) );
+					$alias_tokens = array_values( array_filter( explode( '_', $na ) ) );
+					foreach ( $norm_headers as $nh => $original ) {
+						$header_tokens = array_values( array_filter( explode( '_', $nh ) ) );
 						// Fuzzy matching is deliberately conservative: multi-word aliases only match the same token set,
 						// while single-word aliases must appear as a whole header token. This prevents VAT->VAT mode,
 						// Name->Brand, etc. false positives.
-						if ( count( $aliasTokens ) > 1 ) {
-							$aTokens = $aliasTokens;
-							$hTokens = $headerTokens;
-							sort( $aTokens );
-							sort( $hTokens );
-							if ( $aTokens === $hTokens ) {
+						if ( count( $alias_tokens ) > 1 ) {
+							$a_tokens = $alias_tokens;
+							$h_tokens = $header_tokens;
+							sort( $a_tokens );
+							sort( $h_tokens );
+							if ( $a_tokens === $h_tokens ) {
 								$hit   = $original;
 								$score = 90;
 								break 2;}
-						} elseif ( count( $aliasTokens ) === 1 && strlen( $aliasTokens[0] ) >= 3 && in_array( $aliasTokens[0], $headerTokens, true ) ) {
+						} elseif ( count( $alias_tokens ) === 1 && strlen( $alias_tokens[0] ) >= 3 && in_array( $alias_tokens[0], $header_tokens, true ) ) {
 							$hit   = $original;
 							$score = 80;
 							break 2;

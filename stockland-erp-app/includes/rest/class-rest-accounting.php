@@ -713,16 +713,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			)
 		);
 		$marker      = '' !== $request_key ? '[[SLPOREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
-		$requestLock = null;
+		$request_lock = null;
 		if ( '' !== $request_key ) {
-			$requestLock = Stockland_DB::acquire_named_lock( 'po_create_request_' . $request_key, 10 );
-			if ( empty( $requestLock['ok'] ) ) {
+			$request_lock = Stockland_DB::acquire_named_lock( 'po_create_request_' . $request_key, 10 );
+			if ( empty( $request_lock['ok'] ) ) {
 				return new WP_Error( 'busy', 'This purchase-order submission is already being processed. Retry the same form shortly.', array( 'status' => 409 ) );
 			}
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'transaction_failed', 'Could not start the purchase-order transaction.', array( 'status' => 500 ) );}
 		try {
 			if ( '' !== $request_key ) {
@@ -734,11 +734,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				if ( $existing ) {
 					if ( ! preg_match( '/^\[\[SLPOREQ:([A-Fa-f0-9-]{16,80}):([a-f0-9]{64})\]\]/', $existing['notes'] ?? '', $m ) || strtolower( $m[1] ) !== strtolower( $request_key ) || ! hash_equals( $m[2], $fingerprint ) ) {
 						$wpdb->query( 'ROLLBACK' );
-						Stockland_DB::release_named_lock( $requestLock );
+						Stockland_DB::release_named_lock( $request_lock );
 						return new WP_Error( 'idempotency_conflict', 'This purchase-order request key has already been used with different details. Reload the form before creating another order.', array( 'status' => 409 ) );
 					}
 					$wpdb->query( 'ROLLBACK' );
-					Stockland_DB::release_named_lock( $requestLock );
+					Stockland_DB::release_named_lock( $request_lock );
 					return rest_ensure_response(
 						array(
 							'id'        => (int) $existing['id'],
@@ -785,8 +785,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Purchase-order create commit failed.' );
-			}if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			}if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return rest_ensure_response(
 				array(
 					'id'        => $id,
@@ -798,8 +798,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		} catch ( Throwable $x ) {
 			$wpdb->query( 'ROLLBACK' );
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'po_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
@@ -1019,53 +1019,53 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			)
 		);
 		$marker      = '' !== $request_key ? '[[SLGRNREQ:' . $request_key . ':' . $fingerprint . ']]' : '';
-		$requestLock = null;
+		$request_lock = null;
 		// Stable request lock serializes concurrent retries before checking the receipt marker.
 		if ( '' !== $request_key ) {
-			$requestLock = Stockland_DB::acquire_named_lock( 'grn_request_' . $request_key, 10 );
-			if ( empty( $requestLock['ok'] ) ) {
+			$request_lock = Stockland_DB::acquire_named_lock( 'grn_request_' . $request_key, 10 );
+			if ( empty( $request_lock['ok'] ) ) {
 				return new WP_Error( 'busy', 'This goods receipt submission is already being processed. Retry the same form shortly.', array( 'status' => 409 ) );
 			}
 		}
 		$peek = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,status,created_by,approved_by,approved_at,po_number FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d', $poid ), ARRAY_A );
 		if ( ! $peek ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'not_found', 'PO not found.', array( 'status' => 404 ) );}
 		if ( ! Stockland_Authority::company_scope() && ! Stockland_Authority::can_access_location( (int) $peek['location_id'] ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'forbidden', 'This purchase order is outside your authorized receiving location.', array( 'status' => 403 ) );}
 		$location = (int) $peek['location_id'];
 		$central  = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( $central <= 0 || $location !== $central ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'external_supply_destination', 'External supply receipts are restricted to Central Warehouse. Branch fulfillment must use approved requisitions/transfers.', array( 'status' => 403 ) );}
 		$warehouse_guard = Stockland_Authority::assert_warehouse( $location );
 		if ( is_wp_error( $warehouse_guard ) || (int) $peek['created_by'] <= 0 || Stockland_Authority::role( (int) $peek['created_by'] ) !== 'management' || (int) $peek['approved_by'] <= 0 || (int) $peek['approved_by'] === (int) $peek['created_by'] || Stockland_Authority::role( (int) $peek['approved_by'] ) !== 'owner' || empty( $peek['approved_at'] ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'owner_approval_required', 'The PO lacks valid, separate Management-entry and Owner-approval evidence. Stop receiving and route legacy records to the Owner review queue.', array( 'status' => 409 ) );}
 		if ( '' !== $request_key ) {
 			$pattern  = $wpdb->esc_like( '[[SLGRNREQ:' . $request_key . ':' ) . '%';
 			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,receipt_number,po_id,notes FROM ' . Stockland_DB::table( 'purchase_receipts' ) . ' WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', $pattern ), ARRAY_A );
 			if ( $wpdb->last_error ) {
-				Stockland_DB::release_named_lock( $requestLock );
+				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'retry_check_failed', 'Could not verify goods-receipt retry marker.', array( 'status' => 500 ) );}
 			if ( $existing ) {
 				if ( (int) $existing['po_id'] !== $poid || ! preg_match( '/^\[\[SLGRNREQ:([A-Fa-f0-9-]{16,80}):([a-f0-9]{64})\]\]/', $existing['notes'] ?? '', $m ) || strtolower( $m[1] ) !== strtolower( $request_key ) || ! hash_equals( $m[2], $fingerprint ) ) {
-					Stockland_DB::release_named_lock( $requestLock );
+					Stockland_DB::release_named_lock( $request_lock );
 					return new WP_Error( 'idempotency_conflict', 'This goods-receipt request key already belongs to a different submission. Reopen the receiving form before making a new receipt.', array( 'status' => 409 ) );
 				}
 				$rid     = (int) $existing['id'];
 				$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'gl_journals' ) . " WHERE source_type=%s AND source_id=%s AND status='POSTED' LIMIT 1", 'PURCHASE_RECEIPT', (string) $rid ) );
 				if ( ! $journal ) {
-					Stockland_DB::release_named_lock( $requestLock );
+					Stockland_DB::release_named_lock( $request_lock );
 					return new WP_Error( 'receipt_integrity_error', 'The prior receipt exists but its posted PLEDGER/GL journal could not be verified. Stop and ask Management to reconcile before retrying.', array( 'status' => 500 ) );}
 				$value   = (float) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(line_value),0) FROM ' . Stockland_DB::table( 'purchase_receipt_items' ) . ' WHERE receipt_id=%d', $rid ) );
 				$current = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM ' . Stockland_DB::table( 'purchase_orders' ) . ' WHERE id=%d', $poid ) );
-				Stockland_DB::release_named_lock( $requestLock );
+				Stockland_DB::release_named_lock( $request_lock );
 				return rest_ensure_response(
 					array(
 						'receipt_number'  => $existing['receipt_number'],
@@ -1078,26 +1078,26 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 		}
 		if ( ! in_array( $peek['status'], array( 'OWNER_APPROVED', 'PARTIALLY_RECEIVED' ), true ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'invalid_status', 'Only an Owner-approved or partially received PO may accept further quantities. Legacy one-step approvals must be re-reviewed by the Owner.', array( 'status' => 409 ) );}
 		try {
 			Stockland_Business_Calendar::assert_business_day( $date );
 		} catch ( Throwable $e ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'business_day_closed', $e->getMessage(), array( 'status' => 409 ) );}
 		if ( Stockland_DB::is_day_closed( $location, $date ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'business_day_closed', 'This receiving business day is already closed.', array( 'status' => 409 ) );}
 		$locks = Stockland_DB::acquire_location_locks( array( $location ), $date );
 		if ( ! $locks['ok'] ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'busy', 'Another inventory operation is processing this warehouse date.', array( 'status' => 409 ) );}
-		if ( $requestLock ) {
-			$locks['locks'][] = $requestLock;
+		if ( $request_lock ) {
+			$locks['locks'][] = $request_lock;
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_location_locks( $locks['locks'] );
@@ -2318,19 +2318,19 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$reference   = sanitize_text_field( $p['reference'] ?? '' );
 		$notes       = sanitize_text_field( $p['notes'] ?? '' );
 		$allocations = $p['allocations'] ?? array();
-		$requestLock = null;
+		$request_lock = null;
 		$fingerprint = '';
-		$requestKey  = '';
-		$storedNotes = $notes;
+		$payment_request_key  = '';
+		$stored_notes = $notes;
 		// Idempotency covers every manual payment type, not only AP. Retrying the same
 		// request returns the original result; reusing a key with changed details fails.
-		$requestKey = strtolower( sanitize_text_field( (string) ( $p['request_key'] ?? '' ) ) );
-		if ( ! preg_match( '/^[a-z0-9_-]{16,80}$/', $requestKey ) ) {
+		$payment_request_key = strtolower( sanitize_text_field( (string) ( $p['request_key'] ?? '' ) ) );
+		if ( ! preg_match( '/^[a-z0-9_-]{16,80}$/', $payment_request_key ) ) {
 			return new WP_Error( 'idempotency_key_required', 'A stable request_key is required to prevent duplicate payment/PLEDGER/GL transactions.', array( 'status' => 400 ) );
 		}
 		$allocation_input = is_array( $allocations ) ? $allocations : array();
 		$groups           = array();
-		$allocatedTotal   = '0.00';
+		$allocated_total   = '0.00';
 		if ( 'SUPPLIER' === $type && ! $sid ) {
 			return new WP_Error( 'supplier_required', 'supplier_id is required.', array( 'status' => 400 ) );
 		}
@@ -2341,27 +2341,27 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'customer_required', 'customer_id is required.', array( 'status' => 400 ) );
 		}
 		foreach ( $allocation_input as $allocation ) {
-			$invoiceId = (int) ( $allocation['invoice_id'] ?? 0 );
+			$invoice_id = (int) ( $allocation['invoice_id'] ?? 0 );
 			$allocated = $this->money( $allocation['amount'] ?? 0 );
-			if ( $invoiceId <= 0 || $allocated <= 0 ) {
+			if ( $invoice_id <= 0 || $allocated <= 0 ) {
 				return new WP_Error( 'invalid_allocation', 'Each payment allocation needs a valid invoice and positive amount.', array( 'status' => 400 ) );
 			}
-			$groups[ $invoiceId ] = Stockland_Money::add( $groups[ $invoiceId ] ?? '0.00', $allocated );
+			$groups[ $invoice_id ] = Stockland_Money::add( $groups[ $invoice_id ] ?? '0.00', $allocated );
 		}
 		if ( $groups ) {
 			ksort( $groups, SORT_NUMERIC );
-			foreach ( $groups as $invoiceId => $allocated ) {
+			foreach ( $groups as $invoice_id => $allocated ) {
 				$canonical[]    = array(
-					'invoice_id' => (int) $invoiceId,
+					'invoice_id' => (int) $invoice_id,
 					'amount'     => $allocated,
 				);
-				$allocatedTotal = Stockland_Money::add( $allocatedTotal, $allocated );}
+				$allocated_total = Stockland_Money::add( $allocated_total, $allocated );}
 		} else {
 			$canonical = array();}
-		if ( $canonical && Stockland_Money::minor( Stockland_Money::subtract( $allocatedTotal, $amount ) ) !== 0 ) {
+		if ( $canonical && Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 			return new WP_Error( 'allocation_total_mismatch', 'Payment allocation total must equal the payment amount exactly.', array( 'status' => 409 ) );
 		}
-		if ( 'SUPPLIER' === $type && Stockland_Money::minor( Stockland_Money::subtract( $allocatedTotal, $amount ) ) !== 0 ) {
+		if ( 'SUPPLIER' === $type && Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 			return new WP_Error( 'allocation_total_mismatch', 'Supplier payment allocation total must equal the payment amount exactly.', array( 'status' => 409 ) );
 		}
 		$fingerprint = hash(
@@ -2380,28 +2380,28 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				)
 			)
 		);
-		$marker      = '[[SLPAYREQ:' . $requestKey . ':' . $fingerprint . ']]';
-		$storedNotes = trim( $marker . ' ' . $notes );
-		if ( strlen( $storedNotes ) > 500 ) {
+		$marker      = '[[SLPAYREQ:' . $payment_request_key . ':' . $fingerprint . ']]';
+		$stored_notes = trim( $marker . ' ' . $notes );
+		if ( strlen( $stored_notes ) > 500 ) {
 			return new WP_Error( 'notes_too_long', 'Payment notes exceed the supported length after the idempotency marker.', array( 'status' => 400 ) );
 		}
-		$requestLock = Stockland_DB::acquire_named_lock( 'payment_' . $type . '_' . $requestKey, 10 );
-		if ( empty( $requestLock['ok'] ) ) {
+		$request_lock = Stockland_DB::acquire_named_lock( 'payment_' . $type . '_' . $payment_request_key, 10 );
+		if ( empty( $request_lock['ok'] ) ) {
 			return new WP_Error( 'busy', 'This payment request is already being processed. Retry the same request key.', array( 'status' => 409 ) );
 		}
-		$pattern  = '%' . $wpdb->esc_like( '[[SLPAYREQ:' . $requestKey . ':' ) . '%';
+		$pattern  = '%' . $wpdb->esc_like( '[[SLPAYREQ:' . $payment_request_key . ':' ) . '%';
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,payment_number,notes,amount,supplier_id,customer_id,payment_type,status FROM ' . Stockland_DB::table( 'payments' ) . ' WHERE payment_type=%s AND notes LIKE %s ORDER BY id DESC LIMIT 1', $type, $pattern ), ARRAY_A );
 		if ( $existing ) {
 			$stored = (string) ( $existing['notes'] ?? '' );
-			if ( ! preg_match( '/\[\[SLPAYREQ:([a-z0-9_-]{16,80}):([a-f0-9]{64})\]\]/', $stored, $m ) || strtolower( $m[1] ) !== $requestKey || ! hash_equals( $m[2], $fingerprint ) ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( ! preg_match( '/\[\[SLPAYREQ:([a-z0-9_-]{16,80}):([a-f0-9]{64})\]\]/', $stored, $m ) || strtolower( $m[1] ) !== $payment_request_key || ! hash_equals( $m[2], $fingerprint ) ) {
+				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'idempotency_conflict', 'This payment key is already used for different payment details.', array( 'status' => 409 ) );
 			}
 			$journal = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'gl_journals' ) . " WHERE source_type=%s AND source_id=%s AND status='POSTED' LIMIT 1", 'PAYMENT', (string) $existing['id'] ) );
 			if ( 'POSTED' === $existing['status'] && ! $journal ) {
-				Stockland_DB::release_named_lock( $requestLock );
+				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'payment_integrity_error', 'The prior posted payment has no verifiable PLEDGER/GL journal. Stop and reconcile before retrying.', array( 'status' => 500 ) );}
-			Stockland_DB::release_named_lock( $requestLock );
+			Stockland_DB::release_named_lock( $request_lock );
 			$balance = 'SUPPLIER' === $type ? Stockland_Accounting::supplier_balance( $sid ) : Stockland_Accounting::customer_balance( $cid );
 			return rest_ensure_response(
 				array(
@@ -2415,8 +2415,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'transaction_failed', 'Could not start payment transaction.', array( 'status' => 500 ) );}
 		try {
 			$num                  = $this->next_number( 'PAY-', $date );
@@ -2434,7 +2434,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'amount'         => $amount,
 					'method'         => $method,
 					'reference'      => $reference,
-					'notes'          => $storedNotes,
+					'notes'          => $stored_notes,
 					'status'         => $status,
 					'created_by'     => $uid,
 				)
@@ -2494,8 +2494,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( false === $wpdb->query( 'COMMIT' ) ) {
 				throw new Exception( 'Payment commit failed.' );
-			}if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			}if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}
 			return rest_ensure_response(
 				array(
@@ -2509,8 +2509,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		} catch ( Throwable $x ) {
 			$wpdb->query( 'ROLLBACK' );
-			if ( $requestLock ) {
-				Stockland_DB::release_named_lock( $requestLock );
+			if ( $request_lock ) {
+				Stockland_DB::release_named_lock( $request_lock );
 			}return new WP_Error( 'payment_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
@@ -2562,9 +2562,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}
 				$debit_account = '2010';
 				$poitems       = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'purchase_order_items' ) . ' WHERE po_id=%d FOR UPDATE', $poid ), ARRAY_A );
-				$poMap         = array();
+				$po_map         = array();
 				foreach ( $poitems as $pi ) {
-					$poMap[ (int) $pi['id'] ] = $pi;
+					$po_map[ (int) $pi['id'] ] = $pi;
 				}
 				$already_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT sii.po_item_id,COALESCE(SUM(sii.quantity),0) qty FROM ' . Stockland_DB::table( 'supplier_invoice_items' ) . " sii JOIN {$it} si ON si.id=sii.invoice_id WHERE si.po_id=%d AND si.id<>%d AND si.status IN ('POSTED','PENDING') AND sii.po_item_id IS NOT NULL GROUP BY sii.po_item_id", $poid, $id ), ARRAY_A );
 				$already      = array();
@@ -2577,9 +2577,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}
 				foreach ( $items as $li ) {
 					$pid = (int) ( $li['po_item_id'] ?? 0 );
-					if ( ! $pid || ! isset( $poMap[ $pid ] ) ) {
+					if ( ! $pid || ! isset( $po_map[ $pid ] ) ) {
 						throw new Exception( 'Invoice line has no valid linked PO item.' );
-					}$pi       = $poMap[ $pid ];
+					}$pi       = $po_map[ $pid ];
 					$remaining = max( 0, (float) $pi['quantity_received'] - (float) ( $already[ $pid ] ?? 0 ) );
 					if ( (float) $li['quantity'] <= 0 || (float) $li['quantity'] > $remaining + 0.00001 ) {
 						throw new Exception( 'Invoice quantity exceeds the remaining received quantity for ' . $pi['sku'] . '.' );
@@ -2731,7 +2731,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					if ( ! $allocs ) {
 						throw new Exception( 'Supplier payment has no PLEDGER invoice allocations.' );
 					}
-					$allocatedTotal = '0.00';
+					$allocated_total = '0.00';
 					foreach ( $allocs as $a ) {
 						$iid   = (int) $a['invoice_id'];
 						$alloc = $this->money( $a['amount'] );
@@ -2742,8 +2742,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 						$outstanding = Stockland_Money::subtract( $iv['total_amount'], number_format( $other, 2, '.', '' ) );
 						if ( Stockland_Money::minor( Stockland_Money::subtract( $alloc, $outstanding ) ) > 0 ) {
 							throw new Exception( 'Supplier payment would over-allocate invoice ' . $iv['invoice_number'] . '.' );
-						}$allocatedTotal = Stockland_Money::add( $allocatedTotal, $alloc );}
-					if ( Stockland_Money::minor( Stockland_Money::subtract( $allocatedTotal, $amount ) ) !== 0 ) {
+						}$allocated_total = Stockland_Money::add( $allocated_total, $alloc );}
+					if ( Stockland_Money::minor( Stockland_Money::subtract( $allocated_total, $amount ) ) !== 0 ) {
 						throw new Exception( 'Supplier payment allocations do not equal payment amount.' );
 					}
 				} elseif ( 'CUSTOMER' === $type && $cid <= 0 ) {

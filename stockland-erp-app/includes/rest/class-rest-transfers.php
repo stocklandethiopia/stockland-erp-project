@@ -103,7 +103,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			return new WP_Error( 'invalid', 'Invalid transfer.', array( 'status' => 400 ) );
 		}
 
-		if ( $to === (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+		if ( (int) Stockland_DB::get_location_id( 'Central Warehouse' ) === $to ) {
 			return new WP_Error( 'invalid_destination', 'Transfers cannot be received back into Central Warehouse through a branch transfer.', array( 'status' => 400 ) );
 		}
 		if ( ! current_user_can( 'stockland_view_all_branches' ) && (int) Stockland_DB::get_location_id( 'Central Warehouse' ) !== $from ) {
