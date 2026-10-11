@@ -1,4 +1,10 @@
 <?php
+/**
+ * Safe deactivation lifecycle for Stockland ERP.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -12,6 +18,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * the plugin.
  */
 class Stockland_Deactivator {
+	/**
+	 * Flushes rewrite rules without deleting ERP data or business tables.
+	 *
+	 * @return void
+	 */
 	public static function deactivate() {
 		// Intentionally empty. Flush rewrite rules only, in case any were
 		// registered for the PWA app-shell route.
