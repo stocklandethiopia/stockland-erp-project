@@ -11,18 +11,35 @@ if ( ! defined( 'ABSPATH' ) ) {
  * and uses the fast balance/reservation read models for current availability.
  * The report never writes inventory.
  * 16.1.39 reconciliation: hardened report boundary + batched ledger reads + ledger-derived current warehouse availability.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_REST_Inventory_Report_V16 {
 	const NS = 'stockland/v16';
 
+	/**
+	 * Registers inventory-report REST route hooks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) );
 	}
 
+	/**
+	 * Checks whether the current role may view inventory reports.
+	 *
+	 * @return bool Whether inventory reporting is authorized.
+	 */
 	public function permission() {
 		return Stockland_Authority::assert_profile();
 	}
 
+	/**
+	 * Registers daily-inventory and warehouse-availability report routes.
+	 *
+	 * @return void
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -35,6 +52,12 @@ class Stockland_REST_Inventory_Report_V16 {
 		);
 	}
 
+	/**
+	 * Resolves and validates a requested location against assigned user scope.
+	 *
+	 * @param mixed $requested Requested location identifier.
+	 * @return int|WP_Error|false Valid location ID or a fail-closed error/false.
+	 */
 	private function scope_location( $requested ) {
 		$p = Stockland_Authority::profile();
 		if ( ! $p ) {
@@ -56,6 +79,12 @@ class Stockland_REST_Inventory_Report_V16 {
 		return (int) $allowed[0];
 	}
 
+	/**
+	 * Aggregates active reserved quantities for a set of locations.
+	 *
+	 * @param array $location_ids Authorized location identifiers.
+	 * @return array Reserved quantity grouped by location and variant.
+	 */
 	private function grouped_reservations_for_locations( $location_ids ) {
 		global $wpdb;
 		if ( empty( $location_ids ) ) {
@@ -84,6 +113,12 @@ class Stockland_REST_Inventory_Report_V16 {
 		return $map;
 	}
 
+	/**
+	 * Calculates current available stock at the supplied warehouse.
+	 *
+	 * @param int $warehouse_id Warehouse location identifier.
+	 * @return array Available quantities keyed by variant identity.
+	 */
 	private function current_warehouse_available( $warehouse_id ) {
 		global $wpdb;
 		$bal  = Stockland_DB::table( 'balances' );
@@ -127,6 +162,11 @@ class Stockland_REST_Inventory_Report_V16 {
 		return $map;
 	}
 
+	/**
+	 * Loads active stockable Product Master rows used in inventory reporting.
+	 *
+	 * @return array Active stockable product rows.
+	 */
 	private function product_rows() {
 		global $wpdb;
 		$p    = Stockland_DB::table( 'products' );
@@ -141,6 +181,12 @@ class Stockland_REST_Inventory_Report_V16 {
 		return $rows;
 	}
 
+	/**
+	 * Validates a daily-inventory report request and returns its results.
+	 *
+	 * @param WP_REST_Request $r REST request containing date/location filters.
+	 * @return mixed REST response or a WP_Error.
+	 */
 	public function daily_inventory( WP_REST_Request $r ) {
 		Stockland_Runtime_Diagnostics::stage( 'daily_inventory_entry' );
 		/*
@@ -170,6 +216,12 @@ class Stockland_REST_Inventory_Report_V16 {
 			}
 	}
 
+	/**
+	 * Builds the read-only daily inventory result for the validated request.
+	 *
+	 * @param WP_REST_Request $r Validated REST request.
+	 * @return mixed Report data or a WP_Error.
+	 */
 	private function daily_inventory_impl( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_business_date = $r->get_param( 'business_date' );
