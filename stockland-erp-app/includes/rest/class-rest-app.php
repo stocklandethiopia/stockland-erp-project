@@ -1172,8 +1172,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			switch ( $last ) {
 				case 'g':
 																																					$n *= 1024;
+				// Intentional fall-through: apply the next 1024 multiplier for smaller units.
 				case 'm':
 																																					$n *= 1024;
+				// Intentional fall-through: apply the final 1024 multiplier for bytes.
 				case 'k':
 																																					$n *= 1024;
 			}return (int) $n;
@@ -1837,7 +1839,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$sql = 'INSERT INTO %i (wp_user_id,location_id,is_primary,is_active,created_by) VALUES ' . implode( ',', $placeholders );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table name is bound as %i; all remaining values are supplied via generated %d placeholders from integer-cast IDs.
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL is assembled only from fixed query fragments and generated numeric placeholders; dynamic values and identifiers are bound by prepare().
 		$ok = $wpdb->query( $wpdb->prepare( $sql, array_merge( array( $table ), $values ) ) );
 		return false !== $ok;
 	}
