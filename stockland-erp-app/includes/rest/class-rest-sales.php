@@ -24,10 +24,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 	 */
 class Stockland_REST_Sales extends Stockland_REST_Base {
 
+	/**
+	 * Registers the retail POS route callbacks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Checks whether the current ERP profile may create a retail POS sale.
+	 *
+	 * @return bool Whether POS creation is authorized.
+	 */
 	private function can_create_pos() {
 		if ( ! current_user_can( 'stockland_create_sale' ) ) {
 			return new WP_Error( 'forbidden', 'Your Stockland role is not authorized to create a retail POS sale.', array( 'status' => 403 ) );
@@ -35,6 +45,11 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		return Stockland_Authority::assert_profile();
 	}
 
+	/**
+	 * Registers sales listing, POS creation and day-close routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -80,6 +95,12 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Lists sales within the current user's authorized location scope.
+	 *
+	 * @param WP_REST_Request $request REST request with location/date filters.
+	 * @return mixed REST response containing sales rows or a WP_Error.
+	 */
 	public function list_sales( WP_REST_Request $request ) {
 		$location_id = $this->resolve_branch_for_user( $request->get_param( 'branch_location_id' ) );
 		if ( is_wp_error( $location_id ) ) {
@@ -133,6 +154,13 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 		return rest_ensure_response( $rows );
 	}
 
+	/**
+	 * Validates and posts a retail POS sale with corresponding ledger movements.
+	 *
+	 * @param WP_REST_Request $request REST request containing sale header and lines.
+	 * @return mixed REST response containing the committed sale or a WP_Error.
+	 * @throws Exception When the sale transaction cannot satisfy a posting invariant.
+	 */
 	public function create_sale( WP_REST_Request $request ) {
 		$p       = $request->get_json_params();
 		$user_id = get_current_user_id();
@@ -541,12 +569,25 @@ class Stockland_REST_Sales extends Stockland_REST_Base {
 			return new WP_Error( 'day_close_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
+	/**
+	 * Retrieves a sale row by its stable sale identifier.
+	 *
+	 * @param string $sale_id Sale identifier.
+	 * @return array|null Sale row or null when missing.
+	 */
 	private function get_sale_row( $sale_id ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'sales' );
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id = %s', $table, $sale_id ), ARRAY_A );
 	}
 
+	/**
+	 * Generates the next sale identifier for a branch and business date.
+	 *
+	 * @param int         $branch_location_id Branch/location identifier.
+	 * @param string|null $sale_date Optional business date.
+	 * @return string Generated sale identifier.
+	 */
 	private static function generate_sale_id( $branch_location_id, $sale_date = null ) {
 		global $wpdb;
 		$locations = Stockland_DB::table( 'locations' );
