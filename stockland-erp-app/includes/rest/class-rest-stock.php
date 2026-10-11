@@ -81,7 +81,7 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 			$variant_id = (int) $product['variant_id'];
 		}
 
-		$rows = $wpdb->get_results(
+		$rows = Stockland_DB::read_results(
 			$wpdb->prepare(
 				"SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.style_code,p.parent_sku,p.color,p.size,p.barcode,p.gtin,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
 				FROM (SELECT t.location_id,t.variant_id,SUM(t.quantity_signed) physical_stock FROM %i t WHERE t.variant_id IS NOT NULL GROUP BY t.location_id,t.variant_id) v
@@ -120,7 +120,7 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		$locations = Stockland_DB::table( 'locations' );
 		$products  = Stockland_DB::table( 'products' );
 		$tx        = Stockland_DB::table( 'transactions' );
-		$rows      = $wpdb->get_results(
+		$rows      = Stockland_DB::read_results(
 			$wpdb->prepare(
 				"SELECT l.location_name,p.variant_id,p.sku,p.product_name,p.style_code,p.brand,p.color,p.size,p.barcode,p.gtin,COALESCE(b.physical_stock,0) current_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level
 				FROM %i p CROSS JOIN %i l
