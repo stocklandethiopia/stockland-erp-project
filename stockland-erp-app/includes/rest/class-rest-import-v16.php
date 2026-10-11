@@ -216,7 +216,7 @@ class Stockland_REST_Import_V16 {
 		$t = Stockland_DB::table( 'import_profiles' );
 		if ( ! Stockland_DB::table_exists( $t ) ) {
 			return null;
-		}$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE import_type=%s AND source_system=%s AND header_signature=%s AND is_active=1 LIMIT 1", $type, $source_system, $signature ), ARRAY_A );
+		}$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE import_type=%s AND source_system=%s AND header_signature=%s AND is_active=1 LIMIT 1', $t, $type, $source_system, $signature ), ARRAY_A );
 		if ( ! $row ) {
 			return null;
 		}$map = json_decode( (string) $row['mapping_json'], true );
@@ -231,7 +231,7 @@ class Stockland_REST_Import_V16 {
 			return null;
 		}$sig     = $this->header_signature( $headers );
 		$json     = wp_json_encode( $mapping );
-		$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t} WHERE import_type=%s AND source_system=%s AND header_signature=%s LIMIT 1", $type, $source_system, $sig ) );
+		$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE import_type=%s AND source_system=%s AND header_signature=%s LIMIT 1', $t, $type, $source_system, $sig ) );
 		$data     = array(
 			'import_type'      => $type,
 			'source_system'    => $source_system,
@@ -445,8 +445,9 @@ class Stockland_REST_Import_V16 {
 					continue;
 				}
 				$placeholders = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-				$sql          = "SELECT sku,{$field} FROM " . Stockland_DB::table( 'products' ) . " WHERE {$field} IN({$placeholders}) AND {$field}<>''";
-				$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $chunk ), ARRAY_A );
+				$sql          = "SELECT sku,%i FROM %i WHERE %i IN({$placeholders}) AND %i<>''";
+				$sql_args     = array_merge( array( $field, Stockland_DB::table( 'products' ), $field, $field ), $chunk );
+				$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A );
 				if ( $wpdb->last_error ) {
 					throw new Exception( 'Could not verify Product Master ' . $field . ' uniqueness.' );
 				}
@@ -707,7 +708,7 @@ class Stockland_REST_Import_V16 {
 	}
 	private function ensure_branch( $id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'locations' ) . ' WHERE id=%d AND is_active=1', $id ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 		if ( ! $row || 'Branch' !== $row['location_type'] ) {
 			throw new Exception( 'The selected sales branch is not an active retail branch.' );
 		} return $row;
@@ -779,11 +780,11 @@ class Stockland_REST_Import_V16 {
 				throw new Exception( 'This branch day is already closed.' );
 			}$hash      = hash_file( 'sha256', $file['path'] );
 			$import_key = hash( 'sha256', 'DAILY_POS|' . $branch . '|' . $business_date . '|' . $hash );
-			$old        = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Stockland_DB::table( 'import_jobs' ) . ' WHERE import_key=%s LIMIT 1', $import_key ), ARRAY_A );
+			$old        = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE import_key=%s LIMIT 1', Stockland_DB::table( 'import_jobs' ), $import_key ), ARRAY_A );
 			if ( $old && 'CANCELLED' !== $old['status'] ) {
 				throw new Exception( 'This exact POS file for this branch/date was already staged/imported as job #' . $old['id'] . '. Reuse that job instead of uploading it again.' );
 			}
-			$cross = $wpdb->get_row( $wpdb->prepare( 'SELECT id,branch_location_id,business_date,status FROM ' . Stockland_DB::table( 'import_jobs' ) . " WHERE source_sha256=%s AND import_type='DAILY_SALES' AND status<>'CANCELLED' ORDER BY id DESC LIMIT 1", $hash ), ARRAY_A );
+			$cross = $wpdb->get_row( $wpdb->prepare( "SELECT id,branch_location_id,business_date,status FROM %i WHERE source_sha256=%s AND import_type='DAILY_SALES' AND status<>'CANCELLED' ORDER BY id DESC LIMIT 1", Stockland_DB::table( 'import_jobs' ), $hash ), ARRAY_A );
 			if ( $cross && ( (int) $cross['branch_location_id'] !== $branch || (string) $cross['business_date'] !== $business_date ) ) {
 				throw new Exception( 'This POS file hash is already associated with another branch/date (job #' . $cross['id'] . '). Verify the source file before reusing it.' );
 			}
@@ -1017,14 +1018,15 @@ class Stockland_REST_Import_V16 {
 			}$ph    = implode( ',', array_fill( 0, count( $scope_ids ), '%d' ) );
 			$where .= " AND j.branch_location_id IN({$ph})";
 			$args   = $scope_ids;}
-		$sql = 'SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM ' . Stockland_DB::table( 'import_jobs' ) . ' j LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=j.branch_location_id LEFT JOIN ' . $wpdb->users . " u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
-		return rest_ensure_response( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) : $wpdb->get_results( $sql, ARRAY_A ) );
+		$sql = "SELECT j.id,j.branch_location_id,j.business_date,j.source_filename,j.status,j.total_rows,j.valid_rows,j.error_rows,j.processed_rows,j.created_by,j.created_at,j.updated_at,j.message,l.location_name,u.display_name created_by_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id LEFT JOIN %i u ON u.ID=j.created_by WHERE {$where} ORDER BY j.created_at DESC LIMIT 50";
+		$sql_args = array_merge( array( Stockland_DB::table( 'import_jobs' ), Stockland_DB::table( 'locations' ), $wpdb->users ), $args );
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $sql_args ), ARRAY_A ) );
 	}
 
 	public function job_detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$id  = (int) $r['id'];
-		$job = $wpdb->get_row( $wpdb->prepare( 'SELECT j.*,l.location_name FROM ' . Stockland_DB::table( 'import_jobs' ) . ' j LEFT JOIN ' . Stockland_DB::table( 'locations' ) . ' l ON l.id=j.branch_location_id WHERE j.id=%d', $id ), ARRAY_A );
+		$job = $wpdb->get_row( $wpdb->prepare( 'SELECT j.*,l.location_name FROM %i j LEFT JOIN %i l ON l.id=j.branch_location_id WHERE j.id=%d', Stockland_DB::table( 'import_jobs' ), Stockland_DB::table( 'locations' ), $id ), ARRAY_A );
 		if ( ! $job ) {
 			return $this->deny( 'not_found', 'Import job not found.', 404 );
 		}
@@ -1034,7 +1036,7 @@ class Stockland_REST_Import_V16 {
 				return $this->deny( 'forbidden', 'This import job is outside your authorized operational scope.' );
 			}
 		}
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT source_row_number AS row_number,external_receipt_no,sku,mapped_sku,variant_id AS destination_variant_id,quantity,selling_price,sales_total,vat_amount,status,error_message,posted_sale_id FROM ' . Stockland_DB::table( 'import_rows' ) . ' WHERE job_id=%d ORDER BY source_row_number LIMIT 200', $id ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT source_row_number AS row_number,external_receipt_no,sku,mapped_sku,variant_id AS destination_variant_id,quantity,selling_price,sales_total,vat_amount,status,error_message,posted_sale_id FROM %i WHERE job_id=%d ORDER BY source_row_number LIMIT 200', Stockland_DB::table( 'import_rows' ), $id ), ARRAY_A );
 		return rest_ensure_response(
 			array(
 				'job'  => $job,
@@ -1049,7 +1051,7 @@ class Stockland_REST_Import_V16 {
 		$rows_table = Stockland_DB::table( 'import_rows' );
 		$sales      = Stockland_DB::table( 'sales' );
 		$batches    = Stockland_DB::table( 'sale_batches' );
-		$job        = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$jobs} WHERE id=%d LIMIT 1", $id ), ARRAY_A );
+		$job        = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d LIMIT 1', $jobs, $id ), ARRAY_A );
 		if ( ! $job ) {
 			return $this->deny( 'not_found', 'Import job not found.', 404 );
 		}
@@ -1079,7 +1081,7 @@ class Stockland_REST_Import_V16 {
 		}
 		$chunk  = self::DAILY_CHUNK;
 		$offset = (int) $job['processed_rows'];
-		$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM {$rows_table} WHERE job_id=%d AND status='VALID' ORDER BY source_row_number LIMIT %d", $id, $chunk ), ARRAY_A );
+		$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT *,source_row_number AS row_number FROM %i WHERE job_id=%d AND status='VALID' ORDER BY source_row_number LIMIT %d", $rows_table, $id, $chunk ), ARRAY_A );
 		if ( empty( $rows ) ) {
 			$ok = $wpdb->update(
 				$jobs,
@@ -1095,7 +1097,7 @@ class Stockland_REST_Import_V16 {
 				Stockland_DB::release_day_lock( $lock );
 				return new WP_Error( 'daily_import_state_failed', $wpdb->last_error ? $wpdb->last_error : 'Could not finalize import job.', array( 'status' => 409 ) );}
 			Stockland_DB::release_day_lock( $lock );
-			$verify = $wpdb->get_row( $wpdb->prepare( "SELECT status,processed_rows,valid_rows FROM {$jobs} WHERE id=%d", $id ), ARRAY_A );
+			$verify = $wpdb->get_row( $wpdb->prepare( 'SELECT status,processed_rows,valid_rows FROM %i WHERE id=%d', $jobs, $id ), ARRAY_A );
 			if ( ! $verify || 'POSTED' !== $verify['status'] ) {
 				return new WP_Error( 'daily_import_state_unverified', 'Import completion could not be verified after commit.', array( 'status' => 409 ) );
 			}
@@ -1116,7 +1118,7 @@ class Stockland_REST_Import_V16 {
 			// Re-read and lock the job inside the transaction. The day-level named lock
 			// serializes branch/date operations; this row lock also prevents stale job-state
 			// reads from causing a second commit after another request advances the same job.
-			$locked_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$jobs} WHERE id=%d AND import_type='DAILY_SALES' LIMIT 1 FOR UPDATE", $id ), ARRAY_A );
+			$locked_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE id=%d AND import_type='DAILY_SALES' LIMIT 1 FOR UPDATE", $jobs, $id ), ARRAY_A );
 			if ( ! $locked_job ) {
 				throw new Exception( 'Daily sales import job disappeared before commit.' );
 			}
@@ -1183,13 +1185,13 @@ class Stockland_REST_Import_V16 {
 				}
 
 				$sale_id  = 'D' . $id . '-' . $row['row_number'];
-				$existing = $wpdb->get_var( $wpdb->prepare( "SELECT sale_id FROM {$sales} WHERE sale_id=%s OR (source_job_id=%d AND source_row_number=%d) LIMIT 1", $sale_id, $id, (int) $row['row_number'] ) );
+				$existing = $wpdb->get_var( $wpdb->prepare( 'SELECT sale_id FROM %i WHERE sale_id=%s OR (source_job_id=%d AND source_row_number=%d) LIMIT 1', $sales, $sale_id, $id, (int) $row['row_number'] ) );
 				if ( $existing ) {
-					$existing_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$sales} WHERE sale_id=%s LIMIT 1 FOR UPDATE", $existing ), ARRAY_A );
+					$existing_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE sale_id=%s LIMIT 1 FOR UPDATE', $sales, $existing ), ARRAY_A );
 					if ( ! $existing_row || 'CLOSED' !== $existing_row['posting_status'] ) {
 						throw new Exception( 'Existing sale for imported row ' . $row['row_number'] . ' is not a verified CLOSED transaction.' );
 					}
-					$ledger_ok = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'transactions' ) . " WHERE reference_type='sale' AND reference_id=%s AND source_line_id=%s AND movement_type='SALE' LIMIT 1", $existing, (string) $row['row_number'] ) );
+					$ledger_ok = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE reference_type='sale' AND reference_id=%s AND source_line_id=%s AND movement_type='SALE' LIMIT 1", Stockland_DB::table( 'transactions' ), $existing, (string) $row['row_number'] ) );
 					if ( ! $ledger_ok ) {
 						throw new Exception( 'Existing sale ' . $existing . ' has no matching inventory ledger entry. The import was not silently marked complete.' );
 					}
@@ -1219,7 +1221,8 @@ class Stockland_REST_Import_V16 {
 				if ( '' !== $external_receipt ) {
 					$cross_job_batch = $wpdb->get_row(
 						$wpdb->prepare(
-							"SELECT id,job_id,status FROM {$batches} WHERE branch_location_id=%d AND business_date=%s AND source_system=%s AND external_receipt_no=%s LIMIT 1 FOR UPDATE",
+							"SELECT id,job_id,status FROM %i WHERE branch_location_id=%d AND business_date=%s AND source_system=%s AND external_receipt_no=%s LIMIT 1 FOR UPDATE",
+							$batches,
 							(int) $job['branch_location_id'],
 							$job['business_date'],
 							'THIRD_PARTY_POS',
@@ -1231,7 +1234,7 @@ class Stockland_REST_Import_V16 {
 						throw new Exception( 'External receipt ' . $external_receipt . ' is already posted for this branch and business date in import job #' . (int) $cross_job_batch['job_id'] . '. Verify the POS export before releasing this job.' );
 					}
 				}
-				$batch = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$batches} WHERE job_id=%d AND receipt_key=%s FOR UPDATE", $id, $receipt_key ), ARRAY_A );
+				$batch = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE job_id=%d AND receipt_key=%s FOR UPDATE', $batches, $id, $receipt_key ), ARRAY_A );
 				if ( ! $batch ) {
 					$batch_ok = $wpdb->insert(
 						$batches,
@@ -1366,7 +1369,7 @@ class Stockland_REST_Import_V16 {
 				}
 			}
 			foreach ( array_keys( $batch_ids ) as $bid ) {
-				$agg = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) row_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs FROM {$sales} WHERE source_sale_group=%s", (string) $bid ), ARRAY_A );
+				$agg = $wpdb->get_row( $wpdb->prepare( 'SELECT COUNT(*) row_count,COALESCE(SUM(quantity_sold),0) units,COALESCE(SUM(sales_total),0) gross_sales,COALESCE(SUM(vat_amount),0) vat_total,COALESCE(SUM(cogs),0) cogs FROM %i WHERE source_sale_group=%s', $sales, (string) $bid ), ARRAY_A );
 				if ( ! $agg ) {
 					throw new Exception( 'Could not reconcile receipt header ' . $bid . '.' );
 				}
@@ -1404,7 +1407,7 @@ class Stockland_REST_Import_V16 {
 				throw new Exception( 'Daily sales import commit failed.' );
 			}
 			Stockland_DB::release_day_lock( $lock );
-			$verify = $wpdb->get_row( $wpdb->prepare( "SELECT status,processed_rows,valid_rows FROM {$jobs} WHERE id=%d", $id ), ARRAY_A );
+			$verify = $wpdb->get_row( $wpdb->prepare( 'SELECT status,processed_rows,valid_rows FROM %i WHERE id=%d', $jobs, $id ), ARRAY_A );
 			if ( ! $verify || (string) $verify['status'] !== $status || (int) $verify['processed_rows'] !== $new_processed ) {
 				return new WP_Error( 'daily_import_state_unverified', 'Import committed but its final state could not be verified.', array( 'status' => 409 ) );
 			}
