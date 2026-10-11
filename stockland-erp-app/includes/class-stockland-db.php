@@ -40,13 +40,13 @@ class Stockland_DB {
 	 * not serve potentially stale values after a stock or financial write.
 	 *
 	 * @param string|null $query Static or prepared SQL query.
-	 * @param int          $x Zero-based result column.
-	 * @param int          $y Zero-based result row.
+	 * @param int        $x Zero-based result column.
+	 * @param int        $y Zero-based result row.
 	 * @return mixed Scalar query result or null.
 	 */
 	public static function read_var( $query = null, $x = 0, $y = 0 ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Central uncached gateway for prepared/custom-table reads that must reflect the current transactional ledger and authority state.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Central gateway accepts already-prepared or constant SQL. Preparing twice would break identifier placeholders and values.
 		return $wpdb->get_var( $query, $x, $y );
 	}
 
@@ -61,7 +61,7 @@ class Stockland_DB {
 	 */
 	public static function read_results( $query = null, $output = OBJECT ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Relational ERP joins and live operational rows are intentionally uncached for consistency with ledger writes and role/location assignments.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Executes caller-prepared relational queries without a stale cache or a second prepare pass.
 		return $wpdb->get_results( $query, $output );
 	}
 
@@ -77,7 +77,7 @@ class Stockland_DB {
 	 */
 	public static function read_row( $query = null, $output = OBJECT, $y = 0 ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Permission, ledger, and workflow reads must reflect current database state rather than a potentially stale object-cache entry.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Preserves caller-prepared permission, ledger and workflow queries without a second prepare pass.
 		return $wpdb->get_row( $query, $output, $y );
 	}
 
@@ -92,7 +92,7 @@ class Stockland_DB {
 	 */
 	public static function read_col( $query = null, $x = 0 ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema metadata and operational identifiers are queried fresh so setup and authority checks cannot use stale cache entries.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Executes caller-prepared metadata and operational queries without a second prepare pass.
 		return $wpdb->get_col( $query, $x );
 	}
 
@@ -110,7 +110,7 @@ class Stockland_DB {
 	 */
 	public static function insert_record( $table, $data, $format = null ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's insert() performs value preparation and preserves the caller-owned transaction.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's insert() prepares values for custom ERP tables; writes must remain transaction-current.
 		return $wpdb->insert( $table, $data, $format );
 	}
 
@@ -128,7 +128,7 @@ class Stockland_DB {
 	 */
 	public static function update_record( $table, $data, $where, $format = null, $where_format = null ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's update() prepares values and preserves the caller-owned transaction.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's update() prepares values for custom ERP tables; writes must remain transaction-current.
 		return $wpdb->update( $table, $data, $where, $format, $where_format );
 	}
 
@@ -144,7 +144,7 @@ class Stockland_DB {
 	 */
 	public static function delete_record( $table, $where, $where_format = null ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's delete() prepares values and preserves the caller-owned transaction.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's delete() prepares values for custom ERP tables; writes must remain transaction-current.
 		return $wpdb->delete( $table, $where, $where_format );
 	}
 
@@ -160,7 +160,7 @@ class Stockland_DB {
 	 */
 	public static function replace_record( $table, $data, $format = null ) {
 		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom ERP tables are not WordPress posts/meta; wpdb's replace() prepares values and preserves the caller-owned transaction.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's replace() prepares values for custom ERP tables; writes must remain transaction-current.
 		return $wpdb->replace( $table, $data, $format );
 	}
 
@@ -180,7 +180,7 @@ class Stockland_DB {
 		if ( preg_match( '/^(ALTER|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i', $sql ) ) {
 			return self::schema_query( $query );
 		}
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Single uncached gateway for custom transactional tables; callers use static/prepared SQL so writes and transaction-control statements retain their exact database semantics.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Executes caller-prepared DML/transaction statements or fixed SQL; preparing again would change semantics.
 		return $wpdb->query( $query );
 	}
 
@@ -212,7 +212,7 @@ class Stockland_DB {
 		if ( '' === $target || 0 !== strpos( $target, $wpdb->prefix . 'stock_' ) ) {
 			return false;
 		}
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Central fail-closed DDL gateway: only fixed schema migrations targeting the plugin's prefixed Stockland tables are allowed to reach WPDB.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Central fail-closed DDL gateway for caller-prepared fixed migrations; SQL structure cannot be value-bound, and only the prefixed Stockland namespace is allowed.
 		return $wpdb->query( $query );
 	}
 
@@ -238,10 +238,10 @@ class Stockland_DB {
 	 * Reads a centrally stored ERP setting and returns the supplied default when it is absent.
 	 *
 	 * @param string $key Setting key or advisory-lock key.
-	 * @param mixed  $default Value returned if the setting is absent.
+	 * @param mixed  $fallback Value returned if the setting is absent.
 	 * @return mixed The stored setting value or supplied default.
 	 */
-	public static function get_setting( $key, $default = null ) {
+	public static function get_setting( $key, $fallback = null ) {
 		global $wpdb;
 		$table = self::table( 'settings' );
 		$value = self::read_var(
@@ -251,7 +251,7 @@ class Stockland_DB {
 				$key
 			)
 		);
-		return null !== $value ? $value : $default;
+		return null !== $value ? $value : $fallback;
 	}
 
 	/** Current VAT rate, e.g. 0.15. Centrally controlled — never sent by the client. */
