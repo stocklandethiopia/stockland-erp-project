@@ -331,25 +331,35 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$ci  = Stockland_DB::table( 'customer_invoices' );
 		$ex  = Stockland_DB::table( 'expenses' );
 		$pay = Stockland_DB::table( 'payments' );
-		$ap  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(total_amount),0) FROM {$si} WHERE status='POSTED'" ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount),0) FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED'" ) ) ) );
-		$ar  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(total_amount),0) FROM {$ci} WHERE status='POSTED'" ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount),0) FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED'" ) ) ) );
+		$ap  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(total_amount),0) FROM %i WHERE status='POSTED'", $si ) ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED'", $pay ) ) ) ) );
+		$ar  = Stockland_Money::subtract( Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(total_amount),0) FROM %i WHERE status='POSTED'", $ci ) ) ) ), Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED'", $pay ) ) ) ) );
 		// Single-query balance aggregation: avoid 3 extra queries per supplier/customer.
 		$sr = $wpdb->get_results(
-			"SELECT s.id,s.supplier_code,s.supplier_name,s.phone,s.tax_id,s.opening_balance,
+			$wpdb->prepare(
+				"SELECT s.id,s.supplier_code,s.supplier_name,s.phone,s.tax_id,s.opening_balance,
             ROUND(s.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance
-            FROM {$sup} s
-            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM {$si} WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
-            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
+            FROM %i s
+            LEFT JOIN (SELECT supplier_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY supplier_id) i ON i.supplier_id=s.id
+            LEFT JOIN (SELECT supplier_id,SUM(amount) pay_total FROM %i WHERE payment_type='SUPPLIER' AND status='POSTED' GROUP BY supplier_id) p ON p.supplier_id=s.id
             WHERE s.is_active=1 ORDER BY s.supplier_name LIMIT 500",
+				$sup,
+				$si,
+				$pay
+			),
 			ARRAY_A
 		);
 		$cr = $wpdb->get_results(
-			"SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.opening_balance,
+			$wpdb->prepare(
+				"SELECT c.id,c.customer_code,c.customer_name,c.customer_type,c.phone,c.opening_balance,
             ROUND(c.opening_balance+COALESCE(i.inv_total,0)-COALESCE(p.pay_total,0),2) balance
-            FROM {$cus} c
-            LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM {$ci} WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id
-            LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM {$pay} WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id
+            FROM %i c
+            LEFT JOIN (SELECT customer_id,SUM(total_amount) inv_total FROM %i WHERE status='POSTED' GROUP BY customer_id) i ON i.customer_id=c.id
+            LEFT JOIN (SELECT customer_id,SUM(amount) pay_total FROM %i WHERE payment_type='CUSTOMER' AND status='POSTED' GROUP BY customer_id) p ON p.customer_id=c.id
             WHERE c.is_active=1 ORDER BY c.customer_name LIMIT 500",
+				$cus,
+				$ci,
+				$pay
+			),
 			ARRAY_A
 		);
 		return rest_ensure_response(
@@ -361,8 +371,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				'customers'           => count( $cr ),
 				'accounts_payable'    => $ap,
 				'accounts_receivable' => $ar,
-				'expenses_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount+tax_amount),0) FROM {$ex} WHERE status='POSTED' AND expense_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')" ) ) ),
-				'payments_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( "SELECT COALESCE(SUM(amount),0) FROM {$pay} WHERE status='POSTED' AND payment_date>=DATE_FORMAT(CURDATE(),'%Y-%m-01')" ) ) ),
+				'expenses_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount+tax_amount),0) FROM %i WHERE status='POSTED' AND expense_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01')", $ex ) ) ) ),
+				'payments_month'      => Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE status='POSTED' AND payment_date>=DATE_FORMAT(CURDATE(),'%%Y-%%m-01')", $pay ) ) ) ),
 				'supplier_rows'       => $sr,
 				'customer_rows'       => $cr,
 			)
