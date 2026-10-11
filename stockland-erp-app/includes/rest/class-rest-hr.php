@@ -246,7 +246,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$e = Stockland_DB::table( 'employees' );
 		$l = Stockland_DB::table( 'locations' );
 		if ( ! $with_comp ) {
-			return $wpdb->get_results( $wpdb->prepare( 'SELECT e.*,l.location_name FROM %i e LEFT JOIN %i l ON l.id=e.branch_location_id ORDER BY e.status DESC,e.full_name', $e, $l ), ARRAY_A );
+			return Stockland_DB::read_results( $wpdb->prepare( 'SELECT e.*,l.location_name FROM %i e LEFT JOIN %i l ON l.id=e.branch_location_id ORDER BY e.status DESC,e.full_name', $e, $l ), ARRAY_A );
 		}
 		$c = Stockland_DB::table( 'employee_compensation' );
 		// Do not break the whole HR page during an add-only upgrade. Until the owner runs
@@ -255,7 +255,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$breakdown_select = in_array( 'employee_compensation.allowance_breakdown_json', $gaps, true ) ? 'NULL current_allowance_breakdown_json' : 'c.allowance_breakdown_json current_allowance_breakdown_json';
 		$sql              = "SELECT e.*,l.location_name,COALESCE(c.base_salary,0) current_base_salary,COALESCE(c.allowance_total,0) current_allowance_total,COALESCE(c.standard_deduction_total,0) current_deduction_total,c.taxable_allowance_total current_taxable_allowance_total,c.exempt_allowance_total current_exempt_allowance_total,c.pensionable_salary current_pensionable_salary,c.statutory_classification_status current_statutory_classification_status,c.statutory_classification_note current_statutory_classification_note,{$breakdown_select},c.effective_from compensation_effective_from FROM %i e LEFT JOIN %i l ON l.id=e.branch_location_id LEFT JOIN %i c ON c.id=(SELECT c2.id FROM %i c2 WHERE c2.employee_id=e.id AND c2.effective_from<=%s ORDER BY c2.effective_from DESC,c2.id DESC LIMIT 1) ORDER BY e.status DESC,e.full_name";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL uses a fixed two-choice allowance-column fragment; table names and the effective date are passed via %i/%s placeholders.
-		return $wpdb->get_results( $wpdb->prepare( $sql, $e, $l, $c, $c, current_time( 'Y-m-d' ) ), ARRAY_A );
+		return Stockland_DB::read_results( $wpdb->prepare( $sql, $e, $l, $c, $c, current_time( 'Y-m-d' ) ), ARRAY_A );
 	}
 	/**
 	 * Reads payroll data within the caller's authorized scope.
@@ -265,7 +265,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	private function payroll_rows() {
 		global $wpdb;
 		$p = Stockland_DB::table( 'payroll_periods' );
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100', $p, $wpdb->users ), ARRAY_A );
+		return Stockland_DB::read_results( $wpdb->prepare( 'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100', $p, $wpdb->users ), ARRAY_A );
 	}
 
 	/**
@@ -294,11 +294,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( '' === $code || '' === $name ) {
 			return new WP_Error( 'invalid', 'employee_id and full_name are required.', array( 'status' => 400 ) );
 		}
-		if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE employee_id=%s', Stockland_DB::table( 'employees' ), $code ) ) ) {
+		if ( Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE employee_id=%s', Stockland_DB::table( 'employees' ), $code ) ) ) {
 			return new WP_Error( 'duplicate', 'Employee ID already exists.', array( 'status' => 409 ) );
 		}
 		$branch = isset( $p['branch_location_id'] ) && '' !== $p['branch_location_id'] ? (int) $p['branch_location_id'] : null;
-		if ( $branch && ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $branch ) ) ) {
+		if ( $branch && ! Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $branch ) ) ) {
 			return new WP_Error( 'location', 'Active branch/location not found.', array( 'status' => 400 ) );
 		}
 		$row = array(
@@ -316,23 +316,23 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			'created_by'         => get_current_user_id(),
 			'updated_by'         => get_current_user_id(),
 		);
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start employee transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			if ( false === $wpdb->insert( Stockland_DB::table( 'employees' ), $row ) ) {
+			if ( false === Stockland_DB::insert_record( Stockland_DB::table( 'employees' ), $row ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not create employee.' );
 			}
 			$id = (int) $wpdb->insert_id;
 			if ( ! Stockland_Audit::log( get_current_user_id(), $branch, 'HR_EMPLOYEE_CREATE', null, null, null, $code, $name, 'EMP' . $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; employee was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Employee commit failed.' );
 			}
-			return rest_ensure_response( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A ) );
+			return rest_ensure_response( Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
@@ -348,7 +348,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return $this->deny();
 		} global $wpdb;
 		$id  = (int) $r['id'];
-		$cur = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A );
+		$cur = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A );
 		if ( ! $cur ) {
 			return new WP_Error( 'not_found', 'Employee not found.', array( 'status' => 404 ) );
 		}$p   = $r->get_json_params();
@@ -363,7 +363,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}
 		if ( array_key_exists( 'branch_location_id', $p ) ) {
 			$b = '' === $p['branch_location_id'] || null === $p['branch_location_id'] ? null : (int) $p['branch_location_id'];
-			if ( $b && ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $b ) ) ) {
+			if ( $b && ! Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE id=%d AND is_active=1', Stockland_DB::table( 'locations' ), $b ) ) ) {
 				return new WP_Error( 'location', 'Active location not found.', array( 'status' => 400 ) );
 			}$data['branch_location_id'] = $b; }
 		if ( array_key_exists( 'status', $p ) ) {
@@ -377,11 +377,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( ! $data ) {
 			return rest_ensure_response( $cur );
 		}$data['updated_by'] = get_current_user_id();
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start employee update transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			if ( false === $wpdb->update( Stockland_DB::table( 'employees' ), $data, array( 'id' => $id ) ) ) {
+			if ( false === Stockland_DB::update_record( Stockland_DB::table( 'employees' ), $data, array( 'id' => $id ) ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Employee update failed.' );
 			}
 			$wp_update = array( 'ID' => $id );
@@ -400,12 +400,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $data['branch_location_id'] ?? $cur['branch_location_id'], 'HR_EMPLOYEE_UPDATE', null, null, wp_json_encode( $cur ), wp_json_encode( $data ), 'EMP' . $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; employee update was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Employee update commit failed.' );
 			}
-			return rest_ensure_response( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A ) );
+			return rest_ensure_response( Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
@@ -423,7 +423,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		global $wpdb;
 		$id        = (int) $r['id'];
 		$employees = Stockland_DB::table( 'employees' );
-		$employee  = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', $employees, $id ), ARRAY_A );
+		$employee  = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', $employees, $id ), ARRAY_A );
 		if ( ! $employee ) {
 			return new WP_Error( 'not_found', 'Employee not found.', array( 'status' => 404 ) );
 		}
@@ -565,11 +565,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			'notes'                           => sanitize_textarea_field( $p['notes'] ?? '' ),
 			'created_by'                      => get_current_user_id(),
 		);
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start compensation transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			if ( false === $wpdb->insert( Stockland_DB::table( 'employee_compensation' ), $row ) ) {
+			if ( false === Stockland_DB::insert_record( Stockland_DB::table( 'employee_compensation' ), $row ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not save compensation.' );
 			}
 			$details = array(
@@ -586,13 +586,13 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $employee['branch_location_id'], 'HR_COMPENSATION_CREATE', null, $base, null, $base, wp_json_encode( $details ), 'EMP' . $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; compensation was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Compensation commit failed.' );
 			}
 			$row['id'] = (int) $wpdb->insert_id;
 			return rest_ensure_response( $row );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) ); }
 	}
 
@@ -616,7 +616,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		);
 		$ph  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $ph contains only one %d token per integer-cast period ID; table name and IDs are passed to prepare in order.
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id IN(' . $ph . ') ORDER BY period_id,employee_name', array_merge( array( Stockland_DB::table( 'payroll_lines' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
+		$lines = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id IN(' . $ph . ') ORDER BY period_id,employee_name', array_merge( array( Stockland_DB::table( 'payroll_lines' ) ), array_map( 'intval', $ids ) ) ), ARRAY_A );
 		$by    = array();
 		foreach ( $lines as $line ) {
 			$by[ (int) $line['period_id'] ][] = $line;}
@@ -649,14 +649,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return new WP_Error( 'payroll_month_required', 'Statutory PAYE is monthly: use period key YYYY-MM with the first and last date of that same calendar month.', array( 'status' => 400 ) );
 		}if ( $start < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
 			return new WP_Error( 'historical_tax_rule_unavailable', 'This monthly statutory calculator starts on ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. The law applies from ' . Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE . '; July 2025 crosses that boundary and requires separately approved split-period treatment. Preserve posted payroll; do not silently recalculate historical periods.', array( 'status' => 400 ) );
-		}if ( $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE period_key=%s', Stockland_DB::table( 'payroll_periods' ), $key ) ) ) {
+		}if ( Stockland_DB::read_var( $wpdb->prepare( 'SELECT id FROM %i WHERE period_key=%s', Stockland_DB::table( 'payroll_periods' ), $key ) ) ) {
 			return new WP_Error( 'duplicate', 'Payroll period already exists.', array( 'status' => 409 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start payroll-period transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$ok = $wpdb->insert(
+			$ok = Stockland_DB::insert_record(
 				Stockland_DB::table( 'payroll_periods' ),
 				array(
 					'period_key' => $key,
@@ -672,11 +672,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}$id = (int) $wpdb->insert_id;
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'PAYROLL_PERIOD_CREATE', null, null, null, 'DRAFT', $key, 'PAY' . $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; payroll period was not committed.' );
-			}if ( false === $wpdb->query( 'COMMIT' ) ) {
+			}if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Payroll-period commit failed.' );
-			}return rest_ensure_response( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A ) );
+			}return rest_ensure_response( Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A ) );
 		} catch ( Throwable $x ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $x->getMessage(), array( 'status' => 500 ) );}
 	}
 
@@ -691,7 +691,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	private function compensation_segments( $employee, $period ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'employee_compensation' );
-		$rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE employee_id=%d AND effective_from<=%s ORDER BY effective_from ASC,id ASC', $table, (int) $employee['id'], $period['end_date'] ), ARRAY_A );
+		$rows  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE employee_id=%d AND effective_from<=%s ORDER BY effective_from ASC,id ASC', $table, (int) $employee['id'], $period['end_date'] ), ARRAY_A );
 		if ( ! $rows ) {
 			return array();
 		}
@@ -869,7 +869,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	private function payroll_totals( $period_id ) {
 		global $wpdb;
-		$lines  = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY id', Stockland_DB::table( 'payroll_lines' ), $period_id ), ARRAY_A );
+		$lines  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY id', Stockland_DB::table( 'payroll_lines' ), $period_id ), ARRAY_A );
 		$totals = array(
 			'employee_count'         => count( $lines ),
 			'gross_total'            => '0.00',
@@ -906,7 +906,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	private function save_payroll_totals( $period_id ) {
 		global $wpdb;
 		$totals = $this->payroll_totals( $period_id );
-		$ok     = $wpdb->update( Stockland_DB::table( 'payroll_periods' ), $totals, array( 'id' => (int) $period_id ) );
+		$ok     = Stockland_DB::update_record( Stockland_DB::table( 'payroll_periods' ), $totals, array( 'id' => (int) $period_id ) );
 		if ( false === $ok ) {
 			throw new RuntimeException( 'Payroll period totals could not be saved.' );
 		}
@@ -926,11 +926,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$id = (int) $r['id'];
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start the payroll transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$period = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
+			$period = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
 			if ( ! $period ) {
 				throw new Exception( 'Payroll period not found.' );
 			}
@@ -944,11 +944,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( $period['start_date'] < Stockland_Payroll_Statutory::EFFECTIVE_DATE ) {
 				throw new Exception( 'This monthly statutory calculator starts on ' . Stockland_Payroll_Statutory::EFFECTIVE_DATE . '. The law applies from ' . Stockland_Payroll_Statutory::LAW_EFFECTIVE_DATE . '; July 2025 requires separately approved split-period treatment. Existing posted payroll must remain unchanged.' );
 			}
-			$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $id ) );
+			$existing = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $id ) );
 			if ( $existing > 0 ) {
 				throw new Exception( 'This payroll period already has lines. Update each DRAFT line with an explicit statutory component breakdown or use a new draft period; no duplicate lines were created.' );
 			}
-			$employees                  = $wpdb->get_results(
+			$employees                  = Stockland_DB::read_results(
 				$wpdb->prepare(
 					"SELECT * FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))<>'RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s) ORDER BY full_name",
 					Stockland_DB::table( 'employees' ),
@@ -957,7 +957,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				),
 				ARRAY_A
 			);
-			$excluded_service_contracts = $wpdb->get_results(
+			$excluded_service_contracts = Stockland_DB::read_results(
 				$wpdb->prepare(
 					"SELECT employee_id,full_name FROM %i WHERE status='ACTIVE' AND UPPER(COALESCE(employment_type,''))='RETAINER_SERVICE' AND (hire_date IS NULL OR hire_date<=%s) AND (termination_date IS NULL OR termination_date>=%s) ORDER BY employee_id",
 					Stockland_DB::table( 'employees' ),
@@ -1006,7 +1006,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'No active employees are eligible for this payroll period.' );
 			}
 			foreach ( $lines as $line ) {
-				if ( false === $wpdb->insert( Stockland_DB::table( 'payroll_lines' ), $line ) ) {
+				if ( false === Stockland_DB::insert_record( Stockland_DB::table( 'payroll_lines' ), $line ) ) {
 					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll line insert failed.' );
 				}
 			}
@@ -1019,7 +1019,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				$exclusion_note = ' Excluded RETAINER_SERVICE contracts from employee PAYE payroll: ' . implode( ', ', array_slice( $excluded_service_codes, 0, 12 ) ) . ( count( $excluded_service_codes ) > 12 ? ' and ' . ( count( $excluded_service_codes ) - 12 ) . ' more' : '' ) . '. Review the approved contract/payment procedure separately.';
 				$prior          = trim( (string) $period['notes'] );
 				$new_notes      = substr( trim( $prior . $exclusion_note ), 0, 500 );
-				if ( false === $wpdb->update( Stockland_DB::table( 'payroll_periods' ), array( 'notes' => $new_notes ), array( 'id' => $id ) ) ) {
+				if ( false === Stockland_DB::update_record( Stockland_DB::table( 'payroll_periods' ), array( 'notes' => $new_notes ), array( 'id' => $id ) ) ) {
 					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not record excluded service contracts on payroll period.' );
 				}
 			}
@@ -1033,14 +1033,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'PAYROLL_GENERATE', null, $totals['gross_total'], 'DRAFT', 'DRAFT', $audit_detail, 'PAY' . $id ) ) {
 				throw new Exception( 'Audit failed; payroll was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Payroll generation commit failed.' );
 			}
 			$detail                               = $this->payroll_detail( $id );
 			$detail['excluded_service_contracts'] = $excluded_service_codes;
 			return rest_ensure_response( $detail );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'payroll_generate_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
@@ -1054,7 +1054,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	private function compensation_notes( $employee_id, $as_of ) {
 		global $wpdb;
 		$c = Stockland_DB::table( 'employee_compensation' );
-		return (string) $wpdb->get_var( $wpdb->prepare( 'SELECT statutory_classification_note FROM %i WHERE employee_id=%d AND effective_from<=%s ORDER BY effective_from DESC,id DESC LIMIT 1', $c, $employee_id, $as_of ) );
+		return (string) Stockland_DB::read_var( $wpdb->prepare( 'SELECT statutory_classification_note FROM %i WHERE employee_id=%d AND effective_from<=%s ORDER BY effective_from DESC,id DESC LIMIT 1', $c, $employee_id, $as_of ) );
 	}
 
 	/**
@@ -1072,14 +1072,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$pid    = (int) $r['id'];
 		$lid    = (int) $r['line_id'];
 		$p      = $r->get_json_params();
-		$period = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $pid ), ARRAY_A );
+		$period = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $pid ), ARRAY_A );
 		if ( ! $period ) {
 			return new WP_Error( 'not_found', 'Payroll period not found.', array( 'status' => 404 ) );
 		}
 		if ( 'DRAFT' !== $period['status'] ) {
 			return new WP_Error( 'locked', 'Approved or paid payroll cannot be edited.', array( 'status' => 409 ) );
 		}
-		$line = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND period_id=%d', Stockland_DB::table( 'payroll_lines' ), $lid, $pid ), ARRAY_A );
+		$line = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND period_id=%d', Stockland_DB::table( 'payroll_lines' ), $lid, $pid ), ARRAY_A );
 		if ( ! $line ) {
 			return new WP_Error( 'line_not_found', 'Payroll line not found.', array( 'status' => 404 ) );
 		}
@@ -1165,7 +1165,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				);
 			}
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start payroll-line transaction.', array( 'status' => 500 ) );
 		}
 		try {
@@ -1176,7 +1176,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 					'allowance_breakdown_json' => wp_json_encode( $line_snapshot ),
 				)
 			);
-			if ( false === $wpdb->update(
+			if ( false === Stockland_DB::update_record(
 				Stockland_DB::table( 'payroll_lines' ),
 				$update,
 				array(
@@ -1190,12 +1190,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $line['branch_location_id'], 'PAYROLL_LINE_UPDATE', null, $calc['net_pay'], $line['net_pay'], $calc['net_pay'], 'Statutory line re-calculated under ' . Stockland_Payroll_Statutory::RULE_VERSION . '; ' . $note, 'PAY' . $pid ) ) {
 				throw new Exception( 'Audit failed; line update was rolled back.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Payroll-line commit failed.' );
 			}
 			return rest_ensure_response( $this->payroll_detail( $pid ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'payroll_line_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
@@ -1207,10 +1207,10 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	private function payroll_detail( $id ) {
 		global $wpdb;
-		$p = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
+		$p = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
 		if ( ! $p ) {
 			return null;
-		}$p['lines'] = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY employee_name', Stockland_DB::table( 'payroll_lines' ), $id ), ARRAY_A );
+		}$p['lines'] = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY employee_name', Stockland_DB::table( 'payroll_lines' ), $id ), ARRAY_A );
 		return $p;}
 
 	/**
@@ -1226,11 +1226,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		global $wpdb;
 		$id  = (int) $r['id'];
 		$uid = get_current_user_id();
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start payroll submission transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$p = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
+			$p = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
 			if ( ! $p ) {
 				throw new Exception( 'Payroll period not found.' );
 			}
@@ -1240,7 +1240,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( Stockland_Authority::role( $uid ) !== 'management' || (int) $p['created_by'] !== $uid ) {
 				throw new Exception( 'Only the Management creator may submit its own draft payroll period.' );
 			}
-			$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d', Stockland_DB::table( 'payroll_lines' ), $id ) );
+			$count = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d', Stockland_DB::table( 'payroll_lines' ), $id ) );
 			if ( $count < 1 ) {
 				throw new Exception( 'Generate payroll lines before submission.' );
 			}
@@ -1248,7 +1248,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( Stockland_Money::minor( $totals['gross_total'] ) <= 0 ) {
 				throw new Exception( 'Payroll gross must be positive before submission.' );
 			}
-			if ( false === $wpdb->update( Stockland_DB::table( 'payroll_periods' ), array( 'status' => 'SUBMITTED' ), array( 'id' => $id ) ) ) {
+			if ( false === Stockland_DB::update_record( Stockland_DB::table( 'payroll_periods' ), array( 'status' => 'SUBMITTED' ), array( 'id' => $id ) ) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Could not submit payroll.' );
 			}
 			if ( ! Stockland_Audit::log( $uid, null, 'PAYROLL_SUBMIT', null, $totals['gross_total'], 'DRAFT', 'SUBMITTED', 'Payroll submitted for independent Owner approval under ' . Stockland_Payroll_Statutory::RULE_VERSION, 'PAY' . $id ) ) {
@@ -1257,12 +1257,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Notifications::push_role( 'owner', null, 'payroll_approval', 'Payroll awaiting Owner approval', 'Payroll period ' . $p['period_key'] . ' has been submitted. Review the calculated statutory totals before approval.', 'payroll', $id, 'action' ) ) {
 				throw new Exception( 'Owner notification could not be queued; submission was rolled back.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Payroll submit commit failed.' );
 			}
 			return rest_ensure_response( $this->payroll_detail( $id ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'payroll_submit_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
@@ -1279,11 +1279,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		}
 		global $wpdb;
 		$id = (int) $r['id'];
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start payroll approval transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$p = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
+			$p = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
 			if ( ! $p ) {
 				throw new Exception( 'Payroll period not found.' );
 			}
@@ -1294,7 +1294,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( get_current_user_id() === (int) $p['created_by'] ) {
 				throw new Exception( 'The submitter cannot approve their own payroll.' );
 			}
-			$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $id ), ARRAY_A );
+			$lines = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $id ), ARRAY_A );
 			if ( ! $lines ) {
 				throw new Exception( 'Generate payroll before approval.' );
 			}
@@ -1365,7 +1365,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 					'approved_at' => current_time( 'mysql' ),
 				)
 			);
-			$pok           = $wpdb->update( Stockland_DB::table( 'payroll_periods' ), $period_update, array( 'id' => $id ) );
+			$pok           = Stockland_DB::update_record( Stockland_DB::table( 'payroll_periods' ), $period_update, array( 'id' => $id ) );
 			if ( false === $pok ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll approval state could not be saved.' );
 			}
@@ -1385,12 +1385,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Notifications::push_role( 'management', null, 'payroll_decision', 'Payroll approved by Owner', 'Payroll period ' . $p['period_key'] . ' approved and posted to GL journal ' . $jid . '.', 'payroll', $id, 'info' ) ) {
 				throw new Exception( 'Management notification could not be queued; payroll approval was rolled back.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Payroll approval commit failed.' );
 			}
 			return rest_ensure_response( $this->payroll_detail( $id ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'payroll_approve_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 
@@ -1411,10 +1411,10 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( ! in_array( $method, array( 'BANK', 'CASH' ), true ) ) {
 			return new WP_Error( 'invalid', 'Payment method must be BANK or CASH.', array( 'status' => 400 ) );
 		}$account = 'BANK' === $method ? '1010' : '1000';
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start payroll payment transaction.', array( 'status' => 500 ) );
 		}try {
-			$period = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
+			$period = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $id ), ARRAY_A );
 			if ( ! $period ) {
 				throw new Exception( 'Payroll period not found.' );
 			}if ( 'APPROVED' !== $period['status'] ) {
@@ -1445,7 +1445,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			);
 			if ( ! $jid ) {
 				throw new Exception( 'Payroll payment journal could not be posted.' );
-			}$pok = $wpdb->update(
+			}$pok = Stockland_DB::update_record(
 				Stockland_DB::table( 'payroll_periods' ),
 				array(
 					'status'         => 'PAID',
@@ -1461,11 +1461,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				throw new Exception( 'Audit failed; payment was rolled back.' );
 			}if ( ! Stockland_Notifications::push_role( 'management', null, 'payroll_paid', 'Payroll payment completed', 'Payroll period ' . $period['period_key'] . ' paid by Owner via ' . $method . '.', 'payroll', $id, 'info' ) ) {
 				throw new Exception( 'Management notification could not be queued; payroll payment was rolled back.' );
-			}if ( false === $wpdb->query( 'COMMIT' ) ) {
+			}if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Payroll payment commit failed.' );
 			}return rest_ensure_response( $this->payroll_detail( $id ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'payroll_pay_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 }
