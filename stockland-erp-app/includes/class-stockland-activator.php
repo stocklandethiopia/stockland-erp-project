@@ -1456,6 +1456,7 @@ class Stockland_Activator {
 	 *
 	 * @param wpdb $p WordPress database connection used by the protected installer.
 	 * @return void Applies the idempotent product identity migration.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private static function upgrade_variant_first_product_identity( $p ) {
 		global $wpdb;
@@ -1495,6 +1496,7 @@ class Stockland_Activator {
 	 * v16 convergence: make every required module/schema line up under one clean production contract.
 	 *
 	 * @param wpdb $p WordPress database connection used by the protected installer.
+	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	private static function apply_schema_1600_migrations( $p ) {
 		global $wpdb;
