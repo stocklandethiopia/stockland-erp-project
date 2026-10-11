@@ -406,6 +406,9 @@ jobs:
           composer install --prefer-dist --no-interaction --no-progress
           composer lint:php
           composer test
+          rm -rf vendor .phpunit.cache
+          test ! -d vendor
+          test ! -d .phpunit.cache
           php tools/qa/run-static-qa.php
           cd "$GITHUB_WORKSPACE"
           git diff --check
@@ -441,7 +444,7 @@ jobs:
           echo "Formatter-only commit pushed to isolated branch at $(git rev-parse HEAD)."
 
       - name: Dispatch a fresh full-source audit for the new commit
-        if: always()
+        if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
