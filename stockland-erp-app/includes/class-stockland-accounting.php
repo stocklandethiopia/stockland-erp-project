@@ -403,7 +403,7 @@ class Stockland_Accounting {
 			}
 			throw new RuntimeException( 'Accounting/procurement schema is incomplete: ' . esc_html( implode( ', ', $missing ) ) );
 		}
-		self::upgrade_variant_identity_columns( $p, $cc );
+		self::upgrade_variant_identity_columns( $p );
 		self::seed_accounts( $p );
 		self::ensure_opening_balance_journals();
 		self::seed_walkin_customer( $p );
@@ -570,11 +570,10 @@ class Stockland_Accounting {
 	 * are backfilled only where an exact active Product Master SKU match exists.
 	 *
 	 * @param string $p WordPress database table prefix.
-	 * @param string $cc Database charset/collation SQL fragment from WordPress.
-	 * @return void
+		 * @return void
 	 * @throws RuntimeException When an expected table/column/index or backfill is invalid.
 	 */
-	private static function upgrade_variant_identity_columns( $p, $cc ) {
+	private static function upgrade_variant_identity_columns( $p ) {
 		global $wpdb;
 
 		$targets = array(
