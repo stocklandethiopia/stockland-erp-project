@@ -314,6 +314,7 @@ class Stockland_Accounting {
 			$wpdb->last_error = '';
 			if ( $batch_mode ) {
 				$direct_sql = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
+				$result     = // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; table keys are checked against the internal required-table allowlist above and no request values enter the statement.
 				$result     = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
 					$msg = 'Accounting/procurement table ' . ( $table_key ?: 'unknown' ) . ' could not be created';
@@ -356,6 +357,7 @@ class Stockland_Accounting {
 				}
 				$fallback         = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; the table key was matched against the internal required-table allowlist above.
 				$wpdb->query( $fallback );
 				if ( ! empty( $wpdb->last_error ) ) {
 					throw new RuntimeException( 'Accounting/procurement table ' . $key . ' could not be created: ' . $wpdb->last_error );
@@ -484,7 +486,7 @@ class Stockland_Accounting {
 		$gll       = Stockland_DB::table( 'gl_lines' );
 		$glj       = Stockland_DB::table( 'gl_journals' );
 		$processed = 0;
-		$suppliers = $wpdb->get_results( "SELECT id,opening_balance FROM {$sup} WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT {$limit}", ARRAY_A );
+		$suppliers = $wpdb->get_results( $wpdb->prepare( 'SELECT id,opening_balance FROM %i WHERE ABS(COALESCE(opening_balance,0))>0.004 ORDER BY id LIMIT %d', $sup, (int) $limit ), ARRAY_A );
 		foreach ( $suppliers as $row ) {
 			$id      = (int) $row['id'];
 			$desired = Stockland_Money::decimal( Stockland_Money::minor( $row['opening_balance'] ) );
@@ -580,8 +582,7 @@ class Stockland_Accounting {
 			);
 			if ( ! $has_variant ) {
 				$wpdb->last_error = '';
-				$sql              = "ALTER TABLE `{$table}` ADD COLUMN `variant_id` BIGINT UNSIGNED NULL AFTER `{$target['after']}`";
-				if ( false === $wpdb->query( $sql ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $target['after'] ) ) ) {
 					throw new RuntimeException( 'Accounting schema upgrade could not add ' . $table . '.variant_id' . ( $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ) );
 				}
 			}
@@ -606,8 +607,7 @@ class Stockland_Accounting {
 			);
 			if ( ! $has_variant_index ) {
 				$wpdb->last_error = '';
-				$sql              = "ALTER TABLE `{$table}` ADD KEY `variant_id` (`variant_id`)";
-				if ( false === $wpdb->query( $sql ) ) {
+				if ( false === $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) ) ) {
 					throw new RuntimeException( 'Accounting schema upgrade could not add the variant_id index to ' . $table . ( $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ) );
 				}
 			}
@@ -637,9 +637,7 @@ class Stockland_Accounting {
 		if ( $prod_exists ) {
 			foreach ( $targets as $target ) {
 				$wpdb->last_error = '';
-				$wpdb->query(
-					"UPDATE `{$target['table']}` i INNER JOIN `{$prod}` p ON p.sku=i.sku SET i.variant_id=p.variant_id WHERE i.variant_id IS NULL AND p.is_active=1"
-				);
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i i INNER JOIN %i p ON p.sku=i.sku SET i.variant_id=p.variant_id WHERE i.variant_id IS NULL AND p.is_active=1', $target['table'], $prod ) );
 				if ( ! empty( $wpdb->last_error ) ) {
 					throw new RuntimeException( 'Accounting variant identity backfill failed for ' . $target['table'] . ': ' . $wpdb->last_error );
 				}
@@ -780,7 +778,7 @@ class Stockland_Accounting {
 		);
 		foreach ( $accounts as $a ) {
 			$wpdb->last_error = '';
-			$ok               = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$table} (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)", $a[0], $a[1], $a[2] ) );
+			$ok               = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (account_code,account_name,account_type,is_system) VALUES (%s,%s,%s,1)', $table, $a[0], $a[1], $a[2] ) );
 			if ( false === $ok || ! empty( $wpdb->last_error ) ) {
 				return false;
 			}
@@ -788,7 +786,7 @@ class Stockland_Accounting {
 		// INSERT IGNORE never repairs a conflicting account already in the ledger.
 		// Verify each code's active state and account class before permitting statutory posting.
 		foreach ( $accounts as $a ) {
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT account_type,is_active FROM {$table} WHERE account_code=%s LIMIT 1", $a[0] ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT account_type,is_active FROM %i WHERE account_code=%s LIMIT 1', $table, $a[0] ), ARRAY_A );
 			if ( ! $row || strtoupper( (string) $row['account_type'] ) !== $a[2] || (int) $row['is_active'] !== 1 ) {
 				return false;
 			}
@@ -798,7 +796,7 @@ class Stockland_Accounting {
 
 	public static function account_exists( $code ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . Stockland_DB::table( 'gl_accounts' ) . ' WHERE account_code=%s AND is_active=1', $code ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE account_code=%s AND is_active=1', Stockland_DB::table( 'gl_accounts' ), $code ) );
 	}
 
 	/**
@@ -839,7 +837,7 @@ class Stockland_Accounting {
 		if ( ! $header || strtoupper( (string) ( $header['status'] ?? '' ) ) !== 'POSTED' || (string) ( $header['journal_date'] ?? '' ) !== (string) $date ) {
 			return false;
 		}
-		$existing = $wpdb->get_results( $wpdb->prepare( 'SELECT account_code,debit,credit,location_id,supplier_id,customer_id FROM ' . Stockland_DB::table( 'gl_lines' ) . ' WHERE journal_id=%d ORDER BY id', (int) $header['id'] ), ARRAY_A );
+		$existing = $wpdb->get_results( $wpdb->prepare( 'SELECT account_code,debit,credit,location_id,supplier_id,customer_id FROM %i WHERE journal_id=%d ORDER BY id', Stockland_DB::table( 'gl_lines' ), (int) $header['id'] ), ARRAY_A );
 		if ( $wpdb->last_error || ! is_array( $existing ) || ! $existing ) {
 			return false;
 		}
@@ -879,7 +877,7 @@ class Stockland_Accounting {
 			return false;
 		}
 
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,journal_date,status FROM ' . Stockland_DB::table( 'gl_journals' ) . ' WHERE source_type=%s AND source_id=%s LIMIT 1', $source_type, $source_id ), ARRAY_A );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,journal_date,status FROM %i WHERE source_type=%s AND source_id=%s LIMIT 1', Stockland_DB::table( 'gl_journals' ), $source_type, $source_id ), ARRAY_A );
 		if ( $wpdb->last_error ) {
 			return false;
 		}
@@ -963,17 +961,17 @@ class Stockland_Accounting {
 	public static function supplier_balance( $id ) {
 		global $wpdb;
 		$id      = (int) $id;
-		$opening = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT opening_balance FROM ' . Stockland_DB::table( 'suppliers' ) . ' WHERE id=%d', $id ) ) ) );
-		$inv     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(total_amount),0) FROM ' . Stockland_DB::table( 'supplier_invoices' ) . " WHERE supplier_id=%d AND status='POSTED'", $id ) ) ) );
-		$pay     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(amount),0) FROM ' . Stockland_DB::table( 'payments' ) . " WHERE supplier_id=%d AND payment_type='SUPPLIER' AND status='POSTED'", $id ) ) ) );
+		$opening = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT opening_balance FROM %i WHERE id=%d', Stockland_DB::table( 'suppliers' ), $id ) ) ) );
+		$inv     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(total_amount),0) FROM %i WHERE supplier_id=%d AND status='POSTED'", Stockland_DB::table( 'supplier_invoices' ), $id ) ) ) );
+		$pay     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE supplier_id=%d AND payment_type='SUPPLIER' AND status='POSTED'", Stockland_DB::table( 'payments' ), $id ) ) ) );
 		return Stockland_Money::subtract( Stockland_Money::add( $opening, $inv ), $pay );
 	}
 	public static function customer_balance( $id ) {
 		global $wpdb;
 		$id      = (int) $id;
-		$opening = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT opening_balance FROM ' . Stockland_DB::table( 'customers' ) . ' WHERE id=%d', $id ) ) ) );
-		$inv     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(total_amount),0) FROM ' . Stockland_DB::table( 'customer_invoices' ) . " WHERE customer_id=%d AND status='POSTED'", $id ) ) ) );
-		$pay     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(amount),0) FROM ' . Stockland_DB::table( 'payments' ) . " WHERE customer_id=%d AND payment_type='CUSTOMER' AND status='POSTED'", $id ) ) ) );
+		$opening = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( 'SELECT opening_balance FROM %i WHERE id=%d', Stockland_DB::table( 'customers' ), $id ) ) ) );
+		$inv     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(total_amount),0) FROM %i WHERE customer_id=%d AND status='POSTED'", Stockland_DB::table( 'customer_invoices' ), $id ) ) ) );
+		$pay     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE customer_id=%d AND payment_type='CUSTOMER' AND status='POSTED'", Stockland_DB::table( 'payments' ), $id ) ) ) );
 		return Stockland_Money::subtract( Stockland_Money::add( $opening, $inv ), $pay );
 	}
 }
