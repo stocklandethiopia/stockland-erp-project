@@ -1,4 +1,10 @@
 <?php
+/**
+ * Additive accounting, procurement and double-entry ledger services.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -12,10 +18,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Stockland_Accounting {
 	const DB_VERSION = STOCKLAND_ACCOUNTING_SCHEMA_VERSION;
 
+	/**
+	 * Returns the fixed accounting/procurement application table keys.
+	 *
+	 * @return array<string> Accounting and procurement table keys.
+	 */
 	public static function table_keys() {
 		return array( 'suppliers', 'customers', 'purchase_orders', 'purchase_order_items', 'purchase_receipts', 'purchase_receipt_items', 'supplier_invoices', 'supplier_invoice_items', 'customer_invoices', 'invoice_items', 'expenses', 'payments', 'payment_allocations', 'gl_accounts', 'gl_journals', 'gl_lines' );
 	}
 
+	/**
+	 * Lists required accounting/procurement tables that are not installed.
+	 *
+	 * @return array<string> Missing application table keys.
+	 */
 	public static function missing_tables() {
 		global $wpdb;
 		$prefix     = $wpdb->prefix . 'stock_';
@@ -29,6 +45,13 @@ class Stockland_Accounting {
 		return array_values( array_diff( self::table_keys(), $found_keys ) );
 	}
 
+	/**
+	 * Installs or incrementally repairs the additive accounting schema.
+	 *
+	 * @param int $batch_size Number of tables to install per bounded batch; zero means all.
+	 * @return mixed Installation status.
+	 * @throws RuntimeException When schema creation or physical verification fails.
+	 */
 	public static function install( $batch_size = 0 ) {
 		$batch_size = max( 0, (int) $batch_size );
 		global $wpdb;
@@ -317,13 +340,11 @@ class Stockland_Accounting {
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This CREATE TABLE statement is generated only from the class-owned schema array; table keys are verified against the internal allowlist and no request data enters the DDL.
 				$result = $wpdb->query( $direct_sql );
 				if ( false === $result ) {
-					$msg = 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
-					if ( ! empty( $wpdb->last_error ) ) {
-						$msg .= ': ' . $wpdb->last_error;
-					}throw new RuntimeException( $msg );}
+					$msg = 'Accounting/procurement table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' could not be created';
+throw new RuntimeException( $msg );}
 				$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 				if ( ! $table_key || ! $exists ) {
-					throw new RuntimeException( 'Accounting/procurement table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
+					throw new RuntimeException( 'Accounting/procurement table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
 				}
 				$batch_results[] = array(
 					'table'    => $table_key,
@@ -332,7 +353,7 @@ class Stockland_Accounting {
 			} else {
 				dbDelta( $sql );
 				if ( ! empty( $wpdb->last_error ) ) {
-					throw new RuntimeException( 'Accounting/procurement schema statement failed: ' . $wpdb->last_error );
+					throw new RuntimeException( 'Accounting/procurement schema statement failed.' );
 				}
 			}
 		}
@@ -360,7 +381,7 @@ class Stockland_Accounting {
 				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE DDL is generated only from this class's plugin-owned schema array; the table key was matched against the internal required-table allowlist above.
 				$wpdb->query( $fallback );
 				if ( ! empty( $wpdb->last_error ) ) {
-					throw new RuntimeException( 'Accounting/procurement table ' . $key . ' could not be created: ' . $wpdb->last_error );
+					throw new RuntimeException( 'Accounting/procurement table ' . esc_html( $key ) . ' could not be created.' );
 				}
 			}
 			$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
@@ -380,7 +401,7 @@ class Stockland_Accounting {
 					'missing_tables'  => $missing,
 				);
 			}
-			throw new RuntimeException( 'Accounting/procurement schema is incomplete: ' . implode( ', ', $missing ) );
+			throw new RuntimeException( 'Accounting/procurement schema is incomplete: ' . esc_html( implode( ', ', $missing ) ) );
 		}
 		self::upgrade_variant_identity_columns( $p, $cc );
 		self::seed_accounts( $p );
@@ -393,7 +414,17 @@ class Stockland_Accounting {
 		delete_option( 'stockland_accounting_pending' );
 	}
 
-	/** Keep supplier/customer opening balances represented in their GL control accounts. */
+	/**
+	 * Keeps supplier/customer opening balances represented in their GL control accounts.
+	 *
+	 * @param string      $party_type SUPPLIER or CUSTOMER.
+	 * @param int         $party_id Supplier/customer identifier.
+	 * @param mixed       $old_balance Previously represented opening balance.
+	 * @param mixed       $new_balance New opening balance.
+	 * @param int         $user_id Actor user identifier.
+	 * @param string|null $journal_date Optional journal business date.
+	 * @return mixed Posted journal identifier or false.
+	 */
 	public static function sync_opening_balance_journal( $party_type, $party_id, $old_balance, $new_balance, $user_id, $journal_date = null ) {
 		$party_type = strtoupper( (string) $party_type );
 		$party_id   = (int) $party_id;
@@ -474,7 +505,13 @@ class Stockland_Accounting {
 		return self::post_journal( $journal_date, $source_type, $source_id, $memo, $lines, (int) $user_id );
 	}
 
-	/** Synchronize legacy/non-journaled opening balances without altering posted business transactions. */
+	/**
+	 * Synchronizes legacy opening balances without altering posted business transactions.
+	 *
+	 * @param int $limit Maximum number of parties to process in this call.
+	 * @return bool Whether synchronization completed or the bounded batch was accepted.
+	 * @throws RuntimeException When an opening-balance journal cannot be posted.
+	 */
 	public static function ensure_opening_balance_journals( $limit = 2000 ) {
 		global $wpdb;
 		$limit = max( 1, (int) $limit );
@@ -494,7 +531,7 @@ class Stockland_Accounting {
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'SUPPLIER', $id, $posted, $desired, get_current_user_id() );
 				if ( false === $jid ) {
-					throw new RuntimeException( 'Could not synchronize supplier opening balance ' . $id . ' to Accounts Payable.' );
+					throw new RuntimeException( 'Could not synchronize supplier opening balance ' . esc_html( (string) $id ) . ' to Accounts Payable.' );
 				}
 			}
 			++$processed;
@@ -514,7 +551,7 @@ class Stockland_Accounting {
 			if ( Stockland_Money::minor( Stockland_Money::subtract( $desired, $posted ) ) !== 0 ) {
 				$jid = self::sync_opening_balance_journal( 'CUSTOMER', $id, $posted, $desired, get_current_user_id() );
 				if ( false === $jid ) {
-					throw new RuntimeException( 'Could not synchronize customer opening balance ' . $id . ' to Accounts Receivable.' );
+					throw new RuntimeException( 'Could not synchronize customer opening balance ' . esc_html( (string) $id ) . ' to Accounts Receivable.' );
 				}
 			}
 		}
@@ -531,6 +568,11 @@ class Stockland_Accounting {
 	 * table". Existing data is preserved here: only a missing nullable
 	 * variant_id column and its supporting index are added, then existing rows
 	 * are backfilled only where an exact active Product Master SKU match exists.
+	 *
+	 * @param string $p WordPress database table prefix.
+	 * @param string $cc Database charset/collation SQL fragment from WordPress.
+	 * @return void
+	 * @throws RuntimeException When an expected table/column/index or backfill is invalid.
 	 */
 	private static function upgrade_variant_identity_columns( $p, $cc ) {
 		global $wpdb;
@@ -559,7 +601,7 @@ class Stockland_Accounting {
 				)
 			);
 			if ( ! $table_exists ) {
-				throw new RuntimeException( 'Accounting schema upgrade expected table is missing: ' . $table );
+				throw new RuntimeException( 'Accounting schema upgrade expected table is missing: ' . esc_html( $table ) );
 			}
 
 			$has_sku = (string) $wpdb->get_var(
@@ -570,7 +612,7 @@ class Stockland_Accounting {
 				)
 			);
 			if ( ! $has_sku ) {
-				throw new RuntimeException( 'Accounting schema upgrade cannot add variant_id because ' . $table . '.sku is missing.' );
+				throw new RuntimeException( 'Accounting schema upgrade cannot add variant_id because ' . esc_html( $table ) . '.sku is missing.' );
 			}
 
 			$has_variant = (string) $wpdb->get_var(
@@ -583,7 +625,7 @@ class Stockland_Accounting {
 			if ( ! $has_variant ) {
 				$wpdb->last_error = '';
 				if ( false === $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD COLUMN %i BIGINT UNSIGNED NULL AFTER %i', $table, 'variant_id', $target['after'] ) ) ) {
-					throw new RuntimeException( 'Accounting schema upgrade could not add ' . $table . '.variant_id' . ( $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ) );
+					throw new RuntimeException( 'Accounting schema upgrade could not add ' . esc_html( $table ) . '.variant_id.' );
 				}
 			}
 
@@ -595,7 +637,7 @@ class Stockland_Accounting {
 				)
 			);
 			if ( ! $has_variant ) {
-				throw new RuntimeException( 'Accounting schema upgrade could not physically verify ' . $table . '.variant_id.' );
+				throw new RuntimeException( 'Accounting schema upgrade could not physically verify ' . esc_html( $table ) . '.variant_id.' );
 			}
 
 			$has_variant_index = (string) $wpdb->get_var(
@@ -608,7 +650,7 @@ class Stockland_Accounting {
 			if ( ! $has_variant_index ) {
 				$wpdb->last_error = '';
 				if ( false === $wpdb->query( $wpdb->prepare( 'ALTER TABLE %i ADD KEY %i (%i)', $table, 'variant_id', 'variant_id' ) ) ) {
-					throw new RuntimeException( 'Accounting schema upgrade could not add the variant_id index to ' . $table . ( $wpdb->last_error ? ': ' . $wpdb->last_error : '.' ) );
+					throw new RuntimeException( 'Accounting schema upgrade could not add the variant_id index to ' . esc_html( $table ) . '.' );
 				}
 			}
 
@@ -620,7 +662,7 @@ class Stockland_Accounting {
 				)
 			);
 			if ( ! $has_variant_index ) {
-				throw new RuntimeException( 'Accounting schema upgrade could not physically verify the variant_id index on ' . $table . '.' );
+				throw new RuntimeException( 'Accounting schema upgrade could not physically verify the variant_id index on ' . esc_html( $table ) . '.' );
 			}
 		}
 
@@ -639,7 +681,7 @@ class Stockland_Accounting {
 				$wpdb->last_error = '';
 				$wpdb->query( $wpdb->prepare( 'UPDATE %i i INNER JOIN %i p ON p.sku=i.sku SET i.variant_id=p.variant_id WHERE i.variant_id IS NULL AND p.is_active=1', $target['table'], $prod ) );
 				if ( ! empty( $wpdb->last_error ) ) {
-					throw new RuntimeException( 'Accounting variant identity backfill failed for ' . $target['table'] . ': ' . $wpdb->last_error );
+					throw new RuntimeException( 'Accounting variant identity backfill failed for ' . esc_html( $target['table'] ) . '.' );
 				}
 			}
 		}
@@ -688,6 +730,12 @@ class Stockland_Accounting {
 		return $gaps;
 	}
 
+	/**
+	 * Seeds the fixed chart of accounts without overwriting existing accounts.
+	 *
+	 * @param string $p WordPress database table prefix.
+	 * @return void
+	 */
 	private static function seed_accounts( $p ) {
 		global $wpdb;
 		$accounts = array(
@@ -719,6 +767,11 @@ class Stockland_Accounting {
 		}
 	}
 
+	/**
+	 * Grants finance capabilities to company roles and strips them from operational roles.
+	 *
+	 * @return void
+	 */
 	private static function grant_capabilities() {
 		// Finance and procurement authority is company-level only. Warehouse users
 		// may receive/inspect purchasing documents through their operational caps,
@@ -758,12 +811,22 @@ class Stockland_Accounting {
 		}
 	}
 
+	/**
+	 * Creates the required walk-in customer if it does not already exist.
+	 *
+	 * @param string $p WordPress database table prefix.
+	 * @return void
+	 */
 	private static function seed_walkin_customer( $p ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (customer_code,customer_name,customer_type,is_active,created_by) VALUES (%s,%s,%s,1,%d)', $p . 'stock_customers', 'WALK-IN', 'Walk-in Customer', 'RETAIL', get_current_user_id() ) );
 	}
 
-	/** Idempotently ensure statutory payroll accounts exist during an Owner-approved payroll posting. */
+	/**
+	 * Ensures statutory payroll accounts exist with the expected active account classes.
+	 *
+	 * @return bool Whether all required accounts are valid for posting.
+	 */
 	public static function ensure_payroll_statutory_accounts() {
 		global $wpdb;
 		$table    = Stockland_DB::table( 'gl_accounts' );
@@ -794,14 +857,24 @@ class Stockland_Accounting {
 		return true;
 	}
 
+	/**
+	 * Checks whether an active general-ledger account exists.
+	 *
+	 * @param string $code Account code.
+	 * @return bool Whether the active account exists.
+	 */
 	public static function account_exists( $code ) {
 		global $wpdb;
 		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE account_code=%s AND is_active=1', Stockland_DB::table( 'gl_accounts' ), $code ) );
 	}
 
 	/**
-	 * Canonical debit/credit composition independent of input line order or memo text.
+	 * Canonicalizes debit/credit composition independent of line order or memo text.
+	 *
 	 * Integer minor-unit arithmetic prevents decimal comparison drift.
+	 *
+	 * @param array $lines Journal lines to normalize.
+	 * @return array|false Canonical journal lines, or false for an invalid account code.
 	 */
 	private static function canonical_journal_lines( $lines ) {
 		$map = array();
@@ -831,7 +904,14 @@ class Stockland_Accounting {
 		return array_values( $map );
 	}
 
-	/** Existing source keys are idempotent only for identical posted journal content. */
+	/**
+	 * Checks whether an existing source key represents the same posted journal.
+	 *
+	 * @param array  $header Existing journal header.
+	 * @param string $date Requested journal date.
+	 * @param array  $lines Requested journal lines.
+	 * @return bool Whether the existing posted journal is an exact idempotent match.
+	 */
 	private static function existing_journal_matches( $header, $date, $lines ) {
 		global $wpdb;
 		if ( ! $header || strtoupper( (string) ( $header['status'] ?? '' ) ) !== 'POSTED' || (string) ( $header['journal_date'] ?? '' ) !== (string) $date ) {
@@ -860,6 +940,17 @@ class Stockland_Accounting {
 		return true;
 	}
 
+	/**
+	 * Posts a balanced append-only general-ledger journal idempotently.
+	 *
+	 * @param string $date Journal business date.
+	 * @param string $source_type Source workflow type.
+	 * @param mixed  $source_id Idempotency/source identifier.
+	 * @param string $memo Journal memo.
+	 * @param array  $lines Debit/credit journal lines.
+	 * @param int    $user_id Actor user identifier.
+	 * @return mixed Posted journal identifier or false when validation/persistence fails.
+	 */
 	public static function post_journal( $date, $source_type, $source_id, $memo, $lines, $user_id ) {
 		global $wpdb;
 		$sum_d = '0.00';
@@ -958,6 +1049,12 @@ class Stockland_Accounting {
 		}
 	}
 
+	/**
+	 * Calculates the current supplier balance from opening balance and posted activity.
+	 *
+	 * @param int $id Supplier identifier.
+	 * @return string Current supplier balance in ETB.
+	 */
 	public static function supplier_balance( $id ) {
 		global $wpdb;
 		$id      = (int) $id;
@@ -966,6 +1063,12 @@ class Stockland_Accounting {
 		$pay     = Stockland_Money::decimal( Stockland_Money::minor( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount),0) FROM %i WHERE supplier_id=%d AND payment_type='SUPPLIER' AND status='POSTED'", Stockland_DB::table( 'payments' ), $id ) ) ) );
 		return Stockland_Money::subtract( Stockland_Money::add( $opening, $inv ), $pay );
 	}
+	/**
+	 * Calculates the current customer balance from opening balance and posted activity.
+	 *
+	 * @param int $id Customer identifier.
+	 * @return string Current customer balance in ETB.
+	 */
 	public static function customer_balance( $id ) {
 		global $wpdb;
 		$id      = (int) $id;
