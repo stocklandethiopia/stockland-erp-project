@@ -153,7 +153,7 @@
     "No authenticated live database, browser transaction, or production deployment was performed in this build environment. Live health, Product Master, POS import, receiving, payroll, GL and rollback remain staging acceptance items.",
     "SonarQube, Semgrep and OWASP ZAP were not run in the latest CI workflow. The current source-gate commit passed full-scope PHPCS/WPCS with zero errors and warnings across 47 deployable runtime PHP files, PHPUnit (7 tests / 13 assertions), critical-workflow QA, targeted remediation QA, Product Master search regression and external-procurement static QA. These source checks do not replace live staging acceptance.",
     "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host.",
-    "Owner purchase-order approval capability sync and canonical profile-role queue changes require a fresh GitHub Actions run and authenticated staging test using a Management-submitted Central Warehouse PO before acceptance.",
+    "Owner purchase-order approval capability sync and canonical profile-role queue changes passed source-level regression gates in GitHub Actions. Authenticated staging test using a Management-submitted Central Warehouse purchase order, independent Owner approval and Warehouse Manager receipt remains required before acceptance.",
     "User-profile dropdown and Owner approval queue have not been tested in an authenticated live browser. Production certification remains false."
   ],
   "release_candidate_changes": [
