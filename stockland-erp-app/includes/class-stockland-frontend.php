@@ -46,7 +46,7 @@ class Stockland_Frontend {
 	/** Current frontend bridge instance used by template_include. */
 	private static function csp_nonce() {
 		if ( null === self::$csp_nonce ) {
-			self::$csp_nonce = base64_encode( function_exists( 'random_bytes' ) ? random_bytes( 18 ) : wp_generate_password( 24, false, false ) );
+			self::$csp_nonce = wp_generate_password( 32, false, false );
 		}
 		return self::$csp_nonce;
 	}

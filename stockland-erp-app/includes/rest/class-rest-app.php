@@ -1061,7 +1061,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		global $wpdb;
 		$checks       = array();
 		$diagnostics  = array();
-		$checks['db'] = ( $wpdb->get_var( 'SELECT 1' ) == 1 );
+		$checks['db'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );
 		// Environment diagnostics are read-only and contain no credentials. They make
 		// the live acceptance evidence self-contained on constrained shared hosting.
 		$diagnostics['php_runtime']         = PHP_VERSION;
@@ -2137,7 +2137,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	public function reports_summary( WP_REST_Request $r ) {
 		global $wpdb;
 		$requested_from = $r->get_param( 'from' );
-		$from           = sanitize_text_field( $requested_from ? $requested_from : date( 'Y-m-01', current_time( 'timestamp' ) ) );
+		$from           = sanitize_text_field( $requested_from ? $requested_from : current_time( 'Y-m-01' ) );
 		$requested_to   = $r->get_param( 'to' );
 		$to             = sanitize_text_field( $requested_to ? $requested_to : current_time( 'Y-m-d' ) );
 		if ( ! $this->parse_import_date( $from ) || ! $this->parse_import_date( $to ) || $from > $to ) {

@@ -266,6 +266,9 @@ class Stockland_REST_Setup {
 	}
 
 	public function advance( WP_REST_Request $request ) {
+		if ( 'POST' !== $request->get_method() ) {
+			return new WP_Error( 'method_not_allowed', 'This endpoint only supports POST.', array( 'status' => 405 ) );
+		}
 		if ( get_transient( self::LOCK ) ) {
 			return new WP_Error( 'setup_busy', 'Another Stockland setup request is currently running. Please retry in a few seconds.', array( 'status' => 409 ) );
 		}

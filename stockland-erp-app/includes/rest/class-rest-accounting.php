@@ -42,8 +42,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	private function require_accounting_cap( $cap ) {
 		return $this->can( $cap ) ? true : new WP_Error( 'forbidden', 'You are not authorized for this accounting operation.', array( 'status' => 403 ) );
 	}
-	private function date( $v, $default = null ) {
-		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default ? $default : current_time( 'Y-m-d' ) ) );
+	private function date( $v, $default_value = null ) {
+		$v = sanitize_text_field( null !== $v && '' !== $v ? $v : ( $default_value ? $default_value : current_time( 'Y-m-d' ) ) );
 		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : null;
 	}
 	private function money( $v ) {

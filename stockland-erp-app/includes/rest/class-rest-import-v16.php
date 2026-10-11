@@ -1006,6 +1006,9 @@ class Stockland_REST_Import_V16 {
 	}
 
 	public function daily_jobs( WP_REST_Request $r ) {
+		if ( 'GET' !== $r->get_method() ) {
+			return new WP_Error( 'method_not_allowed', 'This endpoint only supports GET.', array( 'status' => 405 ) );
+		}
 		global $wpdb;
 		$company   = Stockland_Authority::company_scope();
 		$scope_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
@@ -1703,7 +1706,7 @@ class Stockland_REST_Import_V16 {
 		return true;
 	}
 
-	private function product_rows( WP_REST_Request $r ) {
+	private function product_rows() {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_upload_read' );
 		$file  = $this->uploaded_file( 'file' );
 		$xlsx  = new Stockland_XLSX( $file['path'] );
@@ -1713,7 +1716,7 @@ class Stockland_REST_Import_V16 {
 		Stockland_Runtime_Diagnostics::stage( 'product_master_preview_entry' );
 		global $wpdb;
 		try {
-			list($file, $found) = $this->product_rows( $r );
+			list($file, $found) = $this->product_rows();
 			$all_rows           = $found['rows'];
 			$rows               = array_values(
 				array_filter(
@@ -2432,6 +2435,9 @@ class Stockland_REST_Import_V16 {
 	}
 
 	public function mapping_list( WP_REST_Request $r ) {
+		if ( 'GET' !== $r->get_method() ) {
+			return new WP_Error( 'method_not_allowed', 'This endpoint only supports GET.', array( 'status' => 405 ) );
+		}
 		global $wpdb;
 		$rows = $wpdb->get_results( 'SELECT id,import_type,source_system,profile_name,header_signature,mapping_json,mapping_version,is_active,created_by,updated_by,created_at,updated_at FROM ' . Stockland_DB::table( 'import_profiles' ) . ' WHERE is_active=1 ORDER BY updated_at DESC LIMIT 100', ARRAY_A );
 		foreach ( $rows as &$x ) {

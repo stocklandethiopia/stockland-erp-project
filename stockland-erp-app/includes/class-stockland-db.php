@@ -29,7 +29,7 @@ class Stockland_DB {
 		);
 	}
 
-	public static function get_setting( $key, $default = null ) {
+	public static function get_setting( $key, $default_value = null ) {
 		global $wpdb;
 		$table = self::table( 'settings' );
 		$value = $wpdb->get_var(
@@ -38,7 +38,7 @@ class Stockland_DB {
 				$key
 			)
 		);
-		return null !== $value ? $value : $default;
+		return null !== $value ? $value : $default_value;
 	}
 
 	/** Current VAT rate, e.g. 0.15. Centrally controlled — never sent by the client. */
