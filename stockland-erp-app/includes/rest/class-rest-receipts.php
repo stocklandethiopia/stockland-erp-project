@@ -17,10 +17,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class Stockland_REST_Receipts extends Stockland_REST_Base {
 
+	/**
+	 * Registers the legacy receipt evidence endpoints.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers read-only historical receipt and guarded transition routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -53,6 +63,12 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Lists historical receipt evidence without posting inventory.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response Historical receipt rows.
+	 */
 	public function list_receipts( WP_REST_Request $request ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'receipts' );
@@ -61,6 +77,12 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 		return rest_ensure_response( Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY created_at DESC LIMIT 500', $table ), ARRAY_A ) );
 	}
 
+	/**
+	 * Rejects free-form supplier receipt creation under the PO approval SOP.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_Error Always returns the guarded purchase-order-required response.
+	 */
 	public function create_receipt( WP_REST_Request $request ) {
 		// Free-form supplier receipts would bypass Management entry + separate Owner approval.
 		// Fail before writes; use POST /accounting/purchase-orders and its approved receipt path.
@@ -71,6 +93,12 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Rejects completion of legacy manual receipts so it cannot post new stock.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_Error Always returns the guarded purchase-order-required response.
+	 */
 	public function complete_receipt( WP_REST_Request $request ) {
 		// Historical pending manual receipts cannot be used to post fresh stock.
 		// Completed historical receipts remain unchanged; reconcile pending entries against a PO.
@@ -81,6 +109,12 @@ class Stockland_REST_Receipts extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Retrieves a historical receipt by its public receipt identifier.
+	 *
+	 * @param string $receipt_id Receipt identifier.
+	 * @return mixed Receipt row or null when no matching row exists.
+	 */
 	private function get_receipt( $receipt_id ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'receipts' );
