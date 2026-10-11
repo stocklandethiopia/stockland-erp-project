@@ -118,6 +118,7 @@ class Stockland_Notifications {
 			$actor_profile = Stockland_Authority::profile( $actor_id );
 			$actor_role    = sanitize_key( (string) ( $actor_profile['role'] ?? '' ) ); } catch ( Throwable $ignore ) {
 				// A missing profile must not block confirmation of the committed Product Master action.
+				$actor_role = '';
 			}
 			$ok3 = ( $actor_id > 0 && ! in_array( $actor_role, array( 'management', 'owner' ), true ) )
 			? self::push_user( $actor_id, 'product_master', $title, $message, 'product', $sku, 'info' )
