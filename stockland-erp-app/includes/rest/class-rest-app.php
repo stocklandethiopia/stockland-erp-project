@@ -2622,11 +2622,20 @@ class Stockland_REST_App extends Stockland_REST_Base {
 	}
 
 	public function count_preview( WP_REST_Request $r ) {
-		if ( empty( $_FILES['file']['tmp_name'] ) ) {
-			return new WP_Error( 'file_required', 'Upload the Physical Count Excel file.', array( 'status' => 400 ) );
+		// REST auth/nonce validation and the permission callback run before this handler.
+		// PHPCS cannot infer the registered REST request lifecycle from this callback.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated WordPress REST route; not a standalone form handler.
+		// Validate the upload structure, PHP upload error, normalized path and uploaded-file provenance.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each consumed field is type-checked and normalized below; tmp_name is then verified with is_uploaded_file().
+		$upload = isset( $_FILES['file'] ) && is_array( $_FILES['file'] ) ? $_FILES['file'] : array();
+		$tmp_name = isset( $upload['tmp_name'] ) && is_string( $upload['tmp_name'] ) ? sanitize_text_field( wp_unslash( $upload['tmp_name'] ) ) : '';
+		$file_name = isset( $upload['name'] ) && is_string( $upload['name'] ) ? sanitize_file_name( wp_unslash( $upload['name'] ) ) : '';
+		$file_error = isset( $upload['error'] ) ? (int) $upload['error'] : UPLOAD_ERR_NO_FILE;
+		if ( UPLOAD_ERR_OK !== $file_error || '' === $tmp_name || ! is_uploaded_file( $tmp_name ) ) {
+			return new WP_Error( 'file_required', 'Upload a valid Physical Count Excel file.', array( 'status' => 400 ) );
 		}
 		try {
-			$x    = new Stockland_XLSX( $_FILES['file']['tmp_name'] );
+			$x    = new Stockland_XLSX( $tmp_name );
 			$rows = $x->rows( 'PHYSICAL COUNT', 1 );
 			if ( empty( $rows ) ) {
 				$rows = $x->rows( 'PHYSICAL COUNT', 3 );
@@ -2705,7 +2714,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				array(
 					'rows'        => $clean,
 					'errors'      => array_values( array_unique( $errors ) ),
-					'source_file' => sanitize_file_name( $_FILES['file']['name'] ),
+					'source_file' => $file_name,
 					'created'     => time(),
 				),
 				30 * MINUTE_IN_SECONDS
