@@ -1249,7 +1249,8 @@ class Stockland_Activator {
 			if ( ! $existing_profile ) {
 				$wpdb->query(
 					$wpdb->prepare(
-						$wpdb->prepare( "INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)", $p . 'stock_users', $uid ),
+						"INSERT INTO %i (wp_user_id,role,branch_location_id,is_active) VALUES (%d,'owner',NULL,1)",
+						$p . 'stock_users',
 						$uid
 					)
 				);
