@@ -11,6 +11,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Canonical Product Master domain service.  All SKU replacement paths delegate here. */
 class Stockland_Product_Service {
+	/**
+	 * Replaces a Product Master SKU while preserving an auditable history trail.
+	 *
+	 * @param int    $variant_id Immutable Product Master variant identifier.
+	 * @param string $new_sku New SKU to assign.
+	 * @param string $reason Required business reason for the replacement.
+	 * @param string $reference Optional source workflow reference.
+	 * @param bool   $manage_transaction Whether this method owns its transaction.
+	 * @return array SKU replacement result and audit reference.
+	 * @throws Exception When validation, uniqueness or transaction checks fail.
+	 */
 	public static function replace_sku( $variant_id, $new_sku, $reason, $reference = '', $manage_transaction = true ) {
 		global $wpdb;
 		$variant_id = (int) $variant_id;
