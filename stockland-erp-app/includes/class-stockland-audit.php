@@ -326,7 +326,7 @@ class Stockland_Audit {
 	 *
 	 * @return array Verification status, counts and mismatch details when invalid.
 	 */
-	private static function verify_chain() {
+	public static function verify_chain() {
 		global $wpdb;
 		$table         = Stockland_DB::table( 'audit_logs' );
 		$rows          = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id ASC', $table ), ARRAY_A );
