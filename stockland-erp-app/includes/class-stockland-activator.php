@@ -1,10 +1,4 @@
 <?php
-/**
- * Stockland ERP component.
- *
- * @package Stockland_ERP
- */
-
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -80,8 +74,7 @@ class Stockland_Activator {
 	 * $batch_size=0 completes the full schema/release finalization. A positive
 	 * value installs only that many currently-missing Core tables, then returns
 	 * progress. This keeps first-run requests short on constrained shared hosting.
-	 	 * @param mixed $batch_size The batch size value.
-*/
+	 */
 	public static function activate( $batch_size = 0 ) {
 		$batch_size = max( 0, (int) $batch_size );
 		$batch_mode = $batch_size > 0;
@@ -1220,9 +1213,6 @@ class Stockland_Activator {
 		);
 	}
 
-	/**
-	 * Handles application table manifest within the Stockland ERP component.
-	 */
 	public static function application_table_manifest() {
 		return array_values(
 			array_unique(
@@ -1260,11 +1250,6 @@ class Stockland_Activator {
 		update_option( 'stockland_setup_state', 'ACTIVATED', false );
 	}
 
-	/**
-	 * Handles table exists static within the Stockland ERP component.
-	 *
-	 * @param mixed $table_name The table name value.
-	 */
 	private static function table_exists_static( $table_name ) {
 		global $wpdb;
 		return (bool) $wpdb->get_var(
@@ -1276,11 +1261,6 @@ class Stockland_Activator {
 		);
 	}
 
-	/**
-	 * Handles seed locations within the Stockland ERP component.
-	 *
-	 * @param mixed $p The submitted data.
-	 */
 	private static function seed_locations( $p ) {
 		global $wpdb;
 
@@ -1310,8 +1290,7 @@ class Stockland_Activator {
 	 * are starting values Management already entered in the workbook —
 	 * nothing here is invented, and Management can change any of them
 	 * post-activation via the settings screen (VAT rate, reorder levels).
-	 	 * @param mixed $p The submitted data.
-*/
+	 */
 	private static function backfill_location_codes( $p ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( "SELECT id,location_name,location_type,branch_code FROM {$p}stock_locations ORDER BY id", ARRAY_A );
@@ -1332,11 +1311,6 @@ class Stockland_Activator {
 		}
 	}
 
-	/**
-	 * Handles seed settings within the Stockland ERP component.
-	 *
-	 * @param mixed $p The submitted data.
-	 */
 	private static function seed_settings( $p ) {
 		global $wpdb;
 
@@ -1377,8 +1351,7 @@ class Stockland_Activator {
 	 * inventory/POS/ledger/workflow system installed by activate() above is
 	 * completely unaffected and keeps working; only the accounting screens
 	 * stay unavailable until this succeeds.
-	 	 * @param mixed $force The force value.
-*/
+	 */
 	public static function maybe_install_accounting( $force = false ) {
 		// Schema installation is never a public-request operation. Keep it behind
 		// an authenticated management/admin context on shared hosting.
@@ -1440,11 +1413,6 @@ class Stockland_Activator {
 		}
 	}
 
-	/**
-	 * Handles upgrade variant first product identity within the Stockland ERP component.
-	 *
-	 * @param mixed $p The submitted data.
-	 */
 	private static function upgrade_variant_first_product_identity( $p ) {
 		global $wpdb;
 		$table = $p . 'stock_products';
@@ -1478,8 +1446,7 @@ class Stockland_Activator {
 		}
 	}
 
-	/** v16 convergence: make every required module/schema line up under one clean production contract. 	 * @param mixed $p The submitted data.
-*/
+	/** v16 convergence: make every required module/schema line up under one clean production contract. */
 	private static function apply_schema_1600_migrations( $p ) {
 		global $wpdb;
 		$has_col   = function ( $table, $column ) use ( $wpdb ) {
