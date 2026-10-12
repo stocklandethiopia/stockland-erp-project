@@ -102,10 +102,17 @@ class Stockland_REST_Setup {
 	 * @return bool Whether operational ERP routes may be enabled.
 	 */
 	private function application_ready_for_app_routes() {
-		return empty( Stockland_Activator::missing_core_tables() )
-			&& empty( Stockland_Accounting::missing_tables() )
-			&& empty( Stockland_Accounting::upgrade_gaps() )
-			&& empty( Stockland_HR::missing_tables() );
+		try {
+			return empty( Stockland_Activator::missing_core_tables() )
+				&& empty( Stockland_Accounting::missing_tables() )
+				&& empty( Stockland_Accounting::upgrade_gaps() )
+				&& empty( Stockland_HR::missing_tables() )
+				&& empty( Stockland_HR::upgrade_gaps() );
+		} catch ( Throwable $e ) {
+			// If any schema check is unknown, keep operational controllers closed but
+			// leave the protected setup and diagnostic routes available.
+			return false;
+		}
 	}
 
 	/**
@@ -233,7 +240,94 @@ class Stockland_REST_Setup {
 					)
 				);
 			}
+			// The operational controller is intentionally absent until every schema
+			// upgrade is verified. Keep its health URL available during repair.
+			register_rest_route(
+				self::NS,
+				'/system/health',
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'schema_gate_health' ),
+					'permission_callback' => function () {
+						return Stockland_Authority::can_view_system_diagnostics();
+					},
+				)
+			);
 		}
+	}
+
+	/**
+	 * Read-only diagnostics for schema-gated startup. A setup response must never
+	 * claim that a deep ledger/integrity audit ran or passed.
+	 *
+	 * @return mixed Safe schema/setup diagnostics for an authorized administrator.
+	 */
+	public function schema_gate_health() {
+		$snapshot = $this->snapshot();
+		$checks   = array(
+			'db'                             => false,
+			'core_schema'                    => empty( $snapshot['core']['missing'] ),
+			'full_schema'                    => empty( $snapshot['total']['missing'] ),
+			'schema_contract_exact_49'       => (int) ( $snapshot['total']['present'] ?? 0 ) === (int) ( $snapshot['total']['total'] ?? 49 ),
+			'accounting_schema_upgrade_ready' => empty( $snapshot['finance']['upgrade_gaps'] ),
+			'hr_schema_upgrade_ready'         => empty( $snapshot['hr']['upgrade_gaps'] ),
+			'operational_routes_available'    => false,
+		);
+		try {
+			global $wpdb;
+			$wpdb->last_error = '';
+			$checks['db'] = ( '1' === (string) Stockland_DB::read_var( 'SELECT 1' ) ) && empty( $wpdb->last_error );
+		} catch ( Throwable $e ) {
+			$checks['db'] = false;
+		}
+		$failed = array();
+		foreach ( $checks as $key => $value ) {
+			if ( ! $value ) {
+				$failed[] = $key;
+			}
+		}
+		$diagnostics = array(
+			'health_mode'         => 'setup',
+			'setup_state'         => $snapshot['state'] ?? 'UNKNOWN',
+			'core_schema_present' => $snapshot['core']['present'] ?? 0,
+			'core_schema_total'   => $snapshot['core']['total'] ?? 29,
+			'full_schema_present' => $snapshot['total']['present'] ?? 0,
+			'full_schema_total'   => $snapshot['total']['total'] ?? 49,
+			'schema_upgrade_gaps' => array(
+				'accounting' => $snapshot['finance']['upgrade_gaps'] ?? array(),
+				'hr'         => $snapshot['hr']['upgrade_gaps'] ?? array(),
+			),
+			'deep_integrity_status' => 'DEFERRED_NOT_RUN',
+			'deferred_checks'       => array(
+				'audit_chain_hash_verification',
+				'ledger_reference_and_negative_stock_scans',
+				'balance_vs_ledger_reconciliation',
+				'reservation_integrity',
+				'AP_AR_reconciliation',
+				'general_ledger_balance_and_orphan_scans',
+				'procurement_and_PLEDGER_reference_scans',
+				'identifier_duplicate_scans',
+				'payroll_compensation_classification',
+				'full_import_and_workflow_contract_gates',
+			),
+			'live_ready_rule' => 'This setup response identifies schema gates preventing business endpoints from registering. Full integrity scans have not run in setup mode.',
+		);
+		$checks['live_ready'] = false;
+		$checks['ok']         = false;
+		return $this->no_cache( rest_ensure_response( array(
+			'ok'                  => false,
+			'checks'              => $checks,
+			'diagnostics'         => $diagnostics,
+			'php'                 => PHP_VERSION,
+			'wordpress'           => get_bloginfo( 'version' ),
+			'plugin'              => defined( 'STOCKLAND_VERSION' ) ? STOCKLAND_VERSION : 'unknown',
+			'db_version'          => get_option( 'stockland_db_version', 'unknown' ),
+			'audit'               => array( 'ok' => null, 'checked' => 0, 'reason' => 'The full integrity audit has not run while schema repair is pending.' ),
+			'missing_tables'      => $snapshot['total']['missing'] ?? array(),
+			'missing_core_tables' => $snapshot['core']['missing'] ?? array(),
+			'failed_checks'       => $failed,
+			'data_policy'         => 'Read-only schema-gate diagnostics; no business data is changed.',
+		) ) );
 	}
 
 	/**
