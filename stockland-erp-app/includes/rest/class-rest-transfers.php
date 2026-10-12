@@ -1,15 +1,37 @@
 <?php
+/**
+ * REST controller source for Stockland ERP operational workflows.
+ *
+ * @package Stockland_ERP
+ */
+
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Authorized inventory-transfer REST workflows.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_Transfers extends Stockland_REST_Base {
 	const VALID_STATUSES = array( 'Requested', 'Approved', 'Reserved', 'Picked', 'In Transit', 'Received', 'Completed', 'Rejected', 'Cancelled' );
 
+	/**
+	 * Registers transfer route callbacks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers transfer listing, creation and status-transition routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -45,9 +67,15 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Loads one transfer with its source and destination location names.
+	 *
+	 * @param int $id Transfer identifier.
+	 * @return array|null Transfer row or null when it does not exist.
+	 */
 	private function row( $id ) {
 		global $wpdb;
-		return $wpdb->get_row(
+		return Stockland_DB::read_row(
 			$wpdb->prepare(
 				'SELECT t.*,f.location_name from_location_name,to_l.location_name to_location_name,
                     COALESCE(p.product_name,t.sku) product_name,r.branch_location_id AS requisition_branch_location_id
@@ -68,6 +96,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Lists transfers within the current user's authorized location scope.
+	 *
+	 * @param WP_REST_Request $r REST request containing optional filters.
+	 * @return mixed REST response with transfer rows or a WP_Error.
+	 */
 	public function list_transfers( WP_REST_Request $r ) {
 		global $wpdb;
 		$profile = Stockland_Roles::get_profile( get_current_user_id() );
@@ -97,9 +131,18 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				$args[] = $id;}
 		}
 		$sql .= ' ORDER BY t.created_at DESC LIMIT 500';
-		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql contains only the fixed transfer query plus generated %d tokens; scope IDs are integer-cast and bound through $args.
+		$prepared_sql = $wpdb->prepare( $sql, $args );
+		return rest_ensure_response( Stockland_DB::read_results( $prepared_sql, ARRAY_A ) );
 	}
 
+	/**
+	 * Creates a transfer request after validating source, destination and quantities.
+	 *
+	 * @param WP_REST_Request $r REST request containing transfer header and lines.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When the guarded transfer transaction cannot complete.
+	 */
 	public function create_transfer( WP_REST_Request $r ) {
 		$p           = $r->get_json_params();
 		$from        = (int) ( $p['from_location_id'] ?? 0 );
@@ -127,7 +170,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 
 		if ( $req_id ) {
 			global $wpdb;
-			$exists = $wpdb->get_var(
+			$exists = Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT requisition_id FROM %i WHERE requisition_id=%s',
 					Stockland_DB::table( 'requisitions' ),
@@ -142,11 +185,11 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 
 		global $wpdb;
 		$id = Stockland_Sequence::next( 'TRF-', current_time( 'Y-m-d' ) );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start transfer transaction.', array( 'status' => 500 ) );
 		}
 		try {
-			$ok = $wpdb->insert(
+			$ok = Stockland_DB::insert_record(
 				Stockland_DB::table( 'transfers' ),
 				array(
 					'transfer_id'         => $id,
@@ -171,15 +214,22 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), null, 'TRANSFER_CREATE', $sku, $q, null, 'Requested', $req_id ? $req_id : null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; transfer was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Transfer creation commit failed.' );
 			}
 			return rest_ensure_response( $this->row( $id ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'insert_failed', $e->getMessage(), array( 'status' => 500 ) );}
 	}
 
+	/**
+	 * Checks the permitted transfer-state transition map.
+	 *
+	 * @param string $from Current transfer status.
+	 * @param string $to Requested next status.
+	 * @return bool Whether the transition is allowed.
+	 */
 	private function valid_transition( $from, $to ) {
 		$map = array(
 			'Requested'  => array( 'Approved', 'Rejected', 'Cancelled' ),
@@ -195,6 +245,12 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		return in_array( $to, $map[ $from ] ?? array(), true );
 	}
 
+	/**
+	 * Checks whether the current ERP role may receive a transfer at its destination.
+	 *
+	 * @param array $t Transfer row containing destination location and status.
+	 * @return bool Whether receipt is permitted.
+	 */
 	private function can_receive( $t ) {
 		if ( ! current_user_can( 'stockland_receive_transfer' ) ) {
 			return false;
@@ -202,6 +258,13 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		return Stockland_Authority::can_access_location( (int) $t['to_location_id'] );
 	}
 
+	/**
+	 * Applies a role-authorized transfer state transition.
+	 *
+	 * @param WP_REST_Request $r REST request containing transfer ID and target status.
+	 * @return mixed REST response or a WP_Error.
+	 * @throws Exception When a validated transition cannot complete its transaction.
+	 */
 	public function update_status( WP_REST_Request $r ) {
 		global $wpdb;
 		$id = sanitize_text_field( $r['transfer_id'] );
@@ -256,11 +319,11 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		if ( ! $location_locks['ok'] ) {
 			return new WP_Error( 'busy', 'A stock operation is already being processed for this location. Please retry.', array( 'status' => 409 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_location_locks( $location_locks['locks'] );
 			return new WP_Error( 'transaction_failed', 'Could not start transfer state transaction.', array( 'status' => 500 ) );}
 		try {
-			$current = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE transfer_id=%s FOR UPDATE', Stockland_DB::table( 'transfers' ), $id ), ARRAY_A );
+			$current = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE transfer_id=%s FOR UPDATE', Stockland_DB::table( 'transfers' ), $id ), ARRAY_A );
 			if ( ! $current ) {
 				throw new Exception( 'Transfer disappeared during processing.' );
 			}
@@ -271,9 +334,9 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( Stockland_DB::get_available_stock( $source, $sku ) < $qty ) {
 					throw new Exception( 'Insufficient available source stock for ' . $sku . '. Available quantity is ' . Stockland_DB::get_available_stock( $source, $sku ) . '.' );
 				}
-				$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM %i WHERE transfer_id=%s AND status='Active' LIMIT 1", Stockland_DB::table( 'reservations' ), $id ) );
+				$existing = Stockland_DB::read_var( $wpdb->prepare( "SELECT id FROM %i WHERE transfer_id=%s AND status='Active' LIMIT 1", Stockland_DB::table( 'reservations' ), $id ) );
 				if ( ! $existing ) {
-					$res_ok = $wpdb->insert(
+					$res_ok = Stockland_DB::insert_record(
 						Stockland_DB::table( 'reservations' ),
 						array(
 							'location_id'       => $source,
@@ -288,7 +351,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					);
 					if ( false === $res_ok ) {
 						throw new Exception( 'Could not create the warehouse reservation.' );
-					}$tr_ok = $wpdb->update(
+					}$tr_ok = Stockland_DB::update_record(
 						Stockland_DB::table( 'transfers' ),
 						array(
 							'reserved_by' => $user,
@@ -307,7 +370,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( $dispatch <= 0 || $dispatch > $qty ) {
 					throw new Exception( 'Dispatched quantity must be greater than zero and cannot exceed requested quantity (' . $qty . ').' );
 				}
-				$active_reserved = (float) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), $id ) );
+				$active_reserved = (float) Stockland_DB::read_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), $id ) );
 				if ( $active_reserved + 0.00001 < $dispatch ) {
 					throw new Exception( 'Active warehouse reservation is missing or smaller than the dispatch quantity. Reserve the transfer before picking.' );
 				}
@@ -320,11 +383,11 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, $user ) ) {
 					throw new Exception( 'Source stock ledger could not be posted.' );
 				}
-				$released = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $id ) );
+				$released = Stockland_DB::execute_query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $id ) );
 				if ( false === $released ) {
 					throw new Exception( 'Could not release the active warehouse reservation.' );
 				}
-				if ( false === $wpdb->update(
+				if ( false === Stockland_DB::update_record(
 					Stockland_DB::table( 'transfers' ),
 					array(
 						'status'         => 'Picked',
@@ -343,7 +406,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( (float) $current['dispatched_qty'] <= 0 ) {
 					throw new Exception( 'A transfer cannot enter In Transit before a dispatched quantity is recorded.' );
 				}
-				if ( false === $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'status' => 'In Transit' ), array( 'transfer_id' => $id ) ) ) {
+				if ( false === Stockland_DB::update_record( Stockland_DB::table( 'transfers' ), array( 'status' => 'In Transit' ), array( 'transfer_id' => $id ) ) ) {
 					throw new Exception( 'Could not save transfer In Transit state.' );
 				}
 			} elseif ( 'Received' === $new ) {
@@ -367,7 +430,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					throw new Exception( 'Destination stock ledger could not be posted.' );
 				}
 				$variance = $received - $dispatch;
-				if ( false === $wpdb->update(
+				if ( false === Stockland_DB::update_record(
 					Stockland_DB::table( 'transfers' ),
 					array(
 						'status'         => 'Received',
@@ -382,11 +445,11 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 					throw new Exception( 'Could not save transfer receipt.' );
 				}
 				if ( ! empty( $current['requisition_id'] ) ) {
-					$items = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'requisition_items' ), (int) $current['requisition_item_id'] ), ARRAY_A );
+					$items = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'requisition_items' ), (int) $current['requisition_item_id'] ), ARRAY_A );
 					if ( $items ) {
 						$item        = $items[0];
 						$newreceived = (float) $item['quantity_received'] + $received;
-						$ri_ok       = $wpdb->update( Stockland_DB::table( 'requisition_items' ), array( 'quantity_received' => $newreceived ), array( 'id' => (int) $item['id'] ) );
+						$ri_ok       = Stockland_DB::update_record( Stockland_DB::table( 'requisition_items' ), array( 'quantity_received' => $newreceived ), array( 'id' => (int) $item['id'] ) );
 						if ( false === $ri_ok ) {
 							throw new Exception( 'Could not update requisition received quantity.' );
 						}
@@ -396,23 +459,23 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 				if ( 'Received' !== $current['status'] ) {
 					throw new Exception( 'A transfer must be Received before it can be Completed.' );
 				}
-				$done_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'status' => 'Completed' ), array( 'transfer_id' => $id ) );
+				$done_ok = Stockland_DB::update_record( Stockland_DB::table( 'transfers' ), array( 'status' => 'Completed' ), array( 'transfer_id' => $id ) );
 				if ( false === $done_ok ) {
 					throw new Exception( 'Could not complete the transfer.' );
 				}
 			} else {
 				if ( in_array( $new, array( 'Rejected', 'Cancelled' ), true ) ) {
-					$released = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $id ) );
+					$released = Stockland_DB::execute_query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $id ) );
 					if ( false === $released ) {
 						throw new Exception( 'Could not release the active warehouse reservation.' );
 					}
 				}
-				$tr_status_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'status' => $new ), array( 'transfer_id' => $id ) );
+				$tr_status_ok = Stockland_DB::update_record( Stockland_DB::table( 'transfers' ), array( 'status' => $new ), array( 'transfer_id' => $id ) );
 				if ( false === $tr_status_ok ) {
 					throw new Exception( 'Could not save transfer status.' );
 				}
 				if ( 'Approved' === $new ) {
-					$tr_approve_ok = $wpdb->update( Stockland_DB::table( 'transfers' ), array( 'approved_by' => $user ), array( 'transfer_id' => $id ) );
+					$tr_approve_ok = Stockland_DB::update_record( Stockland_DB::table( 'transfers' ), array( 'approved_by' => $user ), array( 'transfer_id' => $id ) );
 					if ( false === $tr_approve_ok ) {
 						throw new Exception( 'Could not save transfer approval.' );
 					}
@@ -441,7 +504,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			if ( ! empty( $current['requisition_id'] ) ) {
 				$this->sync_requisition( $current['requisition_id'] );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Transfer commit failed.' );
 			}
 			Stockland_DB::release_day_locks( $location_locks['locks'] );
@@ -462,14 +525,21 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 			}
 			return rest_ensure_response( $this->row( $id ) );
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			Stockland_DB::release_day_locks( $location_locks['locks'] );
 			return new WP_Error( 'transfer_failed', $e->getMessage(), array( 'status' => 409 ) ); }
 	}
 
+	/**
+	 * Synchronizes the linked requisition state after a transfer transition.
+	 *
+	 * @param string $requisition_id Requisition identifier.
+	 * @return bool Whether a linked requisition was updated or no link existed.
+	 * @throws Exception When a linked requisition transition cannot be persisted.
+	 */
 	private function sync_requisition( $requisition_id ) {
 		global $wpdb;
-		$statuses = $wpdb->get_col(
+		$statuses = Stockland_DB::read_col(
 			$wpdb->prepare(
 				'SELECT status FROM %i WHERE requisition_id=%s',
 				Stockland_DB::table( 'transfers' ),
@@ -486,7 +556,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		if ( ! $new ) {
 			return;
 		}
-		$req = $wpdb->get_row(
+		$req = Stockland_DB::read_row(
 			$wpdb->prepare(
 				'SELECT status FROM %i WHERE requisition_id=%s',
 				Stockland_DB::table( 'requisitions' ),
@@ -499,7 +569,7 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		}
 		$allowed = array( 'Reserved', 'Picked', 'Received', 'Completed', 'Cancelled' );
 		if ( in_array( $new, $allowed, true ) ) {
-			$req_sync_ok = $wpdb->update(
+			$req_sync_ok = Stockland_DB::update_record(
 				Stockland_DB::table( 'requisitions' ),
 				array(
 					'status'     => $new,
@@ -516,3 +586,5 @@ class Stockland_REST_Transfers extends Stockland_REST_Base {
 		}
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.

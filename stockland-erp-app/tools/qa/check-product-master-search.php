@@ -49,8 +49,9 @@ $stock_methods   = substr( $stock_source, $stock_start, $stock_end - $stock_star
 $reorder_methods = substr( $stock_source, $reorder_start, $reorder_end - $reorder_start );
 $returns_methods = substr( $return_source, $return_start, $return_end - $return_start );
 $sales_methods   = substr( $sales_source, $sales_start, $sales_end - $sales_start );
-$like_position = strpos( $methods, 'array_fill( 0, 9, $like )' );
-$exact_args_match = preg_match( '/array\\(\\s*\\$q,\\s*\\$q,\\s*\\$limit,\\s*\\)/', $methods, $exact_args, PREG_OFFSET_CAPTURE );
+$like_position = strpos( $methods, '$like,' );
+$like_count = substr_count( $methods, '$like,' );
+$exact_args_match = preg_match( '/\\$q,\\s*\\$q,\\s*\\$limit\\s*\\)/', $methods, $exact_args, PREG_OFFSET_CAPTURE );
 $exact_args_position = 1 === $exact_args_match ? $exact_args[0][1] : false;
 
 $checks = array(
@@ -62,6 +63,7 @@ $checks = array(
 		false !== strpos( $methods, '$wpdb->prepare(' ) && false === strpos( $methods, '$sql' ) && false === strpos( $methods, '$where' ),
 	'Nine LIKE values are bound before exact-SKU and limit values' =>
 		false !== $like_position &&
+		$like_count >= 9 &&
 		false !== $exact_args_position &&
 		$like_position < $exact_args_position &&
 		false === strpos( $methods, 'array_unshift( $args, $q )' ),

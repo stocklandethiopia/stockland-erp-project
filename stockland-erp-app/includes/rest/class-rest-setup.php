@@ -1,4 +1,16 @@
 <?php
+/**
+ * REST controller source for Stockland ERP operational workflows.
+ *
+ * @package Stockland_ERP
+ */
+
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
+/**
+ * Protected, resumable Stockland schema setup and repair endpoints.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -18,18 +30,39 @@ class Stockland_REST_Setup {
 	const CORE_BATCH_SIZE    = 1;
 	const FINANCE_BATCH_SIZE = 1;
 
+	/**
+	 * Registers schema setup REST routes.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
 	}
 
+	/**
+	 * Checks whether the current user may advance a schema setup batch.
+	 *
+	 * @return bool Whether schema setup/repair is authorized.
+	 */
 	private function can_setup() {
 		return is_user_logged_in() && current_user_can( 'stockland_install_schema' );
 	}
 
+	/**
+	 * Checks whether the current session may view setup progress.
+	 *
+	 * @return bool Whether the current user is authenticated.
+	 */
 	private function can_view_status() {
 		return is_user_logged_in();
 	}
 
+	/**
+	 * Applies no-cache headers to live setup progress responses.
+	 *
+	 * @param mixed $response REST response to mark as non-cacheable.
+	 * @return mixed The response with no-cache headers when supported.
+	 */
 	private function no_cache( $response ) {
 		if ( function_exists( 'nocache_headers' ) ) {
 			nocache_headers();
@@ -42,10 +75,20 @@ class Stockland_REST_Setup {
 		return $response;
 	}
 
+	/**
+	 * Checks whether a technical administrator or authorized manager may administer users.
+	 *
+	 * @return bool Whether frontend user administration is allowed.
+	 */
 	private function frontend_user_gate() {
 		return is_user_logged_in() && ( current_user_can( 'manage_options' ) || Stockland_Authority::can_manage_users() );
 	}
 
+	/**
+	 * Creates the application controller for the pre-schema access bridge.
+	 *
+	 * @return Stockland_REST_App ERP application controller.
+	 */
 	private function access_controller() {
 		// class-rest-app.php is always included by the plugin bootstrap. We instantiate
 		// it only for these lightweight access operations while the application schema
@@ -53,6 +96,11 @@ class Stockland_REST_Setup {
 		return new Stockland_REST_App();
 	}
 
+	/**
+	 * Determines whether the complete core, accounting and HR schema is ready.
+	 *
+	 * @return bool Whether operational ERP routes may be enabled.
+	 */
 	private function application_ready_for_app_routes() {
 		return empty( Stockland_Activator::missing_core_tables() )
 			&& empty( Stockland_Accounting::missing_tables() )
@@ -60,6 +108,11 @@ class Stockland_REST_Setup {
 			&& empty( Stockland_HR::missing_tables() );
 	}
 
+	/**
+	 * Returns minimal access/onboarding state while schema setup is incomplete.
+	 *
+	 * @return mixed REST response describing authentication, profile and schema readiness.
+	 */
 	public function pre_schema_access_bootstrap() {
 		$uid        = (int) get_current_user_id();
 		$current    = wp_get_current_user();
@@ -89,6 +142,11 @@ class Stockland_REST_Setup {
 		return $this->no_cache( rest_ensure_response( $result ) );
 	}
 
+	/**
+	 * Registers setup status, batch advancement and pre-schema access routes.
+	 *
+	 * @return void
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NS,
@@ -178,6 +236,11 @@ class Stockland_REST_Setup {
 		}
 	}
 
+	/**
+	 * Builds a read-only setup snapshot from physically verified schema state.
+	 *
+	 * @return array Current setup state, missing tables and schema gaps.
+	 */
 	private function snapshot() {
 		$core           = Stockland_Activator::missing_core_tables();
 		$fin            = Stockland_Accounting::missing_tables();
@@ -261,11 +324,23 @@ class Stockland_REST_Setup {
 		return $details;
 	}
 
+	/**
+	 * Returns the current resumable schema setup status.
+	 *
+	 * @return mixed REST response containing verified setup progress.
+	 */
 	public function status() {
 		return $this->no_cache( rest_ensure_response( $this->snapshot() ) );
 	}
 
-	public function advance( WP_REST_Request $request ) {
+	/**
+	 * Advances one protected core, accounting or HR schema batch.
+	 *
+	 * @param WP_REST_Request $request REST request containing batch parameters.
+	 * @return mixed REST response containing physically verified batch progress.
+	 * @throws RuntimeException When a required schema invariant cannot be satisfied.
+	 */
+	public function advance( WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- WordPress REST callback signature retains WP_REST_Request for consistent route dispatch.
 		if ( get_transient( self::LOCK ) ) {
 			return new WP_Error( 'setup_busy', 'Another Stockland setup request is currently running. Please retry in a few seconds.', array( 'status' => 409 ) );
 		}
@@ -353,7 +428,7 @@ class Stockland_REST_Setup {
 				'remaining' => $fresh['total']['missing'],
 			);
 			update_option( 'stockland_setup_error', $err, false );
-			error_log( 'Stockland ERP setup error: ' . $e->getMessage() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP setup error: ' . $e->getMessage() );
 			return new WP_Error(
 				'setup_failed',
 				$e->getMessage(),
@@ -366,3 +441,5 @@ class Stockland_REST_Setup {
 			delete_transient( self::LOCK ); }
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.

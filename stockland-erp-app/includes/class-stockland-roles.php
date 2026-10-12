@@ -1,8 +1,19 @@
 <?php
+/**
+ * Stockland ERP role registration and profile management.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Declares canonical role slugs and provisions their capabilities.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_Roles {
 	const ROLE_OWNER              = 'stockland_owner';
 	const ROLE_MANAGEMENT         = 'stockland_management';
@@ -344,19 +355,26 @@ class Stockland_Roles {
 	public static function get_profile( $wp_user_id ) {
 		global $wpdb;
 		$table = Stockland_DB::table( 'users' );
-		$row   = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d AND is_active=1', $table, (int) $wp_user_id ), ARRAY_A );
+		$row   = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE wp_user_id=%d AND is_active=1', $table, (int) $wp_user_id ), ARRAY_A );
 		return $row ? $row : null;
 	}
 
-	/** Authorized operational locations. Company-wide roles are intentionally
-	 * handled by Authority::company_scope() and do not need a row per branch. */
+	/**
+	 * Returns active operational locations assigned to a WordPress user.
+	 *
+	 * Company-wide roles are handled by Authority::company_scope() and do not
+	 * require a separate assignment row for each branch.
+	 *
+	 * @param int $wp_user_id WordPress user identifier.
+	 * @return array<int> Assigned active location IDs.
+	 */
 	public static function get_location_scope( $wp_user_id ) {
 		global $wpdb;
 		$ids    = array();
 		$table  = $wpdb->prefix . 'stock_user_locations';
-		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+		$exists = Stockland_DB::read_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
 		if ( $exists === $table ) {
-			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT location_id FROM %i WHERE wp_user_id=%d AND is_active=1 AND (effective_from IS NULL OR effective_from<=CURDATE()) AND (effective_to IS NULL OR effective_to>=CURDATE()) ORDER BY is_primary DESC,id', $table, (int) $wp_user_id ) );
+			$rows = Stockland_DB::read_col( $wpdb->prepare( 'SELECT location_id FROM %i WHERE wp_user_id=%d AND is_active=1 AND (effective_from IS NULL OR effective_from<=CURDATE()) AND (effective_to IS NULL OR effective_to>=CURDATE()) ORDER BY is_primary DESC,id', $table, (int) $wp_user_id ) );
 			foreach ( $rows as $id ) {
 				$ids[] = (int) $id;
 			}

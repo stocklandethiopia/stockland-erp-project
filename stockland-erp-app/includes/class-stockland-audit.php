@@ -1,4 +1,10 @@
 <?php
+/**
+ * Append-only audit-chain persistence and verification.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -6,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Append-only, concurrency-safe audit log.
  *
- * v1 rows are legacy rows written by the pre-10.5 hashing implementation.
+ * V1 rows are legacy rows written by the pre-10.5 hashing implementation.
  * v2 rows use a canonical payload so MySQL DECIMAL values verify exactly as
  * they were stored. Historical rows are NEVER rewritten or deleted.
  */
@@ -14,6 +20,24 @@ class Stockland_Audit {
 
 	const HASH_VERSION = 2;
 
+	/**
+	 * Appends an audit event under a database advisory lock.
+	 *
+	 * The canonical payload mirrors the stored representation so chain verification
+	 * remains stable across database decimal/string coercion.
+	 *
+	 * @param int      $user_id Actor user identifier.
+	 * @param int|null $branch_location_id Optional branch/location identifier.
+	 * @param string   $action Audit action code.
+	 * @param mixed    $sku Related SKU when applicable.
+	 * @param mixed    $quantity Quantity when applicable.
+	 * @param mixed    $old_value Previous value.
+	 * @param mixed    $new_value New value.
+	 * @param mixed    $reason Business reason or details.
+	 * @param mixed    $reference Related entity/reference.
+	 * @param int|null $approver_id Optional approving user identifier.
+	 * @return bool Whether the audit event was inserted.
+	 */
 	public static function log(
 		$user_id,
 		$branch_location_id,
@@ -29,12 +53,12 @@ class Stockland_Audit {
 		global $wpdb;
 		$table     = Stockland_DB::table( 'audit_logs' );
 		$lock_name = 'stockland_audit_chain';
-		$locked    = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,10)', $lock_name ) );
+		$locked    = Stockland_DB::read_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,10)', $lock_name ) );
 		if ( '1' !== (string) $locked ) {
 			return false;
 		}
 		try {
-			$previous         = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT event_hash FROM %i ORDER BY id DESC LIMIT 1', $table ) );
+			$previous         = (string) Stockland_DB::read_var( $wpdb->prepare( 'SELECT event_hash FROM %i ORDER BY id DESC LIMIT 1', $table ) );
 			$stamp            = current_time( 'mysql' );
 			$action_stored    = self::stored_action( $action );
 			$sku_stored       = self::stored_text( $sku );
@@ -59,7 +83,7 @@ class Stockland_Audit {
 				self::HASH_VERSION
 			);
 			$event_hash       = hash( 'sha256', self::HASH_VERSION . '|' . $previous . '|' . $payload );
-			$ok               = $wpdb->insert(
+			$ok               = Stockland_DB::insert_record(
 				$table,
 				array(
 					'user_id'            => (int) $user_id,
@@ -80,10 +104,16 @@ class Stockland_Audit {
 			);
 			return false !== $ok;
 		} finally {
-			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
+			Stockland_DB::read_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_name ) );
 		}
 	}
 
+	/**
+	 * Converts a payload value to its stable database text representation.
+	 *
+	 * @param mixed $value Value to normalize.
+	 * @return string|null Normalized text or null.
+	 */
 	private static function stored_text( $value ) {
 		if ( null === $value ) {
 			return null;
@@ -100,10 +130,34 @@ class Stockland_Audit {
 		return wp_json_encode( $value );
 	}
 
+	/**
+	 * Sanitizes an audit action code for stable persistence.
+	 *
+	 * @param mixed $action Action value.
+	 * @return string Sanitized action code.
+	 */
 	private static function stored_action( $action ) {
 		return sanitize_text_field( (string) $action );
 	}
 
+	/**
+	 * Encodes the canonical audit event payload used by the hash chain.
+	 *
+	 * @param mixed  $user_id Actor user identifier.
+	 * @param mixed  $branch_location_id Optional branch/location identifier.
+	 * @param mixed  $action Audit action code.
+	 * @param mixed  $sku Related SKU.
+	 * @param mixed  $quantity Normalized quantity.
+	 * @param mixed  $old_value Previous value.
+	 * @param mixed  $new_value New value.
+	 * @param mixed  $reason Business reason.
+	 * @param mixed  $reference Related reference.
+	 * @param mixed  $approver_id Approving user identifier.
+	 * @param string $stamp Timestamp stored with the event.
+	 * @param string $previous Previous event hash.
+	 * @param int    $version Hash payload version.
+	 * @return string|false JSON-encoded canonical payload.
+	 */
 	private static function payload(
 		$user_id,
 		$branch_location_id,
@@ -139,6 +193,12 @@ class Stockland_Audit {
 		);
 	}
 
+	/**
+	 * Parses a scalar as a numeric candidate for legacy hash verification.
+	 *
+	 * @param mixed $value Candidate value from a historical audit row.
+	 * @return float|null Numeric value or null when the value is not numeric.
+	 */
 	private static function numeric_candidate( $value ) {
 		$s = trim( (string) $value );
 		if ( '' === $s || ! preg_match( '/^-?(?:\d+|\d*\.\d+)(?:[eE][+-]?\d+)?$/', $s ) ) {
@@ -147,6 +207,13 @@ class Stockland_Audit {
 		return (float) $s;
 	}
 
+	/**
+	 * Verifies historical version-two rows using known legacy representations.
+	 *
+	 * @param array  $row Historical audit row.
+	 * @param string $previous Previous event hash in the chain.
+	 * @return bool Whether any supported historical payload matches the stored hash.
+	 */
 	private static function historical_v2_matches( $row, $previous ) {
 		// Some early v2 events were hashed before VARCHAR values such as
 		// reference/old_value/new_value were normalized to their database string
@@ -200,6 +267,13 @@ class Stockland_Audit {
 		return false;
 	}
 
+	/**
+	 * Verifies a legacy audit row without rewriting historical data.
+	 *
+	 * @param array  $row Historical audit row.
+	 * @param string $previous Previous event hash in the chain.
+	 * @return bool Whether a supported legacy payload matches the stored hash.
+	 */
 	private static function legacy_matches( $row, $previous ) {
 		// Legacy rows hashed request-time values. The common legacy failure was
 		// DECIMAL quantity changing from numeric 5 to DB string "5.00". Try the
@@ -247,10 +321,15 @@ class Stockland_Audit {
 		return false;
 	}
 
+	/**
+	 * Verifies audit-chain continuity and event hashes in chronological order.
+	 *
+	 * @return array Verification status, counts and mismatch details when invalid.
+	 */
 	public static function verify_chain() {
 		global $wpdb;
 		$table         = Stockland_DB::table( 'audit_logs' );
-		$rows          = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id ASC', $table ), ARRAY_A );
+		$rows          = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY id ASC', $table ), ARRAY_A );
 		$previous      = '';
 		$checked       = 0;
 		$legacy        = 0;

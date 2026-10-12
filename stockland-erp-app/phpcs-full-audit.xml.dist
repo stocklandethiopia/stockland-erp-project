@@ -9,6 +9,10 @@
     <rule ref="WordPress-Extra"/>
     <rule ref="WordPress-Docs"/>
     <!-- Product-specific capabilities are registered by the ERP role map. -->
+    <!-- Keep legacy REST controller filenames for the loader; suppress only the filename-style sniff on those files. -->
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <exclude-pattern>*/includes/rest/class-rest-*.php</exclude-pattern>
+    </rule>
     <rule ref="WordPress.WP.Capabilities">
         <properties>
             <property name="custom_capabilities" type="array">
@@ -56,6 +60,8 @@
     <file>stockland-inventory.php</file>
     <file>uninstall.php</file>
     <file>includes</file>
+    <!-- Explicitly include REST handlers: keep the security-critical API layer in the blocking runtime audit even if directory expansion behavior changes. -->
+    <file>includes/rest</file>
     <file>templates</file>
     <!-- tests/ and tools/qa/ remain under whole-package PHP lint and automated test gates, not the runtime WPCS profile. -->
     <exclude-pattern>*/vendor/*</exclude-pattern>

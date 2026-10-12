@@ -1,4 +1,10 @@
 <?php
+/**
+ * Versioned Stockland business-calendar policy and validation helpers.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -13,6 +19,11 @@ final class Stockland_Business_Calendar {
 	const SETTING_KEY = 'business_calendar_v1';
 	const VERSION     = 1;
 
+	/**
+	 * Returns the default business-calendar configuration.
+	 *
+	 * @return array Default versioned calendar policy.
+	 */
 	public static function default_config() {
 		return array(
 			'version'        => self::VERSION,
@@ -22,6 +33,12 @@ final class Stockland_Business_Calendar {
 		);
 	}
 
+	/**
+	 * Loads and validates the saved business-calendar configuration.
+	 *
+	 * @return array Normalized business-calendar policy.
+	 * @throws RuntimeException When persisted configuration is malformed.
+	 */
 	public static function config() {
 		$raw = trim( (string) Stockland_DB::get_setting( self::SETTING_KEY, '' ) );
 		if ( '' === $raw ) {
@@ -34,6 +51,12 @@ final class Stockland_Business_Calendar {
 		return self::normalize_config( $data );
 	}
 
+	/**
+	 * Normalizes weekend, holiday and open-override configuration.
+	 *
+	 * @param mixed $data Configuration data to validate.
+	 * @return array Normalized business-calendar policy.
+	 */
 	public static function normalize_config( $data ) {
 		$base = self::default_config();
 		if ( ! is_array( $data ) ) {
@@ -64,6 +87,12 @@ final class Stockland_Business_Calendar {
 		return $base;
 	}
 
+	/**
+	 * Validates a date in strict YYYY-MM-DD format.
+	 *
+	 * @param mixed $date Candidate business date.
+	 * @return bool Whether the date exists and matches the required format.
+	 */
 	public static function valid_date( $date ) {
 		$date = (string) $date;
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
@@ -73,6 +102,13 @@ final class Stockland_Business_Calendar {
 		return $dt && $dt->format( 'Y-m-d' ) === $date;
 	}
 
+	/**
+	 * Resolves whether a date is open or closed under the calendar policy.
+	 *
+	 * @param string $date Business date in YYYY-MM-DD format.
+	 * @return array Business-date status and reason.
+	 * @throws InvalidArgumentException When the supplied date is invalid.
+	 */
 	public static function status( $date ) {
 		if ( ! self::valid_date( $date ) ) {
 			throw new InvalidArgumentException( 'Business date must be YYYY-MM-DD.' );
@@ -108,18 +144,40 @@ final class Stockland_Business_Calendar {
 		);
 	}
 
+	/**
+	 * Checks whether the supplied date is open for business transactions.
+	 *
+	 * @param string $date Business date in YYYY-MM-DD format.
+	 * @return bool Whether the date is open.
+	 * @throws InvalidArgumentException When the supplied date is invalid.
+	 * @throws RuntimeException When saved calendar configuration is invalid.
+	 */
 	public static function is_business_day( $date ) {
 		return 'OPEN' === self::status( $date )['status'];
 	}
 
+	/**
+	 * Requires a date to be open before a business operation proceeds.
+	 *
+	 * @param string $date Business date in YYYY-MM-DD format.
+	 * @return array Business-date status.
+	 * @throws Exception When the selected date is closed.
+	 */
 	public static function assert_business_day( $date ) {
 		$status = self::status( $date );
 		if ( 'CLOSED' === $status['status'] ) {
-			throw new Exception( 'The selected business date is closed by the Business Calendar: ' . $status['label'] . '.' );
+			throw new Exception( 'The selected business date is closed by the Business Calendar: ' . esc_html( $status['label'] ) . '.' );
 		}
 		return $status;
 	}
 
+	/**
+	 * Returns daily business-calendar status for one calendar month.
+	 *
+	 * @param string $month Calendar month in YYYY-MM format.
+	 * @return array Month, daily statuses and normalized calendar configuration.
+	 * @throws InvalidArgumentException When the month is invalid.
+	 */
 	public static function month( $month ) {
 		$month = (string) $month;
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
@@ -143,6 +201,16 @@ final class Stockland_Business_Calendar {
 		);
 	}
 
+	/**
+	 * Saves a single-date open, closed or reset override through settings audit.
+	 *
+	 * @param string $date Business date in YYYY-MM-DD format.
+	 * @param string $status Requested OPEN, CLOSED or RESET status.
+	 * @param string $label Human-readable exception label.
+	 * @param int    $user_id User responsible for the change.
+	 * @return mixed Settings update result or WP_Error.
+	 * @throws RuntimeException When the saved calendar configuration is invalid.
+	 */
 	public static function save_exception( $date, $status, $label, $user_id ) {
 		if ( ! self::valid_date( $date ) ) {
 			return new WP_Error( 'invalid_date', 'Calendar date must be YYYY-MM-DD.', array( 'status' => 400 ) );
@@ -163,6 +231,14 @@ final class Stockland_Business_Calendar {
 		return Stockland_Settings::update( self::SETTING_KEY, wp_json_encode( self::normalize_config( $cfg ) ), $user_id );
 	}
 
+	/**
+	 * Saves the configured weekly closed days through the settings service.
+	 *
+	 * @param array $days Day numbers from 0 (Sunday) through 6 (Saturday).
+	 * @param int   $user_id User responsible for the change.
+	 * @return mixed Settings update result or WP_Error.
+	 * @throws RuntimeException When the saved calendar configuration is invalid.
+	 */
 	public static function save_weekends( $days, $user_id ) {
 		$cfg                 = self::config();
 		$cfg['weekend_days'] = array_values( array_unique( array_map( 'intval', (array) $days ) ) );

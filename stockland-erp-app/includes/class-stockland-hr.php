@@ -1,4 +1,10 @@
 <?php
+/**
+ * Protected HR schema and payroll data-layer services.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -13,6 +19,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Stockland_HR {
 	const DB_VERSION = STOCKLAND_HR_SCHEMA_VERSION;
 
+	/**
+	 * Returns the fixed application table keys owned by the HR component.
+	 *
+	 * @return array<string> HR/payroll table keys.
+	 */
 	public static function table_keys() {
 		return array( 'employees', 'employee_compensation', 'payroll_periods', 'payroll_lines' );
 	}
@@ -62,7 +73,7 @@ class Stockland_HR {
 		foreach ( self::required_columns() as $key => $columns ) {
 			$table            = $prefix . $key;
 			$wpdb->last_error = '';
-			$exists           = $wpdb->get_var(
+			$exists           = Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 					DB_NAME,
@@ -75,7 +86,7 @@ class Stockland_HR {
 			if ( ! $exists ) {
 				continue; }
 			$wpdb->last_error = '';
-			$known            = $wpdb->get_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
+			$known            = Stockland_DB::read_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
 			if ( ! empty( $wpdb->last_error ) || ! is_array( $known ) ) {
 				$gaps[] = $key . '.__columns_metadata_query_failed__';
 				continue; }
@@ -87,7 +98,13 @@ class Stockland_HR {
 		return $gaps;
 	}
 
-	/** Apply missing columns to one HR table per protected setup batch (or all tables for manual repair). */
+	/**
+	 * Applies allow-listed missing columns during protected schema repair.
+	 *
+	 * @param int $limit_tables Maximum tables to migrate in this request; zero means all.
+	 * @return array Migration counts, errors and remaining schema gaps.
+	 * @throws RuntimeException When table metadata or a required migration fails.
+	 */
 	private static function upgrade_columns( $limit_tables = 0 ) {
 		global $wpdb;
 		$prefix    = $wpdb->prefix . 'stock_';
@@ -96,7 +113,7 @@ class Stockland_HR {
 		foreach ( self::required_columns() as $key => $columns ) {
 			$table            = $prefix . $key;
 			$wpdb->last_error = '';
-			$exists           = $wpdb->get_var(
+			$exists           = Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 					DB_NAME,
@@ -104,13 +121,13 @@ class Stockland_HR {
 				)
 			);
 			if ( ! empty( $wpdb->last_error ) ) {
-				throw new RuntimeException( 'Could not inspect HR table metadata for ' . $key . ': ' . $wpdb->last_error ); }
+				throw new RuntimeException( 'Could not inspect HR table metadata for ' . esc_html( $key ) . '.' ); }
 			if ( ! $exists ) {
 				continue; }
 			$wpdb->last_error = '';
-			$known            = $wpdb->get_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
+			$known            = Stockland_DB::read_col( 'SHOW COLUMNS FROM `' . esc_sql( $table ) . '`', 0 );
 			if ( ! empty( $wpdb->last_error ) || ! is_array( $known ) ) {
-				throw new RuntimeException( 'Could not inspect HR columns for ' . $key . ': ' . ( $wpdb->last_error ? $wpdb->last_error : 'metadata query failed' ) ); }
+				throw new RuntimeException( 'Could not inspect HR columns for ' . esc_html( $key ) . ': metadata query failed.' ); }
 			$missing = array_diff_key( $columns, array_flip( $known ) );
 			if ( ! $missing ) {
 				continue; }
@@ -122,11 +139,12 @@ class Stockland_HR {
 				$alter_parts[] = 'ADD COLUMN `' . esc_sql( $name ) . '` ' . $definition;
 			}
 			$wpdb->last_error = '';
-			$result           = $wpdb->query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- DDL column definitions and AFTER clauses come only from required_columns()' fixed internal allowlist; SQL structure cannot be bound as a data value.
+			$result = Stockland_DB::execute_query( 'ALTER TABLE `' . esc_sql( $table ) . '` ' . implode( ', ', $alter_parts ) );
 			if ( false === $result || ! empty( $wpdb->last_error ) ) {
-				$message  = $wpdb->last_error ? $wpdb->last_error : 'ALTER TABLE failed';
+				$message  = 'ALTER TABLE failed';
 				$errors[] = $key . ': ' . $message;
-				throw new RuntimeException( 'HR schema migration failed for ' . $key . ': ' . $message );
+				throw new RuntimeException( 'HR schema migration failed for ' . esc_html( $key ) . ': ' . esc_html( $message ) . '.' );
 			}
 			++$processed;
 			if ( $limit_tables > 0 && $processed >= $limit_tables ) {
@@ -139,10 +157,15 @@ class Stockland_HR {
 		);
 	}
 
+	/**
+	 * Returns required HR/payroll tables that are not physically present.
+	 *
+	 * @return array<string> Missing HR/payroll table keys.
+	 */
 	public static function missing_tables() {
 		global $wpdb;
 		$prefix     = $wpdb->prefix . 'stock_';
-		$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+		$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
 			if ( strpos( $table, $prefix ) === 0 ) {
@@ -152,6 +175,11 @@ class Stockland_HR {
 		return array_values( array_diff( self::table_keys(), $found_keys ) );
 	}
 
+	/**
+	 * Runs a protected, bounded HR schema install/repair when authorized.
+	 *
+	 * @return void
+	 */
 	public static function maybe_install() {
 		// Schema installation is never a public/front-end operation. It is an
 		// Owner/Administrator setup/repair action, matching the shared-hosting model.
@@ -184,11 +212,18 @@ class Stockland_HR {
 				false
 			);
 			set_transient( 'stockland_hr_repair_backoff', 1, 30 );
-			error_log( 'Stockland HR install error: ' . $e->getMessage() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland HR install error: ' . $e->getMessage() );
 		}
 		delete_transient( $lock_key );
 	}
 
+	/**
+	 * Creates the fixed HR/payroll tables and applies add-only column migrations.
+	 *
+	 * @param int $batch_size Number of tables to create in a bounded setup batch; zero means all.
+	 * @return array Installation status and remaining schema gaps.
+	 * @throws RuntimeException When required HR tables or columns cannot be verified.
+	 */
 	public static function install( $batch_size = 0 ) {
 		$batch_size = max( 0, (int) $batch_size );
 		global $wpdb;
@@ -323,20 +358,19 @@ class Stockland_HR {
 				$table_key = preg_replace( '/^' . preg_quote( $p . 'stock_', '/' ) . '/', '', $full );}
 			$wpdb->last_error = '';
 			$direct_sql       = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
-			$result           = $wpdb->query( $direct_sql );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- CREATE TABLE is generated from the fixed internal HR schema definition array; complete DDL cannot be passed as a data placeholder.
+			$result = Stockland_DB::execute_query( $direct_sql );
 			if ( false === $result ) {
-				$msg = 'HR table ' . ( $table_key ? $table_key : 'unknown' ) . ' could not be created';
-				if ( ! empty( $wpdb->last_error ) ) {
-					$msg .= ': ' . $wpdb->last_error;
-				}throw new RuntimeException( $msg );}
-			$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
+				throw new RuntimeException( 'HR table creation failed.' );
+			}
+			$exists = (bool) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s', DB_NAME, $p . 'stock_' . $table_key ) );
 			if ( ! $table_key || ! $exists ) {
-				throw new RuntimeException( 'HR table ' . ( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
+				throw new RuntimeException( 'HR table ' . esc_html( $table_key ? $table_key : 'unknown' ) . ' was not physically verified after CREATE TABLE.' );
 			}
 		}
 		$required   = self::table_keys();
 		$prefix     = $p . 'stock_';
-		$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+		$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 		$found_keys = array();
 		foreach ( (array) $found as $table ) {
 			if ( strpos( $table, $prefix ) === 0 ) {
@@ -354,12 +388,13 @@ class Stockland_HR {
 					continue;
 				}$fallback        = preg_replace( '/^\s*CREATE TABLE\s+/i', 'CREATE TABLE IF NOT EXISTS ', $sql, 1 );
 				$wpdb->last_error = '';
-				$wpdb->query( $fallback );
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $fallback is generated from the fixed internal CREATE TABLE DDL list and is used only for a missing allow-listed table.
+				Stockland_DB::execute_query( $fallback );
 				if ( ! empty( $wpdb->last_error ) ) {
-					throw new RuntimeException( 'HR table ' . $key . ' could not be created: ' . $wpdb->last_error );
+					throw new RuntimeException( 'HR table ' . esc_html( $key ) . ' could not be created.' );
 				}
 			}
-			$found      = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
+			$found      = Stockland_DB::read_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $prefix ) . '%' ) );
 			$found_keys = array();
 			foreach ( (array) $found as $table ) {
 				if ( strpos( $table, $prefix ) === 0 ) {
@@ -376,7 +411,7 @@ class Stockland_HR {
 					'upgrade_gaps'    => self::upgrade_gaps(),
 				);
 			}
-			throw new RuntimeException( 'HR schema is incomplete: ' . implode( ', ', $missing ) );
+			throw new RuntimeException( 'HR schema is incomplete: ' . esc_html( implode( ', ', $missing ) ) . '.' );
 		}
 		$migration = self::upgrade_columns( $batch_size > 0 ? 1 : 0 );
 		$gaps      = self::upgrade_gaps();
@@ -390,7 +425,7 @@ class Stockland_HR {
 					'migration'       => $migration,
 				);
 			}
-			throw new RuntimeException( 'HR schema columns are incomplete: ' . implode( ', ', $gaps ) );
+			throw new RuntimeException( 'HR schema columns are incomplete: ' . esc_html( implode( ', ', $gaps ) ) . '.' );
 		}
 		update_option( 'stockland_hr_schema_version', self::DB_VERSION, false );
 		update_option( 'stockland_hr_db_version', self::DB_VERSION, false );

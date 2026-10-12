@@ -1,4 +1,16 @@
 <?php
+/**
+ * REST controller source for Stockland ERP operational workflows.
+ *
+ * @package Stockland_ERP
+ */
+
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
+/**
+ * Management dashboard and read-only business reporting endpoints.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -9,13 +21,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  * sales, and returns tables — nothing is stored, exactly like the
  * original sheets being 100% formula cells. Requires
  * stockland_view_cost_and_profit (Management/Auditor only).
+ *
+ * @package Stockland_ERP
  */
 class Stockland_REST_Reports extends Stockland_REST_Base {
 
+	/**
+	 * Registers the dashboard report REST route.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers the management dashboard reporting endpoint.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -29,6 +53,12 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Computes company/branch reporting values from authoritative ERP records.
+	 *
+	 * @param WP_REST_Request $request REST request with report scope filters.
+	 * @return mixed REST response containing dashboard metrics or a WP_Error.
+	 */
 	public function get_dashboard( WP_REST_Request $request ) {
 		global $wpdb;
 		$locations    = Stockland_DB::table( 'locations' );
@@ -36,7 +66,7 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 		$sales        = Stockland_DB::table( 'sales' );
 		$wholesale    = Stockland_DB::table( 'wholesale_sales' );
 
-		$stock_by_location = $wpdb->get_results(
+		$stock_by_location = Stockland_DB::read_results(
 			$wpdb->prepare(
 				"SELECT l.location_name, COALESCE(SUM(b.physical_stock), 0) AS current_stock
              FROM %i l
@@ -49,7 +79,7 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 			ARRAY_A
 		);
 
-		$retail_totals = $wpdb->get_row(
+		$retail_totals = Stockland_DB::read_row(
 			$wpdb->prepare(
 				"SELECT COALESCE(SUM(sales_total),0) AS revenue,
                     COALESCE(SUM(net_sales_excl_vat),0) AS net_sales,
@@ -62,7 +92,7 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 			ARRAY_A
 		);
 
-		$wholesale_totals = $wpdb->get_row(
+		$wholesale_totals = Stockland_DB::read_row(
 			$wpdb->prepare(
 				'SELECT COALESCE(SUM(sales_value),0) AS revenue,
                     COALESCE(SUM(net_sales_excl_vat),0) AS net_sales,
@@ -75,7 +105,7 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 			ARRAY_A
 		);
 
-		$inventory_value = $wpdb->get_var(
+		$inventory_value = Stockland_DB::read_var(
 			$wpdb->prepare(
 				'SELECT COALESCE(SUM(b.physical_stock*p.purchase_cost),0)
              FROM (SELECT location_id,variant_id,SUM(quantity_signed) physical_stock FROM %i WHERE variant_id IS NOT NULL GROUP BY location_id,variant_id) b
@@ -85,7 +115,7 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 			)
 		);
 
-		$reorder_count = $wpdb->get_var(
+		$reorder_count = Stockland_DB::read_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM (
                 SELECT p.sku FROM %i p
@@ -114,3 +144,5 @@ class Stockland_REST_Reports extends Stockland_REST_Base {
 		);
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.

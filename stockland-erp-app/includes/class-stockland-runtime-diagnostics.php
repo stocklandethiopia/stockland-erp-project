@@ -18,7 +18,11 @@ final class Stockland_Runtime_Diagnostics {
 	const OPTION   = 'stockland_runtime_fatal_v1';
 	const MAX_TEXT = 1200;
 
-	/** Current lifecycle stage used to contextualize fatal diagnostics. */
+	/**
+	 * Lifecycle stage used to contextualize any captured fatal diagnostic.
+	 *
+	 * @var string
+	 */
 	private static $stage = 'plugin_boot';
 
 	/** Register the shutdown handler that captures fatal PHP errors. */
@@ -35,6 +39,25 @@ final class Stockland_Runtime_Diagnostics {
 		$name        = sanitize_key( (string) $name );
 		self::$stage = substr( '' !== $name ? $name : 'unknown', 0, 80 );
 	}
+	/**
+	 * Writes a redacted diagnostic to the PHP error log only when debugging is enabled.
+	 *
+	 * Production error context is retained through the protected diagnostic option;
+	 * forced logging is reserved for the case where that persistence itself fails.
+	 *
+	 * @param string $message Redacted diagnostic message.
+	 * @param bool   $force Log even when WP_DEBUG is disabled because persistence failed.
+	 * @return void
+	 */
+	public static function log_error( $message, $force = false ) {
+		if ( ! $force && ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) ) {
+			return;
+		}
+		$message = self::clean( (string) $message, self::MAX_TEXT );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- This single gateway is deliberately gated by WP_DEBUG, or forced only when diagnostic persistence fails.
+		error_log( 'Stockland ERP: ' . $message );
+	}
+
 	/** Capture the last fatal PHP error and persist its redacted metadata.
 	 *
 	 * @return void
@@ -77,7 +100,7 @@ final class Stockland_Runtime_Diagnostics {
 			// The shutdown logger below is the fallback when the option write fails.
 			$persistence_failed = true;
 		}
-		error_log( 'Stockland ERP FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri . ' persistence_failed=' . ( $persistence_failed ? 'yes' : 'no' ) );
+		self::log_error( 'FATAL [' . $entry['reference'] . '] ' . $message . ' @ ' . $file . ':' . $line . ' stage=' . self::$stage . ' uri=' . $uri . ' persistence_failed=' . ( $persistence_failed ? 'yes' : 'no' ), $persistence_failed );
 	}
 	/** Retrieve the last fatal diagnostic after redacting legacy request data.
 	 *
@@ -140,7 +163,7 @@ final class Stockland_Runtime_Diagnostics {
 		);
 		if ( $wpdb ) {
 			try {
-				$e['db_select_ok'] = ( (string) $wpdb->get_var( 'SELECT 1' ) === '1' );
+				$e['db_select_ok'] = ( (string) Stockland_DB::read_var( 'SELECT 1' ) === '1' );
 			} catch ( Throwable $x ) {
 				// Fail closed: the database probe remains false when the query throws.
 				$e['db_select_ok'] = false;

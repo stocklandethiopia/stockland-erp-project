@@ -1,4 +1,10 @@
 <?php
+/**
+ * Dedicated standalone ERP shell template.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }

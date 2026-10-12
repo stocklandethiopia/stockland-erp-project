@@ -15,20 +15,26 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @package Stockland_ERP
  */
 class Stockland_Ledger {
-	/** Begin an atomic unit; use a savepoint when called inside a caller-owned transaction. */
+	/**
+	 * Begins an atomic unit or creates a savepoint inside a caller-owned transaction.
+	 *
+	 * @param bool   &$owns_transaction Set true when this method opens the transaction.
+	 * @param string &$savepoint Set to the savepoint name for nested units.
+	 * @return bool Whether the transaction or savepoint was started successfully.
+	 */
 	private static function begin_unit_of_work( &$owns_transaction, &$savepoint ) {
 		global $wpdb;
-		$state = $wpdb->get_var( 'SELECT @@session.in_transaction' );
+		$state = Stockland_DB::read_var( 'SELECT @@session.in_transaction' );
 		if ( null === $state ) {
 			return false; // Unknown transaction state is unsafe; fail closed.
 		}
 		$owns_transaction = ( 0 === (int) $state );
 		$savepoint        = '';
 		if ( $owns_transaction ) {
-			return false !== $wpdb->query( 'START TRANSACTION' );
+			return false !== Stockland_DB::execute_query( 'START TRANSACTION' );
 		}
 		$savepoint = 'sl_ledger_' . wp_rand( 100000, 999999 );
-		return false !== $wpdb->query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
+		return false !== Stockland_DB::execute_query( $wpdb->prepare( 'SAVEPOINT %i', $savepoint ) );
 	}
 	/**
 	 * Roll back the owned transaction or restore the caller's savepoint.
@@ -40,11 +46,11 @@ class Stockland_Ledger {
 	private static function rollback_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
 		if ( $owns_transaction ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return;}
 		if ( '' !== $savepoint ) {
-			$wpdb->query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
-			$wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
+			Stockland_DB::execute_query( $wpdb->prepare( 'ROLLBACK TO SAVEPOINT %i', $savepoint ) );
+			Stockland_DB::execute_query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );}
 	}
 	/**
 	 * Commit the owned transaction or release a nested savepoint.
@@ -55,7 +61,7 @@ class Stockland_Ledger {
 	 */
 	private static function commit_unit_of_work( $owns_transaction, $savepoint ) {
 		global $wpdb;
-		$ok = $owns_transaction ? $wpdb->query( 'COMMIT' ) : $wpdb->query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
+		$ok = $owns_transaction ? Stockland_DB::execute_query( 'COMMIT' ) : Stockland_DB::execute_query( $wpdb->prepare( 'RELEASE SAVEPOINT %i', $savepoint ) );
 		if ( false !== $ok ) {
 			return true;
 		}
@@ -75,6 +81,7 @@ class Stockland_Ledger {
 	 * @param int|null   $created_by User responsible for the movement.
 	 * @param string     $source_line_id Stable source-line idempotency key.
 	 * @return int|false Ledger identifier, or false when the movement cannot be committed.
+	 * @throws RuntimeException When an invariant prevents the ledger operation from completing.
 	 */
 	public static function record( $location_id, $sku, $movement_type, $quantity_signed, $reference_type, $reference_id, $transaction_date, $created_by = null, $source_line_id = '' ) {
 		global $wpdb;
@@ -90,7 +97,7 @@ class Stockland_Ledger {
 			return false;
 		}
 		try {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,sku,variant_id,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1 FOR UPDATE', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
+			$existing = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_id,sku,variant_id,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1 FOR UPDATE', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				throw new RuntimeException( 'Ledger idempotency lookup failed.' );
 			}
@@ -105,7 +112,7 @@ class Stockland_Ledger {
 			if ( ! $product || empty( $product['variant_id'] ) ) {
 				throw new RuntimeException( 'The SKU has no active Product Master variant.' );
 			}
-			$ok = $wpdb->insert(
+			$ok = Stockland_DB::insert_record(
 				$table,
 				array(
 					'location_id'      => (int) $location_id,
@@ -124,7 +131,7 @@ class Stockland_Ledger {
 				)
 			);
 			if ( false === $ok ) {
-				$duplicate = $wpdb->get_row( $wpdb->prepare( 'SELECT id,location_id,sku,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
+				$duplicate = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_id,sku,quantity_signed FROM %i WHERE reference_type=%s AND reference_id=%s AND source_line_id=%s AND movement_type=%s LIMIT 1', $table, $reference_type, $reference_id, $source_line_id, $movement_type ), ARRAY_A );
 				if ( $wpdb->last_error || ! $duplicate || (int) $duplicate['location_id'] !== (int) $location_id || (string) $duplicate['sku'] !== (string) $sku || abs( (float) $duplicate['quantity_signed'] - (float) $quantity_signed ) >= 0.00001 ) {
 					throw new RuntimeException( 'Conflicting ledger idempotency key.' );
 				}
@@ -135,7 +142,7 @@ class Stockland_Ledger {
 			}
 			$balances = Stockland_DB::table( 'balances' );
 			if ( Stockland_DB::table_exists( $balances ) ) {
-				$balance_ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
+				$balance_ok = Stockland_DB::execute_query( $wpdb->prepare( 'INSERT INTO %i (location_id,variant_id,sku,physical_qty) VALUES (%d,%d,%s,%f) ON DUPLICATE KEY UPDATE sku=VALUES(sku), physical_qty=physical_qty+VALUES(physical_qty), updated_at=CURRENT_TIMESTAMP', $balances, (int) $location_id, (int) $product['variant_id'], $sku, (float) $quantity_signed ) );
 				if ( false === $balance_ok ) {
 					throw new RuntimeException( 'Stock balance update failed: ' . ( $wpdb->last_error ? $wpdb->last_error : 'unknown database error' ) );
 				}
@@ -155,6 +162,7 @@ class Stockland_Ledger {
 	 * @param int         $variant_id Product variant identifier.
 	 * @param string|null $new_sku Replacement SKU to persist in derived balances, if any.
 	 * @return bool True when the derived balances are rebuilt successfully.
+	 * @throws RuntimeException When a ledger invariant prevents the derived balance rebuild.
 	 */
 	public static function rebuild_balance_for_variant( $variant_id, $new_sku = null ) {
 		global $wpdb;
@@ -178,15 +186,15 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Cannot rebuild balance: Product Master variant not found.' );
 			}
 			$sku  = null !== $new_sku ? (string) $new_sku : (string) $product['sku'];
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM %i WHERE variant_id=%d GROUP BY location_id', $tx, $variant_id ), ARRAY_A );
+			$rows = Stockland_DB::read_results( $wpdb->prepare( 'SELECT location_id,COALESCE(SUM(quantity_signed),0) qty FROM %i WHERE variant_id=%d GROUP BY location_id', $tx, $variant_id ), ARRAY_A );
 			if ( $wpdb->last_error || ! is_array( $rows ) ) {
 				throw new RuntimeException( 'Could not read ledger rows for balance rebuild.' );
 			}
-			if ( false === $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE variant_id=%d', $bal, $variant_id ) ) ) {
+			if ( false === Stockland_DB::execute_query( $wpdb->prepare( 'DELETE FROM %i WHERE variant_id=%d', $bal, $variant_id ) ) ) {
 				throw new RuntimeException( 'Could not clear derived balance rows.' );
 			}
 			foreach ( $rows as $row ) {
-				if ( false === $wpdb->insert(
+				if ( false === Stockland_DB::insert_record(
 					$bal,
 					array(
 						'location_id'  => (int) $row['location_id'],
@@ -212,6 +220,7 @@ class Stockland_Ledger {
 	 * @param int    $location_id Operational location identifier.
 	 * @param string $sku Product Master SKU.
 	 * @return bool True when the derived balance is rebuilt successfully.
+	 * @throws RuntimeException When a ledger invariant prevents the derived balance rebuild.
 	 */
 	public static function rebuild_balance( $location_id, $sku ) {
 		global $wpdb;
@@ -231,11 +240,11 @@ class Stockland_Ledger {
 				throw new RuntimeException( 'Cannot rebuild balance without a valid Product Master variant.' );
 			}
 			$vid = (int) $product['variant_id'];
-			$qty = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND variant_id=%d', $tx, (int) $location_id, $vid ) );
+			$qty = Stockland_DB::read_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND variant_id=%d', $tx, (int) $location_id, $vid ) );
 			if ( null === $qty || $wpdb->last_error ) {
 				throw new RuntimeException( 'Could not read inventory ledger total.' );
 			}
-			if ( false === $wpdb->delete(
+			if ( false === Stockland_DB::delete_record(
 				$bal,
 				array(
 					'location_id' => (int) $location_id,
@@ -244,7 +253,7 @@ class Stockland_Ledger {
 			) ) {
 				throw new RuntimeException( 'Could not clear derived balance.' );
 			}
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				$bal,
 				array(
 					'location_id'  => (int) $location_id,
@@ -290,6 +299,7 @@ class Stockland_Ledger {
 	 * @param array $transfer Completed transfer record.
 	 * @param int   $user_id User responsible for posting.
 	 * @return int|false Inbound movement identifier, or false when either leg fails.
+	 * @throws RuntimeException When a ledger invariant prevents the transfer movements from completing.
 	 */
 	public static function post_transfer_completed( $transfer, $user_id ) {
 		$t                   = $transfer;

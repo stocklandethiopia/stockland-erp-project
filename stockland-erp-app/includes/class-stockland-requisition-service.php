@@ -1,9 +1,23 @@
 <?php
+/**
+ * Branch-scoped requisition creation and availability services.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 /** Canonical requisition creation service shared by the canonical v16 production endpoint. */
 class Stockland_Requisition_Service {
+	/**
+	 * Creates a branch-scoped requisition and records its audit event atomically.
+	 *
+	 * @param array $payload Sanitized requisition header and item payload.
+	 * @param int   $user_id WordPress user identifier of the requester.
+	 * @return mixed REST response or WP_Error describing validation/persistence failure.
+	 * @throws Exception When a requisition row, item or audit event cannot be persisted.
+	 */
 	public static function create( $payload, $user_id ) {
 		$user_id = (int) $user_id;
 		$profile = Stockland_Roles::get_profile( $user_id );
@@ -41,13 +55,13 @@ class Stockland_Requisition_Service {
 		if ( empty( $clean ) ) {
 			return new WP_Error( 'invalid', 'At least one valid requisition item is required.', array( 'status' => 400 ) );
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start requisition transaction.', array( 'status' => 500 ) );
 		}
 		$id = null;
 		try {
 			$id = Stockland_Sequence::next( 'REQ-', current_time( 'Y-m-d' ) );
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'requisitions' ),
 				array(
 					'requisition_id'     => $id,
@@ -60,7 +74,7 @@ class Stockland_Requisition_Service {
 			) ) {
 				throw new Exception( 'Could not create requisition.' );}
 			foreach ( $clean as $it ) {
-				if ( false === $wpdb->insert(
+				if ( false === Stockland_DB::insert_record(
 					Stockland_DB::table( 'requisition_items' ),
 					array(
 						'requisition_id'      => $id,
@@ -78,7 +92,7 @@ class Stockland_Requisition_Service {
 			if ( ! Stockland_Audit::log( $user_id, $branch, 'REQUISITION_CREATE', null, null, null, $id, null, $id, $user_id ) ) {
 				throw new Exception( 'Audit event could not be recorded; requisition was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Requisition create commit failed.' );
 			}
 			$role = Stockland_Authority::role( $user_id );
@@ -93,9 +107,15 @@ class Stockland_Requisition_Service {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'requisition_create_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
+	/**
+	 * Returns a current availability snapshot for the requested requisition items.
+	 *
+	 * @param array $items Validated SKU, variant and quantity rows.
+	 * @return array Availability rows for the requested items.
+	 */
 	public static function availability_snapshot( $items ) {
 		global $wpdb;
 		$wh  = (int) Stockland_DB::get_location_id( 'Central Warehouse' );

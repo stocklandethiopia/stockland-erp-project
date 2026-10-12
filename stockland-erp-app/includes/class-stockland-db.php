@@ -30,6 +30,192 @@ class Stockland_DB {
 		return $wpdb->prefix . 'stock_' . $name;
 	}
 
+
+	/**
+	 * Reads one scalar value through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 * The custom inventory, ledger, permission and payroll tables are transactional
+	 * sources of truth; WordPress object caching is not transaction-aware and must
+	 * not serve potentially stale values after a stock or financial write.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param int         $x Zero-based result column.
+	 * @param int         $y Zero-based result row.
+	 * @return mixed Scalar query result or null.
+	 */
+	public static function read_var( $query = null, $x = 0, $y = 0 ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Central gateway accepts already-prepared or constant SQL. Preparing twice would break identifier placeholders and values.
+		return $wpdb->get_var( $query, $x, $y );
+	}
+
+	/**
+	 * Reads rows through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param string      $output Output shape supported by wpdb, such as ARRAY_A.
+	 * @return mixed Query rows in the requested wpdb output shape.
+	 */
+	public static function read_results( $query = null, $output = OBJECT ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Executes caller-prepared relational queries without a stale cache or a second prepare pass.
+		return $wpdb->get_results( $query, $output );
+	}
+
+	/**
+	 * Reads one row through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param string      $output Output shape supported by wpdb, such as ARRAY_A.
+	 * @param int         $y Zero-based result row.
+	 * @return mixed Single result row in the requested wpdb output shape.
+	 */
+	public static function read_row( $query = null, $output = OBJECT, $y = 0 ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Preserves caller-prepared permission, ledger and workflow queries without a second prepare pass.
+		return $wpdb->get_row( $query, $output, $y );
+	}
+
+	/**
+	 * Reads one result column through the ERP's uncached SQL gateway.
+	 *
+	 * Only constant SQL or SQL produced through wpdb::prepare() should be passed.
+	 *
+	 * @param string|null $query Static or prepared SQL query.
+	 * @param int         $x Zero-based result column.
+	 * @return array Query values from the selected column.
+	 */
+	public static function read_col( $query = null, $x = 0 ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Executes caller-prepared metadata and operational queries without a second prepare pass.
+		return $wpdb->get_col( $query, $x );
+	}
+
+
+
+	/**
+	 * Inserts one row into an ERP or supporting application table.
+	 *
+	 * Values and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $data Column values keyed by column name.
+	 * @param array|null $format Optional wpdb value formats.
+	 * @return int|false Insert ID or false on error.
+	 */
+	public static function insert_record( $table, $data, $format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's insert() prepares values for custom ERP tables; writes must remain transaction-current.
+		return $wpdb->insert( $table, $data, $format );
+	}
+
+	/**
+	 * Updates rows in an ERP or supporting application table.
+	 *
+	 * Values and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $data Column values keyed by column name.
+	 * @param array      $where Row-selection criteria keyed by column name.
+	 * @param array|null $format Optional value formats.
+	 * @param array|null $where_format Optional WHERE value formats.
+	 * @return int|false Number of affected rows, or false on error.
+	 */
+	public static function update_record( $table, $data, $where, $format = null, $where_format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's update() prepares values for custom ERP tables; writes must remain transaction-current.
+		return $wpdb->update( $table, $data, $where, $format, $where_format );
+	}
+
+	/**
+	 * Deletes rows from an ERP or supporting application table.
+	 *
+	 * Criteria and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $where Row-selection criteria keyed by column name.
+	 * @param array|null $where_format Optional WHERE value formats.
+	 * @return int|false Number of affected rows, or false on error.
+	 */
+	public static function delete_record( $table, $where, $where_format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's delete() prepares values for custom ERP tables; writes must remain transaction-current.
+		return $wpdb->delete( $table, $where, $where_format );
+	}
+
+	/**
+	 * Replaces one row in an ERP or supporting application table.
+	 *
+	 * Values and formats are delegated unchanged to wpdb's prepared CRUD API.
+	 *
+	 * @param string     $table Fully prefixed table name.
+	 * @param array      $data Column values keyed by column name.
+	 * @param array|null $format Optional wpdb value formats.
+	 * @return int|false Insert ID or false on error.
+	 */
+	public static function replace_record( $table, $data, $format = null ) {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- wpdb's replace() prepares values for custom ERP tables; writes must remain transaction-current.
+		return $wpdb->replace( $table, $data, $format );
+	}
+
+	/**
+	 * Executes uncached SQL for live ERP transactional data and transaction control.
+	 *
+	 * Queries must be constant SQL or SQL produced by wpdb::prepare(). Schema-changing
+	 * statements are routed to schema_query(), which accepts only DDL targeting a
+	 * table inside the plugin-owned Stockland table namespace.
+	 *
+	 * @param string $query Static or prepared SQL statement.
+	 * @return int|bool Number of affected rows or false on query failure.
+	 */
+	public static function execute_query( $query ) {
+		global $wpdb;
+		$sql = ltrim( (string) $query );
+		if ( preg_match( '/^(ALTER|CREATE|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i', $sql ) ) {
+			return self::schema_query( $query );
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Executes caller-prepared DML/transaction statements or fixed SQL; preparing again would change semantics.
+		return $wpdb->query( $query );
+	}
+
+	/**
+	 * Executes DDL only against tables inside the plugin-owned Stockland namespace.
+	 *
+	 * The source migration routines still own the column/index definition allowlists;
+	 * this boundary additionally prevents accidental schema changes to WordPress core
+	 * or unrelated plugin tables.
+	 *
+	 * @param string $query Fixed-schema DDL statement with a prefixed table identifier.
+	 * @return int|bool Database result, or false when the DDL/table is outside policy.
+	 */
+	private static function schema_query( $query ) {
+		global $wpdb;
+		$sql      = ltrim( (string) $query );
+		$target   = '';
+		$patterns = array(
+			'/^ALTER\s+TABLE\s+`?([A-Za-z0-9_]+)`?/i',
+			'/^CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+`?([A-Za-z0-9_]+)`?/i',
+			'/^DROP\s+TABLE(?:\s+IF\s+EXISTS)?\s+`?([A-Za-z0-9_]+)`?/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			if ( preg_match( $pattern, $sql, $matches ) ) {
+				$target = $matches[1];
+				break;
+			}
+		}
+		if ( '' === $target || 0 !== strpos( $target, $wpdb->prefix . 'stock_' ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Central fail-closed DDL gateway for caller-prepared fixed migrations; SQL structure cannot be value-bound, and only the prefixed Stockland namespace is allowed.
+		return $wpdb->query( $query );
+	}
+
 	/**
 	 * Looks up the database ID for a Stockland location name.
 	 *
@@ -39,7 +225,7 @@ class Stockland_DB {
 	public static function get_location_id( $location_name ) {
 		global $wpdb;
 		$table = self::table( 'locations' );
-		return $wpdb->get_var(
+		return self::read_var(
 			$wpdb->prepare(
 				'SELECT id FROM %i WHERE location_name = %s',
 				$table,
@@ -52,20 +238,20 @@ class Stockland_DB {
 	 * Reads a centrally stored ERP setting and returns the supplied default when it is absent.
 	 *
 	 * @param string $key Setting key or advisory-lock key.
-	 * @param mixed  $default Value returned if the setting is absent.
+	 * @param mixed  $fallback Value returned if the setting is absent.
 	 * @return mixed The stored setting value or supplied default.
 	 */
-	public static function get_setting( $key, $default = null ) {
+	public static function get_setting( $key, $fallback = null ) {
 		global $wpdb;
 		$table = self::table( 'settings' );
-		$value = $wpdb->get_var(
+		$value = self::read_var(
 			$wpdb->prepare(
 				'SELECT setting_value FROM %i WHERE setting_key = %s',
 				$table,
 				$key
 			)
 		);
-		return null !== $value ? $value : $default;
+		return null !== $value ? $value : $fallback;
 	}
 
 	/** Current VAT rate, e.g. 0.15. Centrally controlled — never sent by the client. */
@@ -90,7 +276,7 @@ class Stockland_DB {
 	public static function get_product( $sku ) {
 		global $wpdb;
 		$table = self::table( 'products' );
-		return $wpdb->get_row(
+		return self::read_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE sku = %s AND is_active = 1',
 				$table,
@@ -108,7 +294,7 @@ class Stockland_DB {
 	 */
 	public static function table_exists( $table_name ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var(
+		return (bool) self::read_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 				DB_NAME,
@@ -138,7 +324,7 @@ class Stockland_DB {
 
 		$maps = self::table( 'product_code_maps' );
 		if ( self::table_exists( $maps ) ) {
-			$mapped = $wpdb->get_var(
+			$mapped = self::read_var(
 				$wpdb->prepare(
 					'SELECT live_sku FROM %i WHERE source_system=%s AND external_code=%s AND is_active=1
                  AND (effective_from IS NULL OR effective_from<=%s)
@@ -185,7 +371,7 @@ class Stockland_DB {
 		$tx      = self::table( 'transactions' );
 		$product = self::get_product( $sku );
 		if ( $product && ! empty( $product['variant_id'] ) ) {
-			return (float) $wpdb->get_var(
+			return (float) self::read_var(
 				$wpdb->prepare(
 					'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))',
 					$tx,
@@ -195,7 +381,7 @@ class Stockland_DB {
 				)
 			);
 		}
-		return (float) $wpdb->get_var(
+		return (float) self::read_var(
 			$wpdb->prepare(
 				'SELECT COALESCE(SUM(quantity_signed),0) FROM %i WHERE location_id=%d AND sku=%s',
 				$tx,
@@ -214,7 +400,7 @@ class Stockland_DB {
 	public static function is_day_closed( $location_id, $business_date ) {
 		global $wpdb;
 		$table = self::table( 'daily_closings' );
-		if ( (string) $wpdb->get_var(
+		if ( (string) self::read_var(
 			$wpdb->prepare(
 				'SELECT status FROM %i WHERE branch_location_id=%d AND business_date=%s LIMIT 1',
 				$table,
@@ -251,7 +437,7 @@ class Stockland_DB {
 		}
 		// GET_LOCK names are connection-scoped strings; hash keeps them short and stable.
 		$name = 'stockland_' . substr( hash( 'sha256', $raw ), 0, 48 );
-		$got  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, max( 0, (int) $timeout ) ) );
+		$got  = self::read_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, max( 0, (int) $timeout ) ) );
 		return array(
 			'ok'   => ( '1' === (string) $got ),
 			'name' => $name,
@@ -268,7 +454,7 @@ class Stockland_DB {
 	public static function release_named_lock( $lock ) {
 		global $wpdb;
 		if ( is_array( $lock ) && ! empty( $lock['name'] ) ) {
-			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', (string) $lock['name'] ) );
+			self::read_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', (string) $lock['name'] ) );
 		}
 	}
 
@@ -353,7 +539,7 @@ class Stockland_DB {
 			return null;
 		}
 		$table = self::table( 'products' );
-		return $wpdb->get_row(
+		return self::read_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE variant_id=%d AND is_active=1 LIMIT 1',
 				$table,
@@ -376,7 +562,7 @@ class Stockland_DB {
 			return null;
 		}
 		$table = self::table( 'products' );
-		return $wpdb->get_row(
+		return self::read_row(
 			$wpdb->prepare(
 				"SELECT * FROM %i WHERE is_active=1 AND product_type<>'STYLE' AND (barcode=%s OR gtin=%s) LIMIT 1",
 				$table,
@@ -402,7 +588,7 @@ class Stockland_DB {
 		if ( $product && ! empty( $product['variant_id'] ) ) {
 			// Preserve both current variant-linked reservations and legacy SKU-only
 			// reservations. A legacy row must still reduce live availability.
-			$reserved = (float) $wpdb->get_var(
+			$reserved = (float) self::read_var(
 				$wpdb->prepare(
 					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND status='Active' AND (variant_id=%d OR (variant_id IS NULL AND sku=%s))",
 					$res,
@@ -412,7 +598,7 @@ class Stockland_DB {
 				)
 			);
 		} else {
-			$reserved = (float) $wpdb->get_var(
+			$reserved = (float) self::read_var(
 				$wpdb->prepare(
 					"SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE location_id=%d AND sku=%s AND status='Active'",
 					$res,

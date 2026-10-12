@@ -83,8 +83,8 @@
     "phpcs_wpcs_configuration": true,
     "local_regression_tests": true,
     "critical_workflow_qa": true,
-    "phpunit_suite_executed": false,
-    "phpcs_executed": false,
+    "phpunit_suite_executed": true,
+    "phpcs_executed": true,
     "browser_e2e_executed": false,
     "live_database_integration_executed": false,
     "sonarqube_semgrep_owasp_zap_executed": false,
@@ -95,7 +95,7 @@
     "single_guarded_fetch_sink": true,
     "live_certification": false,
     "full_scope_phpcs_profile_prepared": true,
-    "full_scope_phpcs_profile_executed": false,
+    "full_scope_phpcs_profile_executed": true,
     "statutory_payroll_math_qa": true,
     "hr_schema_contract_qa": true,
     "operational_ui_contract_qa_local": true,
@@ -113,7 +113,25 @@
       1440
     ],
     "authenticated_live_browser_e2e_executed": false,
-    "bootstrap_css_upstream_verified": true
+    "bootstrap_css_upstream_verified": true,
+    "phpcs_wpcs_zero_findings": true,
+    "github_actions_source_gate_passed": true,
+    "source_gate_evidence": {
+      "workflow_run_id": 38183176678,
+      "workflow_run_url": "https://github.com/stocklandethiopia/stockland-erp-project/actions/runs/38183176678",
+      "commit": "52a573a764a47ffb319d88ca5467309866f3a51c",
+      "deployable_runtime_php_files_scanned": 47,
+      "phpcs_errors": 0,
+      "phpcs_warnings": 0,
+      "phpcs_fixable_findings": 0,
+      "phpunit_tests": 7,
+      "phpunit_assertions": 13,
+      "critical_workflow_qa_gates": 28,
+      "targeted_remediation_assertions": 29,
+      "external_procurement_assertions": 31,
+      "product_master_search_regression": "PASS",
+      "live_certification": false
+    }
   },
   "live_certification": false,
   "runtime_diagnostics": {
@@ -133,8 +151,10 @@
     "Existing active employee compensation must be explicitly owner-classified after the additive HR migration. Until this is done, payroll_compensation_classification intentionally fails closed.",
     "RETAINER_SERVICE records are kept visible but excluded from employee PAYE/pension generation. Their specific contract/payment and any applicable withholding treatment requires approved finance/legal SOP and separate verification.",
     "No authenticated live database, browser transaction, or production deployment was performed in this build environment. Live health, Product Master, POS import, receiving, payroll, GL and rollback remain staging acceptance items.",
-    "SonarQube/Semgrep/OWASP ZAP, PHPCS/WPCS and Composer-backed PHPUnit outputs are not included as executed scans. Local deterministic QA is not a substitute for external tools.",
-    "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host."
+    "SonarQube, Semgrep and OWASP ZAP were not run in the latest CI workflow. The current source-gate commit passed full-scope PHPCS/WPCS with zero errors and warnings across 47 deployable runtime PHP files, PHPUnit (7 tests / 13 assertions), critical-workflow QA, targeted remediation QA, Product Master search regression and external-procurement static QA. These source checks do not replace live staging acceptance.",
+    "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host.",
+    "Owner purchase-order approval capability sync and canonical profile-role queue changes passed source-level regression gates in GitHub Actions. Authenticated staging test using a Management-submitted Central Warehouse purchase order, independent Owner approval and Warehouse Manager receipt remains required before acceptance.",
+    "User-profile dropdown and Owner approval queue have not been tested in an authenticated live browser. Production certification remains false."
   ],
   "release_candidate_changes": [
     "Restricts detailed system health/runtime REST endpoints to native WordPress administrators and Stockland Owner/Management.",
@@ -151,7 +171,7 @@
     "Excludes RETAINER_SERVICE from employee statutory payroll generation and reports exclusions rather than letting one service-contract record silently contaminate or block employee payroll.",
     "Adds reproducible 30-assertion statutory payroll calculations and HR schema/health-gate contract tests; extends the bundled local QA entry point.",
     "Adds mobile overflow containment for System Health evidence cards and target-schema diagnostics.",
-    "Aligns monthly employment-income schedule application with 2025-07-01 under Proclamation No. 1395/2025; historical posted payroll is not recalculated automatically.",
+    "Corrects the Proclamation No. 1395/2025 employment-income application date to 2025-07-08; July 2025 is held for separately approved split-period treatment, and the monthly calculator begins 2025-08-01. Historical posted payroll is not recalculated automatically.",
     "Adds a six-module deterministic CSS source architecture with one minified local delivery bundle; modernizes the typography, color system, controls and card spacing; makes System Health title non-sticky and mobile report/import tables into labelled cards; keeps existing server-side Daily Inventory, Daily POS staging/release and Product Master no-stock workflow contracts unchanged.",
     "Restores Reports & Analytics render path and menu visibility for report-authorized roles; no new permission is added. Report summary fails closed if a branch-scoped user has no valid assigned location.",
     "Restores two-column dashboard layout for 992px–1399.98px desktop/laptop widths while preserving stacked tablet/mobile layouts.",
@@ -162,15 +182,21 @@
     "16.1.57: manual supplier/customer finance payment requests are Management-prepared, idempotency-key protected and PENDING until Owner decision; row locks, allocation validation, audit and notifications protect posting.",
     "16.1.57: payroll requires Management draft preparation/submission, independent Owner approval with statutory/component evidence and balanced GL posting, then separate Owner payment; notifications follow the transitions.",
     "16.1.57: explicit System Health deep mode includes Stockland_Integrity::scan() SELECT-only reconciliation/orphan checks; SCAN_INCOMPLETE/unknown SQL results fail closed and the health report cannot mark live_ready unless the supplemental scan is clean.",
-    "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest."
+    "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest.",
+    "Latest GitHub Actions source gate passed PHP syntax checks, Composer validation, the production-service coding standard, PHPUnit, ERP static/integrity QA, and full-source PHPCS/WPCS with zero errors and warnings. This is CI/source validation, not live-site certification.",
+    "Corrective Owner PO approval capability marker: an in-place 16.1.57 update now re-synchronizes the canonical role capability map even when the plugin release number is unchanged; no schema or database-version change.",
+    "Purchase-order queue eligibility now resolves creator and approver roles through the same active Stockland ERP profile authority used by status transitions, rather than a separate role-table join.",
+    "Added a keyboard-accessible user-icon dropdown with role-aware Finance & Procurement and Users navigation, SOP guide, appearance settings and sign-out; Owner finance view labels the stock-purchase approval queue explicitly."
   ],
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
-    "rule_version": "ET-PAYE-1395-2025-v1",
+    "rule_version": "ET-PAYE-1395-2025-v2",
+    "law_effective_date": "2025-07-08",
+    "first_full_month": "2025-08-01",
     "tax_schedule": "Monthly ETB bands under income tax amendment schedule; statutory tax classification of each allowance must be decided by authorized employer/payroll adviser",
     "employee_pension_rate": "7%",
     "employer_pension_rate": "11%",
-    "model_period_boundary": "Full calendar months starting 2025-07-01 under Proclamation No. 1395/2025 general application clause for income derived as of July 1, 2025; historical posted payroll is not recalculated",
+    "model_period_boundary": "Full calendar months starting 2025-08-01; the law applies to income derived as of 2025-07-08, so July 2025 requires separately approved split-period treatment; historical posted payroll is not recalculated",
     "legacy_policy": "Existing and previously posted payroll lines are not automatically recalculated; legacy drafts need explicit owner classification before approval",
     "retainer_service_policy": "RETAINER_SERVICE excluded from employee PAYE/pension generation and surfaced in payroll notes/audit; its independent contractual/statutory withholding process must be separately approved",
     "live_employee_compensation_classification_required": true,
@@ -196,19 +222,19 @@
   "source_provenance": {
     "base_package": "Stockland_ERP_16.1.42_AUDIT_CANDIDATE_PLUGIN.zip",
     "historical_acceptance_reference": "STOCKLAND_ERP_16_1_27_RELEASE_TEST_REPORT.md",
-    "note": "The most recent uploaded historical series archive starts at 16.1.28. The original 16.1.27 ZIP was not in that archive, so this release was based on the newer cumulative source to avoid reintroducing later CAP fixes."
+    "note": "Owner PO approval capability synchronization, canonical active-profile role resolution, and profile-dropdown changes are included in the current review branch. Previous source/CI results predate these commits and are not evidence for the current head; fresh CI and authenticated staging are required. No live site was changed."
   },
   "corrective_actions": [
     "Premium responsive interface refinements: readable two-line desktop navigation, high-contrast focus/hover/pressed actions, 44px touch targets, responsive forms/cards and accessible compact payroll editor.",
     "Interactive Owner payroll compensation component editor with live statutory preview from server-provided PAYE bands, 7% employee pension and 11% employer pension, taxable-by-default allowance catalog and evidence-gated exemptions.",
-    "Income-tax amendment general application date recorded as 2025-07-01 for the amended monthly employment-income schedule; historical posted payroll is not recalculated automatically.",
+    "Income-tax amendment general application date recorded as 2025-07-08; July 2025 is not silently treated as a full month under the new schedule, and historical posted payroll is not recalculated automatically.",
     "Add-only HR schema migration adds allowance_breakdown_json to compensation and payroll lines; posted payroll remains historical and is not automatically recalculated.",
     "GL posting idempotency compares existing journal date/status/aggregated accounts and debit-credit composition instead of treating any reused source key as a valid retry.",
     "Checked transaction-start results for POS, wholesale, day-close, payroll payment and import preview transactions so the application fails closed rather than continuing outside a transaction.",
     "Source-level order/PLEDGER workflow traces retained for POS, Daily POS, wholesale, receiving and payroll. Real staging reconciliation remains a release gate.",
     "16.1.53 menu/layout CAP: separate the 576–991px header into brand/menu and horizontally scrollable action rows; make menu close cleanly on Escape, overlay click, item selection and desktop resize; restore body scroll and keyboard focus consistently; fix dashboard quick-action heading/grid stacking; restore EXIT link contrast. Verified with 101/101 local mocked browser checks at ten viewports; no authenticated live browser or production DB test was executed."
   ],
-  "model_period_boundary": "Full calendar months starting 2025-07-01 under the proclamation’s general application clause for income derived as of July 1, 2025. Existing posted payroll is not recalculated.",
+  "model_period_boundary": "Full calendar months starting 2025-08-01 under the proclamation’s general application clause for income derived as of 2025-07-08. July 2025 requires separately approved split-period treatment. Existing posted payroll is not recalculated.",
   "ui_only_release_16_1_48": {
     "scope": "Presentation-only update; no database/schema migration",
     "baseline": "16.1.44 source package",

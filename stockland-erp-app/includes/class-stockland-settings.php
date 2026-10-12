@@ -1,4 +1,10 @@
 <?php
+/**
+ * Settings persistence with audit and configuration validation.
+ *
+ * @package Stockland_ERP
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -19,6 +25,7 @@ class Stockland_Settings {
 	 * @param mixed  $value New setting value.
 	 * @param int    $wp_user_id User performing the change.
 	 * @return true|WP_Error True when committed, or a structured failure.
+	 * @throws RuntimeException When persistence or audit invariants fail.
 	 */
 	public static function update( $key, $value, $wp_user_id ) {
 		if ( ! user_can( $wp_user_id, 'stockland_manage_settings' ) ) {
@@ -30,12 +37,12 @@ class Stockland_Settings {
 
 		$old_value = Stockland_DB::get_setting( $key );
 
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			return new WP_Error( 'transaction_failed', 'Could not start the settings transaction.', array( 'status' => 500 ) );
 		}
 
 		try {
-			$ok = $wpdb->replace(
+			$ok = Stockland_DB::replace_record(
 				$table,
 				array(
 					'setting_key'   => $key,
@@ -49,12 +56,12 @@ class Stockland_Settings {
 			if ( ! Stockland_Audit::log( $wp_user_id, null, 'SETTING_CHANGE', null, null, $old_value, $value, 'Management setting update', $key ) ) {
 				throw new RuntimeException( 'Audit event could not be recorded; the setting was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new RuntimeException( 'Settings commit failed.' );
 			}
 			return true;
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'settings_update_failed', $e->getMessage(), array( 'status' => 500 ) );
 		}
 	}

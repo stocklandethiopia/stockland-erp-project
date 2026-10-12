@@ -1,10 +1,32 @@
 <?php
+/**
+ * REST controller source for Stockland ERP operational workflows.
+ *
+ * @package Stockland_ERP
+ */
+
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+/**
+ * REST endpoint for Central Warehouse wholesale sales.
+ *
+ * @package Stockland_ERP
+ */
 class Stockland_REST_Wholesale extends Stockland_REST_Base {
+	/**
+	 * Registers the wholesale sales endpoint.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'routes' ) ); }
+	/**
+	 * Registers the wholesale creation route and its permission gate.
+	 *
+	 * @return void
+	 */
 	public function routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -17,6 +39,13 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			)
 		);
 	}
+	/**
+	 * Posts an authorized wholesale transaction against Central Warehouse stock.
+	 *
+	 * @param WP_REST_Request $request REST request containing SKU, quantity, price and date.
+	 * @return WP_REST_Response|WP_Error Posted transaction response or a validation/persistence error.
+	 * @throws Exception When stock, ledger or audit writes cannot be committed atomically.
+	 */
 	public function create( WP_REST_Request $request ) {
 		$p    = $request->get_json_params();
 		$sku  = sanitize_text_field( $p['sku'] ?? '' );
@@ -42,14 +71,14 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			return new WP_Error( 'busy', 'Another warehouse operation is being processed for this date. Please retry.', array( 'status' => 409 ) );
 		}
 		global $wpdb;
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start the wholesale transaction.', array( 'status' => 500 ) );}
 		try {
 			if ( Stockland_DB::is_day_closed( $wh, $date ) ) {
 				throw new Exception( 'This Central Warehouse business day is already closed.' );
 			}
-			$wpdb->get_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
+			Stockland_DB::read_var( $wpdb->prepare( 'SELECT sku FROM %i WHERE sku=%s FOR UPDATE', Stockland_DB::table( 'products' ), $sku ) );
 			if ( Stockland_DB::get_available_stock( $wh, $sku ) < $q ) {
 				throw new Exception( 'Insufficient Central Warehouse stock.' );
 			}
@@ -65,7 +94,7 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 				$gross = Stockland_Money::add( $gross, $vat );
 			} $cogs = Stockland_Money::multiply( $q, $prod['purchase_cost'] );
 			$id     = Stockland_Sequence::next( 'WHO-', $date );
-			if ( false === $wpdb->insert(
+			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'wholesale_sales' ),
 				array(
 					'sale_id'            => $id,
@@ -149,7 +178,7 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $wh, 'WHOLESALE_SALE', $sku, $q, null, $price, null, $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; wholesale sale was not committed.' );
 			}
-			if ( false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Wholesale sale commit failed.' );
 			}
 			Stockland_DB::release_day_lock( $lock );
@@ -162,8 +191,10 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 				)
 			);
 		} catch ( Throwable $e ) {
-			$wpdb->query( 'ROLLBACK' );
+			Stockland_DB::execute_query( 'ROLLBACK' );
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'wholesale_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.

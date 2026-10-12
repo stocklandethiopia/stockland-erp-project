@@ -7,6 +7,8 @@
  * Text Domain:       stockland-inventory
  * Requires PHP:      8.4
  * Requires at least: 6.8
+ *
+ * @package Stockland_ERP
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -14,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'STOCKLAND_VERSION', '16.1.57' );
+define( 'STOCKLAND_ROLE_CAPS_VERSION', '16.1.57-owner-po-approval-v2' );
 define( 'STOCKLAND_CORE_SCHEMA_VERSION', '16.1.1' );
 define( 'STOCKLAND_ACCOUNTING_SCHEMA_VERSION', '16.1.15' );
 define( 'STOCKLAND_HR_SCHEMA_VERSION', '16.1.3' );
@@ -102,7 +105,7 @@ register_activation_hook(
 				),
 				false
 			);
-			error_log( 'Stockland ERP activation error: ' . $e->getMessage() );
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP activation error: ' . $e->getMessage() );
 			deactivate_plugins( plugin_basename( __FILE__ ), true );
 			wp_die(
 				esc_html( 'Stockland ERP could not finish activating: ' . $e->getMessage() ) .
@@ -136,10 +139,10 @@ function stockland_init_plugin() {
 			'init',
 			function () {
 				try {
-					if ( get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_VERSION ) {
+					if ( get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION ) {
 						Stockland_Roles::register_roles();
 						Stockland_Roles::sync_roles();
-						update_option( 'stockland_roles_cap_version', STOCKLAND_VERSION, false );
+						update_option( 'stockland_roles_cap_version', STOCKLAND_ROLE_CAPS_VERSION, false );
 					}
 				} catch ( Throwable $e ) {
 					update_option(
@@ -150,7 +153,7 @@ function stockland_init_plugin() {
 						),
 						false
 					);
-					error_log( 'Stockland ERP role sync error: ' . $e->getMessage() );
+					Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP role sync error: ' . $e->getMessage() );
 				}
 			},
 			5
@@ -182,7 +185,7 @@ function stockland_init_plugin() {
 					),
 					false
 				);
-				error_log( 'Stockland ERP accounting schema gate error: ' . $e->getMessage() );
+				Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP accounting schema gate error: ' . $e->getMessage() );
 			}
 		}
 		if ( class_exists( 'Stockland_HR' ) ) {
@@ -201,7 +204,7 @@ function stockland_init_plugin() {
 					),
 					false
 				);
-				error_log( 'Stockland ERP HR schema gate error: ' . $e->getMessage() );
+				Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP HR schema gate error: ' . $e->getMessage() );
 			}
 		}
 
@@ -243,7 +246,7 @@ function stockland_init_plugin() {
 			),
 			false
 		);
-		error_log( 'Stockland ERP startup error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
+		Stockland_Runtime_Diagnostics::log_error( 'Stockland ERP startup error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine() );
 		// Do not propagate a plugin runtime exception into a WordPress Critical Error.
 		// Native WordPress remains usable while System Control records the exact failure.
 	}

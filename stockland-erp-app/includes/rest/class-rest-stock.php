@@ -1,4 +1,16 @@
 <?php
+/**
+ * REST controller source for Stockland ERP operational workflows.
+ *
+ * @package Stockland_ERP
+ */
+
+// phpcs:disable WordPress.Files.FileName.InvalidClassFileName -- Legacy filename is a loader compatibility contract; only this sniff is disabled.
+/**
+ * Read-only stock and reorder-status REST endpoints.
+ *
+ * @package Stockland_ERP
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -6,13 +18,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Read-only stock endpoints. Always derives stock from the immutable transaction ledger and active reservations, never a stored balance
  * column — see Stockland_Ledger. Branch-scoped per section 13.
+ *
+ * @package Stockland_ERP
  */
 class Stockland_REST_Stock extends Stockland_REST_Base {
 
+	/**
+	 * Registers stock and reorder-status route hooks.
+	 *
+	 * @return void
+	 */
 	public function __construct() {
 		add_action( 'stockland_register_rest_routes', array( $this, 'register_routes' ) );
 	}
 
+	/**
+	 * Registers stock and reorder-status read routes.
+	 *
+	 * @return void
+	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE_V1,
@@ -37,6 +61,12 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		);
 	}
 
+	/**
+	 * Returns ledger-derived stock for the user's authorized location.
+	 *
+	 * @param WP_REST_Request $request REST request containing location and product filters.
+	 * @return mixed REST response with stock rows or a WP_Error.
+	 */
 	public function get_stock( WP_REST_Request $request ) {
 		$location_id = $this->resolve_branch_for_user( $request->get_param( 'location_id' ) );
 		if ( is_wp_error( $location_id ) ) {
@@ -57,7 +87,7 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 			$variant_id = (int) $product['variant_id'];
 		}
 
-		$rows = $wpdb->get_results(
+		$rows = Stockland_DB::read_results(
 			$wpdb->prepare(
 				"SELECT v.location_id,v.variant_id,p.sku,p.product_name,p.product_type,p.style_code,p.parent_sku,p.color,p.size,p.barcode,p.gtin,v.physical_stock,COALESCE(r.reserved_stock,0) reserved_stock,v.physical_stock-COALESCE(r.reserved_stock,0) available_stock
 				FROM (SELECT t.location_id,t.variant_id,SUM(t.quantity_signed) physical_stock FROM %i t WHERE t.variant_id IS NOT NULL GROUP BY t.location_id,t.variant_id) v
@@ -81,6 +111,12 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 	}
 
 	/** Mirrors REORDER ACTIONS sheet: Current Stock vs Reorder Level, per location. */
+	/**
+	 * Returns ledger-derived reorder alerts for the authorized location scope.
+	 *
+	 * @param WP_REST_Request $request REST request containing optional location filters.
+	 * @return mixed REST response with reorder rows or a WP_Error.
+	 */
 	public function get_reorder_status( WP_REST_Request $request ) {
 		$location_id = $this->resolve_branch_for_user( $request->get_param( 'location_id' ) );
 		if ( is_wp_error( $location_id ) ) {
@@ -90,7 +126,7 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		$locations = Stockland_DB::table( 'locations' );
 		$products  = Stockland_DB::table( 'products' );
 		$tx        = Stockland_DB::table( 'transactions' );
-		$rows      = $wpdb->get_results(
+		$rows      = Stockland_DB::read_results(
 			$wpdb->prepare(
 				"SELECT l.location_name,p.variant_id,p.sku,p.product_name,p.style_code,p.brand,p.color,p.size,p.barcode,p.gtin,COALESCE(b.physical_stock,0) current_stock,IF(l.location_type='Warehouse',p.central_reorder_level,p.branch_reorder_level) reorder_level
 				FROM %i p CROSS JOIN %i l
@@ -114,3 +150,5 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		return rest_ensure_response( $rows );
 	}
 }
+
+// phpcs:enable WordPress.Files.FileName.InvalidClassFileName -- End the narrowly scoped legacy filename exception.
