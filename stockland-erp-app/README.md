@@ -1,6 +1,6 @@
 # Stockland Ethiopia ERP 16.1.63 — In-Place Corrective Release Candidate
 
-**Release status: locally source/archive/static-QA verified; controlled staging candidate; not certified for live production.** This update is built from the validated GitHub source and carries the schema-gate health fixes, a truthful read-only setup diagnostic, and the Owner purchase-order capability re-sync. It preserves the cumulative ERP workflows and the exact 49-table contract. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
+**Release status: exact-source 16.1.63 candidate; current-run evidence is recorded in the package identity report; controlled WordPress staging and live acceptance remain separate. Not live-certified.** This update is built from the validated GitHub source and carries the schema-gate health fixes, a truthful read-only setup diagnostic, and the Owner purchase-order capability re-sync. It preserves the cumulative ERP workflows and the exact 49-table contract. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
 
 ## 16.1.53 change
 
@@ -25,17 +25,16 @@ External supplier supply must follow Management entry/submission → separate ac
 - WordPress role synchronization repairs a missing Owner purchase-order approval capability or a wrongly granted Management approval capability even if the stored role-capability marker is stale.
 - Database version remains 16.1.1; no business table, DDL migration, demo transaction, inventory adjustment or historical payroll rewrite is introduced.
 
-## Local verification
+## Validation evidence and limits
 
-- `php tools/qa/run-static-qa.php` — all local static/regression gates pass.
-- PHP syntax checks, JavaScript syntax checks, CSS source/bundle consistency and ZIP integrity pass.
-- A Chromium-based local browser smoke test ran the actual `assets/app.js`, `assets/app.min.css` and bundled Bootstrap against **mocked read-only API responses** at widths 375, 576, 768, 900, 991, 992, 1024, 1100, 1280 and 1440 CSS pixels. The mobile/tablet hamburger-open, Escape cleanup, focus restoration, navigation selection and desktop sidebar/header separation checks passed at each applicable breakpoint. The expanded suite completed 101/101 mocked browser checks, including dashboard quick-card sizing and EXIT contrast at desktop sizes. This is not an authenticated live-site test.
-- No live website or live database was accessed or changed. Actual host role checks, MySQL locks/concurrency, physical FK inventory, receipt-to-stock-to-PLEDGER reconciliation and backup/rollback acceptance remain required on an isolated staging clone.
+- The former 16.1.57 baseline had recorded local PHP/JavaScript syntax, CSS bundle, static QA and mocked responsive-browser checks. Those results remain historical evidence and are not represented as tests of this 16.1.63 source tree.
+- The exact 16.1.63 source-gate result and checksummed package identity must be read from `AUDIT/16.1.63-package-identity.md` and the linked GitHub Actions run. Earlier release PASS flags are not carried forward.
+- No authenticated WordPress website or live database was accessed or changed by this source branch. Actual host role checks, deep ledger/AP/AR/GL/PLEDGER reconciliation, MySQL locks/concurrency, browser acceptance, backup restore and rollback remain required on a controlled staging clone.
 
 ## Install safely
 
 1. Back up the plugin files and database; make an isolated staging clone first.
-2. Upload this single ZIP through WordPress Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately.
+2. Use this single ZIP on an isolated WordPress staging clone through Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately or apply it to production before the release gates and rollback checks are complete.
 3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.63.
 4. Test at real device widths. On tablets, swipe the second header row horizontally when a user action is beyond the visible strip. On phones, test the menu open/close and item navigation.
 5. Before production, complete the purchasing approval/receiving/concurrent retry checks and review the read-only integrity scan. Preserve a known rollback point.
