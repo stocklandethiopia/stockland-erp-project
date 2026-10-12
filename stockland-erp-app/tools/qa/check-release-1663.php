@@ -27,6 +27,13 @@ $integrity  = $read( 'includes/class-stockland-integrity.php' );
 $ddl        = $read( 'includes/class-stockland-activator.php' );
 $app        = $read( 'assets/app.js' );
 $ok( ( $manifest['release'] ?? '' ) === '16.1.63' && str_contains( $plugin, 'Version:           16.1.63' ), 'plugin header and manifest use the same release identity' );
+$plugin_compact = preg_replace( '/\\s+/', '', $plugin );
+$ok(
+	str_contains( $plugin_compact, '\$owner_po_cap_missing=!\$owner_role||!\$owner_role->has_cap(\\'stockland_approve_purchase_orders\\');' )
+		&& str_contains( $plugin_compact, '\$management_po_cap_bad=\$management_role&&\$management_role->has_cap(\\'stockland_approve_purchase_orders\\');' )
+		&& str_contains( $plugin_compact, '\$owner_po_cap_missing||\$management_po_cap_bad' ),
+	'WordPress update re-syncs missing Owner PO approval and removes that capability from Management.'
+);
 $ok( ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ! ( $manifest['schema_contract']['new_business_table'] ?? true ), '49-table business schema contract remains exact; no business table added' );
 $ok( str_contains( $health, 'Stockland_Integrity::scan()' ) && str_contains( $health, 'supplemental_integrity_scan' ), 'explicit deep health invokes the read-only supplemental integrity scanner' );
 $ok( str_contains( $health, "&& \$checks['supplemental_integrity_scan']" ), 'deep live-ready certification requires supplemental ledger/procurement integrity to pass' );
