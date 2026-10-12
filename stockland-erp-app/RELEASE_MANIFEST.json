@@ -201,7 +201,7 @@
     "16.1.57: explicit System Health deep mode includes Stockland_Integrity::scan() SELECT-only reconciliation/orphan checks; SCAN_INCOMPLETE/unknown SQL results fail closed and the health report cannot mark live_ready unless the supplemental scan is clean.",
     "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest.",
     "Latest GitHub Actions source gate passed PHP syntax checks, Composer validation, the production-service coding standard, PHPUnit, ERP static/integrity QA, and full-source PHPCS/WPCS with zero errors and warnings. This is CI/source validation, not live-site certification.",
-    "Corrective Owner PO approval capability marker: an in-place 16.1.57 update now re-synchronizes the canonical role capability map even when the plugin release number is unchanged; no schema or database-version change.",
+    "Corrective Owner PO approval capability marker: an in-place 16.1.63 update re-synchronizes the canonical role capability map and repairs the Owner approval permission without granting approval to Management; no schema or database-version change.",
     "Purchase-order queue eligibility now resolves creator and approver roles through the same active Stockland ERP profile authority used by status transitions, rather than a separate role-table join.",
     "Added a keyboard-accessible user-icon dropdown with role-aware Finance & Procurement and Users navigation, SOP guide, appearance settings and sign-out; Owner finance view labels the stock-purchase approval queue explicitly.",
     "16.1.63: Deep LIVE READY explicitly requires both accounting and HR/payroll schema-upgrade checks that control operational controller registration.",
@@ -225,7 +225,7 @@
     "payroll_journal": "6200 payroll expense; 6210 employer pension expense; 2020 payroll payable; 2030 employee pension payable; 2031 income-tax payable; 2032 employer pension payable; 2033 other payroll deductions payable",
     "posted_payroll_journal_requires": "All line-level rule versions present and gross/tax/pension/other deductions/net reconcile to the cent; account codes must be active and of the expected type"
   },
-  "release_label": "16.1.57 comprehensive one-pack fresh install / in-place update candidate; honest quick health, explicit deep read-only integrity scan, approval-lane controls, idempotent transactions and 49-table contract preservation.",
+  "release_label": "16.1.63 in-place corrective update candidate; reconciled readiness/setup diagnostics, explicit schema-upgrade gates, Owner-only purchase approval capability sync, and unchanged 49-table business contract. Not live-certified.",
   "frontend_css_architecture": {
     "source_modules": [
       "01-foundation.css",
