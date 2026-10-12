@@ -1591,10 +1591,18 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			&& strpos( $import_source, 'STAGED_ONLY_NO_AUTO_POST' ) !== false;
 		// Prove both preview rejection and commit-time defense-in-depth. This avoids
 		// brittle dependence on whitespace or a magic literal that the real code need not use.
+		// Normalize source whitespace so formatting cannot create a false-negative health result.
+		if ( is_string( $import_source ) ) {
+			$normalized_import_source = preg_replace( '/\s+/', '', $import_source );
+		} else {
+			$normalized_import_source = false;
+		}
+
 		$checks['product_master_no_stock_contract'] = false !== $import_source
 			&& strpos( $import_source, 'is not permitted in Product Master import. Use Warehouse Receiving for physical stock.' ) !== false
 			&& strpos( $import_source, 'Product Master commit rejected physical stock field' ) !== false
-			&& strpos( $import_source, "array('initial_stock','opening_stock','stock_quantity','quantity','qty','stock')" ) !== false;
+			&& is_string( $normalized_import_source )
+			&& strpos( $normalized_import_source, "array('initial_stock','opening_stock','stock_quantity','quantity','qty','stock')" ) !== false;
 		$checks['xlsx_stream_contract']             = false !== $xlsx_source
 			&& strpos( $xlsx_source, 'ZipArchive' ) !== false
 			&& strpos( $xlsx_source, 'XMLReader' ) !== false

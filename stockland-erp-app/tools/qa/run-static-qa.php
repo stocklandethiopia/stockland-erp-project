@@ -15,6 +15,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-client-sinks.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-runtime-diagnostics-security.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/smoke-integrity-scan.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-requisition-integrity-join.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-runtime-security-heuristics.php' ),
 	'node ' . escapeshellarg( $root . '/tools/qa/check-api-origin.js' ),
 	'python3 ' . escapeshellarg( $root . '/tools/qa/rebuild-css.py' ),
@@ -33,6 +34,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-product-master-search.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-accounting-prepared-reads.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1657.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-health-gate-diagnostics.php' ),
 );
 foreach ( $commands as $command ) {
 	passthru( $command, $code );

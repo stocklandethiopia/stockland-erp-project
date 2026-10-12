@@ -959,6 +959,20 @@ async function runHealth(mode){
     if(d.missing_tables&&d.missing_tables.length){html+='<div class="sl-notice sl-danger-block" style="margin-top:12px"><b>Missing schema:</b> '+esc(d.missing_tables.join(', '))+'</div>';}
     if(q.last_fatal&&q.last_fatal.reference){html+='<div class="sl-notice sl-danger-block" style="margin-top:12px"><b>Last PHP fatal evidence</b><div style="margin-top:5px">Ref '+esc(q.last_fatal.reference)+' • '+esc(q.last_fatal.file)+':'+esc(q.last_fatal.line)+' • stage '+esc(q.last_fatal.stage||'unknown')+'</div><div style="margin-top:5px">'+esc(q.last_fatal.message||'')+'</div><div class="sl-sub" style="margin-top:5px">'+esc(q.last_fatal.request_path||'')+'</div></div>';}
     const ts=q.target_schema||{}; const tsKeys=Object.keys(ts); if(tsKeys.length){html+='<div class="sl-notice" style="margin-top:12px"><b>Target schema evidence</b><div style="margin-top:5px">'+tsKeys.map(k=>{const v=ts[k]||{};return esc(k)+': '+(v.table_present?'present':'MISSING')+(v.missing_columns&&v.missing_columns.length?' — missing '+esc(v.missing_columns.join(', ')):' ✓');}).join('<br>')+'</div></div>';}
+    const integrity=q.supplemental_integrity_scan;
+    if(!quickOnly && integrity && typeof integrity==='object'){
+      const scanChecks=integrity.checks||{};
+      const scanIssues=Object.entries(scanChecks).filter(([name,value])=>value===null || value===undefined || Number(value)!==0);
+      const scanUnknown=Array.isArray(integrity.unknown_checks)?integrity.unknown_checks:[];
+      const scanHealthy=!!integrity.healthy && scanUnknown.length===0;
+      html+='<div class="sl-notice '+(scanHealthy?'':'sl-danger-block')+'" style="margin-top:12px"><b>Supplemental integrity scan detail</b><div style="margin-top:5px">Status: '+esc(scanHealthy?'CHECKS CLEAN — FK metadata reviewed separately':(integrity.overall_status||'NOT CLEAN'))+' • Read-only: '+(integrity.read_only?'yes':'not confirmed')+' • Non-zero/unknown checks: '+esc(scanIssues.length)+'</div>';
+      if(scanIssues.length){html+='<div style="margin-top:8px"><b>Checks requiring review</b><ul>'+scanIssues.map(([name,value])=>'<li><code>'+esc(name)+'</code>: '+(value===null||value===undefined?'UNKNOWN — query did not return a reliable result':esc(value)+' affected row(s) or mismatch(es)')+'</li>').join('')+'</ul></div>';}
+      if(scanUnknown.length){html+='<div style="margin-top:8px"><b>Unknown checks</b>: '+esc(scanUnknown.join(', '))+'</div>';}
+      if(!scanIssues.length && scanHealthy){html+='<div style="margin-top:8px">Every supplemental integrity count returned zero and no scan query was unknown.</div>';}
+      const fk=integrity.database_foreign_keys||{};
+      if(fk.status){html+='<div style="margin-top:8px"><b>Database foreign-key metadata:</b> '+esc(fk.status)+'. '+esc(fk.note||'Metadata only; no schema changes were attempted.')+'</div>';}
+      html+='</div>';
+    }
     if(quickOnly){const deferred=q.deferred_checks||d.deferred_checks||[];html+='<div class="sl-notice sl-danger-block" style="margin-top:12px"><b>Deep integrity checks deferred — not certified</b><div style="margin-top:5px">'+esc(deferred.join(', '))+'</div><div style="margin-top:5px">This lightweight request avoids unbounded scans on shared hosting. It does not certify ledger, PLEDGER, AP/AR, GL, stock or audit-chain integrity.</div></div>';}else{html+=d.audit&&d.audit.ok?'<p class="sl-success-text">Audit chain integrity check passed.</p>':'<p class="sl-danger-text">'+esc((d.audit&&d.audit.reason)||'Audit chain integrity check failed.')+'</p>'; }
     el.innerHTML=html;
   }catch(e){
