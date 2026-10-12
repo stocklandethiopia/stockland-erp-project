@@ -263,7 +263,7 @@ class Stockland_REST_Setup {
 	 * @return mixed Safe schema/setup diagnostics for an authorized administrator.
 	 */
 	public function schema_gate_health() {
-		$snapshot = $this->snapshot();
+		$snapshot = $this->snapshot( true );
 		$checks   = array(
 			'db'                              => false,
 			'core_schema'                     => empty( $snapshot['core']['missing'] ),
@@ -342,7 +342,7 @@ class Stockland_REST_Setup {
 	 *
 	 * @return array Current setup state, missing tables and schema gaps.
 	 */
-	private function snapshot() {
+	private function snapshot( $read_only = false ) {
 		$core           = Stockland_Activator::missing_core_tables();
 		$fin            = Stockland_Accounting::missing_tables();
 		$hr             = Stockland_HR::missing_tables();
@@ -370,14 +370,18 @@ class Stockland_REST_Setup {
 			$state = 'HR';
 		}
 		$err = get_option( 'stockland_setup_error' );
-		if ( empty( $core ) && is_array( $err ) && ( ( $err['stage'] ?? '' ) === 'CORE' ) ) {
-			delete_option( 'stockland_setup_error' );
-			$err = null; }
-		if ( empty( $fin ) && empty( $finance_gaps ) ) {
-			$accounting_error = get_option( 'stockland_accounting_error' );
-			if ( is_array( $accounting_error ) ) {
-				delete_option( 'stockland_accounting_error' ); }
-			delete_option( 'stockland_accounting_pending' );
+		if ( ! $read_only ) {
+			if ( empty( $core ) && is_array( $err ) && ( ( $err['stage'] ?? '' ) === 'CORE' ) ) {
+				delete_option( 'stockland_setup_error' );
+				$err = null;
+			}
+			if ( empty( $fin ) && empty( $finance_gaps ) ) {
+				$accounting_error = get_option( 'stockland_accounting_error' );
+				if ( is_array( $accounting_error ) ) {
+					delete_option( 'stockland_accounting_error' );
+				}
+				delete_option( 'stockland_accounting_pending' );
+			}
 		}
 		$details = array(
 			'ready'              => $ready,
