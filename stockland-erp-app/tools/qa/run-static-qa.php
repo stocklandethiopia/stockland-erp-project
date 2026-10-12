@@ -33,7 +33,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-external-procurement-authority.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-product-master-search.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-accounting-prepared-reads.php' ),
-	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1657.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1663.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-health-gate-diagnostics.php' ),
 );
 foreach ( $commands as $command ) {

@@ -1,6 +1,6 @@
 # Stockland Ethiopia ERP 16.1.63 — In-Place Corrective Release Candidate
 
-**Release status: locally source/archive/static-QA verified; controlled staging candidate; not certified for live production.** This update is built from the validated GitHub source and carries the schema-gate health fixes, a truthful read-only setup diagnostic, and the Owner purchase-order capability re-sync. It preserves the cumulative ERP workflows and the exact 49-table contract. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
+**Release status: exact-source 16.1.63 candidate; current-run evidence is recorded in the package identity report; controlled WordPress staging and live acceptance remain separate. Not live-certified.** This update is built from the validated GitHub source and carries the schema-gate health fixes, a truthful read-only setup diagnostic, and the Owner purchase-order capability re-sync. It preserves the cumulative ERP workflows and the exact 49-table contract. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
 
 ## 16.1.53 change
 
@@ -16,17 +16,25 @@
 
 External supplier supply must follow Management entry/submission → separate active Owner approval → Central Warehouse Manager's actual quantity acceptance. Branch/Goro destinations cannot receive external supplier POs through this path. The free-form supplier receipt posting route is disabled; legacy pending manual receipts are reconciliation-only. Partial receipts remain against the same PO, and only accepted quantities post to inventory. Request keys, PO/line locks, inventory ledger writes, PLEDGER/GL journals and audit evidence are retained within the transactional workflow. Invoice matching and payment allocations remain tied to the approved PO/receipt path. The diagnostic integrity scan is read-only; it does not add foreign keys or repair old rows.
 
-## 16.1.63 corrective release scope\n\n- Deep LIVE READY now includes the accounting and HR/payroll schema-upgrade gates that control operational route registration.\n- Setup diagnostics remain available to authorized roles during schema repair, show verified schema gaps, and explicitly state that the deep integrity audit has not run.\n- Health diagnostics use a read-only snapshot and do not clear setup-error options.\n- Accounting metadata query errors fail closed rather than being treated as absent schema.\n- WordPress role synchronization repairs a missing Owner purchase-order approval capability or a wrongly granted Management approval capability even if the stored role-capability marker is stale.\n- Database version remains 16.1.1; no business table, DDL migration, demo transaction, inventory adjustment or historical payroll rewrite is introduced.\n\n## Local verification
+## 16.1.63 corrective release scope
 
-- `php tools/qa/run-static-qa.php` — all local static/regression gates pass.
-- PHP syntax checks, JavaScript syntax checks, CSS source/bundle consistency and ZIP integrity pass.
-- A Chromium-based local browser smoke test ran the actual `assets/app.js`, `assets/app.min.css` and bundled Bootstrap against **mocked read-only API responses** at widths 375, 576, 768, 900, 991, 992, 1024, 1100, 1280 and 1440 CSS pixels. The mobile/tablet hamburger-open, Escape cleanup, focus restoration, navigation selection and desktop sidebar/header separation checks passed at each applicable breakpoint. The expanded suite completed 101/101 mocked browser checks, including dashboard quick-card sizing and EXIT contrast at desktop sizes. This is not an authenticated live-site test.
-- No live website or live database was accessed or changed. Actual host role checks, MySQL locks/concurrency, physical FK inventory, receipt-to-stock-to-PLEDGER reconciliation and backup/rollback acceptance remain required on an isolated staging clone.
+- Deep LIVE READY now includes the accounting and HR/payroll schema-upgrade gates that control operational route registration.
+- Setup diagnostics remain available to authorized roles during schema repair, show verified schema gaps, and explicitly state that the deep integrity audit has not run.
+- Health diagnostics use a read-only snapshot and do not clear setup-error options.
+- Accounting metadata query errors fail closed rather than being treated as absent schema.
+- WordPress role synchronization repairs a missing Owner purchase-order approval capability or a wrongly granted Management approval capability even if the stored role-capability marker is stale.
+- Database version remains 16.1.1; no business table, DDL migration, demo transaction, inventory adjustment or historical payroll rewrite is introduced.
+
+## Validation evidence and limits
+
+- The former 16.1.57 baseline had recorded local PHP/JavaScript syntax, CSS bundle, static QA and mocked responsive-browser checks. Those results remain historical evidence and are not represented as tests of this 16.1.63 source tree.
+- The exact 16.1.63 source-gate result and checksummed package identity must be read from `AUDIT/16.1.63-package-identity.md` and the linked GitHub Actions run. Earlier release PASS flags are not carried forward.
+- No authenticated WordPress website or live database was accessed or changed by this source branch. Actual host role checks, deep ledger/AP/AR/GL/PLEDGER reconciliation, MySQL locks/concurrency, browser acceptance, backup restore and rollback remain required on a controlled staging clone.
 
 ## Install safely
 
 1. Back up the plugin files and database; make an isolated staging clone first.
-2. Upload this single ZIP through WordPress Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately.
+2. Use this single ZIP on an isolated WordPress staging clone through Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately or apply it to production before the release gates and rollback checks are complete.
 3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.63.
 4. Test at real device widths. On tablets, swipe the second header row horizontally when a user action is beyond the visible strip. On phones, test the menu open/close and item navigation.
 5. Before production, complete the purchasing approval/receiving/concurrent retry checks and review the read-only integrity scan. Preserve a known rollback point.
@@ -40,7 +48,7 @@ This package uses the official local Bootstrap CSS 5.3.8 asset verified against 
 - Merges the 16.1.54 quick health endpoint. Quick service/schema checks explicitly state `QUICK HEALTH ONLY`; deferred audit/stock/PLEDGER/AP-AR/GL/reservation checks are not green or certified.
 - Merges the 16.1.55 namespace-aware XLSX workbook/sheet relationship discovery fix, including root-absolute worksheet targets.
 - Database schema constants are intentionally unchanged. No live deployment or live database migration occurred during package assembly.
-- The ZIP is a staging candidate for both fresh install and upgrade; fresh WordPress setup and in-place 16.1.54 update must be tested on staging before production use.
+- The ZIP is a staging candidate for both fresh install and upgrade; fresh WordPress setup and an in-place update from the exact plugin bytes installed on the owner-provided WordPress site must be tested on staging before production use. The target was previously reported as 16.1.62; confirm actual site version and file identity during acceptance.
 
 
 ## 16.1.57 approval and reconciliation acceptance notes
@@ -54,4 +62,4 @@ This package uses the official local Bootstrap CSS 5.3.8 asset verified against 
 
 ## Live certification limits
 
-The ZIP, source, static QA and archive can be verified locally, but the builder has no authenticated access to the target WordPress host or database. No live-data deep scan, concurrency test against MariaDB, fresh WordPress activation, or update against the exact 16.1.54 production bytes was performed. This artifact is a comprehensive release candidate, not an assertion that existing live records are reconciled. Back up production and use staging for acceptance first.
+The ZIP, source, static QA and archive can be verified locally, but the builder has no authenticated access to the target WordPress host or database. No live-data deep scan, concurrency test against MariaDB, fresh WordPress activation, or update against the exact production plugin bytes was performed. This artifact is a comprehensive release candidate, not an assertion that existing live records are reconciled. Back up production and use staging for acceptance first.

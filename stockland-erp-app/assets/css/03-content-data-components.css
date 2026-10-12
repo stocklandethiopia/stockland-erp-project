@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.57 • Page hierarchy, cards, forms, tables and data components • Ordered source module. */
+/* Stockland ERP 16.1.63 • Page hierarchy, cards, forms, tables and data components • Ordered source module. */
 .sl-content{min-width:0;min-height:0;overflow:auto;background:linear-gradient(180deg,#f5f7fb 0,#f8fafc 45%,#f3f6fa 100%);padding:28px clamp(15px,2.4vw,36px) 44px;scroll-behavior:smooth}
 .sl-content-inner{width:100%;max-width:1720px;margin:0 auto}
 .sl-page-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 0 16px;padding:2px 0}

@@ -1,7 +1,7 @@
 {
-  "release": "16.1.57",
-  "classification": "Cumulative comprehensive corrective release candidate 16.1.57: explicit Management-preparation and Owner final-approval workflow for branch expenses, supplier invoices, finance payments, payroll and externally sourced purchase orders; read-only deep procurement/PLEDGER/GRNI/AP/GL integrity scanner integrated into the explicit deep health path; exact 49-table business schema preserved. Candidate only until disposable staging and live-host acceptance.",
-  "baseline": "Cumulative 16.1.53 full package (itself consolidating 16.1.48–16.1.52 UI, reports, procurement authority and ledger safeguards), merged with 16.1.54 health endpoint/UI behavior and 16.1.55 XLSX worksheet metadata fix. No business schema migration is introduced by these merges. Includes the 16.1.56 local candidate with corrective authority/workflow gate hardening; no new business tables.",
+  "release": "16.1.63",
+  "classification": "In-place corrective release candidate 16.1.63 built from validated GitHub main after the 16.1.62 baseline. Aligns schema-gated startup and deep health, keeps restricted read-only diagnostics available during repair, treats metadata SQL errors explicitly, and re-synchronizes Owner purchase-order approval capability drift. Preserves all existing workflows and the exact 49-table business schema. Live certification remains pending until authenticated WordPress acceptance.",
+  "baseline": "Derived from the GitHub main source at 534407ad28641bea2db426df83ed398633a6327c, including the merged source-health correction PR #22 and prior 16.1.57 source-gate history. This candidate is not a byte-for-byte rebuild of the earlier local 16.1.63 ZIP. No business schema migration, new business table, or historical transaction rewrite is included.",
   "schema_contract": {
     "core_operations": 29,
     "accounting_procurement": 16,
@@ -74,17 +74,17 @@
     "rest_nonce_destination": "same configured REST API origin and namespace only"
   },
   "quality": {
-    "php_lint_local": true,
-    "javascript_syntax_local": true,
-    "static_qa_local": true,
-    "php_smoke_local": true,
+    "php_lint_local": false,
+    "javascript_syntax_local": false,
+    "static_qa_local": false,
+    "php_smoke_local": false,
     "phpunit_configuration": true,
     "ci_configuration": true,
     "phpcs_wpcs_configuration": true,
     "local_regression_tests": true,
     "critical_workflow_qa": true,
-    "phpunit_suite_executed": true,
-    "phpcs_executed": true,
+    "phpunit_suite_executed": false,
+    "phpcs_executed": false,
     "browser_e2e_executed": false,
     "live_database_integration_executed": false,
     "sonarqube_semgrep_owasp_zap_executed": false,
@@ -95,7 +95,7 @@
     "single_guarded_fetch_sink": true,
     "live_certification": false,
     "full_scope_phpcs_profile_prepared": true,
-    "full_scope_phpcs_profile_executed": true,
+    "full_scope_phpcs_profile_executed": false,
     "statutory_payroll_math_qa": true,
     "hr_schema_contract_qa": true,
     "operational_ui_contract_qa_local": true,
@@ -114,24 +114,41 @@
     ],
     "authenticated_live_browser_e2e_executed": false,
     "bootstrap_css_upstream_verified": true,
-    "phpcs_wpcs_zero_findings": true,
-    "github_actions_source_gate_passed": true,
+    "phpcs_wpcs_zero_findings": false,
+    "github_actions_source_gate_passed": false,
     "source_gate_evidence": {
-      "workflow_run_id": 38183176678,
-      "workflow_run_url": "https://github.com/stocklandethiopia/stockland-erp-project/actions/runs/38183176678",
-      "commit": "52a573a764a47ffb319d88ca5467309866f3a51c",
-      "deployable_runtime_php_files_scanned": 47,
-      "phpcs_errors": 0,
-      "phpcs_warnings": 0,
-      "phpcs_fixable_findings": 0,
-      "phpunit_tests": 7,
-      "phpunit_assertions": 13,
-      "critical_workflow_qa_gates": 28,
-      "targeted_remediation_assertions": 29,
-      "external_procurement_assertions": 31,
-      "product_master_search_regression": "PASS",
-      "live_certification": false
-    }
+      "result": "PENDING",
+      "release": "16.1.63",
+      "baseline_source_commit": "534407ad28641bea2db426df83ed398633a6327c",
+      "branch": "release/16.1.63-corrective-update",
+      "live_certification": false,
+      "note": "Historical 16.1.57 PASS data is retained under previous_source_gate_evidence. Current 16.1.63 flags remain false until the exact release branch workflow updates them from a passing run."
+    },
+    "previous_source_gate_evidence": {
+      "release": "16.1.57",
+      "evidence": {
+        "workflow_run_id": 38183176678,
+        "workflow_run_url": "https://github.com/stocklandethiopia/stockland-erp-project/actions/runs/38183176678",
+        "commit": "52a573a764a47ffb319d88ca5467309866f3a51c",
+        "deployable_runtime_php_files_scanned": 47,
+        "phpcs_errors": 0,
+        "phpcs_warnings": 0,
+        "phpcs_fixable_findings": 0,
+        "phpunit_tests": 7,
+        "phpunit_assertions": 13,
+        "critical_workflow_qa_gates": 28,
+        "targeted_remediation_assertions": 29,
+        "external_procurement_assertions": 31,
+        "product_master_search_regression": "PASS",
+        "live_certification": false
+      },
+      "note": "Historical source-gate evidence for the previous 16.1.57 candidate; retained unchanged for audit history."
+    },
+    "production_service_phpcs_zero_findings": false,
+    "php_lint_ci_executed": false,
+    "composer_validation_ci_executed": false,
+    "javascript_syntax_ci_executed": false,
+    "static_integrity_qa_ci_executed": false
   },
   "live_certification": false,
   "runtime_diagnostics": {
@@ -184,9 +201,14 @@
     "16.1.57: explicit System Health deep mode includes Stockland_Integrity::scan() SELECT-only reconciliation/orphan checks; SCAN_INCOMPLETE/unknown SQL results fail closed and the health report cannot mark live_ready unless the supplemental scan is clean.",
     "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest.",
     "Latest GitHub Actions source gate passed PHP syntax checks, Composer validation, the production-service coding standard, PHPUnit, ERP static/integrity QA, and full-source PHPCS/WPCS with zero errors and warnings. This is CI/source validation, not live-site certification.",
-    "Corrective Owner PO approval capability marker: an in-place 16.1.57 update now re-synchronizes the canonical role capability map even when the plugin release number is unchanged; no schema or database-version change.",
+    "Corrective Owner PO approval capability marker: an in-place 16.1.63 update re-synchronizes the canonical role capability map and repairs the Owner approval permission without granting approval to Management; no schema or database-version change.",
     "Purchase-order queue eligibility now resolves creator and approver roles through the same active Stockland ERP profile authority used by status transitions, rather than a separate role-table join.",
-    "Added a keyboard-accessible user-icon dropdown with role-aware Finance & Procurement and Users navigation, SOP guide, appearance settings and sign-out; Owner finance view labels the stock-purchase approval queue explicitly."
+    "Added a keyboard-accessible user-icon dropdown with role-aware Finance & Procurement and Users navigation, SOP guide, appearance settings and sign-out; Owner finance view labels the stock-purchase approval queue explicitly.",
+    "16.1.63: Deep LIVE READY explicitly requires both accounting and HR/payroll schema-upgrade checks that control operational controller registration.",
+    "16.1.63: Authorized read-only setup-mode health endpoint remains available while schema gates are incomplete; reports real missing upgrade items, never claims the full deep integrity scan ran, and does not clear setup error options.",
+    "16.1.63: Accounting metadata SQL errors become explicit fail-closed upgrade gaps rather than appearing as absent tables or healthy schema.",
+    "16.1.63: WordPress role synchronization repairs missing Owner stockland_approve_purchase_orders or wrongly granted Management purchase-order approval even when the stored capability marker is stale.",
+    "16.1.63: Release-specific assertions verify consistent plugin/header/manifest/frontend route/CSS build release identity. No new business table or database-version bump."
   ],
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
@@ -203,7 +225,7 @@
     "payroll_journal": "6200 payroll expense; 6210 employer pension expense; 2020 payroll payable; 2030 employee pension payable; 2031 income-tax payable; 2032 employer pension payable; 2033 other payroll deductions payable",
     "posted_payroll_journal_requires": "All line-level rule versions present and gross/tax/pension/other deductions/net reconcile to the cent; account codes must be active and of the expected type"
   },
-  "release_label": "16.1.57 comprehensive one-pack fresh install / in-place update candidate; honest quick health, explicit deep read-only integrity scan, approval-lane controls, idempotent transactions and 49-table contract preservation.",
+  "release_label": "16.1.63 in-place corrective update candidate; reconciled readiness/setup diagnostics, explicit schema-upgrade gates, Owner-only purchase approval capability sync, and unchanged 49-table business contract. Not live-certified.",
   "frontend_css_architecture": {
     "source_modules": [
       "01-foundation.css",

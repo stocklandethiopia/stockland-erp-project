@@ -26,7 +26,16 @@ $authority  = $read( 'includes/class-stockland-authority.php' );
 $integrity  = $read( 'includes/class-stockland-integrity.php' );
 $ddl        = $read( 'includes/class-stockland-activator.php' );
 $app        = $read( 'assets/app.js' );
-$ok( ( $manifest['release'] ?? '' ) === '16.1.57' && str_contains( $plugin, 'Version:           16.1.57' ), 'plugin header and manifest use the same release identity' );
+$ok( ( $manifest['release'] ?? '' ) === '16.1.63' && str_contains( $plugin, 'Version:           16.1.63' ), 'plugin header and manifest use the same release identity' );
+$plugin_compact     = preg_replace( '/\\s+/', '', $plugin );
+$owner_po_guard      = '$owner_po_cap_missing=!$owner_role||!$owner_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
+$management_po_guard = '$management_po_cap_bad=$management_role&&$management_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
+$ok(
+	str_contains( $plugin_compact, $owner_po_guard )
+		&& str_contains( $plugin_compact, $management_po_guard )
+		&& str_contains( $plugin_compact, '$owner_po_cap_missing||$management_po_cap_bad' ),
+	'WordPress update re-syncs missing Owner PO approval and removes that capability from Management.'
+);
 $ok( ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ! ( $manifest['schema_contract']['new_business_table'] ?? true ), '49-table business schema contract remains exact; no business table added' );
 $ok( str_contains( $health, 'Stockland_Integrity::scan()' ) && str_contains( $health, 'supplemental_integrity_scan' ), 'explicit deep health invokes the read-only supplemental integrity scanner' );
 $ok( str_contains( $health, "&& \$checks['supplemental_integrity_scan']" ), 'deep live-ready certification requires supplemental ledger/procurement integrity to pass' );
@@ -39,6 +48,6 @@ $ok( str_contains( $authority, 'can_prepare_hr' ) && str_contains( $authority, '
 $ok( str_contains( $app, 'RUN DEEP INTEGRITY AUDIT' ) && str_contains( $app, 'QUICK HEALTH ONLY' ), 'UI visibly separates fast checks from the explicit deep audit' );
 $ok( str_contains( $plugin, 'includes/class-stockland-integrity.php' ) && ! preg_match( '/FOREIGN KEY\s*\(/i', $ddl ), 'scanner loaded and no schema expansion/foreign-key migration was introduced' );
 if ( $fail ) {
-	fwrite( STDERR, 'Release 16.1.57 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
+	fwrite( STDERR, 'Release 16.1.63 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
-}echo "Release 16.1.57 comprehensive gate PASS: {$pass} assertions.\n";
+}echo "Release 16.1.63 comprehensive gate PASS: {$pass} assertions.\n";
