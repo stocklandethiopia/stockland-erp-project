@@ -20,7 +20,9 @@ $ok     = function ( $condition, $message ) use ( &$fail, &$pass ) {
 };
 $compact_import = preg_replace( '/\s+/', '', $import );
 $ok(
-	str_contains( $health, "$"."normalized_import_source = is_string( $"."import_source ) ? preg_replace" )
+	str_contains( $health, 'if ( is_string( $import_source ) )' )
+		&& str_contains( $health, "preg_replace( '/\\s+/', '', $import_source )" )
+		&& str_contains( $health, '$normalized_import_source = false;' )
 		&& str_contains( $health, "strpos( $"."normalized_import_source, \"array('initial_stock','opening_stock','stock_quantity','quantity','qty','stock')\" ) !== false" ),
 	'Product Master stock-field health contract is whitespace-insensitive.'
 );
