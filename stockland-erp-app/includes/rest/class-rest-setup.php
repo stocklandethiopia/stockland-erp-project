@@ -321,18 +321,18 @@ class Stockland_REST_Setup {
 					'checks'              => $checks,
 					'diagnostics'         => $diagnostics,
 					'php'                 => PHP_VERSION,
-					'wordpress'            => get_bloginfo( 'version' ),
-					'plugin'               => defined( 'STOCKLAND_VERSION' ) ? STOCKLAND_VERSION : 'unknown',
-					'db_version'           => get_option( 'stockland_db_version', 'unknown' ),
-					'audit'                => array(
+					'wordpress'           => get_bloginfo( 'version' ),
+					'plugin'              => defined( 'STOCKLAND_VERSION' ) ? STOCKLAND_VERSION : 'unknown',
+					'db_version'          => get_option( 'stockland_db_version', 'unknown' ),
+					'audit'               => array(
 						'ok'      => null,
 						'checked' => 0,
 						'reason'  => 'The full integrity audit has not run while schema repair is pending.',
 					),
-					'missing_tables'       => $snapshot['total']['missing'] ?? array(),
-					'missing_core_tables'  => $snapshot['core']['missing'] ?? array(),
-					'failed_checks'        => $failed,
-					'data_policy'          => 'Read-only schema-gate diagnostics; no business data is changed.',
+					'missing_tables'      => $snapshot['total']['missing'] ?? array(),
+					'missing_core_tables' => $snapshot['core']['missing'] ?? array(),
+					'failed_checks'       => $failed,
+					'data_policy'         => 'Read-only schema-gate diagnostics; no business data is changed.',
 				)
 			)
 		);
