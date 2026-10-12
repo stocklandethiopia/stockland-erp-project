@@ -341,6 +341,7 @@ class Stockland_REST_Setup {
 	 * Builds a setup snapshot from physically verified schema state.
 	 *
 	 * @param bool $read_only Whether to avoid clearing stale setup error options.
+	 * @param bool $include_schema_details Whether an authorized diagnostic may receive schema gaps.
 	 * @return array Current setup state, missing tables and schema gaps.
 	 */
 	private function snapshot( $read_only = false, $include_schema_details = false ) {
