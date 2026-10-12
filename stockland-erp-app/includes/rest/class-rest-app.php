@@ -1252,12 +1252,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		} catch ( Throwable $e ) {
 			$diagnostics['hr_schema_upgrade_error'] = 'HR/payroll schema-upgrade inspection failed; inspect authorized server diagnostics.';
 		}
-		$checks['accounting_schema_upgrade_ready'] = empty( $accounting_schema_gaps );
-		$checks['hr_schema_upgrade_ready']         = empty( $hr_schema_gaps );
+		$checks['accounting_schema_upgrade_ready']     = empty( $accounting_schema_gaps );
+		$checks['hr_schema_upgrade_ready']             = empty( $hr_schema_gaps );
 		$diagnostics['accounting_schema_upgrade_gaps'] = $accounting_schema_gaps;
 		$diagnostics['hr_schema_upgrade_gaps']         = $hr_schema_gaps;
 
-		$checks['ledger_runtime']                 = in_array( 'transactions', $found_keys, true ) && in_array( 'balances', $found_keys, true ) && class_exists( 'Stockland_Ledger' ) && method_exists( 'Stockland_Ledger', 'record' );
+		$checks['ledger_runtime'] = in_array( 'transactions', $found_keys, true ) && in_array( 'balances', $found_keys, true ) && class_exists( 'Stockland_Ledger' ) && method_exists( 'Stockland_Ledger', 'record' );
 
 		$server          = rest_get_server();
 		$routes          = $server ? $server->get_routes() : array();
