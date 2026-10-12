@@ -43,7 +43,7 @@ final class Stockland_Integrity {
 			'transfers_bad_locations'                      => "SELECT COUNT(*) FROM {$t('transfers')} tr LEFT JOIN {$t('locations')} s ON s.id=tr.from_location_id LEFT JOIN {$t('locations')} d ON d.id=tr.to_location_id WHERE s.id IS NULL OR d.id IS NULL",
 			'sales_without_product'                        => "SELECT COUNT(*) FROM {$t('sales')} s LEFT JOIN {$t('products')} p ON p.sku=s.sku WHERE p.variant_id IS NULL",
 			'sales_without_location'                       => "SELECT COUNT(*) FROM {$t('sales')} s LEFT JOIN {$t('locations')} l ON l.id=s.branch_location_id WHERE l.id IS NULL",
-			'requisition_items_without_header'             => "SELECT COUNT(*) FROM {$t('requisition_items')} ri LEFT JOIN {$t('requisitions')} r ON r.id=ri.requisition_id WHERE r.id IS NULL",
+			'requisition_items_without_header'             => "SELECT COUNT(*) FROM {$t('requisition_items')} ri LEFT JOIN {$t('requisitions')} r ON r.requisition_id=ri.requisition_id WHERE r.requisition_id IS NULL",
 			'count_lines_without_batch'                    => "SELECT COUNT(*) FROM {$t('count_lines')} cl LEFT JOIN {$t('count_batches')} cb ON cb.id=cl.batch_id WHERE cb.id IS NULL",
 			'purchase_orders_without_supplier'             => "SELECT COUNT(*) FROM {$t('purchase_orders')} po LEFT JOIN {$t('suppliers')} s ON s.id=po.supplier_id WHERE s.id IS NULL",
 			'purchase_orders_without_location'             => "SELECT COUNT(*) FROM {$t('purchase_orders')} po LEFT JOIN {$t('locations')} l ON l.id=po.location_id WHERE l.id IS NULL",
