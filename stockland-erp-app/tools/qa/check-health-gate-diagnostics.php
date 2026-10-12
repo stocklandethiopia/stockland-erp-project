@@ -39,6 +39,34 @@ $ok(
 		&& str_contains( $app, 'CHECKS CLEAN — FK metadata reviewed separately' ),
 	'System Health shows non-zero/unknown scanner checks and separates FK metadata status.'
 );
+$setup = is_file( $root . '/includes/rest/class-rest-setup.php' ) ? file_get_contents( $root . '/includes/rest/class-rest-setup.php' ) : '';
+$accounting = is_file( $root . '/includes/class-stockland-accounting.php' ) ? file_get_contents( $root . '/includes/class-stockland-accounting.php' ) : '';
+$ok(
+	str_contains( $health, "\$checks['accounting_schema_upgrade_ready']" )
+		&& str_contains( $health, "\$checks['hr_schema_upgrade_ready']" )
+		&& str_contains( $health, "'accounting_schema_upgrade_ready'] && \$checks['hr_schema_upgrade_ready']" ),
+	'Deep LIVE READY includes both schema-upgrade gates that control route registration.'
+);
+$ok(
+	str_contains( $setup, "'/system/health'" )
+		&& str_contains( $setup, 'schema_gate_health' )
+		&& str_contains( $setup, " 'health_mode'         => 'setup'" )
+		&& str_contains( $setup, 'empty( Stockland_HR::upgrade_gaps() )' ),
+	'Schema-gated startup keeps a read-only repair health endpoint and aligns HR route readiness.'
+);
+$ok(
+	str_contains( $accounting, '__table_metadata_query_failed__' )
+		&& str_contains( $accounting, '__column_metadata_query_failed__' )
+		&& str_contains( $accounting, '__index_metadata_query_failed__' ),
+	'Accounting metadata SQL failures remain explicit repair gates rather than being treated as absent schema.'
+);
+$ok(
+	str_contains( $app, "const setupRequired=q.health_mode==='setup';" )
+		&& str_contains( $app, 'Full integrity scan has not run in setup mode.' )
+		&& str_contains( $app, 'SETUP REPAIR REQUIRED' ),
+	'Frontend does not present a deferred setup-mode audit as a passed audit.'
+);
+
 if ( $fail ) {
 	fwrite( STDERR, 'Health gate / diagnostics QA FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
