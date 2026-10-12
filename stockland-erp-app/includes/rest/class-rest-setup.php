@@ -263,7 +263,7 @@ class Stockland_REST_Setup {
 	 * @return mixed Safe schema/setup diagnostics for an authorized administrator.
 	 */
 	public function schema_gate_health() {
-		$snapshot = $this->snapshot( true );
+		$snapshot = $this->snapshot( true, true );
 		$checks   = array(
 			'db'                              => false,
 			'core_schema'                     => empty( $snapshot['core']['missing'] ),
@@ -343,7 +343,7 @@ class Stockland_REST_Setup {
 	 * @param bool $read_only Whether to avoid clearing stale setup error options.
 	 * @return array Current setup state, missing tables and schema gaps.
 	 */
-	private function snapshot( $read_only = false ) {
+	private function snapshot( $read_only = false, $include_schema_details = false ) {
 		$core           = Stockland_Activator::missing_core_tables();
 		$fin            = Stockland_Accounting::missing_tables();
 		$hr             = Stockland_HR::missing_tables();
@@ -420,7 +420,7 @@ class Stockland_REST_Setup {
 				'available' => true,
 			),
 		);
-		if ( ! $this->can_setup() ) {
+		if ( ! $this->can_setup() && ! $include_schema_details ) {
 			foreach ( array( 'core', 'finance', 'hr' ) as $m ) {
 				$details[ $m ]['missing'] = array();}
 			$details['total']['missing']        = array();
