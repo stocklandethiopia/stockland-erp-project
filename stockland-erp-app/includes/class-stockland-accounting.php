@@ -697,34 +697,51 @@ class Stockland_Accounting {
 		$gaps    = array();
 		$targets = array( $p . 'stock_purchase_order_items', $p . 'stock_purchase_receipt_items' );
 		foreach ( $targets as $table ) {
-			$exists = (string) Stockland_DB::read_var(
+			$wpdb->last_error = '';
+			$exists           = Stockland_DB::read_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s',
 					DB_NAME,
 					$table
 				)
 			);
+			if ( ! empty( $wpdb->last_error ) ) {
+				$gaps[] = $table . '.__table_metadata_query_failed__';
+				continue;
+			}
 			if ( ! $exists ) {
-				continue; }
-			$column = (string) Stockland_DB::read_var(
+				continue;
+			}
+			$wpdb->last_error = '';
+			$column           = Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='variant_id'",
 					DB_NAME,
 					$table
 				)
 			);
+			if ( ! empty( $wpdb->last_error ) ) {
+				$gaps[] = $table . '.__column_metadata_query_failed__';
+				continue;
+			}
 			if ( ! $column ) {
 				$gaps[] = $table . '.variant_id';
 				continue; }
-			$index = (string) Stockland_DB::read_var(
+			$wpdb->last_error = '';
+			$index            = Stockland_DB::read_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND COLUMN_NAME='variant_id'",
 					DB_NAME,
 					$table
 				)
 			);
+			if ( ! empty( $wpdb->last_error ) ) {
+				$gaps[] = $table . '.__index_metadata_query_failed__';
+				continue;
+			}
 			if ( ! $index ) {
-				$gaps[] = $table . '.KEY(variant_id)'; }
+				$gaps[] = $table . '.KEY(variant_id)';
+			}
 		}
 		return $gaps;
 	}
