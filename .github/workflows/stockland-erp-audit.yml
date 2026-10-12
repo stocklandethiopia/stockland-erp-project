@@ -55,7 +55,7 @@ jobs:
           test -f stockland-erp-app/stockland-inventory.php
           test -f stockland-erp-app/RELEASE_MANIFEST.json
           grep -q 'Version:           16.1.63' stockland-erp-app/stockland-inventory.php
-          grep -q 'define( '\''STOCKLAND_VERSION'\'', '\''16.1.63'\'' );' stockland-erp-app/stockland-inventory.php
+          grep -Fq "define( 'STOCKLAND_VERSION', '16.1.63' );" stockland-erp-app/stockland-inventory.php
           grep -q '"release": "16.1.63"' stockland-erp-app/RELEASE_MANIFEST.json
           grep -q "const ROUTE_VERSION      = '16.1.63';" stockland-erp-app/includes/class-stockland-frontend.php
           grep -q '"release": "16.1.63"' stockland-erp-app/assets/css/modules.json
