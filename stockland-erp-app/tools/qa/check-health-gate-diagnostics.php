@@ -19,6 +19,7 @@ $ok     = function ( $condition, $message ) use ( &$fail, &$pass ) {
 	}
 };
 $compact_import = preg_replace( '/\s+/', '', $import );
+$compact_health = preg_replace( '/\s+/', '', $health );
 $ok(
 	str_contains( $health, 'if ( is_string( $import_source ) )' )
 		&& str_contains( $health, "preg_replace( '/\\s+/', '', $"."import_source )" )
@@ -42,11 +43,11 @@ $ok(
 $setup = is_file( $root . '/includes/rest/class-rest-setup.php' ) ? file_get_contents( $root . '/includes/rest/class-rest-setup.php' ) : '';
 $accounting = is_file( $root . '/includes/class-stockland-accounting.php' ) ? file_get_contents( $root . '/includes/class-stockland-accounting.php' ) : '';
 $ok(
-	str_contains( $health, "\$checks['accounting_schema_upgrade_ready'] = empty( \$accounting_schema_gaps );" )
-		&& str_contains( $health, "\$checks['hr_schema_upgrade_ready'] = empty( \$hr_schema_gaps );" )
-		&& str_contains( $health, "'accounting_schema_upgrade_ready'] && \$checks['hr_schema_upgrade_ready']" )
-		&& str_contains( $health, "\$diagnostics['accounting_schema_upgrade_gaps']" )
-		&& str_contains( $health, "\$diagnostics['hr_schema_upgrade_gaps']" ),
+	str_contains( $compact_health, "\$checks['accounting_schema_upgrade_ready']=empty(\$accounting_schema_gaps);" )
+		&& str_contains( $compact_health, "\$checks['hr_schema_upgrade_ready']=empty(\$hr_schema_gaps);" )
+		&& str_contains( $compact_health, "'accounting_schema_upgrade_ready']&&\$checks['hr_schema_upgrade_ready']" )
+		&& str_contains( $compact_health, "\$diagnostics['accounting_schema_upgrade_gaps']" )
+		&& str_contains( $compact_health, "\$diagnostics['hr_schema_upgrade_gaps']" ),
 	'Deep LIVE READY includes both schema-upgrade gates that control route registration.'
 );
 $ok(
