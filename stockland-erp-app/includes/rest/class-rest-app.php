@@ -1592,7 +1592,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		// Prove both preview rejection and commit-time defense-in-depth. This avoids
 		// brittle dependence on whitespace or a magic literal that the real code need not use.
 		// Normalize source whitespace so formatting cannot create a false-negative health result.
-		$normalized_import_source                   = is_string( $import_source ) ? preg_replace( '/\s+/', '', $import_source ) : false;
+		$normalized_import_source = is_string( $import_source ) ? preg_replace( '/\s+/', '', $import_source ) : false;
 
 		$checks['product_master_no_stock_contract'] = false !== $import_source
 			&& strpos( $import_source, 'is not permitted in Product Master import. Use Warehouse Receiving for physical stock.' ) !== false
