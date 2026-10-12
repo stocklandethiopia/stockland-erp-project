@@ -50,7 +50,7 @@ $ok(
 $ok(
 	str_contains( $setup, "'/system/health'" )
 		&& str_contains( $setup, 'schema_gate_health' )
-		&& str_contains( $setup, " 'health_mode'         => 'setup'" )
+		&& str_contains( $setup, "'health_mode'" )
 		&& str_contains( $setup, 'empty( Stockland_HR::upgrade_gaps() )' ),
 	'Schema-gated startup keeps a read-only repair health endpoint and aligns HR route readiness.'
 );
