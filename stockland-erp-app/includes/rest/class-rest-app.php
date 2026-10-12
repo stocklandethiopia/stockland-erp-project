@@ -1232,7 +1232,32 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$diagnostics['unexpected_schema_tables']  = $unexpected_full;
 		$diagnostics['schema_table_count']        = count( $found_keys );
 		$checks['schema_contract_exact_49']       = count( $found_keys ) === 49 && empty( $missing_full ) && empty( $unexpected_full );
-		$checks['ledger_runtime']                 = in_array( 'transactions', $found_keys, true ) && in_array( 'balances', $found_keys, true ) && class_exists( 'Stockland_Ledger' ) && method_exists( 'Stockland_Ledger', 'record' );
+
+		// The startup gate withholds business controllers while required accounting or
+		// HR/payroll columns/indexes are missing. Deep readiness must explicitly report
+		// the same physical schema gates rather than leaving undefined check values.
+		$accounting_schema_gaps = array( 'accounting_upgrade_check_failed' );
+		$hr_schema_gaps         = array( 'hr_upgrade_check_failed' );
+		try {
+			if ( class_exists( 'Stockland_Accounting' ) ) {
+				$accounting_schema_gaps = Stockland_Accounting::upgrade_gaps();
+			}
+		} catch ( Throwable $e ) {
+			$diagnostics['accounting_schema_upgrade_error'] = 'Accounting schema-upgrade inspection failed; inspect authorized server diagnostics.';
+		}
+		try {
+			if ( class_exists( 'Stockland_HR' ) ) {
+				$hr_schema_gaps = Stockland_HR::upgrade_gaps();
+			}
+		} catch ( Throwable $e ) {
+			$diagnostics['hr_schema_upgrade_error'] = 'HR/payroll schema-upgrade inspection failed; inspect authorized server diagnostics.';
+		}
+		$checks['accounting_schema_upgrade_ready']     = empty( $accounting_schema_gaps );
+		$checks['hr_schema_upgrade_ready']             = empty( $hr_schema_gaps );
+		$diagnostics['accounting_schema_upgrade_gaps'] = $accounting_schema_gaps;
+		$diagnostics['hr_schema_upgrade_gaps']         = $hr_schema_gaps;
+
+		$checks['ledger_runtime'] = in_array( 'transactions', $found_keys, true ) && in_array( 'balances', $found_keys, true ) && class_exists( 'Stockland_Ledger' ) && method_exists( 'Stockland_Ledger', 'record' );
 
 		$server          = rest_get_server();
 		$routes          = $server ? $server->get_routes() : array();
@@ -1702,7 +1727,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			);
 			$checks['supplemental_integrity_scan']      = false;
 		}
-		$checks['live_ready'] = ( $checks['db'] && $checks['php_runtime'] && $checks['xlsx_upload_capacity'] && $checks['balance_model_contract'] && $checks['core_schema'] && $checks['full_schema'] && $checks['schema_contract_exact_49'] && $checks['ledger_runtime'] && $checks['rest_v16'] && $checks['frontend_route'] && $checks['ssl'] && $checks['xlsx_reader'] && $checks['xlsx_streaming_reader'] && $checks['xlsx_xmlreader_stream'] && $checks['sourcing_service'] && $checks['no_advisor_runtime'] && $checks['logo_asset'] && $checks['audit_chain'] && $checks['identifier_integrity'] && $checks['ledger_references'] && $checks['no_negative_stock'] && $checks['balance_reconciled'] && $checks['ap_ar_reconciled'] && $checks['reservation_integrity'] && $checks['general_ledger_balanced'] && $checks['procurement_references'] && $checks['authorization_scope_table'] && $checks['import_rows_schema'] && $checks['notifications_schema'] && $checks['product_master_contract'] && $checks['daily_pos_contract'] && $checks['warehouse_receiving_contract'] && $checks['sku_mapping_contract'] && $checks['variant_first_product_identity'] && $checks['four_layer_import_contract'] && $checks['product_master_no_stock_contract'] && $checks['xlsx_stream_contract'] && $checks['sourcing_no_mutation_contract'] && $checks['no_external_provider_runtime'] && $checks['no_scheduler_dependency'] && $checks['no_database_trigger'] && $checks['pwa_registration_source'] && $checks['payroll_statutory_model'] && $checks['payroll_compensation_classification'] && $checks['supplemental_integrity_scan'] );
+		$checks['live_ready'] = ( $checks['db'] && $checks['php_runtime'] && $checks['xlsx_upload_capacity'] && $checks['balance_model_contract'] && $checks['core_schema'] && $checks['full_schema'] && $checks['schema_contract_exact_49'] && $checks['accounting_schema_upgrade_ready'] && $checks['hr_schema_upgrade_ready'] && $checks['ledger_runtime'] && $checks['rest_v16'] && $checks['frontend_route'] && $checks['ssl'] && $checks['xlsx_reader'] && $checks['xlsx_streaming_reader'] && $checks['xlsx_xmlreader_stream'] && $checks['sourcing_service'] && $checks['no_advisor_runtime'] && $checks['logo_asset'] && $checks['audit_chain'] && $checks['identifier_integrity'] && $checks['ledger_references'] && $checks['no_negative_stock'] && $checks['balance_reconciled'] && $checks['ap_ar_reconciled'] && $checks['reservation_integrity'] && $checks['general_ledger_balanced'] && $checks['procurement_references'] && $checks['authorization_scope_table'] && $checks['import_rows_schema'] && $checks['notifications_schema'] && $checks['product_master_contract'] && $checks['daily_pos_contract'] && $checks['warehouse_receiving_contract'] && $checks['sku_mapping_contract'] && $checks['variant_first_product_identity'] && $checks['four_layer_import_contract'] && $checks['product_master_no_stock_contract'] && $checks['xlsx_stream_contract'] && $checks['sourcing_no_mutation_contract'] && $checks['no_external_provider_runtime'] && $checks['no_scheduler_dependency'] && $checks['no_database_trigger'] && $checks['pwa_registration_source'] && $checks['payroll_statutory_model'] && $checks['payroll_compensation_classification'] && $checks['supplemental_integrity_scan'] );
 		$failed_checks        = array();
 		foreach ( $checks as $check_key => $check_value ) {
 			if ( 'live_ready' !== $check_key && 'ok' !== $check_key && ! $check_value ) {

@@ -945,10 +945,11 @@ async function runHealth(mode){
     const q=d.diagnostics||{};
     const checks=d.checks||{};
     const quickOnly=q.health_mode==='quick';
+    const setupRequired=q.health_mode==='setup';
     const ready=!!checks.live_ready;
     const badge=ready?'is-ready':'is-not-ready';
-    const label=quickOnly?'QUICK HEALTH ONLY':(ready?'LIVE READY':'NOT LIVE READY');
-    const bannerText=quickOnly?'Fast read-only service and schema checks completed. Deep integrity scans were intentionally deferred.':(ready?'All mandatory production checks passed.':'Resolve the failed checks shown below before live operation.');
+    const label=setupRequired?'SETUP REPAIR REQUIRED':(quickOnly?'QUICK HEALTH ONLY':(ready?'LIVE READY':'NOT LIVE READY'));
+    const bannerText=setupRequired?'The ERP is showing the exact schema gate that must be repaired before business controllers can register. Use the protected setup action; this check did not change business data.':(quickOnly?'Fast read-only service and schema checks completed. Deep integrity scans were intentionally deferred.':(ready?'All mandatory production checks passed.':'Resolve the failed checks shown below before live operation.'));
     let html='<div class="sl-live-ready-banner '+badge+'"><strong>'+label+'</strong><span>'+bannerText+'</span></div>';
     html+='<div class="sl-statline">';
     Object.keys(checks).forEach(function(k){if(k==='ok'||k==='live_ready')return;html+='<div class="sl-stat"><b>'+((checks[k])?'PASS':'FAIL')+'</b><span>'+esc(k)+'</span></div>';});
@@ -973,7 +974,12 @@ async function runHealth(mode){
       if(fk.status){html+='<div style="margin-top:8px"><b>Database foreign-key metadata:</b> '+esc(fk.status)+'. '+esc(fk.note||'Metadata only; no schema changes were attempted.')+'</div>';}
       html+='</div>';
     }
-    if(quickOnly){const deferred=q.deferred_checks||d.deferred_checks||[];html+='<div class="sl-notice sl-danger-block" style="margin-top:12px"><b>Deep integrity checks deferred — not certified</b><div style="margin-top:5px">'+esc(deferred.join(', '))+'</div><div style="margin-top:5px">This lightweight request avoids unbounded scans on shared hosting. It does not certify ledger, PLEDGER, AP/AR, GL, stock or audit-chain integrity.</div></div>';}else{html+=d.audit&&d.audit.ok?'<p class="sl-success-text">Audit chain integrity check passed.</p>':'<p class="sl-danger-text">'+esc((d.audit&&d.audit.reason)||'Audit chain integrity check failed.')+'</p>'; }
+    const upgradeGaps=q.schema_upgrade_gaps;
+    if(setupRequired && upgradeGaps && typeof upgradeGaps==='object'){
+      Object.entries(upgradeGaps).forEach(([area,gaps])=>{if(Array.isArray(gaps)&&gaps.length)html+='<div class="sl-notice sl-danger-block" style="margin-top:12px"><b>'+esc(area.toUpperCase())+' SCHEMA REPAIR ITEMS</b><div style="margin-top:5px">'+esc(gaps.join(', '))+'</div></div>';});
+      html+='<div class="sl-notice sl-notice-soft" style="margin-top:12px">Use the protected setup action for the allow-listed, bounded schema repair. This diagnostic does not post transactions.</div>';
+    }
+    if(setupRequired){const deferred=q.deferred_checks||d.deferred_checks||[];html+='<div class="sl-notice" style="margin-top:12px"><b>Full integrity scan has not run in setup mode.</b><div style="margin-top:5px">'+esc(deferred.join(', '))+'</div></div>';}else if(quickOnly){const deferred=q.deferred_checks||d.deferred_checks||[];html+='<div class="sl-notice sl-danger-block" style="margin-top:12px"><b>Deep integrity checks deferred — not certified</b><div style="margin-top:5px">'+esc(deferred.join(', '))+'</div><div style="margin-top:5px">This lightweight request avoids unbounded scans on shared hosting. It does not certify ledger, PLEDGER, AP/AR, GL, stock or audit-chain integrity.</div></div>';}else{html+=d.audit&&d.audit.ok?'<p class="sl-success-text">Audit chain integrity check passed.</p>':'<p class="sl-danger-text">'+esc((d.audit&&d.audit.reason)||'Audit chain integrity check failed.')+'</p>'; }
     el.innerHTML=html;
   }catch(e){
     try{
