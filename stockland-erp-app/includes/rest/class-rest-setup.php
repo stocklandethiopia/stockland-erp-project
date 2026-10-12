@@ -338,8 +338,9 @@ class Stockland_REST_Setup {
 		);
 	}
 	/**
-	 * Builds a read-only setup snapshot from physically verified schema state.
+	 * Builds a setup snapshot from physically verified schema state.
 	 *
+	 * @param bool $read_only Whether to avoid clearing stale setup error options.
 	 * @return array Current setup state, missing tables and schema gaps.
 	 */
 	private function snapshot( $read_only = false ) {
