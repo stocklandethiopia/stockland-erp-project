@@ -55,9 +55,11 @@ $ok(
 		&& str_contains( $setup, 'schema_gate_health' )
 		&& str_contains( $setup, "'health_mode'" )
 		&& str_contains( $setup, 'empty( Stockland_HR::upgrade_gaps() )' )
-		&& str_contains( $setup, '$snapshot = $this->snapshot( true );' )
-		&& str_contains( $setup, 'private function snapshot( $read_only = false )' )
-		&& str_contains( $setup, 'if ( ! $read_only )' ),
+		&& str_contains( $setup, '$snapshot = $this->snapshot( true, true );' )
+		&& str_contains( $setup, 'private function snapshot( $read_only = false, $include_schema_details = false )' )
+		&& str_contains( $setup, 'if ( ! $read_only )' )
+		&& str_contains( $setup, 'if ( ! $this->can_setup() && ! $include_schema_details )' )
+		&& str_contains( $setup, '$snapshot = $this->snapshot( true, true );' ),
 	'Schema-gated startup keeps a read-only repair health endpoint and aligns HR route readiness.'
 );
 $ok(
