@@ -1,6 +1,6 @@
-# Stockland Ethiopia ERP 16.1.57 — Comprehensive One-Pack Corrective Candidate
+# Stockland Ethiopia ERP 16.1.63 — In-Place Corrective Release Candidate
 
-**Release status: locally source/archive/static-QA verified; controlled staging candidate; not certified for live production.** This single plugin pack consolidates the cumulative 16.1.53 source and responsive UI, the 16.1.54 truthful quick-health behavior, the 16.1.55 namespace-aware XLSX worksheet fix, and 16.1.57 server-side approval lanes plus a read-only deep reconciliation scanner. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
+**Release status: locally source/archive/static-QA verified; controlled staging candidate; not certified for live production.** This update is built from the validated GitHub source and carries the schema-gate health fixes, a truthful read-only setup diagnostic, and the Owner purchase-order capability re-sync. It preserves the cumulative ERP workflows and the exact 49-table contract. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
 
 ## 16.1.53 change
 
@@ -16,7 +16,7 @@
 
 External supplier supply must follow Management entry/submission → separate active Owner approval → Central Warehouse Manager's actual quantity acceptance. Branch/Goro destinations cannot receive external supplier POs through this path. The free-form supplier receipt posting route is disabled; legacy pending manual receipts are reconciliation-only. Partial receipts remain against the same PO, and only accepted quantities post to inventory. Request keys, PO/line locks, inventory ledger writes, PLEDGER/GL journals and audit evidence are retained within the transactional workflow. Invoice matching and payment allocations remain tied to the approved PO/receipt path. The diagnostic integrity scan is read-only; it does not add foreign keys or repair old rows.
 
-## Local verification
+## 16.1.63 corrective release scope\n\n- Deep LIVE READY now includes the accounting and HR/payroll schema-upgrade gates that control operational route registration.\n- Setup diagnostics remain available to authorized roles during schema repair, show verified schema gaps, and explicitly state that the deep integrity audit has not run.\n- Health diagnostics use a read-only snapshot and do not clear setup-error options.\n- Accounting metadata query errors fail closed rather than being treated as absent schema.\n- WordPress role synchronization repairs a missing Owner purchase-order approval capability or a wrongly granted Management approval capability even if the stored role-capability marker is stale.\n- Database version remains 16.1.1; no business table, DDL migration, demo transaction, inventory adjustment or historical payroll rewrite is introduced.\n\n## Local verification
 
 - `php tools/qa/run-static-qa.php` — all local static/regression gates pass.
 - PHP syntax checks, JavaScript syntax checks, CSS source/bundle consistency and ZIP integrity pass.
@@ -27,7 +27,7 @@ External supplier supply must follow Management entry/submission → separate ac
 
 1. Back up the plugin files and database; make an isolated staging clone first.
 2. Upload this single ZIP through WordPress Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately.
-3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.57.
+3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.63.
 4. Test at real device widths. On tablets, swipe the second header row horizontally when a user action is beyond the visible strip. On phones, test the menu open/close and item navigation.
 5. Before production, complete the purchasing approval/receiving/concurrent retry checks and review the read-only integrity scan. Preserve a known rollback point.
 
