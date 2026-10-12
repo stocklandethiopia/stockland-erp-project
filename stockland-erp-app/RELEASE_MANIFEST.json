@@ -74,17 +74,17 @@
     "rest_nonce_destination": "same configured REST API origin and namespace only"
   },
   "quality": {
-    "php_lint_local": true,
-    "javascript_syntax_local": true,
-    "static_qa_local": true,
-    "php_smoke_local": true,
+    "php_lint_local": false,
+    "javascript_syntax_local": false,
+    "static_qa_local": false,
+    "php_smoke_local": false,
     "phpunit_configuration": true,
     "ci_configuration": true,
     "phpcs_wpcs_configuration": true,
     "local_regression_tests": true,
     "critical_workflow_qa": true,
-    "phpunit_suite_executed": true,
-    "phpcs_executed": true,
+    "phpunit_suite_executed": false,
+    "phpcs_executed": false,
     "browser_e2e_executed": false,
     "live_database_integration_executed": false,
     "sonarqube_semgrep_owasp_zap_executed": false,
@@ -95,7 +95,7 @@
     "single_guarded_fetch_sink": true,
     "live_certification": false,
     "full_scope_phpcs_profile_prepared": true,
-    "full_scope_phpcs_profile_executed": true,
+    "full_scope_phpcs_profile_executed": false,
     "statutory_payroll_math_qa": true,
     "hr_schema_contract_qa": true,
     "operational_ui_contract_qa_local": true,
@@ -114,15 +114,15 @@
     ],
     "authenticated_live_browser_e2e_executed": false,
     "bootstrap_css_upstream_verified": true,
-    "phpcs_wpcs_zero_findings": true,
-    "github_actions_source_gate_passed": true,
+    "phpcs_wpcs_zero_findings": false,
+    "github_actions_source_gate_passed": false,
     "source_gate_evidence": {
       "result": "PENDING",
       "release": "16.1.63",
       "baseline_source_commit": "534407ad28641bea2db426df83ed398633a6327c",
       "branch": "release/16.1.63-corrective-update",
       "live_certification": false,
-      "note": "Only evidence from an exact 16.1.63 release-branch CI run may replace this pending record. Do not copy previous 16.1.57 PASS status into the current release."
+      "note": "Historical 16.1.57 PASS data is retained under previous_source_gate_evidence. Current 16.1.63 flags remain false until the exact release branch workflow updates them from a passing run."
     },
     "previous_source_gate_evidence": {
       "release": "16.1.57",
@@ -143,7 +143,12 @@
         "live_certification": false
       },
       "note": "Historical source-gate evidence for the previous 16.1.57 candidate; retained unchanged for audit history."
-    }
+    },
+    "production_service_phpcs_zero_findings": false,
+    "php_lint_ci_executed": false,
+    "composer_validation_ci_executed": false,
+    "javascript_syntax_ci_executed": false,
+    "static_integrity_qa_ci_executed": false
   },
   "live_certification": false,
   "runtime_diagnostics": {
