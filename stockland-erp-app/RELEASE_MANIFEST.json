@@ -136,7 +136,6 @@
       "javascript_syntax": "PASS (Node.js 22)",
       "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
       "json_manifest_validation": "PASS (python json.tool)",
-      "live_certification_note": "Not run: authenticated live WordPress/MariaDB/browser acceptance has not been evidenced. This false value is intentionally retained and must not be represented as passed.",
       "note": "Exact-release GitHub Actions source gate passed. This record documents repository source checks; target-host acceptance is recorded separately."
     },
     "previous_source_gate_evidence": {
@@ -524,7 +523,6 @@
     "javascript_syntax": "PASS (Node.js 22)",
     "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
     "json_manifest_validation": "PASS (python json.tool)",
-    "live_certification_note": "Not run: authenticated live WordPress/MariaDB/browser acceptance has not been evidenced. This false value is intentionally retained and must not be represented as passed.",
     "state": "PASS",
     "note": "Exact-release GitHub Actions source gate passed. Target-host acceptance is tracked separately from repository source checks."
   },
@@ -554,8 +552,7 @@
       "erp_static_integrity_qa": "PASS",
       "javascript_syntax": "PASS (Node.js 22)",
       "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
-      "json_manifest_validation": "PASS (python json.tool)",
-      "live_certification_note": "Not run: authenticated live WordPress/MariaDB/browser acceptance has not been evidenced. This false value is intentionally retained and must not be represented as passed."
+      "json_manifest_validation": "PASS (python json.tool)"
     }
   },
   "source_gate": "PASS — exact 16.1.65 source gate; target-host acceptance evidence is tracked separately"
