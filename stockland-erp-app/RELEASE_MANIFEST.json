@@ -235,9 +235,9 @@
     "notes": "Visual direction is inspired by current business-app design patterns, with Stockland-specific brand and operational behavior. Existing REST routes, data hooks, ledger and schema are preserved."
   },
   "source_provenance": {
-    "base_package": "GitHub PR #25 16.1.64 source",
+    "base_package": "Canonical main snapshot 016706167874c3ef6233265a86f59f8e203da050 plus the verified Finance/Procurement SQL and per-user Owner PO-security repair carried forward from PR #34; release 16.1.66 adds location-specific expense authority and reporting.",
     "historical_acceptance_reference": "STOCKLAND_ERP_16_1_27_RELEASE_TEST_REPORT.md",
-    "note": "This commit is the 16.1.65 source candidate. The earlier local ZIP predates this source commit and is not the exact CI artifact."
+    "note": "This commit is the 16.1.66 source candidate. The package must be the exact CI artifact for this source gate; the earlier 16.1.65 source gate is retained only as historical evidence and is not reused as proof for this release."
   },
   "corrective_actions": [
     "Premium responsive interface refinements: readable two-line desktop navigation, high-contrast focus/hover/pressed actions, 44px touch targets, responsive forms/cards and accessible compact payroll editor.",
