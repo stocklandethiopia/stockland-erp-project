@@ -1,6 +1,6 @@
 {
-  "release": "16.1.63",
-  "classification": "In-place corrective release candidate 16.1.63 built from validated GitHub main after the 16.1.62 baseline. Aligns schema-gated startup and deep health, keeps restricted read-only diagnostics available during repair, treats metadata SQL errors explicitly, and re-synchronizes Owner purchase-order approval capability drift. Preserves all existing workflows and the exact 49-table business schema. Live certification remains pending until authenticated WordPress acceptance.",
+  "release": "16.1.64",
+  "classification": "In-place corrective update 16.1.64: repairs dynamic requisition SKU-picker binding and responsive request-line stacking while retaining Owner purchase approval synchronization and the established ERP data contract.",
   "baseline": "Derived from the GitHub main source at 534407ad28641bea2db426df83ed398633a6327c, including the merged source-health correction PR #22 and prior 16.1.57 source-gate history. This candidate is not a byte-for-byte rebuild of the earlier local 16.1.63 ZIP. No business schema migration, new business table, or historical transaction rewrite is included.",
   "schema_contract": {
     "core_operations": 29,
@@ -118,11 +118,8 @@
     "github_actions_source_gate_passed": false,
     "source_gate_evidence": {
       "result": "PENDING",
-      "release": "16.1.63",
-      "baseline_source_commit": "534407ad28641bea2db426df83ed398633a6327c",
-      "branch": "release/16.1.63-corrective-update",
-      "live_certification": false,
-      "note": "Historical 16.1.57 PASS data is retained under previous_source_gate_evidence. Current 16.1.63 flags remain false until the exact release branch workflow updates them from a passing run."
+      "release": "16.1.64",
+      "note": "Regenerate from the exact 16.1.64 source/package gate; do not reuse prior release evidence."
     },
     "previous_source_gate_evidence": {
       "release": "16.1.57",
