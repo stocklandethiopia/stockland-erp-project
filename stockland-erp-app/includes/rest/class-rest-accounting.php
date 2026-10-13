@@ -2101,13 +2101,22 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$status       = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
 		$has_status   = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
 		$company_wide = Stockland_Authority::company_scope();
+		$current_role = Stockland_Authority::role();
 		$location_ids = array();
 		if ( ! $company_wide ) {
-			$location_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
-			if ( ! $location_ids ) {
-				$branch = Stockland_Authority::branch_id();
-				if ( $branch ) {
-					$location_ids = array( (int) $branch );
+			if ( 'branch_manager' === $current_role ) {
+				$branch       = Stockland_Authority::branch_id();
+				$location_ids = $branch ? array( (int) $branch ) : array();
+			} elseif ( 'warehouse_manager' === $current_role ) {
+				$central_id   = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+				$location_ids = $central_id > 0 ? array( $central_id ) : array();
+			} else {
+				$location_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
+				if ( ! $location_ids ) {
+					$branch = Stockland_Authority::branch_id();
+					if ( $branch ) {
+						$location_ids = array( (int) $branch );
+					}
 				}
 			}
 			if ( ! $location_ids ) {
@@ -2134,7 +2143,6 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			),
 			ARRAY_A
 		);
-		$current_role = Stockland_Authority::role();
 		if ( $has_status && 'PENDING' === $status && in_array( $current_role, array( 'branch_manager', 'warehouse_manager' ), true ) ) {
 			// Keep legacy pending records visible in reports, but do not present unapprovable old-role records as actionable.
 			$rows = array_values(
