@@ -46,7 +46,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			'stockland_view_financials'         => array( 'owner', 'management', 'auditor' ),
 			'stockland_view_cost_and_profit'    => array( 'owner', 'management', 'auditor' ),
 			'stockland_manage_customers'        => array( 'owner', 'management', 'branch_manager', 'sales_employee' ),
-			'stockland_manage_expenses'         => array( 'owner', 'management', 'branch_manager' ),
+			'stockland_manage_expenses'         => array( 'owner', 'management', 'branch_manager', 'warehouse_manager' ),
 			'stockland_manage_receivables'      => array( 'owner', 'management' ),
 			'stockland_manage_payables'         => array( 'owner', 'management' ),
 			'stockland_manage_suppliers'        => array( 'owner', 'management' ),
@@ -2100,9 +2100,18 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$table        = Stockland_DB::table( 'expenses' );
 		$status       = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
 		$has_status   = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
+		$role = Stockland_Authority::role();
 		$company_wide = Stockland_Authority::company_scope();
 		$location_ids = array();
-		if ( ! $company_wide ) {
+		if ( 'branch_manager' === $role ) {
+			$branch = Stockland_Authority::branch_id();
+			$company_wide = false;
+			$location_ids = $branch > 0 ? array( (int) $branch ) : array();
+		} elseif ( 'warehouse_manager' === $role ) {
+			$central = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+			$company_wide = false;
+			$location_ids = $central > 0 ? array( $central ) : array();
+		} elseif ( ! $company_wide ) {
 			$location_ids = array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
 			if ( ! $location_ids ) {
 				$branch = Stockland_Authority::branch_id();
@@ -2110,9 +2119,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					$location_ids = array( (int) $branch );
 				}
 			}
-			if ( ! $location_ids ) {
-				return rest_ensure_response( array() );
-			}
+		}
+		if ( ! $company_wide && ! $location_ids ) {
+			return rest_ensure_response( array() );
 		}
 		$location_filter = implode( ',', array_map( 'intval', $location_ids ) );
 		$rows            = Stockland_DB::read_results(
