@@ -87,6 +87,7 @@ $ok( str_contains( $a, 'A Branch Manager may decide expenses only for their assi
 $ok( str_contains( $grant_block, "\$warehouse_manager->add_cap( 'stockland_manage_expenses' );" ) && str_contains( $grant_block, 'ROLE_WAREHOUSE_MANAGER ), true )' ), 'Warehouse Manager receives only the expense capability needed for the Central Warehouse workflow' );
 $ok( str_contains( $app, 'Location Expense History' ) && str_contains( $app, 'Expense Report — Read Only' ) && str_contains( $app, 'bindSkuPickers();' ), 'role-scoped expense UI, read-only reports and dynamic Finance/PO SKU picker are wired' );
 $ok( str_contains( $app, "if(['branch_manager','warehouse_manager'].includes(role))" ) && str_contains( $app, "api('/accounting/expenses')" ), 'Branch/Warehouse finance UI loads only scoped expense data, not the supplier/AP/AR bootstrap' );
+$ok( str_contains( $a_compact, "if(\$has_status&&'PENDING'===\$status&&in_array(\$current_role,array('branch_manager','warehouse_manager'),true))" ) && str_contains( $a, 'Keep legacy pending records visible in reports' ), 'legacy pending rows remain reportable but are not shown as actionable to the wrong authority role' );
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
