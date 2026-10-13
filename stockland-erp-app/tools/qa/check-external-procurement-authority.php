@@ -27,9 +27,9 @@ $manifest  = json_decode( $r( 'RELEASE_MANIFEST.json' ), true );
 $a_compact    = preg_replace( '/\\s+/', '', $a );
 $auth_compact  = preg_replace( '/\\s+/', '', $auth );
 $roles_compact = preg_replace( '/\\s+/', '', $roles );
-$ok( ( $manifest['release'] ?? '' ) === '16.1.65', 'release manifest marks 16.1.65' );
+$ok( ( $manifest['release'] ?? '' ) === '16.1.66', 'release manifest marks 16.1.66' );
 $plugin = $r( 'stockland-inventory.php' );
-$ok( str_contains( $plugin, "STOCKLAND_ROLE_CAPS_VERSION', '16.1.65-owner-profile-capability-repair-v1'" ) && str_contains( $plugin, "get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION" ), 'in-place release re-syncs role capabilities even when the plugin version is unchanged' );
+$ok( str_contains( $plugin, "STOCKLAND_ROLE_CAPS_VERSION', '16.1.66-owner-profile-capability-repair-v1'" ) && str_contains( $plugin, "get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION" ), 'in-place release re-syncs role capabilities even when the plugin version is unchanged' );
 $ok( str_contains( $roles, "SELECT wp_user_id, role, is_active FROM %i" ) && str_contains( $roles, "'owner' === (string) ( \$profile['role'] ?? '' )" ) && str_contains( $roles, "\$wp_user->add_cap( 'stockland_approve_purchase_orders' )" ) && str_contains( $roles, "\$wp_user->remove_cap( 'stockland_approve_purchase_orders' )" ), 'only active ERP Owner profiles receive the direct PO approval capability when needed' );
 $ok( str_contains( $app, 'slProfileBtn' ) && str_contains( $app, 'slProfileMenu' ) && str_contains( $app, 'Finance & Procurement' ) && str_contains( $app, 'data-profile-view="finance"' ), 'ERP user icon opens a role-aware dropdown with finance/procurement navigation' );
 $ok( str_contains( $auth_compact, 'self::role($uid)===self::MANAGEMENT' ) && str_contains( $auth_compact, 'self::role($uid)===self::OWNER' ) && str_contains( $auth_compact, 'self::role($uid)===self::WAREHOUSE_MANAGER' ), 'strict profile-level Management / Owner / Warehouse Manager gates exist' );
@@ -66,6 +66,12 @@ $ok( str_contains( $a, 'po_required' ) && str_contains( $a, 'separately Owner-ap
 $ok( str_contains( $a, 'idempotency_key_required' ) && str_contains( $a_compact, "acquire_named_lock('payment_'" ) && str_contains( $a, 'SLPAYREQ:' ) && str_contains( $a, 'payment_integrity_error' ), 'supplier payment retries are serialized, idempotent and journal-verified' );
 $ok( str_contains( $a, 'allocation_total_mismatch' ) && str_contains( $a, 'allocation_required' ), 'supplier payments require exact invoice allocation' );
 $ok( str_contains( $app, 'OWNER_APPROVED' ) && str_contains( $app, 'SUBMIT TO OWNER' ) && str_contains( $app, 'ACCEPT RECEIVED QTY' ), 'UI labels reflect the required SOP' );
+$ok( str_contains( $a, "Stockland_DB::table( 'purchase_orders' )" ) && ! str_contains( $a_compact, "FORUPDATE','purchase_orders'" ) && ! str_contains( $a_compact, "FORUPDATE','customers'" ) && ! str_contains( $a_compact, "LIMIT1','gl_journals'" ), 'finance SQL binds all logical table names through the WordPress-prefixed table resolver' );
+$ok( str_contains( $a_compact, "Stockland_DB::table('payment_allocations'),Stockland_DB::table('payments'),\$invoice_type,\$iid,(int)\$payment_id" ), 'AP/AR allocation query binds both tables before invoice/payment values' );
+$ok( str_contains( $auth, "array( self::OWNER, self::MANAGEMENT, self::BRANCH_MANAGER, self::WAREHOUSE_MANAGER )" ) && str_contains( $auth, "array( self::BRANCH_MANAGER, self::WAREHOUSE_MANAGER )" ), 'expense entry and final decision authority use explicit ERP roles' );
+$ok( str_contains( $a, "Central Warehouse expenses use the Warehouse Manager workflow" ) && str_contains( $a, "Management / Corporate" ) && str_contains( $a, "location_id'    => \$location_id > 0 ? \$location_id : null" ), 'corporate expenses have no branch attribution; branch and warehouse expenses use assigned scope' );
+$ok( str_contains( $a, "A Branch Manager may decide expenses only for their assigned branch" ) && str_contains( $a, "A Warehouse Manager may decide expenses only for the assigned Central Warehouse" ), 'expense decisions are restricted to the approver role and its assigned location' );
+$ok( str_contains( $app, "Location Expense History" ) && str_contains( $app, "Central Warehouse expense authority" ) && str_contains( $app, "Management / Corporate expense — no branch attribution" ), 'finance UI presents a separate location-expense workspace and prevents corporate branch selection' );
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
