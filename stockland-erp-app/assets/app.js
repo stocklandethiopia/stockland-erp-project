@@ -545,7 +545,7 @@ async function loadFinanceApprovals(){
     html+='<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Type / Reference</th><th>Supplier / Branch / Party</th><th>Submitted by</th><th>Date</th><th>Amount (ETB)</th><th>Decision</th></tr></thead><tbody>';
     all.forEach(({type,row:r})=>{
       const id=Number(r.id||0);const amount=type==='expense'?Number(r.amount||0)+Number(r.tax_amount||0):Number(r.total_amount||r.amount||0);
-      const kind=type==='expense'?'Branch expense':type==='supplier_invoice'?'Supplier invoice':'Finance payment';
+      const kind=type==='expense'?'Location expense':type==='supplier_invoice'?'Supplier invoice':'Finance payment';
       const ref=type==='expense'?(r.expense_number||('EXP-'+id)):type==='supplier_invoice'?(r.invoice_number||('AP-'+id)):(r.payment_number||('PAY-'+id));
       const party=type==='expense'?(r.location_name||'Location required'):type==='supplier_invoice'?(r.supplier_name||'Supplier'):(r.supplier_name||r.customer_name||r.payment_type||'Finance');
       const detail=type==='expense'?(r.category||r.description||''):type==='supplier_invoice'?(r.po_number?'PO '+r.po_number:'PO required'):(r.method||'');
