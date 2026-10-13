@@ -335,6 +335,8 @@ jobs:
               "composer_validation_ci_executed": True,
               "javascript_syntax_ci_executed": True,
               "static_integrity_qa_ci_executed": True,
+              "css_build_ci_executed": True,
+              "json_manifest_validation_ci_executed": True,
           })
           evidence = {
               "result": "PASS",
@@ -352,10 +354,13 @@ jobs:
               "production_service_coding_standard": "PASS",
               "phpunit": "PASS",
               "erp_static_integrity_qa": "PASS",
-              "javascript_syntax": "PASS",
+              "javascript_syntax": "PASS (Node.js 22)",
+              "php_runtime": "PHP 8.4",
+              "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
+              "json_manifest_validation": "PASS (python json.tool)",
           }
           quality["source_gate_evidence"] = evidence
-          quality["source_gate"] = "PASS — exact 16.1.65 source gate; live certification remains pending"
+          quality["source_gate"] = "PASS — exact 16.1.65 source gate; authenticated live certification remains pending"
           manifest["source_gate_evidence"] = {
               **evidence,
               "state": "PASS",
