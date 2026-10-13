@@ -1239,7 +1239,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}return new WP_Error( 'owner_approval_required', 'The PO lacks valid, separate Management-entry and Owner-approval evidence. Stop receiving and route legacy records to the Owner review queue.', array( 'status' => 409 ) );}
 		if ( '' !== $request_key ) {
 			$pattern  = $wpdb->esc_like( '[[SLGRNREQ:' . $request_key . ':' ) . '%';
-			$existing = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,receipt_number,po_id,notes FROM %i WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', 'purchase_receipts', $pattern ), ARRAY_A );
+			$existing = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,receipt_number,po_id,notes FROM %i WHERE notes LIKE %s ORDER BY id DESC LIMIT 1', Stockland_DB::table( 'purchase_receipts' ), $pattern ), ARRAY_A );
 			if ( $wpdb->last_error ) {
 				Stockland_DB::release_named_lock( $request_lock );
 				return new WP_Error( 'retry_check_failed', 'Could not verify goods-receipt retry marker.', array( 'status' => 500 ) );}
@@ -1317,7 +1317,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( ! in_array( $po['status'], array( 'OWNER_APPROVED', 'PARTIALLY_RECEIVED' ), true ) ) {
 				throw new Exception( 'PO must have separate Owner approval before receiving.' );
 			}
-			$items = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d ORDER BY id FOR UPDATE', 'purchase_order_items', $poid ), ARRAY_A );
+			$items = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE po_id=%d ORDER BY id FOR UPDATE', Stockland_DB::table( 'purchase_order_items' ), $poid ), ARRAY_A );
 			if ( ! $items ) {
 				throw new Exception( 'Purchase order has no lines.' );
 			}
