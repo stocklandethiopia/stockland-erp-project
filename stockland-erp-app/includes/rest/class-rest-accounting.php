@@ -2306,13 +2306,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 							'account_code' => '1300',
 							'debit'        => $tax,
 							'credit'       => 0,
-							'location_id'  => $location_id,
+							'location_id'  => $location_id > 0 ? $location_id : null,
 						),
 						array(
 							'account_code' => 'BANK' === $method ? '1010' : '1000',
 							'debit'        => 0,
 							'credit'       => Stockland_Money::add( $amount, $tax ),
-							'location_id'  => $location_id,
+							'location_id'  => $location_id > 0 ? $location_id : null,
 						),
 					),
 					$uid
@@ -2327,7 +2327,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( ! $direct_post ) {
 				$final_role = $branch_role ? 'branch_manager' : 'warehouse_manager';
-				if ( ! Stockland_Notifications::push_role( $final_role, null, 'expense_approval', 'Location expense awaiting final approval', $num . ' · ' . $location['location_name'] . ' · ' . $category . ' · ETB ' . number_format( (float) $amount + (float) $tax, 2, '.', '' ) . ' submitted by ' . wp_get_current_user()->display_name . '.', 'expense', $id, 'action' ) ) {
+				if ( ! Stockland_Notifications::push_role( $final_role, $location_id, 'expense_approval', 'Location expense awaiting final approval', $num . ' · ' . $location['location_name'] . ' · ' . $category . ' · ETB ' . number_format( (float) $amount + (float) $tax, 2, '.', '' ) . ' submitted by ' . wp_get_current_user()->display_name . '.', 'expense', $id, 'action' ) ) {
 					throw new Exception( 'Location-authority notification could not be queued; expense was not committed.' );
 				}
 				Stockland_Notifications::push_role( 'management', null, 'expense_submitted', 'Location expense submitted', $num . ' awaits final approval for ' . $location['location_name'] . '.', 'expense', $id, 'info' );
