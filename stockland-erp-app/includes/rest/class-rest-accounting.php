@@ -2187,7 +2187,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$branch_role       = 'branch_manager' === $role;
 		$warehouse_role    = 'warehouse_manager' === $role;
 		$corporate_expense = in_array( $role, array( 'owner', 'management' ), true );
-		$central_id       = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+		$central_id        = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( $branch_role ) {
 			$location_id = (int) ( $profile['branch_location_id'] ?? 0 );
 			if ( ! $location_id || $location_id === $central_id ) {
