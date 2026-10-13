@@ -47,7 +47,8 @@ $ok( ! str_contains( $a_compact, "FORUPDATE','purchase_orders'" ) && ! str_conta
 $grant_start = strpos( $ddl, 'private static function grant_capabilities()' );
 $grant_end = strpos( $ddl, 'Creates the required walk-in customer', $grant_start );
 $grant_block = false !== $grant_start && false !== $grant_end ? substr( $ddl, $grant_start, $grant_end - $grant_start ) : '';
-$caps_start = strpos( $grant_block, '$company_finance_caps = array(' );
+$caps_variable_start = strpos( $grant_block, '$company_finance_caps' );
+$caps_start = false !== $caps_variable_start ? strpos( $grant_block, 'array(', $caps_variable_start ) : false;
 $caps_end = false !== $caps_start ? strpos( $grant_block, ');', $caps_start ) : false;
 $caps_block = false !== $caps_start && false !== $caps_end ? substr( $grant_block, $caps_start, $caps_end - $caps_start ) : '';
 $ok( str_contains( $grant_block, "\$branch_manager->add_cap( 'stockland_manage_expenses' );" ), 'Branch Manager retains expense submission capability in accounting capability sync' );
