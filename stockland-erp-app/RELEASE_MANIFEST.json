@@ -1,6 +1,6 @@
 {
-  "release": "16.1.64",
-  "classification": "In-place corrective update 16.1.64: repairs dynamic requisition SKU-picker binding and responsive request-line stacking while retaining Owner purchase approval synchronization and the established ERP data contract.",
+  "release": "16.1.65",
+  "classification": "In-place corrective release 16.1.65: synchronizes approval capability to the active ERP Owner account, makes the live Product Master SKU picker reliably reopen on touch, and separates confirmed POS posting from follow-up refresh failures. Existing 49-table business contract and schema-version markers remain unchanged.",
   "baseline": "Derived from the GitHub main source at 534407ad28641bea2db426df83ed398633a6327c, including the merged source-health correction PR #22 and prior 16.1.57 source-gate history. This candidate is not a byte-for-byte rebuild of the earlier local 16.1.63 ZIP. No business schema migration, new business table, or historical transaction rewrite is included.",
   "schema_contract": {
     "core_operations": 29,
@@ -145,7 +145,8 @@
     "php_lint_ci_executed": false,
     "composer_validation_ci_executed": false,
     "javascript_syntax_ci_executed": false,
-    "static_integrity_qa_ci_executed": false
+    "static_integrity_qa_ci_executed": false,
+    "source_gate": "PENDING exact 16.1.65 commit"
   },
   "live_certification": false,
   "runtime_diagnostics": {
@@ -222,7 +223,7 @@
     "payroll_journal": "6200 payroll expense; 6210 employer pension expense; 2020 payroll payable; 2030 employee pension payable; 2031 income-tax payable; 2032 employer pension payable; 2033 other payroll deductions payable",
     "posted_payroll_journal_requires": "All line-level rule versions present and gross/tax/pension/other deductions/net reconcile to the cent; account codes must be active and of the expected type"
   },
-  "release_label": "16.1.63 in-place corrective update candidate; reconciled readiness/setup diagnostics, explicit schema-upgrade gates, Owner-only purchase approval capability sync, and unchanged 49-table business contract. Not live-certified.",
+  "release_label": "16.1.65 in-place corrective source candidate. Exact-release GitHub source gate pending; production/live certification remains false.",
   "frontend_css_architecture": {
     "source_modules": [
       "01-foundation.css",
@@ -239,9 +240,9 @@
     "notes": "Visual direction is inspired by current business-app design patterns, with Stockland-specific brand and operational behavior. Existing REST routes, data hooks, ledger and schema are preserved."
   },
   "source_provenance": {
-    "base_package": "Stockland_ERP_16.1.42_AUDIT_CANDIDATE_PLUGIN.zip",
+    "base_package": "GitHub PR #25 16.1.64 source",
     "historical_acceptance_reference": "STOCKLAND_ERP_16_1_27_RELEASE_TEST_REPORT.md",
-    "note": "Owner PO approval capability synchronization, canonical active-profile role resolution, and profile-dropdown changes are included in the current review branch. Previous source/CI results predate these commits and are not evidence for the current head; fresh CI and authenticated staging are required. No live site was changed."
+    "note": "This commit is the 16.1.65 source candidate. The earlier local ZIP predates this source commit and is not the exact CI artifact."
   },
   "corrective_actions": [
     "Premium responsive interface refinements: readable two-line desktop navigation, high-contrast focus/hover/pressed actions, 44px touch targets, responsive forms/cards and accessible compact payroll editor.",
@@ -485,5 +486,18 @@
     "overall_release_decision": "HOLD_NOT_LIVE_CERTIFIED",
     "canonical_tracking_issue": "https://github.com/stocklandethiopia/stockland-erp-project/issues/3",
     "prior_misleading_current_state_wording": "Superseded by AUDIT_STATUS_ADJUDICATION_2026-10-12.md and the CAP issue current-state section."
+  },
+  "source_gate_evidence": {
+    "release": "16.1.65",
+    "state": "PENDING",
+    "note": "Regenerate package from the exact source commit and record matching GitHub Actions run and artifact checksum; do not reuse 16.1.64 evidence."
+  },
+  "corrective_release_16_1_65": {
+    "scope": "Active Owner per-user PO capability synchronization; live SKU picker click/touch reopening and listbox semantics; POS outcome reporting separates a verified CLOSED sale from a later refresh error.",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "business_table_contract": "49 unchanged",
+    "source_gate": "PENDING",
+    "live_certification": false
   }
 }
