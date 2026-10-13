@@ -1,6 +1,6 @@
-# Stockland Ethiopia ERP 16.1.65 — In-Place Corrective Update Candidate
+# Stockland Ethiopia ERP 16.1.66 — In-Place Corrective Update Candidate
 
-**Release status: 16.1.65 current in-place corrective candidate.** Exact source/package evidence and the run-specific installer SHA-256 are recorded in the [16.1.65 package identity record](https://github.com/stocklandethiopia/stockland-erp-project/blob/main/AUDIT/16.1.65-package-identity.md). Repository source/package validation and authenticated target-host acceptance are separate gates; the candidate must not be described as production-certified until the staged WordPress/MariaDB workflow, integrity/ledger reconciliation, host/browser, and recovery checks have dated PASS evidence. This update preserves the cumulative ERP workflows and exact 49-table business contract, and is prepared for both fresh installation and in-place update without adding business tables.
+**Release status: 16.1.66 current in-place corrective candidate.** Exact source/package evidence and the run-specific installer SHA-256 are recorded in the [16.1.66 package identity record](https://github.com/stocklandethiopia/stockland-erp-project/blob/main/AUDIT/16.1.66-package-identity.md). Repository source/package validation and authenticated target-host acceptance are separate gates; the candidate must not be described as production-certified until the staged WordPress/MariaDB workflow, integrity/ledger reconciliation, host/browser, and recovery checks have dated PASS evidence. This update preserves the cumulative ERP workflows and exact 49-table business contract, and is prepared for both fresh installation and in-place update without adding business tables.
 
 ## 16.1.53 change
 
