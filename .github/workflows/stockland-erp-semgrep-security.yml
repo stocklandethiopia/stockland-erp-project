@@ -1,0 +1,75 @@
+name: Stockland ERP Semgrep Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep-security:
+    name: Semgrep security audit (PHP and JavaScript)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.171.0
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Scan ERP runtime sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          semgrep scan \
+            --config p/security-audit \
+            --config p/owasp-top-ten \
+            --json \
+            --output semgrep-results.json \
+            --exclude 'tools/qa' \
+            stockland-erp-app
+
+      - name: Summarize security findings
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("semgrep-results.json")
+          if not path.is_file():
+              print("Semgrep did not produce a report.")
+              raise SystemExit(2)
+          report = json.loads(path.read_text(encoding="utf-8"))
+          results = report.get("results", [])
+          severities = {"ERROR": 0, "WARNING": 0, "INFO": 0}
+          for finding in results:
+              severity = str(finding.get("extra", {}).get("severity", "INFO")).upper()
+              severities[severity] = severities.get(severity, 0) + 1
+          print(f"Semgrep findings: {len(results)}")
+          print("Severity counts: " + ", ".join(f"{key}={value}" for key, value in sorted(severities.items())))
+          for finding in results[:100]:
+              extra = finding.get("extra", {})
+              loc = finding.get("start", {})
+              print(
+                  f"{extra.get('severity', 'INFO')} {finding.get('check_id', 'unknown')} "
+                  f"{finding.get('path', '')}:{loc.get('line', 0)} — {extra.get('message', '').splitlines()[0]}"
+              )
+          if severities.get("ERROR", 0):
+              print("Blocking security gate: high-severity findings must be resolved or reviewed before release.")
+              raise SystemExit(1)
+          PY
+
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: stockland-erp-semgrep-security-report
+          path: semgrep-results.json
+          if-no-files-found: warn
+          retention-days: 30
