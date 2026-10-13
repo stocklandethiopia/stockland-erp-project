@@ -1,6 +1,6 @@
 # Stockland Ethiopia ERP 16.1.65 — In-Place Corrective Update Candidate
 
-**Release status: 16.1.64 corrective candidate; exact source/package gate and live WordPress acceptance remain separate. Not live-certified.** This update is built from the validated GitHub source and carries the schema-gate health fixes, a truthful read-only setup diagnostic, and the Owner purchase-order capability re-sync. It preserves the cumulative ERP workflows and the exact 49-table contract. It is structured for clean WordPress installation or in-place update without adding business tables. Staging activation and live data reconciliation remain required.
+**Release status: 16.1.65 current in-place corrective candidate.** Exact source/package evidence and the run-specific installer SHA-256 are recorded in the [16.1.65 package identity record](https://github.com/stocklandethiopia/stockland-erp-project/blob/main/AUDIT/16.1.65-package-identity.md). Repository source/package validation and authenticated target-host acceptance are separate gates; the candidate must not be described as production-certified until the staged WordPress/MariaDB workflow, integrity/ledger reconciliation, host/browser, and recovery checks have dated PASS evidence. This update preserves the cumulative ERP workflows and exact 49-table business contract, and is prepared for both fresh installation and in-place update without adding business tables.
 
 ## 16.1.53 change
 
