@@ -470,7 +470,7 @@ if($('#newProduct'))$('#newProduct').onclick=()=>openProductEditor(null);
 document.querySelectorAll('[data-edit-product]').forEach(b=>b.onclick=()=>openProductEditor(b.dataset.editProduct));
 if($('#addReq')){
 let n=0;
-const add=()=>{n++;const d=document.createElement('div');d.className='sl-form';d.style.marginBottom='10px';d.innerHTML='<div class="sl-field"><label>SKU</label>'+skuPickerField('reqsku[]','',{label:'Requested SKU'})+'</div><div class="sl-field"><label>Quantity</label><input name="reqqty[]" type="number" min="1" value="1"></div>';$('#reqItems').appendChild(d)};
+const add=()=>{n++;const d=document.createElement('div');d.className='sl-form';d.style.marginBottom='10px';d.innerHTML='<div class="sl-field"><label>SKU</label>'+skuPickerField('reqsku[]','',{label:'Requested SKU'})+'</div><div class="sl-field"><label>Quantity</label><input name="reqqty[]" type="number" min="1" value="1"></div>';$('#reqItems').appendChild(d);bindSkuPickers()};
 add();$('#addReq').onclick=add;loadReqs();
 }
 document.querySelectorAll('[data-transfer]').forEach(b=>b.onclick=async()=>{try{await api('/transfers/'+encodeURIComponent(b.dataset.transfer)+'/status',{method:'POST',body:JSON.stringify({status:b.dataset.next})});toast('Transfer moved to '+b.dataset.next);await load()}catch(e){toast(e.message,true)}});
