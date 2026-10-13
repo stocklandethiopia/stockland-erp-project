@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'STOCKLAND_VERSION', '16.1.65' );
-define( 'STOCKLAND_ROLE_CAPS_VERSION', '16.1.65-owner-profile-capability-repair-v1' );
+define( 'STOCKLAND_ROLE_CAPS_VERSION', '16.1.65-finance-authority-repair-v2' );
 define( 'STOCKLAND_CORE_SCHEMA_VERSION', '16.1.1' );
 define( 'STOCKLAND_ACCOUNTING_SCHEMA_VERSION', '16.1.15' );
 define( 'STOCKLAND_HR_SCHEMA_VERSION', '16.1.3' );
@@ -143,9 +143,11 @@ function stockland_init_plugin() {
 					// partial update wrote the version marker before the role map healed.
 					$owner_role            = get_role( Stockland_Roles::ROLE_OWNER );
 					$management_role       = get_role( Stockland_Roles::ROLE_MANAGEMENT );
+					$admin_role            = get_role( 'administrator' );
 					$owner_po_cap_missing  = ! $owner_role || ! $owner_role->has_cap( 'stockland_approve_purchase_orders' );
 					$management_po_cap_bad = $management_role && $management_role->has_cap( 'stockland_approve_purchase_orders' );
-					if ( get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION || $owner_po_cap_missing || $management_po_cap_bad ) {
+					$admin_po_cap_bad      = $admin_role && $admin_role->has_cap( 'stockland_approve_purchase_orders' );
+					if ( get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION || $owner_po_cap_missing || $management_po_cap_bad || $admin_po_cap_bad ) {
 						Stockland_Roles::register_roles();
 						Stockland_Roles::sync_roles();
 						update_option( 'stockland_roles_cap_version', STOCKLAND_ROLE_CAPS_VERSION, false );
