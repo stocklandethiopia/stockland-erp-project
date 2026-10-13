@@ -16,6 +16,15 @@
 
 External supplier supply must follow Management entry/submission → separate active Owner approval → Central Warehouse Manager's actual quantity acceptance. Branch/Goro destinations cannot receive external supplier POs through this path. The free-form supplier receipt posting route is disabled; legacy pending manual receipts are reconciliation-only. Partial receipts remain against the same PO, and only accepted quantities post to inventory. Request keys, PO/line locks, inventory ledger writes, PLEDGER/GL journals and audit evidence are retained within the transactional workflow. Invoice matching and payment allocations remain tied to the approved PO/receipt path. The diagnostic integrity scan is read-only; it does not add foreign keys or repair old rows.
 
+## 16.1.66 Finance & Procurement authority amendment
+
+- Branch expense: the active Branch Manager can enter and make the final decision only for the manager's assigned branch. The decision is recorded in the audit trail and posts a balanced journal only on approval.
+- Central Warehouse expense: the active Warehouse Manager can enter and make the final decision only for Central Warehouse. Branch and corporate roles cannot submit or decide Central Warehouse expenses.
+- Management and Owner expense: each may submit its own corporate expense without choosing a branch/location. These records post to the ledger transactionally and remain reportable; neither role can use its corporate expense form to claim a branch expense.
+- External product purchase: Management creates/submits the PO using an existing active stockable Product Master SKU, quantity, unit cost and supplier; a different active Owner approves; the Warehouse Manager receives actual accepted quantities at Central Warehouse. PO creation is independent of supplier invoice/AP and customer invoice/AR entry; invoice matching and payment remain later, separate stages.
+- AP/AR and receiving queries bind physical table names through the WordPress-prefixed table resolver. SQL query placeholder order is checked by targeted regression assertions. The 49-table contract and schema markers remain unchanged; no existing data is dropped, reseeded or rewritten.
+- These are source changes only until the exact-release source/package gate passes. Authenticated WordPress/MariaDB acceptance, browser/mobile role checks, vulnerability scanning and backup/restore/rollback evidence remain required before production certification.
+
 ## 16.1.63 corrective release scope
 
 - Deep LIVE READY now includes the accounting and HR/payroll schema-upgrade gates that control operational route registration.
