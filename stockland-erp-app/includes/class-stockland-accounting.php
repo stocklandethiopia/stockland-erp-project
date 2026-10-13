@@ -836,8 +836,8 @@ class Stockland_Accounting {
 			$management_role->remove_cap( 'stockland_approve_purchase_orders' );
 		}
 
-		// Strip company-finance writes from operational roles. Branch Managers are
-		// the exception for expense preparation; sales and warehouse roles are not.
+		// Strip company-finance writes from operational roles. Branch and Central
+		// Warehouse Managers retain only their scoped expense capability.
 		$operational = array(
 			Stockland_Roles::ROLE_BRANCH_MANAGER,
 			Stockland_Roles::ROLE_SALES_EMPLOYEE,
