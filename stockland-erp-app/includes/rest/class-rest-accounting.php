@@ -2174,11 +2174,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $date ) {
 			return new WP_Error( 'invalid_date', 'expense_date is invalid.', array( 'status' => 400 ) );
 		}
-		$profile          = Stockland_Authority::profile( $uid );
-		$branch_role      = 'branch_manager' === $role;
-		$warehouse_role   = 'warehouse_manager' === $role;
+		$profile           = Stockland_Authority::profile( $uid );
+		$branch_role       = 'branch_manager' === $role;
+		$warehouse_role    = 'warehouse_manager' === $role;
 		$corporate_expense = in_array( $role, array( 'owner', 'management' ), true );
-		$central_id       = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+		$central_id        = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		if ( $branch_role ) {
 			$location_id = (int) ( $profile['branch_location_id'] ?? 0 );
 			if ( ! $location_id || $location_id === $central_id ) {
@@ -2386,11 +2386,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			$uid             = get_current_user_id();
-			$approver_role   = Stockland_Authority::role( $uid );
-			$creator_role    = Stockland_Authority::role( (int) $row['created_by'] );
+			$uid              = get_current_user_id();
+			$approver_role    = Stockland_Authority::role( $uid );
+			$creator_role     = Stockland_Authority::role( (int) $row['created_by'] );
 			$expense_location = (int) ( $row['location_id'] ?? 0 );
-			$central_id      = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+			$central_id       = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 			if ( 'branch_manager' === $approver_role ) {
 				$assigned_branch = Stockland_Authority::branch_id( $uid );
 				if ( ! $assigned_branch || $expense_location !== $assigned_branch || $expense_location === $central_id || ! Stockland_Authority::can_access_location( $expense_location, $uid ) ) {
@@ -2467,9 +2467,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Final location authority approved; GL journal ' . $journal, $row['expense_number'] ) ) {
 				throw new Exception( 'Expense decision could not be audited.' );
 			}
-			$title   = 'APPROVE' === $action ? 'Expense approved' : 'Expense rejected';
+			$title           = 'APPROVE' === $action ? 'Expense approved' : 'Expense rejected';
 			$authority_label = 'branch_manager' === $approver_role ? 'Branch Manager' : 'Central Warehouse Manager';
-			$message = $row['expense_number'] . ' was ' . $next . ' by the assigned ' . $authority_label . '.' . ( 'REJECT' === $action ? ' Reason: ' . $note : ' GL journal: ' . $journal . '.' );
+			$message         = $row['expense_number'] . ' was ' . $next . ' by the assigned ' . $authority_label . '.' . ( 'REJECT' === $action ? ' Reason: ' . $note : ' GL journal: ' . $journal . '.' );
 			if ( ! Stockland_Notifications::push_user( (int) $row['created_by'], 'expense_decision', $title, $message, 'expense', $id, 'REJECT' === $action ? 'warning' : 'info' ) ) {
 				throw new Exception( 'Submitter notification could not be queued; decision was rolled back.' );
 			}
