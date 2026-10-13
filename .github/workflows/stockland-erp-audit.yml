@@ -1,4 +1,5 @@
 name: Stockland ERP package and source gate
+# 16.1.66 manifest must state live_certification=false and all three unchanged schema markers.
 
 on:
   push:
