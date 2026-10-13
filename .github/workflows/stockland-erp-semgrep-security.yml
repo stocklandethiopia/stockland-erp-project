@@ -46,6 +46,15 @@ jobs:
               print("Semgrep did not produce a report.")
               raise SystemExit(2)
           report = json.loads(path.read_text(encoding="utf-8"))
+          errors = report.get("errors", [])
+          if errors:
+              print(f"Semgrep could not fully analyze the source: {len(errors)} scanner/parser error(s).")
+              for error in errors[:50]:
+                  print(
+                      f"{error.get('type', 'scanner error')} "
+                      f"{error.get('path', '')}: {error.get('message', '')}"
+                  )
+              raise SystemExit(2)
           results = report.get("results", [])
           severities = {"ERROR": 0, "WARNING": 0, "INFO": 0}
           for finding in results:
