@@ -240,13 +240,13 @@ class Stockland_Authority {
 	 * Branch Managers are limited to their assigned branch; Warehouse Managers are
 	 * limited to Central Warehouse. Corporate roles are deliberately excluded.
 	 *
-	 * @param int $location_id Expense location identifier.
+	 * @param int             $location_id Expense location identifier.
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
 	 * @return bool Whether the current role and location match the expense authority.
 	 */
 	public static function can_decide_location_expense( $location_id, $user_id = null ) {
-		$uid = $user_id ? $user_id : get_current_user_id();
-		$role = self::role( $uid );
+		$uid         = $user_id ? $user_id : get_current_user_id();
+		$role        = self::role( $uid );
 		$location_id = (int) $location_id;
 		if ( self::BRANCH_MANAGER === $role ) {
 			return $location_id > 0 && $location_id === self::branch_id( $uid ) && user_can( $uid, 'stockland_manage_expenses' );
