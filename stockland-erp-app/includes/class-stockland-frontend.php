@@ -24,7 +24,7 @@ class Stockland_Frontend {
 	const ERP_PATH           = 'stockland-erp';
 	const LEGACY_PATH        = 'stockland';
 	const LEGACY_PAGE_OPTION = 'stockland_app_page_id';
-	const ROUTE_VERSION      = '16.1.63';
+	const ROUTE_VERSION      = '16.1.65';
 
 	/**
 	 * Active frontend bridge singleton used by WordPress route callbacks.

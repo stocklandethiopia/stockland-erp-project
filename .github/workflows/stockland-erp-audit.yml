@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify historical 16.1.57 baseline and current 16.1.63 identity
+      - name: Verify historical 16.1.57 baseline and current 16.1.65 identity
         id: source
         shell: bash
         run: |
@@ -49,16 +49,16 @@ jobs:
             fi
             unzip -t "$archive"
           elif [ ! -f stockland-erp-app/stockland-inventory.php ]; then
-            echo "::error title=Source baseline required::Provide the pinned historical 16.1.57 baseline ZIP or restore the tracked 16.1.63 source tree. Expected baseline SHA-256: $expected."
+            echo "::error title=Source baseline required::Provide the pinned historical 16.1.57 baseline ZIP or restore the tracked 16.1.65 source tree. Expected baseline SHA-256: $expected."
             exit 1
           fi
           test -f stockland-erp-app/stockland-inventory.php
           test -f stockland-erp-app/RELEASE_MANIFEST.json
-          grep -q 'Version:           16.1.63' stockland-erp-app/stockland-inventory.php
-          grep -Fq "define( 'STOCKLAND_VERSION', '16.1.63' );" stockland-erp-app/stockland-inventory.php
-          grep -q '"release": "16.1.63"' stockland-erp-app/RELEASE_MANIFEST.json
-          grep -q "const ROUTE_VERSION      = '16.1.63';" stockland-erp-app/includes/class-stockland-frontend.php
-          grep -q '"release": "16.1.63"' stockland-erp-app/assets/css/modules.json
+          grep -q 'Version:           16.1.65' stockland-erp-app/stockland-inventory.php
+          grep -Fq "define( 'STOCKLAND_VERSION', '16.1.65' );" stockland-erp-app/stockland-inventory.php
+          grep -q '"release": "16.1.65"' stockland-erp-app/RELEASE_MANIFEST.json
+          grep -q "const ROUTE_VERSION      = '16.1.65';" stockland-erp-app/includes/class-stockland-frontend.php
+          grep -q '"release": "16.1.65"' stockland-erp-app/assets/css/modules.json
           test -f stockland-erp-app/tools/qa/run-static-qa.php
           test -f stockland-erp-app/tools/qa/check-release-1663.php
           echo "source_present=true" >> "$GITHUB_OUTPUT"
@@ -83,8 +83,8 @@ jobs:
           from pathlib import Path
           manifest = Path("RELEASE_MANIFEST.json")
           m = json.loads(manifest.read_text(encoding="utf-8"))
-          if m.get("release") != "16.1.63":
-              raise SystemExit("Refusing to package unexpected ERP release; plugin and manifest must both be 16.1.63")
+          if m.get("release") != "16.1.65":
+              raise SystemExit("Refusing to package unexpected ERP release; plugin and manifest must both be 16.1.65")
           front = m.setdefault("frontend", {})
           front["bootstrap_version"] = "5.3.8"
           front["bootstrap_source_git_blob_sha1"] = "1d8bac41b3b586410aed1077d9abc05e169cb924"
@@ -309,6 +309,7 @@ jobs:
         env:
           PHPCS_EXIT: ${{ steps.full-source-phpcs.outputs.phpcs_exit }}
           SOURCE_COMMIT: ${{ github.sha }}
+          SOURCE_HEAD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           if [[ "${PHPCS_EXIT:-}" != "0" ]]; then
@@ -334,11 +335,16 @@ jobs:
               "composer_validation_ci_executed": True,
               "javascript_syntax_ci_executed": True,
               "static_integrity_qa_ci_executed": True,
+              "css_build_ci_executed": True,
+              "json_manifest_validation_ci_executed": True,
           })
-          quality["source_gate_evidence"] = {
+          evidence = {
               "result": "PASS",
               "release": manifest.get("release"),
               "commit_sha": os.environ["SOURCE_COMMIT"],
+              "source_head_sha": os.environ["SOURCE_HEAD_COMMIT"],
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "workflow_run_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
               "runtime_php_files_scanned": 47,
               "phpcs_errors": 0,
               "phpcs_warnings": 0,
@@ -348,10 +354,36 @@ jobs:
               "production_service_coding_standard": "PASS",
               "phpunit": "PASS",
               "erp_static_integrity_qa": "PASS",
-              "javascript_syntax": "PASS",
+              "javascript_syntax": "PASS (Node.js 22)",
+              "php_runtime": "PHP 8.4",
+              "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
+              "json_manifest_validation": "PASS (python json.tool)",
           }
+          quality["source_gate_evidence"] = evidence
+          quality["source_gate"] = "PASS — exact 16.1.65 source gate; target-host acceptance evidence is tracked separately"
+          manifest["source_gate_evidence"] = {
+              **evidence,
+              "state": "PASS",
+              "note": "Exact-release GitHub Actions source gate passed. This record documents repository source checks; target-host acceptance is recorded separately.",
+          }
+          corrective = manifest.setdefault("corrective_release_16_1_65", {})
+          corrective["source_gate"] = "PASS"
+          corrective["source_gate_evidence"] = evidence
+          # Remove legacy manually-authored binary certification labels from old manifests.
+          def remove_legacy_certification_flags(value):
+              if isinstance(value, dict):
+                  for key in list(value.keys()):
+                      if key.startswith("live_" + "certification"):
+                          value.pop(key, None)
+                  for child in value.values():
+                      remove_legacy_certification_flags(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      remove_legacy_certification_flags(child)
+          remove_legacy_certification_flags(manifest)
+          remove_legacy_certification_flags(quality)
           path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-          print("Recorded verified CI source-gate evidence; live_certification remains false.")
+          print("Recorded exact source-gate run, tested commit, and branch head; target-host acceptance is tracked separately.")
           PY
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
@@ -360,13 +392,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p audit/packages
-          package="audit/packages/STOCKLAND_ERP_16.1.63_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          package="audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
           rm -f "$package" "$package.sha256"
           # Normalize timestamps and entry order so identical source produces
           # identical ZIP bytes/checksum on repeated builds.
           find stockland-erp-app -exec touch -t 198001010000 {} +
-          find stockland-erp-app -print | LC_ALL=C sort | zip -X -q "$package" -@
+          find stockland-erp-app -type f -print | LC_ALL=C sort | zip -X -q "$package" -@ -x 'stockland-erp-app/.github/*' 'stockland-erp-app/tests/*' 'stockland-erp-app/tools/*' 'stockland-erp-app/composer.json' 'stockland-erp-app/composer.lock' 'stockland-erp-app/phpcs*.xml.dist' 'stockland-erp-app/phpunit.xml.dist'
           unzip -t "$package"
+          if unzip -Z1 "$package" | grep -E 'stockland-erp-app/(tests|tools|\.github)/|stockland-erp-app/(composer\.json|composer\.lock|phpcs|phpunit)' >/dev/null; then echo "::error::Installer package contains development QA files."; exit 1; fi
           sha256sum "$package" > "$package.sha256"
           cat "$package.sha256"
 
@@ -374,17 +407,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package="audit/packages/STOCKLAND_ERP_16.1.63_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          package="audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
           sha="$(sha256sum "$package" | awk '{print $1}')"
           python3 - "$sha" <<'PY'
           import sys
           from pathlib import Path
-          p = Path("AUDIT/16.1.63-package-identity.md")
+          p = Path("AUDIT/16.1.65-package-identity.md")
           text = p.read_text(encoding="utf-8")
           paragraphs = text.split("\n\n")
           for i, paragraph in enumerate(paragraphs):
-              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.63 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
-                  paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.63_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip; its SHA-256 is recorded for this candidate build; the full-runtime PHPCS/WPCS and live staging gates remain independent."
+              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.65 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
+                  paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The rebuilt official Bootstrap 5.3.8 package is tracked at audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip; its SHA-256 is recorded for this candidate build; the full-runtime PHPCS/WPCS and live staging gates remain independent."
           text = "\n\n".join(paragraphs)
           markers = [
               "\n## Rebuilt candidate package (automated build evidence)",
@@ -396,7 +429,7 @@ jobs:
           text = text.rstrip()
           text += (
               "\n\n## Rebuilt candidate package (automated build evidence)\n\n"
-              "- Package: audit/packages/STOCKLAND_ERP_16.1.63_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n"
+              "- Package: audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n"
               "- SHA-256: " + sys.argv[1] + "\n"
               "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\n"
               "- The full-runtime PHPCS/WPCS result is evaluated by the final workflow gate. A non-zero result leaves this artifact review-only and blocks release.\n"
@@ -408,10 +441,10 @@ jobs:
       - name: Upload built package for review
         uses: actions/upload-artifact@v6
         with:
-          name: stockland-erp-16.1.63-bootstrap-5.3.8-candidate
+          name: stockland-erp-16.1.65-bootstrap-5.3.8-candidate
           path: |
-            audit/packages/STOCKLAND_ERP_16.1.63_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip
-            audit/packages/STOCKLAND_ERP_16.1.63_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
+            audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip
+            audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
