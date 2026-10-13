@@ -2100,15 +2100,15 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$table        = Stockland_DB::table( 'expenses' );
 		$status       = strtoupper( sanitize_text_field( (string) $r->get_param( 'status' ) ) );
 		$has_status   = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
-		$role = Stockland_Authority::role();
+		$role         = Stockland_Authority::role();
 		$company_wide = Stockland_Authority::company_scope();
 		$location_ids = array();
 		if ( 'branch_manager' === $role ) {
-			$branch = Stockland_Authority::branch_id();
+			$branch       = Stockland_Authority::branch_id();
 			$company_wide = false;
 			$location_ids = $branch > 0 ? array( (int) $branch ) : array();
 		} elseif ( 'warehouse_manager' === $role ) {
-			$central = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+			$central      = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 			$company_wide = false;
 			$location_ids = $central > 0 ? array( $central ) : array();
 		} elseif ( ! $company_wide ) {
@@ -2183,9 +2183,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $date ) {
 			return new WP_Error( 'invalid_date', 'expense_date is invalid.', array( 'status' => 400 ) );
 		}
-		$profile = Stockland_Authority::profile( $uid );
-		$location_id = null;
-		$location = null;
+		$profile          = Stockland_Authority::profile( $uid );
+		$location_id      = null;
+		$location         = null;
 		$direct_corporate = in_array( $role, array( 'owner', 'management' ), true );
 		if ( 'branch_manager' === $role ) {
 			$location_id = (int) ( $profile['branch_location_id'] ?? 0 );
