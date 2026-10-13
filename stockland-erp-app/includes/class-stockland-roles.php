@@ -175,6 +175,7 @@ class Stockland_Roles {
 					'stockland_review_requisitions',
 					'stockland_approve_transfers',
 					'stockland_request_adjustment',
+					'stockland_manage_expenses',
 				),
 				true
 			)
