@@ -293,7 +293,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'expense_status' ),
 				'permission_callback' => function () {
-					return Stockland_Authority::can_approve_expenses();
+					return $this->can( 'stockland_manage_expenses' );
 				},
 			)
 		);
