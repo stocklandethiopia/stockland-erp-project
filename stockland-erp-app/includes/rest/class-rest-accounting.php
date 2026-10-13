@@ -2193,7 +2193,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$location_id = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		}
 		if ( ! $direct_corporate ) {
-			if ( $location_id < 1 ) {
+			if ( 1 > $location_id ) {
 				return new WP_Error( 'assigned_location_required', 'Your ERP profile must have an assigned branch or Central Warehouse before entering expenses.', array( 'status' => 403 ) );
 			}
 			$location = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $location_id ), ARRAY_A );
@@ -2203,7 +2203,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( 'branch_manager' === $role && ! Stockland_Authority::can_access_location( $location_id ) ) {
 				return new WP_Error( 'location_scope', 'This expense is outside your assigned branch.', array( 'status' => 403 ) );
 			}
-			if ( 'warehouse_manager' === $role && $location_id !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+			if ( 'warehouse_manager' === $role && (int) Stockland_DB::get_location_id( 'Central Warehouse' ) !== $location_id ) {
 				return new WP_Error( 'location_scope', 'Central Warehouse expenses must use the Central Warehouse assignment.', array( 'status' => 403 ) );
 			}
 		}
@@ -2388,11 +2388,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
 			$location_id = (int) ( $row['location_id'] ?? 0 );
-			if ( $location_id < 1 || ! Stockland_Authority::can_decide_location_expense( $location_id ) ) {
+			if ( 1 > $location_id || ! Stockland_Authority::can_decide_location_expense( $location_id ) ) {
 				throw new Exception( 'This expense is outside the active manager’s assigned branch or Central Warehouse authority.' );
 			}
 			$creator_role = Stockland_Authority::role( (int) $row['created_by'] );
-			if ( 'branch_manager' === $creator_role && $location_id !== Stockland_Authority::branch_id( (int) $row['created_by'] ) ) {
+			if ( 'branch_manager' === $creator_role && Stockland_Authority::branch_id( (int) $row['created_by'] ) !== $location_id ) {
 				throw new Exception( 'Branch expense does not match the submitter’s assigned branch.' );
 			}
 			if ( 'warehouse_manager' === $creator_role && $location_id !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
