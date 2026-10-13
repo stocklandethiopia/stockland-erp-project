@@ -271,9 +271,15 @@ if(state.view==='products' && !state.catalogLoading && !state.catalogSearchPendi
 }
 }
 async function loadFinance(force){
+const viewAtStart=state.view;
 try{
-const d=await api('/accounting/bootstrap');state.finance=d;state.financeLoaded=true;
-if(force)render();
+const role=state.boot?.user?.role||'';
+if(['branch_manager','warehouse_manager'].includes(role)){
+const rows=await api('/accounting/expenses');state.finance={expense_rows:Array.isArray(rows)?rows:[]};
+}else{
+const d=await api('/accounting/bootstrap');let rows=[];try{rows=await api('/accounting/expenses')}catch(reportError){toast('Expense report could not be refreshed: '+reportError.message,true)}state.finance={...d,expense_rows:Array.isArray(rows)?rows:[]};
+}
+state.financeLoaded=true;if(force||(viewAtStart==='finance'&&state.view==='finance'))render();
 }catch(e){toast(e.message,true)}
 }
 function dashboard(){
