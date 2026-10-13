@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This record ratifies the distinction between repository-authored release-control metadata, GitHub source-gate results, and authenticated production acceptance. It supersedes prior wording that incorrectly described `live_certification: false` as if GitHub Actions had generated a source-audit failure, and any current-tense statement that PR #19 or PR #20 remains open.
+This record separates GitHub source-gate evidence from authenticated target-host acceptance. The source-gate status is determined by the linked workflow run; repository-authored release metadata must not override or mislabel that result. PR #19 is merged and PR #20 is closed unmerged.
 
 ## Independently verified source status
 
@@ -13,11 +13,11 @@ This record ratifies the distinction between repository-authored release-control
 - GitHub Actions [run 38298449906](https://github.com/stocklandethiopia/stockland-erp-project/actions/runs/38298449906) passed on PR #19's tested head `9ff36cea140f513859bd0a9e9584021b26329921`. The verified report was full-runtime PHPCS/WPCS with 0 errors, 0 warnings and 0 fixable findings across 47 runtime PHP files, and passing PHP lint, PHPUnit, static/integrity QA, JavaScript syntax, package build and the requisition-join regression.
 - GitHub search returned no open pull requests at the time of this review.
 
-## What `live_certification: false` means
+## How to read source-gate and target-host evidence
 
-The top-level `live_certification` and `quality.live_certification` values in `RELEASE_MANIFEST.json` are **manually authored repository data**. GitHub Actions does not generate or automatically set them. A value of `false` is therefore **not a GitHub source-gate failure** and must not be presented as one.
+The old binary certification fields were manually authored repository metadata, not GitHub Actions results. They have been removed from the current release manifest so the manifest does not contradict the linked source-gate evidence.
 
-The value remains false as a separate release-control decision because production certification has not been established. Source CI can pass while authenticated target-host and data-integrity acceptance remain incomplete. Do not change this field to true just because the source workflow is green.
+Source CI can pass independently of target-host acceptance. The current source-gate result is linked to its exact commit and installer artifact; authenticated database, browser, workflow, restore and rollback evidence must be recorded as their own acceptance results.
 
 ## Live / exact-release evidence still pending
 
@@ -38,10 +38,10 @@ The value remains false as a separate release-control decision because productio
 | Authenticated deep integrity and ledger reconciliation | **PENDING** | Corrected live rescan not evidenced |
 | Authenticated workflow/browser/host acceptance | **PENDING** | Not run/evidenced on target staging host |
 | Backup restore and rollback | **PENDING** | No test evidence in current records |
-| Overall live certification | **NOT CERTIFIED / HOLD** | Missing mandatory evidence above; not a GitHub-generated failure |
+| Target-host acceptance | **PENDING EVIDENCE** | Missing mandatory acceptance evidence listed above; this is separate from the source-gate result |
 
 ## Release decision
 
-Keep both manifest `live_certification` values false until all mandatory release gates pass with timestamped evidence tied to one exact source commit and installer SHA-256. Keep [CAP issue #3](https://github.com/stocklandethiopia/stockland-erp-project/issues/3) open. No production deployment or production transaction write is authorized by this source-gate result.
+Keep [CAP issue #3](https://github.com/stocklandethiopia/stockland-erp-project/issues/3) open until the mandatory target-host acceptance records are attached to the exact source commit and installer SHA-256. The source-gate result alone does not document those target-host checks.
 
 This status record corrects wording and establishes traceability; it does not claim the pending checks have been executed.
