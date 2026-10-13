@@ -2347,7 +2347,6 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			if ( ! $direct_post ) {
 				$final_role = $corporate_expense ? 'owner' : ( $branch_role ? 'branch_manager' : 'warehouse_manager' );
-				$expense_kind = $corporate_expense ? 'Management corporate expense' : 'Location expense';
 				$approval_title = $corporate_expense ? 'Corporate expense awaiting Owner approval' : 'Location expense awaiting final approval';
 				$approval_message = $num . ' · ' . $location['location_name'] . ' · ' . $category . ' · ETB ' . number_format( (float) $amount + (float) $tax, 2, '.', '' ) . ' submitted by ' . wp_get_current_user()->display_name . '.';
 				if ( ! Stockland_Notifications::push_role( $final_role, $location_id > 0 ? $location_id : null, 'expense_approval', $approval_title, $approval_message, 'expense', $id, 'action' ) ) {
