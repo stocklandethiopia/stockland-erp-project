@@ -33,7 +33,7 @@ $ok( str_contains( $js, 'focusable.length-1' ) && str_contains( $js, 'document.a
 $ok( str_contains( $js, "trigger.setAttribute('aria-expanded','true')" ) && str_contains( $js, "trigger.setAttribute('aria-expanded','false')" ), 'menu ARIA expanded state follows open/close' );
 $ok( str_contains( $js, "matchMedia('(min-width: 992px)')" ) && str_contains( $js, 'closeMobileMenu(false)' ), 'resizing back to desktop safely dismisses mobile overlay' );
 $ok( str_contains( $js, 'closeMobileMenu(false);render();document.getElementById(\'menu\')?.focus()' ), 'choosing a menu item navigates, closes the overlay and leaves predictable focus' );
-$ok( 1 === preg_match( '/ROUTE_VERSION\\s*=\\s*[\'\"]16\\.1\\.65[\'\"]/', $shell ), 'frontend cache bridge release identity updated' );
+$ok( 1 === preg_match( '/ROUTE_VERSION\\s*=\\s*[\'\"]16\\.1\\.66[\'\"]/', $shell ), 'frontend cache bridge release identity updated' );
 $ok( str_contains( $guards, '#stockland-app .sl-quick-actions{display:block!important' ) && str_contains( $guards, '.sl-quick-actions>.sl-quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))' ), 'desktop dashboard shortcut panel keeps heading above readable two-column actions' );
 $ok( str_contains( $guards, 'a.sl-exit{background:var(--sl-navy)!important' ) && str_contains( $guards, 'a.sl-exit:hover' ), 'EXIT action has a contrasting, readable background and hover state' );
 $ok( str_contains( $guards, '@media (max-width:575.98px)' ) && str_contains( $guards, '.sl-quick-actions>.sl-quick-grid{grid-template-columns:1fr' ), 'mobile quick actions become a clean single column' );
