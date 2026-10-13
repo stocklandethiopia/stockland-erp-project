@@ -382,7 +382,12 @@ jobs:
           find "$stage/stockland-erp-app" -exec touch -t 198001010000 {} +
           ( cd "$stage" && find stockland-erp-app -print | LC_ALL=C sort | zip -X -q "$package" -@ )
           unzip -t "$package"
-          if unzip -Z1 "$package" | grep -Eq '(^|/)(tests|tools|\.github)/|(^|/)(composer\.(json|lock)|phpcs[^/]*\.xml\.dist|phpunit\.xml\.dist)
+          if unzip -Z1 "$package" | grep -E 'stockland-erp-app/(tests|tools|\.github)/|stockland-erp-app/(composer\.json|composer\.lock|phpcs|phpunit)' >/dev/null; then
+            echo "::error::Installer package contains development QA files."
+            exit 1
+          fi
+          sha256sum "$package" > "$package.sha256"
+          cat "$package.sha256"
 
       - name: Update package identity evidence
         shell: bash
