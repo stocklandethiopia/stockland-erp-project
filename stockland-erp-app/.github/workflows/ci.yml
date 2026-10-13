@@ -55,9 +55,7 @@ jobs:
       - name: ZIP/runtime residue gate
         shell: bash
         run: |
-          if find . -type f \
-            \( -name '*.zip' -o -name '*.log' -o -name '*.bak' -o -name '*.orig' -o -name '*.old' \\) \
-            -print -quit | grep -q .; then
+          if find . -type f \( -name '*.zip' -o -name '*.log' -o -name '*.bak' -o -name '*.orig' -o -name '*.old' \) -print -quit | grep -q .; then
             echo 'Unexpected runtime residue found'
             exit 1
           fi
