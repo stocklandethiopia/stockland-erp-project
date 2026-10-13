@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.57 • Foundation, tokens and application root • Ordered source module. */
+/* Stockland ERP 16.1.63 • Foundation, tokens and application root • Ordered source module. */
 /*
  * Stockland Ethiopia ERP 16.1.44 — canonical frontend UI layer
  * FRONTEND-ONLY RELEASE: layout, typography, spacing, accessibility and responsive behavior.
@@ -73,7 +73,7 @@ button,input,select,textarea{font:inherit}
 #stockland-app .sl-shell{height:100%;min-height:0;display:grid;grid-template-columns:var(--sl-sidebar-w) minmax(0,1fr);background:var(--sl-canvas)}
 #stockland-app .sl-main{min-width:0;min-height:0;height:100%;display:grid;grid-template-rows:var(--sl-header-h) minmax(0,1fr);background:var(--sl-canvas)}
 
-/* Stockland ERP 16.1.57 • Shell, navigation, top bar and controls • Ordered source module. */
+/* Stockland ERP 16.1.63 • Shell, navigation, top bar and controls • Ordered source module. */
 #stockland-app .sl-sidebar{min-width:0;height:100%;overflow-y:auto;overflow-x:hidden;background:linear-gradient(180deg,#0b1730 0%,#0d2748 56%,#103558 100%);border-right:1px solid rgba(255,255,255,.10);color:#fff;padding:18px 13px;scrollbar-width:thin}
 #stockland-app .sl-sidebar::-webkit-scrollbar,#stockland-app .sl-content::-webkit-scrollbar{width:9px}
 #stockland-app .sl-sidebar::-webkit-scrollbar-thumb,#stockland-app .sl-content::-webkit-scrollbar-thumb{background:rgba(115,143,171,.4);border-radius:999px}
@@ -142,7 +142,7 @@ button,input,select,textarea{font:inherit}
   #stockland-app .sl-nav-text{font-size:14px;line-height:1.32;overflow-wrap:break-word;word-break:normal}
 }
 
-/* Stockland ERP 16.1.57 • Page hierarchy, cards, forms, tables and data components • Ordered source module. */
+/* Stockland ERP 16.1.63 • Page hierarchy, cards, forms, tables and data components • Ordered source module. */
 .sl-content{min-width:0;min-height:0;overflow:auto;background:linear-gradient(180deg,#f5f7fb 0,#f8fafc 45%,#f3f6fa 100%);padding:28px clamp(15px,2.4vw,36px) 44px;scroll-behavior:smooth}
 .sl-content-inner{width:100%;max-width:1720px;margin:0 auto}
 .sl-page-title{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:0 0 16px;padding:2px 0}
@@ -248,7 +248,7 @@ button,input,select,textarea{font:inherit}
 /* Health evidence is a long report: keep its heading in normal flow so mobile scrolling never covers the status panel. */
 .sl-content-inner>.sl-page-title-static{position:relative;top:auto;z-index:auto;margin-top:0;padding-top:0;padding-bottom:0;background:transparent;box-shadow:none}
 
-/* Stockland ERP 16.1.57 • Dialogs, overlays, workflow steps and notifications • Ordered source module. */
+/* Stockland ERP 16.1.63 • Dialogs, overlays, workflow steps and notifications • Ordered source module. */
 .sl-modal{position:fixed;inset:0;z-index:2147483002;background:rgba(5,19,38,.52);display:grid;place-items:center;padding:14px}.sl-modal>div{width:min(760px,100%);max-height:min(88vh,780px);overflow:auto;background:#fff;border:1px solid #bfd0e0;border-radius:16px;box-shadow:var(--sl-shadow-lg)}
 .sl-overlay{position:fixed;inset:0;z-index:2147483003;display:grid;place-items:center;padding:14px;background:rgba(5,20,40,.52)}.sl-drawer{position:fixed;right:0;top:0;bottom:0;width:min(560px,94vw);overflow:auto;background:#fff;border-left:1px solid #bed0e2;box-shadow:-20px 0 60px rgba(4,22,45,.18);padding:17px}.sl-drawer-head,.sl-command-head,.sl-mobile-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.sl-drawer-head h2,.sl-command-head h2{margin:0;color:var(--sl-ink);font-size:19px;font-weight:900}.sl-icon-btn{width:36px;height:36px;display:grid;place-items:center;border:1px solid #cbd8e5;border-radius:9px;background:#fff;color:var(--sl-ink);cursor:pointer;font-size:18px;line-height:1}.sl-command{width:min(700px,96vw);max-height:86vh;overflow:hidden;border:1px solid #bfd0e0;border-radius:16px;background:#fff;box-shadow:var(--sl-shadow-lg)}.sl-command-head{padding:15px 16px;border-bottom:1px solid var(--sl-line)}.sl-command-input{display:block;width:calc(100% - 24px);margin:12px;border:1px solid #c9d6e4;border-radius:9px;padding:11px;color:var(--sl-ink)}.sl-command-list{max-height:55vh;overflow:auto;padding:4px 7px}.sl-command-list>button{width:100%;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px;padding:9px;border:0;border-radius:9px;background:#fff;text-align:left;cursor:pointer}.sl-command-list>button:hover{background:#f1f6fc}.sl-command-list b{display:block;font-size:10px;color:var(--sl-ink)}.sl-command-list small{display:block;color:var(--sl-muted);font-size:8px;margin-top:2px}.sl-command-list kbd{padding:3px 6px;border:1px solid #d4dee8;border-radius:6px;background:#f8fafc;color:#73869a;font-size:8px}.sl-command-foot{padding:10px 14px;border-top:1px solid var(--sl-line);display:flex;gap:8px;align-items:center}.sl-command-foot span{font-size:8px;font-weight:900;color:var(--sl-cobalt);text-transform:uppercase}.sl-command-foot small{color:var(--sl-muted);font-size:8px}
 .sl-alert-drawer{width:min(520px,96vw)}.sl-alert-list{display:grid;gap:8px;margin-top:12px}.sl-notification-card{padding:11px}.sl-notification-card b{font-size:10px}.sl-notification-card small{display:block;margin-top:3px;color:var(--sl-muted);font-size:8px}.sl-notification-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -313,14 +313,14 @@ body.sl-mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
 /* 16.1.39 layering fix: body-appended menus, dialogs and notifications must sit above the full-screen ERP root. */
 .sl-mobile-menu,.sl-modal,.sl-overlay,.sl-toast{isolation:isolate}
 
-/* 16.1.57 tablet/menu interaction guard: nav rows never become inline chips. */
+/* 16.1.63 tablet/menu interaction guard: nav rows never become inline chips. */
 .sl-mobile-panel .sl-nav{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;width:100%;min-width:0}
 .sl-mobile-panel .sl-nav-section{width:100%;padding-inline:9px}
 .sl-mobile-panel .sl-nav button{width:100%;min-width:0;min-height:46px;grid-template-columns:30px minmax(0,1fr);align-items:center;white-space:normal;text-align:left;transform:none}
 .sl-mobile-panel .sl-nav button:hover{transform:none}
 .sl-mobile-panel .sl-nav-text{min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal}
 
-/* Stockland ERP 16.1.57 • Breakpoint and responsive layout rules • Ordered source module. */
+/* Stockland ERP 16.1.63 • Breakpoint and responsive layout rules • Ordered source module. */
 /* ==========================================================================
    16.1.39 RESPONSIVE SYSTEM
    Bootstrap-aligned breakpoints; one intentional cascade for all devices.
@@ -506,7 +506,7 @@ body.sl-mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
 }
 @media(prefers-reduced-motion:reduce){#stockland-app *,#stockland-app *::before,#stockland-app *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
-/* Stockland ERP 16.1.57 • Mobile diagnostics and operational content guards • Ordered source module. */
+/* Stockland ERP 16.1.64 • Mobile diagnostics and operational content guards • Ordered source module. */
 /* 16.1.44 mobile health / statutory payroll overflow guard */
 .sl-health-grid>div{min-width:0;overflow-wrap:anywhere;word-break:normal}
 .sl-health-grid>div span{display:block;min-width:0;overflow-wrap:anywhere;white-space:normal}
@@ -590,7 +590,7 @@ body.sl-mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
 
 
 /* ============================================================================
-   16.1.57 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
+   16.1.64 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
    Times New Roman typography, full-workspace palette, readable touch controls,
    and compact procurement/order line layout. No business data/ledger behavior.
    ============================================================================ */
@@ -778,7 +778,7 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
 }
 @media(prefers-reduced-motion:reduce){#stockland-app *,#stockland-app *::before,#stockland-app *::after,body .sl-overlay *{transition:none!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
-/* Stockland ERP 16.1.57 CAP-MENU-02: prevent the dashboard shortcut heading and
+/* Stockland ERP 16.1.64 CAP-MENU-02: prevent the dashboard shortcut heading and
    shortcut grid from becoming sibling columns inside their own card. Keep the
    quick-action panel vertical; let the inner shortcuts use two readable columns. */
 #stockland-app .sl-quick-actions{display:block!important;min-width:0;max-width:100%}
@@ -792,4 +792,17 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
 @media (max-width:575.98px){
   #stockland-app .sl-quick-actions>.sl-quick-grid{grid-template-columns:1fr;gap:8px}
   #stockland-app .sl-quick-actions .sl-quick-action{min-height:68px}
+}
+
+
+/* 16.1.64: request item forms must not inherit the flex layout used by queue summaries. */
+#stockland-app .sl-req-line.sl-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.28fr);align-items:start;justify-content:stretch;gap:10px;width:100%;min-width:0}
+#stockland-app .sl-req-line.sl-form>.sl-field{min-width:0;width:100%}
+#stockland-app .sl-req-line.sl-form>.sl-field.full,#stockland-app .sl-req-line.sl-form>.sl-req-live-rule{grid-column:1/-1}
+#stockland-app .sl-req-line.sl-form>[data-remove-req-line]{justify-self:start;min-height:40px}
+#stockland-app .sl-req-line.sl-form .sl-sku-picker{min-width:0;width:100%}
+@media(max-width:575.98px){
+ #stockland-app .sl-req-line.sl-form{grid-template-columns:minmax(0,1fr);gap:8px}
+ #stockland-app .sl-req-line.sl-form>.sl-field.full,#stockland-app .sl-req-line.sl-form>.sl-req-live-rule{grid-column:1}
+ #stockland-app .sl-req-line.sl-form>[data-remove-req-line]{width:100%;justify-self:stretch}
 }
