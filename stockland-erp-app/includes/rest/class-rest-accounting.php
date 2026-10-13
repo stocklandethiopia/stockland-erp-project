@@ -1400,7 +1400,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}if ( false === Stockland_Ledger::record( $location, $item['sku'], 'PURCHASE_RECEIPT', $q, 'po_receipt', $ref, $date, get_current_user_id() ) ) {
 					throw new Exception( 'Inventory ledger posting failed for ' . $item['sku'] );
 				}
-				$po_item_ok = Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i SET quantity_received=quantity_received+%f WHERE id=%d', 'purchase_order_items', $q, $item['id'] ) );
+				$po_item_ok = Stockland_DB::execute_query( $wpdb->prepare( 'UPDATE %i SET quantity_received=quantity_received+%f WHERE id=%d', Stockland_DB::table( 'purchase_order_items' ), $q, $item['id'] ) );
 				if ( false === $po_item_ok ) {
 					throw new Exception( 'PO received quantity update failed.' );
 				}
