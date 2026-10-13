@@ -274,7 +274,7 @@ async function loadFinance(force){
 try{
 const role=state.boot?.user?.role||'';
 if(['branch_manager','warehouse_manager'].includes(role)){
-const rows=await api('/accounting/expenses');const month=new Date().toISOString().slice(0,7);
+const rows=await api('/accounting/expenses');const month=localDate().slice(0,7);
 state.finance={expense_rows:Array.isArray(rows)?rows:[],expenses_month:(Array.isArray(rows)?rows:[]).filter(x=>String(x.expense_date||'').slice(0,7)===month&&x.status==='POSTED').reduce((n,x)=>n+Number(x.amount||0)+Number(x.tax_amount||0),0)};
 }else{
 const d=await api('/accounting/bootstrap');state.finance=d;
