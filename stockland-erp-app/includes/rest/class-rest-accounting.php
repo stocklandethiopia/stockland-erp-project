@@ -2353,8 +2353,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 * @throws Exception When validation, migration or transaction processing fails.
 	 */
 	public function expense_status( WP_REST_Request $r ) {
-		if ( ! Stockland_Authority::can_approve_expenses() ) {
-			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile can approve or reject submitted expenses.', array( 'status' => 403 ) );
+		if ( ! in_array( Stockland_Authority::role(), array( 'branch_manager', 'warehouse_manager' ), true ) || ! current_user_can( 'stockland_manage_expenses' ) ) {
+			return new WP_Error( 'forbidden', 'Only an authorized Branch Manager or Central Warehouse Manager may decide a location expense.', array( 'status' => 403 ) );
 		}
 		global $wpdb;
 		$id     = (int) $r['id'];
@@ -2378,12 +2378,19 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			if ( get_current_user_id() === (int) $row['created_by'] ) {
-				throw new Exception( 'Separate approval is required; an Owner cannot approve their own submission.' );
+			$location_id = (int) ( $row['location_id'] ?? 0 );
+			if ( $location_id < 1 || ! Stockland_Authority::can_decide_location_expense( $location_id ) ) {
+				throw new Exception( 'This expense is outside the active manager’s assigned branch or Central Warehouse authority.' );
 			}
 			$creator_role = Stockland_Authority::role( (int) $row['created_by'] );
-			if ( ! in_array( $creator_role, array( 'management', 'branch_manager' ), true ) ) {
-				throw new Exception( 'Expense submitter has no valid active Management/Branch Manager ERP profile.' );
+			if ( 'branch_manager' === $creator_role && $location_id !== Stockland_Authority::branch_id( (int) $row['created_by'] ) ) {
+				throw new Exception( 'Branch expense does not match the submitter’s assigned branch.' );
+			}
+			if ( 'warehouse_manager' === $creator_role && $location_id !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+				throw new Exception( 'Warehouse expense does not match the Central Warehouse assignment.' );
+			}
+			if ( ! in_array( $creator_role, array( 'branch_manager', 'warehouse_manager' ), true ) ) {
+				throw new Exception( 'Only a Branch Manager or Central Warehouse Manager may submit a location expense.' );
 			}
 			$journal = null;
 			$next    = 'APPROVE' === $action ? 'POSTED' : 'REJECTED';
@@ -2404,7 +2411,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 							'account_code' => '6000',
 							'debit'        => $amount,
 							'credit'       => 0,
-							'location_id'  => (int) $row['location_id'],
+							'location_id'  => $location_id,
 						),
 						array(
 							'account_code' => '1300',
@@ -2439,17 +2446,20 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense status update failed.' );
 			}
-			$event = 'APPROVE' === $action ? 'BRANCH_EXPENSE_APPROVE' : 'BRANCH_EXPENSE_REJECT';
-			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Owner approved; GL journal ' . $journal, $row['expense_number'] ) ) {
+			$event = 'APPROVE' === $action ? ( 'warehouse_manager' === Stockland_Authority::role() ? 'WAREHOUSE_EXPENSE_APPROVE' : 'BRANCH_EXPENSE_APPROVE' ) : ( 'warehouse_manager' === Stockland_Authority::role() ? 'WAREHOUSE_EXPENSE_REJECT' : 'BRANCH_EXPENSE_REJECT' );
+			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Assigned location manager approved; GL journal ' . $journal, $row['expense_number'] ) ) {
 				throw new Exception( 'Expense decision could not be audited.' );
 			}
 			$title   = 'APPROVE' === $action ? 'Expense approved' : 'Expense rejected';
-			$message = $row['expense_number'] . ' was ' . $next . ' by the Owner.' . ( 'REJECT' === $action ? ' Reason: ' . $note : ' GL journal: ' . $journal . '.' );
+			$message = $row['expense_number'] . ' was ' . $next . ' by the assigned ' . ( 'warehouse_manager' === Stockland_Authority::role() ? 'Central Warehouse Manager' : 'Branch Manager' ) . '.' . ( 'REJECT' === $action ? ' Reason: ' . $note : ' GL journal: ' . $journal . '.' );
 			if ( ! Stockland_Notifications::push_user( (int) $row['created_by'], 'expense_decision', $title, $message, 'expense', $id, 'REJECT' === $action ? 'warning' : 'info' ) ) {
 				throw new Exception( 'Submitter notification could not be queued; decision was rolled back.' );
 			}
-			if ( ! Stockland_Notifications::push_role( 'management', null, 'expense_decision', $title, $message, 'expense', $id, 'REJECT' === $action ? 'warning' : 'info' ) ) {
+			if ( ! Stockland_Notifications::push_role( 'management', null, 'expense_report', $title, $message . ' Management access is report-only.', 'expense', $id, 'REJECT' === $action ? 'warning' : 'info' ) ) {
 				throw new Exception( 'Management notification could not be queued; decision was rolled back.' );
+			}
+			if ( ! Stockland_Notifications::push_role( 'owner', null, 'expense_report', $title, $message . ' Owner access is report-only for location expenses.', 'expense', $id, 'REJECT' === $action ? 'warning' : 'info' ) ) {
+				throw new Exception( 'Owner report notification could not be queued; decision was rolled back.' );
 			}
 			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Expense approval commit failed.' );
