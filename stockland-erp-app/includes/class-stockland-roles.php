@@ -344,6 +344,25 @@ class Stockland_Roles {
 			$admin->add_cap( 'stockland_owner' );
 			$admin->add_cap( 'stockland_install_schema' );
 		}
+
+		// An active ERP Owner may use WordPress Administrator rather than the
+		// dedicated Stockland role. Grant the PO decision capability per account,
+		// not to the shared Administrator role; clear stale direct grants otherwise.
+		global $wpdb;
+		$users_table = Stockland_DB::table( 'users' );
+		$profiles    = Stockland_DB::read_results( $wpdb->prepare( 'SELECT wp_user_id, role, is_active FROM %i', $users_table ), ARRAY_A );
+		foreach ( (array) $profiles as $profile ) {
+			$wp_user_id = absint( $profile['wp_user_id'] ?? 0 );
+			if ( ! $wp_user_id ) {
+				continue;
+			}
+			$wp_user = new WP_User( $wp_user_id );
+			if ( 1 === (int) ( $profile['is_active'] ?? 0 ) && self::ROLE_OWNER === (string) ( $profile['role'] ?? '' ) ) {
+				$wp_user->add_cap( 'stockland_approve_purchase_orders' );
+			} else {
+				$wp_user->remove_cap( 'stockland_approve_purchase_orders' );
+			}
+		}
 	}
 
 	/**
