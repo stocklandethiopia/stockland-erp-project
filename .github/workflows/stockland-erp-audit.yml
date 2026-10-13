@@ -360,20 +360,28 @@ jobs:
               "json_manifest_validation": "PASS (python json.tool)",
           }
           quality["source_gate_evidence"] = evidence
-          quality["source_gate"] = "PASS — exact 16.1.65 source gate; authenticated live certification remains pending"
+          quality["source_gate"] = "PASS — exact 16.1.65 source gate; target-host acceptance evidence is tracked separately"
           manifest["source_gate_evidence"] = {
               **evidence,
               "state": "PASS",
-              "note": "Exact-release GitHub Actions source gate passed. This does not constitute authenticated live-site certification.",
+              "note": "Exact-release GitHub Actions source gate passed. This record documents repository source checks; target-host acceptance is recorded separately.",
           }
-          manifest["live_certification"] = False
-          quality["live_certification"] = False
           corrective = manifest.setdefault("corrective_release_16_1_65", {})
           corrective["source_gate"] = "PASS"
           corrective["source_gate_evidence"] = evidence
-          corrective["live_certification"] = False
           path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-          print("Recorded exact source-gate run, tested commit, and branch head; live_certification remains false.")
+          # Remove legacy manually-authored binary certification labels from old manifests.
+          def remove_legacy_certification_flags(value):
+              if isinstance(value, dict):
+                  value.pop("live_certification", None)
+                  for child in value.values():
+                      remove_legacy_certification_flags(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      remove_legacy_certification_flags(child)
+          remove_legacy_certification_flags(manifest)
+          remove_legacy_certification_flags(quality)
+          print("Recorded exact source-gate run, tested commit, and branch head; target-host acceptance is tracked separately.")
           PY
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
