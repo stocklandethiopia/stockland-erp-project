@@ -9,9 +9,9 @@ src=(root/'assets/app.css').read_text()
 mini=(root/'assets/app.min.css').read_text()
 assert src.count('{')==src.count('}'), 'app.css braces mismatch'
 assert mini.count('{')==mini.count('}'), 'app.min.css braces mismatch'
-assert '16.1.63 MOBILE-FIRST PREMIUM PRESENTATION LAYER' in src
+assert '16.1.64 MOBILE-FIRST PREMIUM PRESENTATION LAYER' in src
 manifest=__import__('json').loads((root/'assets/css/modules.json').read_text())
-assert manifest.get('release')=='16.1.63' and len(manifest.get('modules',[]))==6, 'six CSS module manifest mismatch'
+assert manifest.get('release')=='16.1.64' and len(manifest.get('modules',[]))==6, 'six CSS module manifest mismatch'
 chunks=[]
 for name in manifest['modules']:
     p=root/'assets/css'/name
