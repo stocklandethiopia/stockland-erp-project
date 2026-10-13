@@ -47,8 +47,12 @@ $ok( ! str_contains( $a_compact, "FORUPDATE','purchase_orders'" ) && ! str_conta
 $grant_start = strpos( $ddl, 'private static function grant_capabilities()' );
 $grant_end = strpos( $ddl, 'Creates the required walk-in customer', $grant_start );
 $grant_block = false !== $grant_start && false !== $grant_end ? substr( $ddl, $grant_start, $grant_end - $grant_start ) : '';
-$grant_compact = preg_replace( '/\\\\s+/', '', $grant_block );
-$ok( str_contains( $grant_compact, "\$branch_manager->add_cap('stockland_manage_expenses')" ) && str_contains( $grant_compact, "\$owner_role->add_cap('stockland_approve_purchase_orders')" ) && str_contains( $grant_compact, "\$management_role->remove_cap('stockland_approve_purchase_orders')" ) && ! str_contains( $grant_compact, "'stockland_approve_purchase_orders'," ), 'Accounting capability sync preserves Branch Manager expense submission and limits PO decision capability to Owner' );
+$caps_start = strpos( $grant_block, '$company_finance_caps = array(' );
+$caps_end = false !== $caps_start ? strpos( $grant_block, ');', $caps_start ) : false;
+$caps_block = false !== $caps_start && false !== $caps_end ? substr( $grant_block, $caps_start, $caps_end - $caps_start ) : '';
+$ok( str_contains( $grant_block, "\$branch_manager->add_cap( 'stockland_manage_expenses' );" ), 'Branch Manager retains expense submission capability in accounting capability sync' );
+$ok( str_contains( $grant_block, "\$owner_role->add_cap( 'stockland_approve_purchase_orders' );" ) && str_contains( $grant_block, "\$management_role->remove_cap( 'stockland_approve_purchase_orders' );" ), 'Owner receives PO approval and Management loses PO approval in accounting capability sync' );
+$ok( '' !== $caps_block && ! str_contains( $caps_block, 'stockland_approve_purchase_orders' ), 'PO approval is not included in the shared company-finance capability list' );
 $ok( str_contains( $roles_compact, "if('stockland_approve_purchase_orders'===\$cap){continue;}" ) && str_contains( $plugin, "16.1.65-finance-authority-repair-v2" ) && str_contains( $plugin, '$admin_po_cap_bad' ), 'in-place role repair removes shared Administrator PO approval and regrants it only to active Owner profiles' );
 $ok( str_contains( $a, 'grn_request_' ) && str_contains( $a, 'idempotency_conflict' ) && str_contains( $a, 'open_quantity_remaining' ), 'receipt retries idempotent and partial open balance surfaced' );
 $ok( str_contains( $a, 'A stable request_key is required to prevent duplicate purchase orders' ) && str_contains( $a, 'A stable request_key is required for goods receiving' ), 'PO create and receipt APIs reject requests without an idempotency key' );
