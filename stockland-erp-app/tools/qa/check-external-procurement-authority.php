@@ -88,6 +88,7 @@ $ok( str_contains( $grant_block, "\$warehouse_manager->add_cap( 'stockland_manag
 $ok( str_contains( $app, 'Location Expense History' ) && str_contains( $app, 'Expense Report — Read Only' ) && str_contains( $app, 'bindSkuPickers();' ), 'role-scoped expense UI, read-only reports and dynamic Finance/PO SKU picker are wired' );
 $ok( str_contains( $app, "if(['branch_manager','warehouse_manager'].includes(role))" ) && str_contains( $app, "api('/accounting/expenses')" ), 'Branch/Warehouse finance UI loads only scoped expense data, not the supplier/AP/AR bootstrap' );
 $ok( str_contains( $a_compact, "if(\$has_status&&'PENDING'===\$status&&in_array(\$current_role,array('branch_manager','warehouse_manager'),true))" ) && str_contains( $a, 'Keep legacy pending records visible in reports' ), 'legacy pending rows remain reportable but are not shown as actionable to the wrong authority role' );
+$ok( str_contains( $a, "if ( 'branch_manager' === \$current_role )" ) && str_contains( $a, "Stockland_Authority::branch_id()" ) && str_contains( $a, "Stockland_DB::get_location_id( 'Central Warehouse' )" ), 'expense list scope is forced to one assigned branch or Central Warehouse, not arbitrary user-location memberships' );
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
