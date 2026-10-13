@@ -91,7 +91,7 @@ $ok( str_contains( $a_compact, "if(\$has_status&&'PENDING'===\$status&&in_array(
 $ok( str_contains( $a, "if ( 'branch_manager' === \$current_role )" ) && str_contains( $a, "Stockland_Authority::branch_id()" ) && str_contains( $a, "Stockland_DB::get_location_id( 'Central Warehouse' )" ), 'expense list scope is forced to one assigned branch or Central Warehouse, not arbitrary user-location memberships' );
 
 $ok( str_contains( $a, "\$direct_post    = 'owner' === \$role" ) && str_contains( $a, 'CORPORATE_EXPENSE_SUBMIT' ) && str_contains( $a, 'CORPORATE_EXPENSE_OWNER_APPROVE' ), 'Owner corporate expenses post independently while Management corporate expenses require an Owner decision' );
-$ok( str_contains( $a, 'former Management-submission policy without rewriting their history' ) && str_contains( $app, "if(role==='owner')rows=rows.filter(x=>Number(x.location_id||0)===0" ), 'legacy location expenses remain actionable only in their assigned location queue while Owner queue excludes branch records' );
+$ok( str_contains( $a, 'former Management-submission policy without rewriting their history' ) && ! str_contains( $a, 'static function ( $row ) use ( $current_role )' ) && str_contains( $app, "if(role==='owner')rows=rows.filter(x=>Number(x.location_id||0)===0" ), 'legacy location expenses remain actionable by assigned location authority while Owner queue excludes branch records' );
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
