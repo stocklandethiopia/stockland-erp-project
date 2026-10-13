@@ -2150,7 +2150,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return $e;
 		}
 		if ( ! Stockland_Authority::can_submit_expenses() ) {
-			return new WP_Error( 'forbidden', 'Expenses must be submitted by Management or an authorized Branch Manager; the Owner approves separately.', array( 'status' => 403 ) );
+			return new WP_Error( 'forbidden', 'Expense entry is limited to active Owner, Management, Branch Manager or Central Warehouse Manager profiles.', array( 'status' => 403 ) );
 		}
 		global $wpdb;
 		$p      = $r->get_json_params();
@@ -2174,21 +2174,29 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		if ( ! $date ) {
 			return new WP_Error( 'invalid_date', 'expense_date is invalid.', array( 'status' => 400 ) );
 		}
-		$profile     = Stockland_Authority::profile( $uid );
-		$branch_role = 'branch_manager' === $role;
-		if ( $branch_role ) {
+		$profile = Stockland_Authority::profile( $uid );
+		$location_id = null;
+		$location = null;
+		$direct_corporate = in_array( $role, array( 'owner', 'management' ), true );
+		if ( 'branch_manager' === $role ) {
 			$location_id = (int) ( $profile['branch_location_id'] ?? 0 );
-		} else {
-			$location_id = (int) ( $p['location_id'] ?? 0 );}
-		if ( ! $location_id ) {
-			return new WP_Error( 'branch_required', 'Select the branch/location for this expense.', array( 'status' => 400 ) );
+		} elseif ( 'warehouse_manager' === $role ) {
+			$location_id = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		}
-		$location = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $location_id ), ARRAY_A );
-		if ( ! $location || empty( $location['is_active'] ) ) {
-			return new WP_Error( 'invalid_location', 'The selected active branch/location was not found.', array( 'status' => 400 ) );
-		}
-		if ( ! Stockland_Authority::can_access_location( $location_id ) ) {
-			return new WP_Error( 'location_scope', 'This expense is outside your assigned location scope.', array( 'status' => 403 ) );
+		if ( ! $direct_corporate ) {
+			if ( $location_id < 1 ) {
+				return new WP_Error( 'assigned_location_required', 'Your ERP profile must have an assigned branch or Central Warehouse before entering expenses.', array( 'status' => 403 ) );
+			}
+			$location = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $location_id ), ARRAY_A );
+			if ( ! $location || empty( $location['is_active'] ) ) {
+				return new WP_Error( 'invalid_location', 'The assigned active branch or Central Warehouse was not found.', array( 'status' => 400 ) );
+			}
+			if ( 'branch_manager' === $role && ! Stockland_Authority::can_access_location( $location_id ) ) {
+				return new WP_Error( 'location_scope', 'This expense is outside your assigned branch.', array( 'status' => 403 ) );
+			}
+			if ( 'warehouse_manager' === $role && $location_id !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+				return new WP_Error( 'location_scope', 'Central Warehouse expenses must use the Central Warehouse assignment.', array( 'status' => 403 ) );
+			}
 		}
 		$request_key = sanitize_text_field( (string) ( $p['request_key'] ?? '' ) );
 		if ( ! preg_match( '/^[A-Za-z0-9_-]{16,80}$/', $request_key ) ) {
@@ -2245,8 +2253,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
 			$num            = $this->next_number( 'EXP-', $date );
-			$direct_owner   = false;
-			$status         = 'PENDING';
+			$direct_owner   = $direct_corporate;
+			$status         = $direct_corporate ? 'POSTED' : 'PENDING';
 			$user_reference = sanitize_text_field( $p['reference'] ?? '' );
 			$reference      = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
 			if ( false === Stockland_DB::insert_record(
@@ -2301,19 +2309,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					throw new Exception( 'Expense GL journal failed; no expense was committed.' );
 				}
 			}
-			$event = $direct_owner ? 'BRANCH_EXPENSE_OWNER_POST' : 'BRANCH_EXPENSE_SUBMIT';
+			$event = $direct_owner ? 'CORPORATE_EXPENSE_POST' : ( 'warehouse_manager' === $role ? 'WAREHOUSE_EXPENSE_SUBMIT' : 'BRANCH_EXPENSE_SUBMIT' );
 			if ( ! Stockland_Audit::log( $uid, $location_id, $event, null, $amount, null, $status, $description, $num ) ) {
 				throw new Exception( 'Expense audit event failed; submission was rolled back.' );
 			}
 			if ( ! $direct_owner ) {
-				if ( ! Stockland_Notifications::push_role( 'owner', null, 'expense_approval', 'Branch expense awaiting Owner approval', $num . ' · ' . $location['location_name'] . ' · ' . $category . ' · ETB ' . number_format( (float) $amount + (float) $tax, 2, '.', '' ) . ' submitted by ' . wp_get_current_user()->display_name . '.', 'expense', $id, 'action' ) ) {
-					throw new Exception( 'Owner notification could not be queued; expense was not committed.' );
+				$final_role = 'warehouse_manager' === $role ? 'warehouse_manager' : 'branch_manager';
+				if ( ! Stockland_Notifications::push_role( $final_role, $location_id, 'expense_decision', 'Expense awaiting location decision', $num . ' · ' . $location['location_name'] . ' · ' . $category . ' · ETB ' . number_format( (float) $amount + (float) $tax, 2, '.', '' ) . ' is ready for the assigned location manager.', 'expense', $id, 'action' ) ) {
+					throw new Exception( 'Location-manager notification could not be queued; expense was not committed.' );
 				}
-				if ( ! Stockland_Notifications::push_role( 'management', null, 'expense_approval', 'Branch expense submitted', $num . ' awaits Owner approval for ' . $location['location_name'] . '.', 'expense', $id, 'info' ) ) {
-					throw new Exception( 'Management notification could not be queued; expense was not committed.' );
+				if ( ! Stockland_Notifications::push_role( 'management', null, 'expense_report', 'Location expense submitted', $num . ' was submitted for ' . $location['location_name'] . '; the assigned location manager has final authority.', 'expense', $id, 'info' ) ) {
+					throw new Exception( 'Management report notification could not be queued; expense was not committed.' );
+				}
+				if ( ! Stockland_Notifications::push_role( 'owner', null, 'expense_report', 'Location expense submitted', $num . ' was submitted for ' . $location['location_name'] . '; no Owner action is required.', 'expense', $id, 'info' ) ) {
+					throw new Exception( 'Owner report notification could not be queued; expense was not committed.' );
 				}
 			} else {
-				Stockland_Notifications::push_role( 'management', null, 'expense_posted', 'Owner posted expense', $num . ' posted for ' . $location['location_name'] . '.', 'expense', $id, 'info' );
+				Stockland_Notifications::push_role( 'management', null, 'expense_posted', 'Corporate expense posted', $num . ' posted without branch attribution.', 'expense', $id, 'info' );
 			}
 			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Expense commit failed.' );
