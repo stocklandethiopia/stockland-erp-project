@@ -1,65 +1,64 @@
-# Stockland Ethiopia ERP 16.1.65 — In-Place Corrective Update Candidate
+# Stockland Ethiopia ERP 16.1.65
 
-**Release status: 16.1.65 current in-place corrective candidate.** Exact source/package evidence and the run-specific installer SHA-256 are recorded in the [16.1.65 package identity record](https://github.com/stocklandethiopia/stockland-erp-project/blob/main/AUDIT/16.1.65-package-identity.md). Repository source/package validation and authenticated target-host acceptance are separate gates; the candidate must not be described as production-certified until the staged WordPress/MariaDB workflow, integrity/ledger reconciliation, host/browser, and recovery checks have dated PASS evidence. This update preserves the cumulative ERP workflows and exact 49-table business contract, and is prepared for both fresh installation and in-place update without adding business tables.
+A unified operations platform for Stockland Ethiopia, built for branch retail, Central Warehouse, procurement, finance, HR and management control. The interface uses a local Bootstrap 5.3.8 foundation and Stockland's responsive component system.
 
-## 16.1.53 change
+## Daily operations
 
-- Corrects the tablet breakpoint (576–991 CSS pixels): the menu/brand stay on the first header row; action buttons live in a second horizontally scrollable row rather than overlapping, stacking, or pushing each other out of the viewport.
-- Preserves the permanent left navigation on desktop and enables the hamburger menu below 992 CSS pixels.
-- Makes the mobile/tablet menu close reliably from Escape, backdrop, close button and item selection; resets `aria-expanded` and the body scroll lock; restores keyboard focus; traps focus while the navigation dialog is open; and closes the mobile overlay if a resize returns to desktop.
-- Allows the navigation panel to scroll on touch devices without disabling vertical touch scrolling.
-- Corrects the dashboard quick-action parent that accidentally placed its heading and action grid into sibling CSS-grid columns; desktop quick actions now render as readable two-column cards, while small phones use one column.
-- Restores high-contrast background/text on the EXIT link, which was rendered as white text on a white surface after the premium button reset.
-- No procurement/accounting behavior, REST business payload, role authority, database DDL, or 49-table contract was intentionally changed by this menu-only patch.
+- **Command Center:** operational summaries, alerts, role-based shortcuts and SOP guidance.
+- **Product Master:** maintain the central product catalogue and select existing SKUs throughout sales, procurement and inventory workflows.
+- **Retail POS:** create ERP sales using active Product Master SKUs and post the resulting stock, finance and audit records.
+- **Daily POS Import:** upload the branch's end-of-day Excel workbook from the external POS, validate and stage the rows, then have the Branch Manager review, edit and release the confirmed batch into ERP ledgers.
+- **Inventory & Central Warehouse:** track stock availability, reservations, receiving, transfers and requisitions using live ledger data.
+- **Reports & Analytics:** review daily inventory, sales, stock movement, finance and branch performance within the active user's scope.
 
-## Purchasing and ledger controls carried forward
+## Finance & Procurement
 
-External supplier supply must follow Management entry/submission → separate active Owner approval → Central Warehouse Manager's actual quantity acceptance. Branch/Goro destinations cannot receive external supplier POs through this path. The free-form supplier receipt posting route is disabled; legacy pending manual receipts are reconciliation-only. Partial receipts remain against the same PO, and only accepted quantities post to inventory. Request keys, PO/line locks, inventory ledger writes, PLEDGER/GL journals and audit evidence are retained within the transactional workflow. Invoice matching and payment allocations remain tied to the approved PO/receipt path. The diagnostic integrity scan is read-only; it does not add foreign keys or repair old rows.
+- **Product purchase:** Management selects an active supplier and existing Product Master SKU, enters quantity and unit cost, and submits the purchase order. The active ERP Owner makes the final purchase-order decision. Central Warehouse receives accepted quantities against the approved order.
+- **Supplier invoices / Accounts Payable:** match supplier invoices to the approved purchase and accepted receipt before recording the payable and payment allocation.
+- **Customer invoices / Accounts Receivable:** maintain customer invoices and apply payments to the relevant open balances.
+- **Branch expense:** the Branch Manager records and makes the final decision only for the assigned branch. Approval posts one balanced journal; rejection records a reason and leaves the ledger unchanged.
+- **Central Warehouse expense:** the Central Warehouse Manager records and makes the final decision only for Central Warehouse.
+- **Corporate expense:** Owner and Management record their own expenses without selecting a branch. Corporate expenses post to the ledger and remain visible in the expense report.
+- **Expense reporting:** Owner and Management can review location expenses across the business; location-expense decisions remain with the assigned Branch or Central Warehouse Manager.
 
-## 16.1.63 corrective release scope
+AP and AR are separate accounting stages. Creating a purchase order from an existing Product Master SKU does not require a supplier invoice, customer invoice or payment record to exist first.
 
-- Deep LIVE READY now includes the accounting and HR/payroll schema-upgrade gates that control operational route registration.
-- Setup diagnostics remain available to authorized roles during schema repair, show verified schema gaps, and explicitly state that the deep integrity audit has not run.
-- Health diagnostics use a read-only snapshot and do not clear setup-error options.
-- Accounting metadata query errors fail closed rather than being treated as absent schema.
-- WordPress role synchronization repairs a missing Owner purchase-order approval capability or a wrongly granted Management approval capability even if the stored role-capability marker is stale.
-- Database version remains 16.1.1; no business table, DDL migration, demo transaction, inventory adjustment or historical payroll rewrite is introduced.
+## Role-based workspaces
 
-## Validation evidence and limits
+| Role | Main responsibilities |
+| --- | --- |
+| Owner | Organization control, purchase-order decisions, finance review, statutory payroll decisions, company-wide reporting and access management |
+| Management | Product Master, purchase requisitions and purchase orders, supplier/customer records, AP/AR preparation, corporate expenses, reporting and management-stage approvals |
+| Branch Manager | Assigned-branch operations, Daily POS Import review/release, branch expenses and final branch-expense decisions, requisitions and daily closing |
+| Central Warehouse Manager | Central Warehouse operations, approved purchase receiving, stock reservation/transfer workflow and final Central Warehouse expense decisions |
+| Warehouse Employee | Execute assigned picking and stock-handling work |
+| Sales Employee | Retail sales, Product Master SKU selection and assigned Daily POS Import staging |
+| Auditor | Review audit records and authorized operational evidence |
 
-- The former 16.1.57 baseline had recorded local PHP/JavaScript syntax, CSS bundle, static QA and mocked responsive-browser checks. Those results remain historical evidence and are not represented as tests of this 16.1.63 source tree.
-- The exact 16.1.63 source-gate result and checksummed package identity must be read from `AUDIT/16.1.63-package-identity.md` and the linked GitHub Actions run. Earlier release PASS flags are not carried forward.
-- No authenticated WordPress website or live database was accessed or changed by this source branch. Actual host role checks, deep ledger/AP/AR/GL/PLEDGER reconciliation, MySQL locks/concurrency, browser acceptance, backup restore and rollback remain required on a controlled staging clone.
+ERP role and location scope are checked by the server for each protected action. WordPress Administrator status alone does not replace an active Stockland ERP profile.
 
-## Install safely
+## Install or update in WordPress
 
-1. Back up the plugin files and database; make an isolated staging clone first.
-2. Use this single ZIP on an isolated WordPress staging clone through Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately or apply it to production before the release gates and rollback checks are complete.
-3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.63.
-4. Test at real device widths. On tablets, swipe the second header row horizontally when a user action is beyond the visible strip. On phones, test the menu open/close and item navigation.
-5. Before production, complete the purchasing approval/receiving/concurrent retry checks and review the read-only integrity scan. Preserve a known rollback point.
+1. Open **WordPress Admin → Plugins → Add New Plugin → Upload Plugin**.
+2. Select the Stockland ERP ZIP package and choose **Install Now**.
+3. For an existing Stockland ERP installation, use the in-place plugin update flow and preserve the site's database and uploaded business documents.
+4. Activate the plugin, then open **Stockland ERP** from the WordPress menu.
+5. Sign in with the assigned Stockland ERP profile and follow the role-based SOP guide in the application.
 
-This package uses the official local Bootstrap CSS 5.3.8 asset verified against its upstream Git blob and documented SRI; no CDN runtime dependency is added. This candidate is staging-only, not production-certified.
+## Operating principles
 
+- Existing Product Master SKUs are reused across purchase, stock and sales workflows.
+- Product Master maintenance does not itself create stock movements.
+- External POS data enters ERP only through the validated Daily POS Import release workflow.
+- Stock quantities change through posted sales, approved receiving and authorized inventory operations.
+- Finance transactions are recorded through the accounting workflow and balanced journal posting.
+- Approval decisions, role assignments and consequential business transitions are written to the ERP audit trail.
+- AI guidance, when enabled in a future approved workflow, is advisory and does not independently change business records.
 
-## 16.1.57 integration notes
+## Technical foundation
 
-- Preserves the 16.1.53 responsive mobile/tablet menu and header, desktop quick-action and EXIT contrast fixes, prior import/workflow authority controls, and the 49-table schema contract.
-- Merges the 16.1.54 quick health endpoint. Quick service/schema checks explicitly state `QUICK HEALTH ONLY`; deferred audit/stock/PLEDGER/AP-AR/GL/reservation checks are not green or certified.
-- Merges the 16.1.55 namespace-aware XLSX workbook/sheet relationship discovery fix, including root-absolute worksheet targets.
-- Database schema constants are intentionally unchanged. No live deployment or live database migration occurred during package assembly.
-- The ZIP is a staging candidate for both fresh install and upgrade; fresh WordPress setup and an in-place update from the exact plugin bytes installed on the owner-provided WordPress site must be tested on staging before production use. The target was previously reported as 16.1.62; confirm actual site version and file identity during acceptance.
-
-
-## 16.1.57 approval and reconciliation acceptance notes
-
-- Finance and procurement entry points are role-restricted server-side, not just hidden by the interface. Management prepares supplier invoices and manual payment requests; the Owner has the independent final decision; the Warehouse Manager records actual accepted quantity for approved Central Warehouse supply.
-- Branch expenses from an authorized Branch Manager/Management user stay `PENDING`; the separate Owner decision posts a balanced GL journal only after authorization. Rejection requires a meaningful reason. Audit and Owner/Management notifications participate in the transaction.
-- Payroll preparation and submission are Management-only. Owner approval validates the current statutory rule version, line/component evidence and debit/credit totals before GL posting; payroll payment is another Owner-only step.
-- Goods receipt posts inventory and input VAT against GRNI. Approval of the matched supplier invoice clears GRNI to AP for the validated invoice total; the invoice approval must not debit input VAT a second time. Payment is allocated against posted invoices and has a stable request key to prevent duplicate payments on retry.
-- System Health's standard button remains fast and read-only. `RUN DEEP INTEGRITY AUDIT` explicitly opts into full-table checks, including orphan relationships, ledger journal balance, PO/receipt/stock movement, AP/GRNI, supplier payment allocation and PLEDGER source-journal cross-checks. Any unknown query is displayed as incomplete, never counted as zero.
-- Fresh installation must begin with schema and configuration only: no fake sales, stock, payroll, orders or customer transactions are seeded. Fresh activation and the 16.1.54 in-place update must be exercised on a disposable WordPress staging copy before production.
-
-## Live certification limits
-
-The ZIP, source, static QA and archive can be verified locally, but the builder has no authenticated access to the target WordPress host or database. No live-data deep scan, concurrency test against MariaDB, fresh WordPress activation, or update against the exact production plugin bytes was performed. This artifact is a comprehensive release candidate, not an assertion that existing live records are reconciled. Back up production and use staging for acceptance first.
+- WordPress plugin architecture with local CSS/JavaScript assets.
+- Bootstrap 5.3.8 and responsive layouts for desktop, tablet and mobile.
+- Existing ERP schema contract: 49 business tables across Core/Operations, Finance/Procurement and HR/Payroll.
+- Existing schema markers: Core 16.1.1, Accounting 16.1.15 and HR/Payroll 16.1.3.
+- ERP-managed role authority, location scope, transaction posting and audit history.
