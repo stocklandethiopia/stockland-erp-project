@@ -789,14 +789,22 @@ class Stockland_Accounting {
 	 * @return void
 	 */
 	private static function grant_capabilities() {
-		// Finance and procurement authority is company-level only. Warehouse users
-		// may receive/inspect purchasing documents through their operational caps,
-		// but they must not inherit GL/AP/expense/payment powers. Branch users must
-		// never receive financial write capabilities from the accounting installer.
-		$management = array( 'stockland_view_financials', 'stockland_manage_suppliers', 'stockland_manage_customers', 'stockland_manage_purchase_orders', 'stockland_approve_purchase_orders', 'stockland_manage_payables', 'stockland_manage_receivables', 'stockland_manage_expenses', 'stockland_manage_payments', 'stockland_manage_gl' );
+		// Company finance capabilities are separated from decision authority.
+		// PO approval belongs to the ERP Owner profile, never shared Management/Admin roles.
+		$company_finance_caps  = array(
+			'stockland_view_financials',
+			'stockland_manage_suppliers',
+			'stockland_manage_customers',
+			'stockland_manage_purchase_orders',
+			'stockland_manage_payables',
+			'stockland_manage_receivables',
+			'stockland_manage_payments',
+			'stockland_manage_gl',
+		);
+		$owner_management_caps = array_merge( $company_finance_caps, array( 'stockland_manage_expenses' ) );
 		foreach ( array(
-			Stockland_Roles::ROLE_OWNER      => $management,
-			Stockland_Roles::ROLE_MANAGEMENT => $management,
+			Stockland_Roles::ROLE_OWNER      => $owner_management_caps,
+			Stockland_Roles::ROLE_MANAGEMENT => $owner_management_caps,
 		) as $role_name => $caps ) {
 			$role = get_role( $role_name );
 			if ( $role ) {
@@ -805,28 +813,64 @@ class Stockland_Accounting {
 				}
 			}
 		}
-		// Explicitly strip any historical accounting capabilities from operational roles.
-		$operational = array( Stockland_Roles::ROLE_BRANCH_MANAGER, Stockland_Roles::ROLE_SALES_EMPLOYEE, Stockland_Roles::ROLE_WAREHOUSE_EMPLOYEE, Stockland_Roles::ROLE_WAREHOUSE_MANAGER, Stockland_Roles::ROLE_AUDITOR );
+
+		// Keep the Branch Manager's intended expense-submission step active.
+		$branch_manager = get_role( Stockland_Roles::ROLE_BRANCH_MANAGER );
+		if ( $branch_manager ) {
+			$branch_manager->add_cap( 'stockland_manage_expenses' );
+		}
+		$warehouse_manager = get_role( Stockland_Roles::ROLE_WAREHOUSE_MANAGER );
+		if ( $warehouse_manager ) {
+			$warehouse_manager->add_cap( 'stockland_manage_expenses' );
+		}
+
+		// Only the dedicated ERP Owner role has role-level PO approval. On the
+		// native WordPress Administrator account, sync_roles() grants it per user
+		// only when an active ERP Owner profile is present.
+		$owner_role = get_role( Stockland_Roles::ROLE_OWNER );
+		if ( $owner_role ) {
+			$owner_role->add_cap( 'stockland_approve_purchase_orders' );
+		}
+		$management_role = get_role( Stockland_Roles::ROLE_MANAGEMENT );
+		if ( $management_role ) {
+			$management_role->remove_cap( 'stockland_approve_purchase_orders' );
+		}
+
+		// Strip company-finance writes from operational roles. Branch Managers are
+		// the exception for expense preparation; sales and warehouse roles are not.
+		$operational = array(
+			Stockland_Roles::ROLE_BRANCH_MANAGER,
+			Stockland_Roles::ROLE_SALES_EMPLOYEE,
+			Stockland_Roles::ROLE_WAREHOUSE_EMPLOYEE,
+			Stockland_Roles::ROLE_WAREHOUSE_MANAGER,
+			Stockland_Roles::ROLE_AUDITOR,
+		);
 		foreach ( $operational as $role_name ) {
 			$role = get_role( $role_name );
 			if ( $role ) {
-				foreach ( $management as $cap ) {
+				foreach ( $company_finance_caps as $cap ) {
 					$role->remove_cap( $cap );
+				}
+				$role->remove_cap( 'stockland_approve_purchase_orders' );
+				if ( ! in_array( $role_name, array( Stockland_Roles::ROLE_BRANCH_MANAGER, Stockland_Roles::ROLE_WAREHOUSE_MANAGER ), true ) ) {
+					$role->remove_cap( 'stockland_manage_expenses' );
 				}
 			}
 		}
+
 		$auditor = get_role( Stockland_Roles::ROLE_AUDITOR );
 		if ( $auditor ) {
 			$auditor->add_cap( 'stockland_view_financials' );
 		}
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
-			foreach ( $management as $cap ) {
+			foreach ( $owner_management_caps as $cap ) {
 				$admin->add_cap( $cap );
 			}
+			// Never put this decision power on the shared WP Administrator role.
+			$admin->remove_cap( 'stockland_approve_purchase_orders' );
 		}
 	}
-
 	/**
 	 * Creates the required walk-in customer if it does not already exist.
 	 *
