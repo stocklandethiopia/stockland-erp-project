@@ -2143,17 +2143,6 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			),
 			ARRAY_A
 		);
-		if ( $has_status && 'PENDING' === $status && in_array( $current_role, array( 'branch_manager', 'warehouse_manager' ), true ) ) {
-			// Keep legacy pending records visible in reports, but do not present unapprovable old-role records as actionable.
-			$rows = array_values(
-				array_filter(
-					$rows,
-					static function ( $row ) use ( $current_role ) {
-						return Stockland_Authority::role( (int) ( $row['created_by'] ?? 0 ) ) === $current_role;
-					}
-				)
-			);
-		}
 		return rest_ensure_response( $rows );
 	}
 
