@@ -1,6 +1,6 @@
 {
-  "release": "16.1.65",
-  "classification": "In-place corrective release 16.1.65: synchronizes approval capability to the active ERP Owner account, makes the live Product Master SKU picker reliably reopen on touch, and separates confirmed POS posting from follow-up refresh failures. Existing 49-table business contract and schema-version markers remain unchanged.",
+  "release": "16.1.66",
+  "classification": "In-place corrective release 16.1.66: repairs finance SQL table binding and query argument order, applies explicit Branch Manager / Central Warehouse Manager expense authority, and isolates Owner/Management corporate expenses from branch attribution. Existing 49-table contract and schema-version markers remain unchanged.",
   "baseline": "Derived from the GitHub main source at 534407ad28641bea2db426df83ed398633a6327c, including the merged source-health correction PR #22 and prior 16.1.57 source-gate history. This candidate is not a byte-for-byte rebuild of the earlier local 16.1.63 ZIP. No business schema migration, new business table, or historical transaction rewrite is included.",
   "schema_contract": {
     "core_operations": 29,
@@ -200,7 +200,8 @@
     "16.1.63: Authorized read-only setup-mode health endpoint remains available while schema gates are incomplete; reports real missing upgrade items, never claims the full deep integrity scan ran, and does not clear setup error options.",
     "16.1.63: Accounting metadata SQL errors become explicit fail-closed upgrade gaps rather than appearing as absent tables or healthy schema.",
     "16.1.63: WordPress role synchronization repairs missing Owner stockland_approve_purchase_orders or wrongly granted Management purchase-order approval even when the stored capability marker is stale.",
-    "16.1.63: Release-specific assertions verify consistent plugin/header/manifest/frontend route/CSS build release identity. No new business table or database-version bump."
+    "16.1.63: Release-specific assertions verify consistent plugin/header/manifest/frontend route/CSS build release identity. No new business table or database-version bump.",
+    "16.1.66: repair finance/procurement SQL identifier binding and invoice-allocation placeholder order; implement location-scoped expense decisions for assigned Branch Managers and the Central Warehouse Manager; post Owner/Management corporate expenses without branch attribution; add a role-scoped expense workspace. No business schema migration, historical transaction rewrite, or production data mutation."
   ],
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
