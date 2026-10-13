@@ -2274,7 +2274,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				array(
 					'expense_number' => $num,
 					'expense_date'   => $date,
-					'location_id'    => $location_id,
+					'location_id'    => $location_id > 0 ? $location_id : null,
 					'category'       => $category,
 					'description'    => $description,
 					'amount'         => $amount,
@@ -2300,7 +2300,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 							'account_code' => '6000',
 							'debit'        => $amount,
 							'credit'       => 0,
-							'location_id'  => $location_id,
+							'location_id'  => $location_id > 0 ? $location_id : null,
 						),
 						array(
 							'account_code' => '1300',
@@ -2322,7 +2322,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				}
 			}
 			$event = $direct_post ? 'CORPORATE_EXPENSE_POST' : 'LOCATION_EXPENSE_SUBMIT';
-			if ( ! Stockland_Audit::log( $uid, $location_id, $event, null, $amount, null, $status, $description, $num ) ) {
+			if ( ! Stockland_Audit::log( $uid, $location_id > 0 ? $location_id : null, $event, null, $amount, null, $status, $description, $num ) ) {
 				throw new Exception( 'Expense audit event failed; submission was rolled back.' );
 			}
 			if ( ! $direct_post ) {
