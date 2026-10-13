@@ -525,7 +525,7 @@ else if(f.id==='customerFinanceForm'){const d=Object.fromEntries(new FormData(f)
 else if(f.id==='poFinanceForm'){const d=Object.fromEntries(new FormData(f));const rows=[...f.querySelectorAll('#poFinanceLines .sl-fin-line')].map(x=>({sku:x.querySelector('[name="sku"]').value,quantity:Number(x.querySelector('[name="quantity"]').value),unit_cost:Number(x.querySelector('[name="unit_cost"]').value),tax_rate:Number(x.querySelector('[name="tax_rate"]').value)}));d.supplier_id=Number(d.supplier_id);d.lines=rows;window.__slLastPOResponse=await api('/accounting/purchase-orders',{method:'POST',body:JSON.stringify(d)})}
 else if(f.id==='paymentFinanceForm'){const d=Object.fromEntries(new FormData(f));d.amount=Number(d.amount);d.supplier_id=Number(d.supplier_id||0);d.customer_id=Number(d.customer_id||0);window.__slLastPaymentResponse=await api('/accounting/payments',{method:'POST',body:JSON.stringify(d)})}
 else if(f.id==='expenseFinanceForm'){const d=Object.fromEntries(new FormData(f));d.amount=Number(d.amount);d.tax_amount=Number(d.tax_amount||0);window.__slLastExpenseResponse=await api('/accounting/expenses',{method:'POST',body:JSON.stringify(d)})}
-toast(f.id==='poFinanceForm'?'Purchase order saved for submission. PO number: '+String((window.__slLastPOResponse&&window.__slLastPOResponse.po_number)||'see queue'):f.id==='expenseFinanceForm'?((window.__slLastExpenseResponse&&window.__slLastExpenseResponse.status)==='POSTED'?'Corporate expense posted and audited':'Expense submitted to the assigned location authority; GL remains unchanged until approval'):f.id==='paymentFinanceForm'?'Payment '+String((window.__slLastPaymentResponse&&window.__slLastPaymentResponse.status)||'submitted')+' and audited':'Accounting record saved');f.reset();if(['poFinanceForm','paymentFinanceForm','expenseFinanceForm'].includes(f.id)&&f.elements.request_key)f.elements.request_key.value=newRequestKey();state.financeLoaded=false;await loadFinance(true);await loadNotifications();
+toast(f.id==='poFinanceForm'?'Purchase order saved for submission. PO number: '+String((window.__slLastPOResponse&&window.__slLastPOResponse.po_number)||'see queue'):f.id==='expenseFinanceForm'?((window.__slLastExpenseResponse&&window.__slLastExpenseResponse.status)==='POSTED'?'Corporate expense posted and audited':(state.boot?.user?.role==='management'?'Corporate expense submitted to Owner approval; GL posts after approval':'Expense submitted to the assigned location authority; GL posts after approval')):f.id==='paymentFinanceForm'?'Payment '+String((window.__slLastPaymentResponse&&window.__slLastPaymentResponse.status)||'submitted')+' and audited':'Accounting record saved');f.reset();if(['poFinanceForm','paymentFinanceForm','expenseFinanceForm'].includes(f.id)&&f.elements.request_key)f.elements.request_key.value=newRequestKey();state.financeLoaded=false;await loadFinance(true);await loadNotifications();
 }catch(err){toast(err.message,true)}finally{f.dataset.busy='0';if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.textContent=original||'SAVE'}}
 }
 async function loadFinanceApprovals(){
@@ -539,16 +539,24 @@ async function loadFinanceApprovals(){
     const results=await Promise.all(tasks.map(async t=>{try{return {type:t[0],rows:await t[1],error:null}}catch(e){return {type:t[0],rows:[],error:e.message||'Request failed'}}}));
     const errors=results.filter(x=>x.error);
     const all=[];
-    results.forEach(group=>(Array.isArray(group.rows)?group.rows:[]).forEach(x=>all.push({type:group.type,row:x})));
+    const role=state.boot?.user?.role||'';
+    results.forEach(group=>{
+      let rows=Array.isArray(group.rows)?group.rows:[];
+      if(group.type==='expense'){
+        if(role==='owner')rows=rows.filter(x=>Number(x.location_id||0)===0&&Number(x.created_by||0)!==Number(state.boot?.user?.id||0));
+        else if(['branch_manager','warehouse_manager'].includes(role))rows=rows.filter(x=>Number(x.location_id||0)>0);
+      }
+      rows.forEach(x=>all.push({type:group.type,row:x}));
+    });
     const priority={expense:0,supplier_invoice:1,payment:2};all.sort((a,b)=>priority[a.type]-priority[b.type]||String((b.row.created_at||b.row.expense_date||b.row.invoice_date||b.row.payment_date)||'').localeCompare(String((a.row.created_at||a.row.expense_date||a.row.invoice_date||a.row.payment_date)||'')));
     let html=errors.length?'<div class="sl-notice sl-warning-block"><b>Some approval sources could not be loaded.</b><div>'+errors.map(x=>esc(x.type)+': '+esc(x.error)).join('<br>')+'</div></div>':'';
     if(!all.length){html+='<div class="sl-empty-rich"><b>No pending finance approvals.</b><span>Only records explicitly submitted and still pending appear here.</span></div>';el.innerHTML=html;return;}
     html+='<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Type / Reference</th><th>Supplier / Branch / Party</th><th>Submitted by</th><th>Date</th><th>Amount (ETB)</th><th>Decision</th></tr></thead><tbody>';
     all.forEach(({type,row:r})=>{
       const id=Number(r.id||0);const amount=type==='expense'?Number(r.amount||0)+Number(r.tax_amount||0):Number(r.total_amount||r.amount||0);
-      const kind=type==='expense'?'Location expense':type==='supplier_invoice'?'Supplier invoice':'Finance payment';
+      const kind=type==='expense'?(Number(r.location_id||0)>0?'Location expense':'Management corporate expense'):type==='supplier_invoice'?'Supplier invoice':'Finance payment';
       const ref=type==='expense'?(r.expense_number||('EXP-'+id)):type==='supplier_invoice'?(r.invoice_number||('AP-'+id)):(r.payment_number||('PAY-'+id));
-      const party=type==='expense'?(r.location_name||'Location required'):type==='supplier_invoice'?(r.supplier_name||'Supplier'):(r.supplier_name||r.customer_name||r.payment_type||'Finance');
+      const party=type==='expense'?(r.location_name||'Corporate / Management'):type==='supplier_invoice'?(r.supplier_name||'Supplier'):(r.supplier_name||r.customer_name||r.payment_type||'Finance');
       const detail=type==='expense'?(r.category||r.description||''):type==='supplier_invoice'?(r.po_number?'PO '+r.po_number:'PO required'):(r.method||'');
       const date=r.expense_date||r.invoice_date||r.payment_date||r.created_at||'';
       html+='<tr><td><b>'+esc(kind)+'</b><div class="sl-sub">'+esc(ref)+'</div><div class="sl-sub">'+esc(detail)+'</div></td><td>'+esc(party)+'</td><td>'+esc(r.created_by_name||'Management')+'</td><td>'+esc(date)+'</td><td>'+money(amount)+'</td><td><div class="sl-action-row"><button class="sl-btn primary" data-finance-action="APPROVE" data-finance-type="'+type+'" data-finance-id="'+id+'">APPROVE</button><button class="sl-btn" data-finance-action="REJECT" data-finance-type="'+type+'" data-finance-id="'+id+'">REJECT</button></div></td></tr>';
