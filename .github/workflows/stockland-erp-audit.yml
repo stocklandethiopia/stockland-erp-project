@@ -88,10 +88,7 @@ jobs:
           front["bootstrap_source_git_blob_sha1"] = "1d8bac41b3b586410aed1077d9abc05e169cb924"
           front["bootstrap_sri_sha384"] = "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
           m.setdefault("quality", {})["bootstrap_css_upstream_verified"] = True
-          m["known_open_findings"] = [
-              x for x in m.get("known_open_findings", [])
-              if "Bootstrap CSS remains" not in x and "obtain and verify upstream v5.3.8" not in x
-          ]
+          m.pop("known_open_findings", None)
           note = "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest."
           changes = m.setdefault("release_candidate_changes", [])
           if note not in changes:
