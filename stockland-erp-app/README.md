@@ -21,7 +21,7 @@
 
 **Central Warehouse expenses:** The active Central Warehouse Manager enters and makes the final decision on expenses for Central Warehouse.
 
-**Management and Owner expenses:** Each role records its own corporate expense without choosing a branch. These expenses appear in finance reporting. Management and Owner can review location-expense reports but do not decide branch or warehouse expenses.
+**Management and Owner expenses:** Each role records its own corporate expense without choosing a branch. Management's corporate expense is submitted for the Owner's independent decision; the Owner's own corporate expense posts to the Owner corporate record. Both roles can review location-expense reports but do not decide branch or warehouse expenses.
 
 ## Operating authority
 
@@ -33,7 +33,7 @@
 | External product purchase | Management | Independent Owner approval |
 | Purchase receiving | Central Warehouse Manager | Actual accepted quantity posts to inventory |
 | Supplier invoice/AP and finance payment | Management prepares the transaction | Owner makes the configured finance decision |
-| Corporate expense | Owner or Management, each for their own expense | Transaction is posted to that role's corporate record |
+| Corporate expense | Owner or Management, each for their own expense | Owner's own expense posts to the Owner corporate record; Management submits to Owner approval |
 
 The ERP enforces the authority model on the server as well as in the interface. A hidden button is not treated as an access-control mechanism.
 
