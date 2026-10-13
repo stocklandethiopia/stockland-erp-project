@@ -249,10 +249,10 @@ class Stockland_Authority {
 		$role        = self::role( $uid );
 		$location_id = (int) $location_id;
 		if ( self::BRANCH_MANAGER === $role ) {
-			return $location_id > 0 && $location_id === self::branch_id( $uid ) && user_can( $uid, 'stockland_manage_expenses' );
+			return 0 < $location_id && self::branch_id( $uid ) === $location_id && user_can( $uid, 'stockland_manage_expenses' );
 		}
 		if ( self::WAREHOUSE_MANAGER === $role ) {
-			return $location_id > 0 && $location_id === (int) Stockland_DB::get_location_id( 'Central Warehouse' ) && user_can( $uid, 'stockland_manage_expenses' );
+			return 0 < $location_id && (int) Stockland_DB::get_location_id( 'Central Warehouse' ) === $location_id && user_can( $uid, 'stockland_manage_expenses' );
 		}
 		return false;
 	}
