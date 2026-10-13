@@ -1023,7 +1023,7 @@ function skuPickerField(fieldName,value='',opts={}){
         +'<button type="button" class="sl-btn sl-btn-sm sl-sku-clear" data-sku-clear '+(val?'':'hidden')+'>Clear</button>'
         +'</div>'
         +'<div class="sl-sku-selected" data-sku-selected '+(val?'':'hidden')+'><span>Selected</span><b>'+esc(val)+'</b></div>'
-        +'<div class="sl-sku-results" id="'+id+'_results" data-sku-results hidden></div>'
+        +'<div class="sl-sku-results" id="'+id+'_results" data-sku-results role="listbox" aria-label="Live Product Master matches" hidden></div>'
         +'</div>';
 }
 function bindSkuPickers(){
@@ -1058,7 +1058,7 @@ function bindSkuPickers(){
                 const title=String(r.product_name||'');
                 const meta=[r.color||'',r.size||'',r.brand||''].filter(Boolean).join(' • ');
                 const code=r.barcode||r.gtin||'';
-                return '<button type="button" class="sl-sku-result" data-pick-sku="'+esc(sku)+'" data-pick-label="'+esc(sku+' — '+title)+'"><span><b>'+esc(sku)+'</b><small>'+esc(title+(meta?' • '+meta:''))+'</small></span><em>'+esc(code||'')+'</em></button>';
+                return '<button type="button" role="option" aria-selected="false" class="sl-sku-result" data-pick-sku="'+esc(sku)+'" data-pick-label="'+esc(sku+' — '+title)+'"><span><b>'+esc(sku)+'</b><small>'+esc(title+(meta?' • '+meta:''))+'</small></span><em>'+esc(code||'')+'</em></button>';
             }).join('');
             results.querySelectorAll('[data-pick-sku]').forEach(function(btn){btn.onclick=function(){syncSelected(btn.dataset.pickSku,btn.dataset.pickLabel);hide();}});
             results.hidden=false;input.setAttribute('aria-expanded','true');
@@ -1076,6 +1076,10 @@ function bindSkuPickers(){
             }
         };
         input.addEventListener('focus',function(){if(!String(input.value||'').trim()&&String(hidden.value||'').trim()){input.value=String(hidden.value);};run(String(input.value||'').trim());});
+        // A tap on an already-focused picker must reopen its live results.
+        input.addEventListener('click',function(){if(results.hidden)run(String(input.value||'').trim());});
+        // Prevent touch browsers from blurring the input before option click runs.
+        results.addEventListener('pointerdown',function(event){if(event.target.closest('[data-pick-sku]'))event.preventDefault();});
         input.addEventListener('input',function(){
             hidden.value=''; if(selected)selected.hidden=true;if(clear)clear.hidden=true;
             clearTimeout(timer);const q=String(input.value||'').trim();timer=setTimeout(()=>run(q),220);
@@ -1290,14 +1294,28 @@ async function submitPOS(e){
     if(d.selling_price!=='')d.selling_price=Number(d.selling_price);else delete d.selling_price;
     try{
         const out=await api16('/sales',{method:'POST',body:JSON.stringify(d)});
+        const saleId=String(out?.sale_id||'').trim();
+        const postingStatus=String(out?.posting_status||'').toUpperCase();
+        if(!saleId||postingStatus!=='CLOSED'){
+            const msg='The ERP response did not confirm a CLOSED POS sale. Check Recent Posted Sales before retrying to avoid a duplicate; no automatic retry was sent.';
+            const box=document.getElementById('posResult');
+            if(box)box.innerHTML='<div class="sl-notice sl-danger-block"><b>POS result needs verification.</b><div>'+esc(msg)+'</div></div>';
+            toast(msg,true);
+            return;
+        }
         const box=document.getElementById('posResult');
-        if(box)box.innerHTML='<div class="sl-notice">Sale <b>'+esc(out.sale_id||'')+'</b> posted. Gross '+money(out.sales_total||0)+' • VAT '+money(out.vat_amount||0)+' • Net '+money(out.net_sales_excl_vat||0)+'. Inventory, GL and audit were committed atomically.</div>';
-        toast('Retail POS sale posted: '+String(out.sale_id||''));
-        const sku=f.querySelector('[data-sku-value]')?.value||'';
+        if(box)box.innerHTML='<div class="sl-notice"><b>Sale '+esc(saleId)+' posted and verified.</b> Gross '+money(out.sales_total||0)+' • VAT '+money(out.vat_amount||0)+' • Net '+money(out.net_sales_excl_vat||0)+'. Inventory, GL and audit were committed atomically.</div>';
+        toast('Retail POS sale posted and verified: '+saleId);
         f.reset();
-        const hidden=f.querySelector('[data-sku-value]');if(hidden){hidden.value=sku;hidden.dispatchEvent(new Event('change',{bubbles:true}));}
+        const hidden=f.querySelector('[data-sku-value]');if(hidden){hidden.value='';hidden.dispatchEvent(new Event('input',{bubbles:true}));hidden.dispatchEvent(new Event('change',{bubbles:true}));}
+        const skuSearch=f.querySelector('[data-sku-search]');if(skuSearch)skuSearch.value='';
+        const selected=f.querySelector('[data-sku-selected]');if(selected)selected.hidden=true;
+        const clear=f.querySelector('[data-sku-clear]');if(clear)clear.hidden=true;
         const date=f.querySelector('[name="sale_date"]');if(date)date.value=localDate();
-        await loadPosSales();await load();await loadNotifications();
+        // Posting is already confirmed. A later refresh error must not imply the sale
+        // failed or was not created; tell the user which step failed separately.
+        try{await loadPosSales();await load();await loadNotifications();}
+        catch(refreshErr){toast('Sale '+saleId+' was posted successfully. The dashboard refresh failed: '+String(refreshErr?.message||'refresh unavailable')+'. Do not repost this sale.',true);}
     }catch(err){toast(err.message,true)}finally{f.dataset.busy='0';if(btn){btn.disabled=false;btn.textContent=old||'POST RETAIL SALE';}}
 }
 async function loadPosSales(){
