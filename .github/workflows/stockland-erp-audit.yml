@@ -369,7 +369,6 @@ jobs:
           corrective = manifest.setdefault("corrective_release_16_1_65", {})
           corrective["source_gate"] = "PASS"
           corrective["source_gate_evidence"] = evidence
-          path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           # Remove legacy manually-authored binary certification labels from old manifests.
           def remove_legacy_certification_flags(value):
               if isinstance(value, dict):
@@ -383,6 +382,7 @@ jobs:
                       remove_legacy_certification_flags(child)
           remove_legacy_certification_flags(manifest)
           remove_legacy_certification_flags(quality)
+          path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
           print("Recorded exact source-gate run, tested commit, and branch head; target-host acceptance is tracked separately.")
           PY
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
