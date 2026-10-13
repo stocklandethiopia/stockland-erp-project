@@ -7,7 +7,6 @@ on:
       - "stockland-erp-app/**"
       - "audit/packages/**"
       - "audit/vendor/bootstrap-5.3.8/bootstrap.min.css"
-      - "AUDIT/**"
       - ".github/workflows/stockland-erp-audit.yml"
   pull_request:
     branches: ["main"]
@@ -15,7 +14,6 @@ on:
       - "stockland-erp-app/**"
       - "audit/packages/**"
       - "audit/vendor/bootstrap-5.3.8/bootstrap.min.css"
-      - "AUDIT/**"
       - ".github/workflows/stockland-erp-audit.yml"
   workflow_dispatch:
 
