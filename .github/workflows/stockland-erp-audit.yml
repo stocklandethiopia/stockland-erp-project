@@ -309,6 +309,7 @@ jobs:
         env:
           PHPCS_EXIT: ${{ steps.full-source-phpcs.outputs.phpcs_exit }}
           SOURCE_COMMIT: ${{ github.sha }}
+          SOURCE_HEAD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           if [[ "${PHPCS_EXIT:-}" != "0" ]]; then
@@ -335,10 +336,13 @@ jobs:
               "javascript_syntax_ci_executed": True,
               "static_integrity_qa_ci_executed": True,
           })
-          quality["source_gate_evidence"] = {
+          evidence = {
               "result": "PASS",
               "release": manifest.get("release"),
               "commit_sha": os.environ["SOURCE_COMMIT"],
+              "source_head_sha": os.environ["SOURCE_HEAD_COMMIT"],
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "workflow_run_url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
               "runtime_php_files_scanned": 47,
               "phpcs_errors": 0,
               "phpcs_warnings": 0,
@@ -350,8 +354,21 @@ jobs:
               "erp_static_integrity_qa": "PASS",
               "javascript_syntax": "PASS",
           }
+          quality["source_gate_evidence"] = evidence
+          quality["source_gate"] = "PASS — exact 16.1.65 source gate; live certification remains pending"
+          manifest["source_gate_evidence"] = {
+              **evidence,
+              "state": "PASS",
+              "note": "Exact-release GitHub Actions source gate passed. This does not constitute authenticated live-site certification.",
+          }
+          manifest["live_certification"] = False
+          quality["live_certification"] = False
+          corrective = manifest.setdefault("corrective_release_16_1_65", {})
+          corrective["source_gate"] = "PASS"
+          corrective["source_gate_evidence"] = evidence
+          corrective["live_certification"] = False
           path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-          print("Recorded verified CI source-gate evidence; live_certification remains false.")
+          print("Recorded exact source-gate run, tested commit, and branch head; live_certification remains false.")
           PY
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
