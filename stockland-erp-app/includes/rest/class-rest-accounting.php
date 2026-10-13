@@ -2386,12 +2386,28 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			if ( get_current_user_id() === (int) $row['created_by'] ) {
-				throw new Exception( 'Separate approval is required; an Owner cannot approve their own submission.' );
-			}
-			$creator_role = Stockland_Authority::role( (int) $row['created_by'] );
-			if ( ! in_array( $creator_role, array( 'management', 'branch_manager' ), true ) ) {
-				throw new Exception( 'Expense submitter has no valid active Management/Branch Manager ERP profile.' );
+			$uid             = get_current_user_id();
+			$approver_role   = Stockland_Authority::role( $uid );
+			$creator_role    = Stockland_Authority::role( (int) $row['created_by'] );
+			$expense_location = (int) ( $row['location_id'] ?? 0 );
+			$central_id      = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
+			if ( 'branch_manager' === $approver_role ) {
+				$assigned_branch = Stockland_Authority::branch_id( $uid );
+				if ( ! $assigned_branch || $expense_location !== $assigned_branch || $expense_location === $central_id || ! Stockland_Authority::can_access_location( $expense_location, $uid ) ) {
+					throw new Exception( 'A Branch Manager may decide expenses only for their assigned branch, never another branch or Central Warehouse.' );
+				}
+				if ( 'branch_manager' !== $creator_role ) {
+					throw new Exception( 'Branch expense submitter must have an active Branch Manager profile; corporate expenses are not branch expenses.' );
+				}
+			} elseif ( 'warehouse_manager' === $approver_role ) {
+				if ( $central_id <= 0 || $expense_location !== $central_id || ! Stockland_Authority::can_access_location( $expense_location, $uid ) ) {
+					throw new Exception( 'A Warehouse Manager may decide expenses only for the assigned Central Warehouse.' );
+				}
+				if ( 'warehouse_manager' !== $creator_role ) {
+					throw new Exception( 'Central Warehouse expense submitter must have an active Warehouse Manager profile.' );
+				}
+			} else {
+				throw new Exception( 'Only the assigned Branch Manager or Central Warehouse Manager may decide a location expense.' );
 			}
 			$journal = null;
 			$next    = 'APPROVE' === $action ? 'POSTED' : 'REJECTED';
@@ -2448,7 +2464,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense status update failed.' );
 			}
 			$event = 'APPROVE' === $action ? 'BRANCH_EXPENSE_APPROVE' : 'BRANCH_EXPENSE_REJECT';
-			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Owner approved; GL journal ' . $journal, $row['expense_number'] ) ) {
+			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Final location authority approved; GL journal ' . $journal, $row['expense_number'] ) ) {
 				throw new Exception( 'Expense decision could not be audited.' );
 			}
 			$title   = 'APPROVE' === $action ? 'Expense approved' : 'Expense rejected';
