@@ -373,7 +373,9 @@ jobs:
           # Remove legacy manually-authored binary certification labels from old manifests.
           def remove_legacy_certification_flags(value):
               if isinstance(value, dict):
-                  value.pop("live_certification", None)
+                  for key in list(value.keys()):
+                      if key.startswith("live_" + "certification"):
+                          value.pop(key, None)
                   for child in value.values():
                       remove_legacy_certification_flags(child)
               elif isinstance(value, list):
