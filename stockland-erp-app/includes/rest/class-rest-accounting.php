@@ -2463,12 +2463,13 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Expense status update failed.' );
 			}
-			$event = 'APPROVE' === $action ? 'BRANCH_EXPENSE_APPROVE' : 'BRANCH_EXPENSE_REJECT';
+			$event = 'APPROVE' === $action ? 'LOCATION_EXPENSE_APPROVE' : 'LOCATION_EXPENSE_REJECT';
 			if ( ! Stockland_Audit::log( get_current_user_id(), (int) $row['location_id'], $event, null, $row['amount'], 'PENDING', $next, 'REJECT' === $action ? $note : 'Final location authority approved; GL journal ' . $journal, $row['expense_number'] ) ) {
 				throw new Exception( 'Expense decision could not be audited.' );
 			}
 			$title   = 'APPROVE' === $action ? 'Expense approved' : 'Expense rejected';
-			$message = $row['expense_number'] . ' was ' . $next . ' by the Owner.' . ( 'REJECT' === $action ? ' Reason: ' . $note : ' GL journal: ' . $journal . '.' );
+			$authority_label = 'branch_manager' === $approver_role ? 'Branch Manager' : 'Central Warehouse Manager';
+			$message = $row['expense_number'] . ' was ' . $next . ' by the assigned ' . $authority_label . '.' . ( 'REJECT' === $action ? ' Reason: ' . $note : ' GL journal: ' . $journal . '.' );
 			if ( ! Stockland_Notifications::push_user( (int) $row['created_by'], 'expense_decision', $title, $message, 'expense', $id, 'REJECT' === $action ? 'warning' : 'info' ) ) {
 				throw new Exception( 'Submitter notification could not be queued; decision was rolled back.' );
 			}
