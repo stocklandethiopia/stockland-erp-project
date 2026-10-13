@@ -1,3 +1,13 @@
+# Current GitHub status — 2026-10-13
+
+This section supersedes the older point-in-time decisions below; those entries are retained as historical audit context.
+
+- PR #25 for Stockland ERP 16.1.65 is **merged** into `main` at commit `e5a8054e2e71c058d8ddd7feafdb145351e0ccd6`.
+- The post-merge GitHub Actions source/package gate [run 38410998164](https://github.com/stocklandethiopia/stockland-erp-project/actions/runs/38410998164) completed **SUCCESS** on that exact commit.
+- The run built installer `STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip`, SHA-256 `97188bda48e37051f9bcae4040720a63115cb1b03ad46cae2b9366a545f1d119`; [Actions artifact 11821676210](https://github.com/stocklandethiopia/stockland-erp-project/actions/runs/38410998164/artifacts/11821676210) contains the package and checksum file.
+- The source gate passed PHP lint, Composer validation, PHPUnit, JavaScript syntax, static/integrity QA, package integrity/build and full-runtime PHPCS/WPCS (47 runtime PHP files; zero errors, zero warnings and zero fixable findings).
+- This is not evidence that authenticated WordPress/MariaDB runtime, deep ledger/inventory/payroll reconciliation, role-based SOP workflows, live browser/host compatibility or backup/rollback were executed. Current manifest fields explicitly show authenticated live browser E2E and live database integration as not executed; do not treat source CI as those tests.
+
 # Stockland ERP audit-status adjudication — 2026-10-12
 
 ## Purpose
