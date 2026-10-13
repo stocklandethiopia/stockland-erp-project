@@ -357,7 +357,7 @@ class Stockland_Roles {
 				continue;
 			}
 			$wp_user = new WP_User( $wp_user_id );
-			if ( 1 === (int) ( $profile['is_active'] ?? 0 ) && self::ROLE_OWNER === (string) ( $profile['role'] ?? '' ) ) {
+			if ( 1 === (int) ( $profile['is_active'] ?? 0 ) && 'owner' === (string) ( $profile['role'] ?? '' ) ) {
 				$wp_user->add_cap( 'stockland_approve_purchase_orders' );
 			} else {
 				$wp_user->remove_cap( 'stockland_approve_purchase_orders' );
