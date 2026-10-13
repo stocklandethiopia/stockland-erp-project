@@ -506,7 +506,7 @@ body.sl-mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
 }
 @media(prefers-reduced-motion:reduce){#stockland-app *,#stockland-app *::before,#stockland-app *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
-/* Stockland ERP 16.1.65 • Mobile diagnostics and operational content guards • Ordered source module. */
+/* Stockland ERP 16.1.66 • Mobile diagnostics and operational content guards • Ordered source module. */
 /* 16.1.44 mobile health / statutory payroll overflow guard */
 .sl-health-grid>div{min-width:0;overflow-wrap:anywhere;word-break:normal}
 .sl-health-grid>div span{display:block;min-width:0;overflow-wrap:anywhere;white-space:normal}
@@ -590,7 +590,7 @@ body.sl-mobile-menu-open{overflow:hidden!important;overscroll-behavior:none}
 
 
 /* ============================================================================
-   16.1.65 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
+   16.1.66 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
    Times New Roman typography, full-workspace palette, readable touch controls,
    and compact procurement/order line layout. No business data/ledger behavior.
    ============================================================================ */
@@ -778,7 +778,7 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
 }
 @media(prefers-reduced-motion:reduce){#stockland-app *,#stockland-app *::before,#stockland-app *::after,body .sl-overlay *{transition:none!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
-/* Stockland ERP 16.1.65 CAP-MENU-02: prevent the dashboard shortcut heading and
+/* Stockland ERP 16.1.66 CAP-MENU-02: prevent the dashboard shortcut heading and
    shortcut grid from becoming sibling columns inside their own card. Keep the
    quick-action panel vertical; let the inner shortcuts use two readable columns. */
 #stockland-app .sl-quick-actions{display:block!important;min-width:0;max-width:100%}
@@ -795,7 +795,7 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
 }
 
 
-/* 16.1.65: request item forms must not inherit the flex layout used by queue summaries. */
+/* 16.1.66: request item forms must not inherit the flex layout used by queue summaries. */
 #stockland-app .sl-req-line.sl-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.28fr);align-items:start;justify-content:stretch;gap:10px;width:100%;min-width:0}
 #stockland-app .sl-req-line.sl-form>.sl-field{min-width:0;width:100%}
 #stockland-app .sl-req-line.sl-form>.sl-field.full,#stockland-app .sl-req-line.sl-form>.sl-req-live-rule{grid-column:1/-1}
