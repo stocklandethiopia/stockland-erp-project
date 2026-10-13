@@ -26,7 +26,7 @@ $authority  = $read( 'includes/class-stockland-authority.php' );
 $integrity  = $read( 'includes/class-stockland-integrity.php' );
 $ddl        = $read( 'includes/class-stockland-activator.php' );
 $app        = $read( 'assets/app.js' );
-$ok( ( $manifest['release'] ?? '' ) === '16.1.64' && str_contains( $plugin, 'Version:           16.1.64' ), 'plugin header and manifest use the same release identity' );
+$ok( ( $manifest['release'] ?? '' ) === '16.1.65' && str_contains( $plugin, 'Version:           16.1.65' ), 'plugin header and manifest use the same release identity' );
 $plugin_compact     = preg_replace( '/\\s+/', '', $plugin );
 $owner_po_guard      = '$owner_po_cap_missing=!$owner_role||!$owner_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
 $management_po_guard = '$management_po_cap_bad=$management_role&&$management_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
@@ -51,6 +51,6 @@ $ok( str_contains( $guards, '.sl-req-line.sl-form{display:grid' ) && str_contain
 $ok( str_contains( $app, 'RUN DEEP INTEGRITY AUDIT' ) && str_contains( $app, 'QUICK HEALTH ONLY' ), 'UI visibly separates fast checks from the explicit deep audit' );
 $ok( str_contains( $plugin, 'includes/class-stockland-integrity.php' ) && ! preg_match( '/FOREIGN KEY\s*\(/i', $ddl ), 'scanner loaded and no schema expansion/foreign-key migration was introduced' );
 if ( $fail ) {
-	fwrite( STDERR, 'Release 16.1.64 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
+	fwrite( STDERR, 'Release 16.1.65 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
-}echo "Release 16.1.64 comprehensive gate PASS: {$pass} assertions.\n";
+}echo "Release 16.1.65 comprehensive gate PASS: {$pass} assertions.\n";
