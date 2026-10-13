@@ -27,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           semgrep scan \
+            --timeout 60 \
             --config p/security-audit \
             --config p/owasp-top-ten \
             --json \
