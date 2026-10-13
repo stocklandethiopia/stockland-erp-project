@@ -360,32 +360,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p audit/packages
-          package="$GITHUB_WORKSPACE/audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          package="audit/packages/STOCKLAND_ERP_16.1.65_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
           rm -f "$package" "$package.sha256"
-          stage="$(mktemp -d)"
-          trap 'rm -rf "$stage"' EXIT
-          mkdir -p "$stage/stockland-erp-app" audit/packages
-          # Installer ZIP contains only the single runtime plugin root. Keep the
-          # Composer, PHPCS/PHPUnit, CI and static-QA harness in the source repo,
-          # not in the WordPress installation package.
-          rsync -a --delete \
-            --exclude='.github/' \
-            --exclude='tests/' \
-            --exclude='tools/' \
-            --exclude='composer.json' \
-            --exclude='composer.lock' \
-            --exclude='phpcs*.xml.dist' \
-            --exclude='phpunit.xml.dist' \
-            stockland-erp-app/ "$stage/stockland-erp-app/"
-          # Normalize timestamps and entry order so identical runtime source
-          # produces identical ZIP bytes/checksum on repeated builds.
-          find "$stage/stockland-erp-app" -exec touch -t 198001010000 {} +
-          ( cd "$stage" && find stockland-erp-app -print | LC_ALL=C sort | zip -X -q "$package" -@ )
+          # Keep development QA harnesses in GitHub, not in the WordPress installer.
+          find stockland-erp-app -type f -exec touch -t 198001010000 {} +
+          find stockland-erp-app -type f -print | LC_ALL=C sort | zip -X -q "$package" -@ -x \
+            'stockland-erp-app/.github/*' \
+            'stockland-erp-app/tests/*' \
+            'stockland-erp-app/tools/*' \
+            'stockland-erp-app/composer.json' \
+            'stockland-erp-app/composer.lock' \
+            'stockland-erp-app/phpcs*.xml.dist' \
+            'stockland-erp-app/phpunit.xml.dist'
           unzip -t "$package"
-          if unzip -Z1 "$package" | grep -E 'stockland-erp-app/(tests|tools|\.github)/|stockland-erp-app/(composer\.json|composer\.lock|phpcs|phpunit)' >/dev/null; then
-            echo "::error::Installer package contains development QA files."
-            exit 1
-          fi
+          python3 - "$package" <<'PY'
+          import sys
+          import zipfile
+          with zipfile.ZipFile(sys.argv[1]) as archive:
+              names = archive.namelist()
+          blocked = [name for name in names if any(part in name.split('/') for part in ('.github', 'tests', 'tools')) or name.endswith(('composer.json', 'composer.lock', 'phpcs.xml.dist', 'phpcs-full-audit.xml.dist', 'phpunit.xml.dist'))]
+          if blocked:
+              raise SystemExit("Installer package contains development files: " + ", ".join(blocked))
+          if not names or not all(name.startswith("stockland-erp-app/") for name in names):
+              raise SystemExit("Installer ZIP must contain exactly one stockland-erp-app root")
+          print(f"Runtime-only installer package verified: {len(names)} entries")
+          PY
           sha256sum "$package" > "$package.sha256"
           cat "$package.sha256"
 
