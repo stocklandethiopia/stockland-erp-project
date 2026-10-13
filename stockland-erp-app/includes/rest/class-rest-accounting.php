@@ -2362,7 +2362,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 	 */
 	public function expense_status( WP_REST_Request $r ) {
 		if ( ! Stockland_Authority::can_approve_expenses() ) {
-			return new WP_Error( 'forbidden', 'Only the active Stockland Owner profile can approve or reject submitted expenses.', array( 'status' => 403 ) );
+			return new WP_Error( 'forbidden', 'Only the assigned Branch Manager or Central Warehouse Manager can decide location expenses.', array( 'status' => 403 ) );
 		}
 		global $wpdb;
 		$id     = (int) $r['id'];
