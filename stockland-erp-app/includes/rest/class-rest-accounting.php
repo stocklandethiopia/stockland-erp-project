@@ -1738,7 +1738,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					throw new Exception( 'Could not verify unreceived purchase quantity; PO status was not changed.' );
 				}$remaining_unreceived    = (float) $remaining_unreceived_raw;
 				$wpdb->last_error         = '';
-				$remaining_uninvoiced_raw = Stockland_DB::read_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM %i sii INNER JOIN %i si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status=\'POSTED\'),0),0)),0) FROM %i poi WHERE poi.po_id=%d', 'supplier_invoice_items', $poid, 'supplier_invoices', 'purchase_order_items' ) );
+				$remaining_uninvoiced_raw = Stockland_DB::read_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(poi.quantity_received-COALESCE((SELECT SUM(sii.quantity) FROM %i sii INNER JOIN %i si ON si.id=sii.invoice_id WHERE sii.po_item_id=poi.id AND si.po_id=poi.po_id AND si.status=\'POSTED\'),0),0)),0) FROM %i poi WHERE poi.po_id=%d', Stockland_DB::table( 'supplier_invoice_items' ), Stockland_DB::table( 'supplier_invoices' ), Stockland_DB::table( 'purchase_order_items' ), $poid ) );
 				if ( null === $remaining_uninvoiced_raw || $wpdb->last_error ) {
 					throw new Exception( 'Could not verify received-but-uninvoiced purchase quantity; PO status was not changed.' );
 				}$remaining_uninvoiced = (float) $remaining_uninvoiced_raw;
