@@ -525,11 +525,11 @@ class Stockland_Authority {
 	 * Owner-only final approval for posted financial commitments.
 	 *
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
-	 * @return bool Whether the user is the assigned Branch Manager or Warehouse Manager for expense decisions.
+	 * @return bool Whether the user has an expense decision role; record-level scope is enforced by expense_status().
 	 */
 	public static function can_approve_expenses( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
-		return in_array( self::role( $uid ), array( self::BRANCH_MANAGER, self::WAREHOUSE_MANAGER ), true ) && user_can( $uid, 'stockland_manage_expenses' );
+		return in_array( self::role( $uid ), array( self::OWNER, self::BRANCH_MANAGER, self::WAREHOUSE_MANAGER ), true ) && user_can( $uid, 'stockland_manage_expenses' );
 	}
 
 	/**
