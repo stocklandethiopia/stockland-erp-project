@@ -33,7 +33,8 @@ $management_po_guard = '$management_po_cap_bad=$management_role&&$management_rol
 $ok(
 	str_contains( $plugin_compact, $owner_po_guard )
 		&& str_contains( $plugin_compact, $management_po_guard )
-		&& str_contains( $plugin_compact, '$owner_po_cap_missing||$management_po_cap_bad' ),
+		&& str_contains( $plugin_compact, '$admin_po_cap_bad=$admin_role&&$admin_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');' )
+		&& str_contains( $plugin_compact, '$owner_po_cap_missing||$management_po_cap_bad||$admin_po_cap_bad' ),
 	'WordPress update re-syncs missing Owner PO approval and removes that capability from Management.'
 );
 $ok( ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ! ( $manifest['schema_contract']['new_business_table'] ?? true ), '49-table business schema contract remains exact; no business table added' );
@@ -44,8 +45,9 @@ $ok( str_contains( $accounting_compact, "\$status=\$direct_post?'POSTED':'PENDIN
 $ok( str_contains( $accounting, 'separately Owner-approved Central Warehouse PO' ) && str_contains( $accounting_compact, "'account_code'=>'2010'" ) && str_contains( $accounting_compact, "'account_code'=>'2000'" ) && str_contains( $accounting_compact, "\$invoice['total_amount']" ), 'supplier invoice approval clears receipt GRNI to AP without a second VAT debit' );
 $ok( str_contains( $accounting, 'payment_integrity_error' ) && str_contains( $accounting_compact, "acquire_named_lock('payment_'" ) && str_contains( $accounting_compact, "'status'=>\$status" ), 'manual finance payments use idempotency, a named lock and pending approval' );
 $ok( str_contains( $hr, "'SUBMITTED'" ) && str_contains( $hr, 'payroll_approval' ) && str_contains( $hr, 'PAYROLL_APPROVE' ) && str_contains( $hr, 'payroll_paid' ), 'payroll has Management submission, Owner approval/payment, GL and notification markers' );
-$ok( str_contains( $authority, 'can_prepare_hr' ) && str_contains( $authority, 'can_prepare_finance' ) && str_contains( $authority, 'can_approve_finance' ) && str_contains( $authority, 'can_submit_expenses' ), 'server-side role authority helpers enforce preparation and role-specific final decisions' );
+$ok( str_contains( $authority, 'can_prepare_hr' ) && str_contains( $authority, 'can_prepare_finance' ) && str_contains( $authority, 'can_approve_finance' ) && str_contains( $authority, 'can_submit_expenses' ), 'server-side role authority helpers enforce prepare vs Owner approval' );
 $ok( str_contains( $app, "appendChild(d);bindSkuPickers()" ), 'legacy Add SKU row binds the live SKU picker after dynamic insertion' );
+$ok( str_contains( $app, "box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>div.remove();bindSkuPickers();" ), 'dynamic Finance/PO lines bind the live touch/click SKU picker after insertion' );
 $guards = $read( 'assets/css/06-operational-guards.css' );
 $ok( str_contains( $guards, '.sl-req-line.sl-form{display:grid' ) && str_contains( $guards, '@media(max-width:575.98px)' ), 'dynamic requisition lines use responsive grid layout on mobile' );
 $ok( str_contains( $app, 'RUN DEEP INTEGRITY AUDIT' ) && str_contains( $app, 'QUICK HEALTH ONLY' ), 'UI visibly separates fast checks from the explicit deep audit' );
