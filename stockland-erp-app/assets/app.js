@@ -254,7 +254,7 @@ document.body.setAttribute('data-sl-view',String(state.view||'dashboard'));
 shell();updateChrome();
 let b='';
 switch(state.view){
-case'finance':b=finance();break;case'branchops':b=branchOperations();break;case'dailyreport':b=dailyInventoryPage();break;case'operate':b=operate();break;case'pos':b=pos();break;case'daily':b=dailyImportPage();break;case'reconcile':b=reconcile();break;case'reorder':b=reorder();break;;case'inventory':b=inventory();break;case'warehouse':b=warehouse();break;
+case'finance':b=['branch_manager','warehouse_manager'].includes(state.boot?.user?.role)?locationFinance():finance();break;case'branchops':b=branchOperations();break;case'dailyreport':b=dailyInventoryPage();break;case'operate':b=operate();break;case'pos':b=pos();break;case'daily':b=dailyImportPage();break;case'reconcile':b=reconcile();break;case'reorder':b=reorder();break;;case'inventory':b=inventory();break;case'warehouse':b=warehouse();break;
 case'requests':b=requests();break;case'transfers':b=transfers();break;case'wholesale':b=wholesale();break;
 case'returns':b=returns();break;case'closing':b=closing();break;case'reports':b=reports();break;
 case'products':b=products();break;case'products-import':b=productImportPage();break;case'calendar':b=businessCalendarPage();break;case'users':b=users();break;
@@ -488,7 +488,7 @@ if($('#auditTable'))loadAudit();
 if($('#usersTable'))loadUsers();
 if($('#runHealth'))$('#runHealth').onclick=()=>runHealth('quick');if($('#runDeepHealth'))$('#runDeepHealth').onclick=()=>runHealth('deep');if($('#receiptQueue'))loadReceipts();
 if($('#refreshReorder'))$('#refreshReorder').onclick=loadReorder;if($('#reorderTable'))loadReorder();
-if($('#financePage')&&!state.financeLoaded)loadFinance();
+if($('#locationFinancePage'))bindLocationFinance();if($('#financePage')&&!state.financeLoaded)loadFinance();
 if($('#refreshFinance'))$('#refreshFinance').onclick=()=>loadFinance(true);
 if($('#supplierFinanceForm'))$('#supplierFinanceForm').onsubmit=financeSubmit;
     document.querySelectorAll('[data-replace-sku]').forEach(b=>{b.onclick=async()=>{const next=await slReasonDialog('New live SKU',b.dataset.currentSku||'');if(next===null)return;const reason=await slReasonDialog('Reason for SKU replacement','Replaced Product Master SKU; historical ledger identity must remain unchanged.');if(reason===null||!String(next).trim())return;b.disabled=true;try{await api('/products/'+encodeURIComponent(b.dataset.replaceSku)+'/replace-sku',{method:'POST',body:JSON.stringify({new_sku:String(next).trim(),reason})});toast('Current Product Master SKU changed; historical transactions were preserved');await load()}catch(e){toast(e.message,true);b.disabled=false}}});
