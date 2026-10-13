@@ -80,6 +80,7 @@ $ok( str_contains( $a, 'po_required' ) && str_contains( $a, 'separately Owner-ap
 $ok( str_contains( $a, 'idempotency_key_required' ) && str_contains( $a_compact, "acquire_named_lock('payment_'" ) && str_contains( $a, 'SLPAYREQ:' ) && str_contains( $a, 'payment_integrity_error' ), 'supplier payment retries are serialized, idempotent and journal-verified' );
 $ok( str_contains( $a, 'allocation_total_mismatch' ) && str_contains( $a, 'allocation_required' ), 'supplier payments require exact invoice allocation' );
 $ok( str_contains( $app, 'OWNER_APPROVED' ) && str_contains( $app, 'SUBMIT TO OWNER' ) && str_contains( $app, 'ACCEPT RECEIVED QTY' ), 'UI labels reflect the required SOP' );
+$ok( str_contains( $auth, 'can_decide_location_expense' ), 'location expense decisions use the centralized authority helper' );
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
