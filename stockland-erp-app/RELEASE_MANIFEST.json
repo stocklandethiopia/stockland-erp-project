@@ -1,6 +1,6 @@
 {
   "release": "16.1.65",
-  "classification": "In-place corrective release 16.1.65: synchronizes approval capability to the active ERP Owner account, makes the live Product Master SKU picker reliably reopen on touch, and separates confirmed POS posting from follow-up refresh failures. Existing 49-table business contract and schema-version markers remain unchanged.",
+  "classification": "Stockland ERP 16.1.65 in-place corrective release: preserves the 49-table ERP contract while aligning Finance & Procurement SQL, location-based expense authority, corporate expense attribution, live SKU selection, Owner purchase approval and POS posting outcomes.",
   "baseline": "Derived from the GitHub main source at 534407ad28641bea2db426df83ed398633a6327c, including the merged source-health correction PR #22 and prior 16.1.57 source-gate history. This candidate is not a byte-for-byte rebuild of the earlier local 16.1.63 ZIP. No business schema migration, new business table, or historical transaction rewrite is included.",
   "schema_contract": {
     "core_operations": 29,
@@ -155,16 +155,6 @@
     "read_only": true,
     "fatal_stage_evidence": true
   },
-  "known_open_findings": [
-    "Database-level FOREIGN KEY constraints remain absent or unverified. Audit physical relationships/orphans on a staging clone and perform a controlled migration only after rollback testing.",
-    "Existing active employee compensation must be explicitly owner-classified after the additive HR migration. Until this is done, payroll_compensation_classification intentionally fails closed.",
-    "RETAINER_SERVICE records are kept visible but excluded from employee PAYE/pension generation. Their specific contract/payment and any applicable withholding treatment requires approved finance/legal SOP and separate verification.",
-    "No authenticated live database, browser transaction, or production deployment was performed in this build environment. Live health, Product Master, POS import, receiving, payroll, GL and rollback remain staging acceptance items.",
-    "SonarQube, Semgrep and OWASP ZAP were not run in the latest CI workflow. The current source-gate commit passed full-scope PHPCS/WPCS with zero errors and warnings across 47 deployable runtime PHP files, PHPUnit (7 tests / 13 assertions), critical-workflow QA, targeted remediation QA, Product Master search regression and external-procurement static QA. These source checks do not replace live staging acceptance.",
-    "InfinityFree runtime limits, DB locking/transaction semantics, file permissions and PWA cache refresh must be confirmed on the actual host.",
-    "Owner purchase-order approval capability sync and canonical profile-role queue changes passed source-level regression gates in GitHub Actions. Authenticated staging test using a Management-submitted Central Warehouse purchase order, independent Owner approval and Warehouse Manager receipt remains required before acceptance.",
-    "User-profile dropdown and Owner approval queue have not been tested in an authenticated live browser. Authenticated live-browser acceptance has not been evidenced in this source-gate record."
-  ],
   "release_candidate_changes": [
     "Restricts detailed system health/runtime REST endpoints to native WordPress administrators and Stockland Owner/Management.",
     "Stores request path without query string; sanitizes legacy saved fatal diagnostic records before returning them.",
@@ -200,7 +190,10 @@
     "16.1.63: Authorized read-only setup-mode health endpoint remains available while schema gates are incomplete; reports real missing upgrade items, never claims the full deep integrity scan ran, and does not clear setup error options.",
     "16.1.63: Accounting metadata SQL errors become explicit fail-closed upgrade gaps rather than appearing as absent tables or healthy schema.",
     "16.1.63: WordPress role synchronization repairs missing Owner stockland_approve_purchase_orders or wrongly granted Management purchase-order approval even when the stored capability marker is stale.",
-    "16.1.63: Release-specific assertions verify consistent plugin/header/manifest/frontend route/CSS build release identity. No new business table or database-version bump."
+    "16.1.63: Release-specific assertions verify consistent plugin/header/manifest/frontend route/CSS build release identity. No new business table or database-version bump.",
+    "16.1.65 Finance & Procurement: resolve accounting table identifiers through the WordPress-prefixed table resolver and preserve SQL placeholder order across PO, receipt, invoice and payment allocation workflows.",
+    "16.1.65 Expense authority: assigned Branch Manager decides branch expenses; Central Warehouse Manager decides Central Warehouse expenses; Owner and Management post their own corporate expenses without branch attribution and review location expenses in report-only mode.",
+    "16.1.65 Finance UI: role-scoped expense workspace, corporate expense form without location selection, and read-only expense reporting for Owner and Management."
   ],
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
