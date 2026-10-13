@@ -3,7 +3,7 @@ if ( PHP_SAPI !== 'cli' ) {
 	http_response_code( 404 );
 	exit; }
 $root                               = dirname( __DIR__, 2 );
-$version                            = '16.1.63';
+$version                            = '16.1.64';
 $checks                             = array();
 $checks['plugin_version']           = str_contains( file_get_contents( $root . '/stockland-inventory.php' ), "Version:           {$version}" );
 $checks['frontend_route_version']   = 1 === preg_match( '/ROUTE_VERSION\\s*=\\s*[\'\"]' . preg_quote( $version, '/' ) . '[\'\"]/', file_get_contents( $root . '/includes/class-stockland-frontend.php' ) );
