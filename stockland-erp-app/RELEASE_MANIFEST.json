@@ -519,5 +519,5 @@
     "security_scan": false,
     "backup_restore_rollback": false
   },
-  "legacy_pending_expense_policy": "Legacy PENDING expenses are never rewritten. Owner/Management reports retain them; Branch/Warehouse approval queues show only pending rows created under the matching active ERP authority role. Older role-mismatched rows require controlled reconciliation."
+  "legacy_pending_expense_policy": "Legacy PENDING expenses are never rewritten. Owner/Management reports retain them; Branch Manager reads and decisions are forced to the single assigned branch, Warehouse Manager reads and decisions are forced to canonical Central Warehouse, and approval queues show only pending rows created under the matching active ERP authority role. Older role-mismatched rows require controlled reconciliation."
 }
