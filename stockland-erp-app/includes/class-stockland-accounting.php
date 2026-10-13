@@ -791,7 +791,7 @@ class Stockland_Accounting {
 	private static function grant_capabilities() {
 		// Company finance capabilities are separated from decision authority.
 		// PO approval belongs to the ERP Owner profile, never shared Management/Admin roles.
-		$company_finance_caps = array(
+		$company_finance_caps  = array(
 			'stockland_view_financials',
 			'stockland_manage_suppliers',
 			'stockland_manage_customers',
