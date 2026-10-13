@@ -525,7 +525,7 @@ class Stockland_Authority {
 	 * Owner-only final approval for posted financial commitments.
 	 *
 	 * @param int|string|null $user_id WordPress user ID; defaults to the current user.
-	 * @return bool Whether the user may approve expenses as Owner.
+	 * @return bool Whether the user is the assigned Branch Manager or Warehouse Manager for expense decisions.
 	 */
 	public static function can_approve_expenses( $user_id = null ) {
 		$uid = $user_id ? $user_id : get_current_user_id();
