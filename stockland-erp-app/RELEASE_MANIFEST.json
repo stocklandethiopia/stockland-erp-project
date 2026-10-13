@@ -1,7 +1,7 @@
 {
   "release": "16.1.66",
   "classification": "In-place corrective release 16.1.66: repairs finance SQL table binding and query argument order, applies explicit Branch Manager / Central Warehouse Manager expense authority, and isolates Owner/Management corporate expenses from branch attribution. Existing 49-table contract and schema-version markers remain unchanged.",
-  "baseline": "Derived from the GitHub main source at 534407ad28641bea2db426df83ed398633a6327c, including the merged source-health correction PR #22 and prior 16.1.57 source-gate history. This candidate is not a byte-for-byte rebuild of the earlier local 16.1.63 ZIP. No business schema migration, new business table, or historical transaction rewrite is included.",
+  "baseline": "Derived from canonical main snapshot 016706167874c3ef6233265a86f59f8e203da050, with the tested runtime baseline from 690cb6dbc2ea93a1da640f287344977a665302ae. Finance/procurement source changes are carried only on the 16.1.66 corrective branch until exact-release gates pass.",
   "schema_contract": {
     "core_operations": 29,
     "accounting_procurement": 16,
@@ -497,5 +497,13 @@
     "schema_changed": false,
     "database_version_changed": false,
     "production_certification": "pending authenticated WordPress/MariaDB/browser acceptance and security scanning"
+  },
+  "corrective_release_16_1_66": {
+    "scope": "Finance/procurement SQL binding and placeholder order; Branch Manager / Central Warehouse Manager expense authority; Owner/Management corporate expense attribution and role-specific expense UI.",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "business_table_contract": "49 unchanged",
+    "source_gate": "PENDING exact 16.1.66 branch gate; a historical 16.1.65 PASS is not evidence for this source.",
+    "live_certification": "PENDING authenticated WordPress/MariaDB and browser acceptance"
   }
 }
