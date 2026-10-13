@@ -505,5 +505,18 @@
     "business_table_contract": "49 unchanged",
     "source_gate": "PENDING exact 16.1.66 branch gate; a historical 16.1.65 PASS is not evidence for this source.",
     "live_certification": "PENDING authenticated WordPress/MariaDB and browser acceptance"
+  },
+  "live_certification": false,
+  "schema_version_markers": {
+    "core_operations": "16.1.1",
+    "accounting_procurement": "16.1.15",
+    "hr_payroll": "16.1.3"
+  },
+  "production_acceptance": {
+    "status": "PENDING",
+    "authenticated_wordpress_mariadb": false,
+    "live_browser_e2e": false,
+    "security_scan": false,
+    "backup_restore_rollback": false
   }
 }
