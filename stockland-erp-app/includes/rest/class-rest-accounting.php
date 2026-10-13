@@ -2395,7 +2395,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( 'branch_manager' === $creator_role && Stockland_Authority::branch_id( (int) $row['created_by'] ) !== $location_id ) {
 				throw new Exception( 'Branch expense does not match the submitter’s assigned branch.' );
 			}
-			if ( 'warehouse_manager' === $creator_role && $location_id !== (int) Stockland_DB::get_location_id( 'Central Warehouse' ) ) {
+			if ( 'warehouse_manager' === $creator_role && (int) Stockland_DB::get_location_id( 'Central Warehouse' ) !== $location_id ) {
 				throw new Exception( 'Warehouse expense does not match the Central Warehouse assignment.' );
 			}
 			if ( ! in_array( $creator_role, array( 'branch_manager', 'warehouse_manager' ), true ) ) {
