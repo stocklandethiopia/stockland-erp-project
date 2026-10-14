@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="1600" viewBox="0 0 560 1600">
+<defs>
+  <linearGradient id="wall" x2="0" y2="1"><stop stop-color="#142e49"/><stop offset=".55" stop-color="#0d233e"/><stop offset="1" stop-color="#07182c"/></linearGradient>
+  <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#274e67"/><stop offset=".58" stop-color="#163b55"/><stop offset="1" stop-color="#0e2c45"/></linearGradient>
+  <linearGradient id="emerald" x2="0" y2="1"><stop stop-color="#47c18b" stop-opacity=".68"/><stop offset="1" stop-color="#167e65" stop-opacity=".24"/></linearGradient>
+  <linearGradient id="warm" x2="0" y2="1"><stop stop-color="#e9d7bd" stop-opacity=".72"/><stop offset="1" stop-color="#b89a78" stop-opacity=".25"/></linearGradient>
+  <pattern id="grid" width="46" height="46" patternUnits="userSpaceOnUse"><path d="M46 0H0V46" fill="none" stroke="#8da9be" stroke-opacity=".09"/></pattern>
+</defs>
+<rect width="560" height="1600" fill="url(#wall)"/>
+<rect width="560" height="1600" fill="url(#grid)"/>
+<circle cx="445" cy="330" r="215" fill="#168565" opacity=".10"/>
+<circle cx="65" cy="1000" r="250" fill="#2881a6" opacity=".07"/>
+<!-- Tall boutique glazing and distant city -->
+<g opacity=".94">
+  <rect x="42" y="250" width="476" height="430" rx="16" fill="#081a2e" stroke="#66859b" stroke-opacity=".65" stroke-width="2"/>
+  <rect x="55" y="263" width="450" height="404" rx="9" fill="url(#glass)"/>
+  <path d="M55 530L105 490 142 515 185 458 220 492 268 425 307 475 352 410 395 458 444 392 505 435V667H55Z" fill="#0a2539"/>
+  <path d="M55 580L100 558 142 574 186 540 230 566 280 526 323 558 369 520 416 554 459 526 505 547V667H55Z" fill="#0a1e31" opacity=".95"/>
+  <g stroke="#7396aa" stroke-opacity=".65" stroke-width="2" fill="#13364e">
+    <path d="M76 568V445H98V568Z"/><path d="M110 568V472H136V568Z"/><path d="M151 568V425H181V568Z"/>
+    <path d="M196 568V461H221V568Z"/><path d="M235 568V397H266V568Z"/><path d="M281 568V450H308V568Z"/>
+    <path d="M325 568V422H350V568Z"/><path d="M367 568V463H399V568Z"/><path d="M412 568V405H443V568Z"/><path d="M457 568V449H483V568Z"/>
+  </g>
+  <path d="M280 263V667M55 470H505" stroke="#8fa9b9" stroke-opacity=".5" stroke-width="3" fill="none"/>
+</g>
+<!-- Store rails and garments -->
+<g fill="none" stroke="#b1c2cd" stroke-opacity=".70" stroke-width="5">
+  <path d="M54 770H508" stroke-linecap="round"/>
+  <path d="M82 764V1068M482 764V1068" stroke-width="7" stroke-linecap="round"/>
+  <path d="M110 770l9 32 9-32M165 770l9 32 9-32M220 770l9 32 9-32M275 770l9 32 9-32M330 770l9 32 9-32M385 770l9 32 9-32M440 770l9 32 9-32" stroke-width="3"/>
+</g>
+<g stroke="#9cb4c1" stroke-opacity=".68" stroke-width="3" stroke-linejoin="round">
+  <path d="M102 802Q126 832 146 802L163 825 152 850 162 998Q124 1015 88 998L96 850 84 825Z" fill="url(#emerald)"/>
+  <path d="M158 802Q182 832 202 802L219 825 208 850 218 1005Q181 1016 144 1005L152 850 140 825Z" fill="#6c8398" fill-opacity=".72"/>
+  <path d="M213 802Q237 832 257 802L274 825 263 850 273 1000Q236 1014 199 1000L207 850 195 825Z" fill="url(#warm)"/>
+  <path d="M268 802Q292 832 312 802L329 825 318 850 328 1009Q291 1020 254 1009L262 850 250 825Z" fill="#dfe5e7" fill-opacity=".68"/>
+  <path d="M323 802Q347 832 367 802L384 825 373 850 383 1000Q346 1014 309 1000L317 850 305 825Z" fill="#2c617e" fill-opacity=".9"/>
+  <path d="M378 802Q402 832 422 802L439 825 428 850 438 1008Q401 1019 364 1008L372 850 360 825Z" fill="url(#emerald)"/>
+  <path d="M433 802Q457 832 477 802L494 825 483 850 493 998Q456 1012 419 998L427 850 415 825Z" fill="#af9176" fill-opacity=".78"/>
+</g>
+<!-- Folded fabric and low shelving -->
+<path d="M38 1117H522V1394H38Z" fill="#081b2d" stroke="#7896a9" stroke-opacity=".35" stroke-width="2"/>
+<path d="M38 1198H522M38 1288H522M38 1378H522" stroke="#91aebe" stroke-opacity=".30" stroke-width="3"/>
+<g stroke="#8ca8b9" stroke-opacity=".3" stroke-width="2">
+  <rect x="59" y="1140" width="100" height="42" rx="5" fill="#2e5e73"/><rect x="169" y="1140" width="115" height="42" rx="5" fill="#b7a48e"/>
+  <rect x="294" y="1140" width="95" height="42" rx="5" fill="#2a795f"/><rect x="399" y="1140" width="102" height="42" rx="5" fill="#9baebc"/>
+  <rect x="72" y="1220" width="118" height="42" rx="5" fill="#b4c0c8"/><rect x="200" y="1220" width="93" height="42" rx="5" fill="#28516b"/>
+  <rect x="303" y="1220" width="111" height="42" rx="5" fill="#9e8467"/><rect x="424" y="1220" width="72" height="42" rx="5" fill="#397b66"/>
+  <rect x="60" y="1310" width="88" height="42" rx="5" fill="#397b66"/><rect x="158" y="1310" width="130" height="42" rx="5" fill="#c2b19b"/>
+  <rect x="298" y="1310" width="90" height="42" rx="5" fill="#345c78"/><rect x="398" y="1310" width="102" height="42" rx="5" fill="#aab6c2"/>
+</g>
+<rect y="1410" width="560" height="190" fill="#061426" opacity=".8"/>
+<path d="M0 1445Q165 1405 310 1440T560 1425V1600H0Z" fill="#071a2d" opacity=".75"/>
+<path d="M0 1525H560" stroke="#2fa87e" stroke-opacity=".35" stroke-width="2"/>
+</svg>
