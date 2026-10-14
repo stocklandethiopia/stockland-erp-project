@@ -516,18 +516,117 @@ const p=preset||{};const div=document.createElement('div');div.className='sl-for
 const optsSku=String(p.sku||'');
 if(type==='po')div.innerHTML='<div class="sl-field"><label>SKU</label>'+skuPickerField('sku',optsSku,{label:'SKU'})+'</div><div class="sl-field"><label>Qty</label><input name="quantity" type="number" min="0.01" step="0.01" value="1"></div><div class="sl-field"><label>Unit cost</label><input name="unit_cost" type="number" min="0.01" step="0.01" placeholder="Required" required></div><div class="sl-field"><label>Tax rate</label><input name="tax_rate" type="number" min="0" step="0.0001" value="'+esc(state.boot.settings.vat_rate||0)+'"></div><button type="button" class="sl-btn" data-remove-fin-line>Remove</button>';
 else div.innerHTML='<div class="sl-field"><label>SKU</label>'+skuPickerField('sku',optsSku,{label:'SKU'})+'</div><div class="sl-field"><label>Qty</label><input name="quantity" type="number" min="0.01" step="0.01" value="'+esc(p.quantity||1)+'"></div><div class="sl-field"><label>Unit price</label><input name="unit_price" type="number" min="0" step="0.01" value="'+esc(p.retail_price||0)+'"></div><div class="sl-field"><label>VAT mode</label><select name="vat_mode"><option>VAT_INCLUDED</option><option>WITHOUT_VAT</option></select></div><button type="button" class="sl-btn" data-remove-fin-line>Remove</button>';
-box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>div.remove();bindSkuPickers();
+box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>{if(type==='po'&&box.querySelectorAll('.sl-fin-line').length<=1){toast('A purchase order must contain at least one SKU line.',true);return;}div.remove();};bindSkuPickers();
 }
 async function financeSubmit(e){
-e.preventDefault();const f=e.currentTarget;if(f.dataset.busy==='1')return;f.dataset.busy='1';const btn=f.querySelector('button[type="submit"]');const original=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');btn.textContent='SAVING…'}
+e.preventDefault();
+const f=e.currentTarget;
+if(f.dataset.busy==='1')return;
+f.dataset.busy='1';
+const btn=f.querySelector('button[type="submit"],button:not([type])');
+const original=btn?btn.textContent:'';
+if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');btn.textContent='SAVING…';}
+let successMessage='';
+let refreshPO=false;
 try{
-if(f.id==='supplierFinanceForm'){const d=Object.fromEntries(new FormData(f));d.credit_limit=Number(d.credit_limit||0);d.opening_balance=Number(d.opening_balance||0);await api('/accounting/suppliers',{method:'POST',body:JSON.stringify(d)})}
-else if(f.id==='customerFinanceForm'){const d=Object.fromEntries(new FormData(f));d.credit_limit=Number(d.credit_limit||0);d.opening_balance=Number(d.opening_balance||0);await api('/accounting/customers',{method:'POST',body:JSON.stringify(d)})}
-else if(f.id==='poFinanceForm'){const d=Object.fromEntries(new FormData(f));const rows=[...f.querySelectorAll('#poFinanceLines .sl-fin-line')].map(x=>({sku:x.querySelector('[name="sku"]').value,quantity:Number(x.querySelector('[name="quantity"]').value),unit_cost:Number(x.querySelector('[name="unit_cost"]').value),tax_rate:Number(x.querySelector('[name="tax_rate"]').value)}));d.supplier_id=Number(d.supplier_id);d.lines=rows;window.__slLastPOResponse=await api('/accounting/purchase-orders',{method:'POST',body:JSON.stringify(d)})}
-else if(f.id==='paymentFinanceForm'){const d=Object.fromEntries(new FormData(f));d.amount=Number(d.amount);d.supplier_id=Number(d.supplier_id||0);d.customer_id=Number(d.customer_id||0);window.__slLastPaymentResponse=await api('/accounting/payments',{method:'POST',body:JSON.stringify(d)})}
-else if(f.id==='expenseFinanceForm'){const d=Object.fromEntries(new FormData(f));d.amount=Number(d.amount);d.tax_amount=Number(d.tax_amount||0);window.__slLastExpenseResponse=await api('/accounting/expenses',{method:'POST',body:JSON.stringify(d)})}
-toast(f.id==='poFinanceForm'?'Purchase order saved for submission. PO number: '+String((window.__slLastPOResponse&&window.__slLastPOResponse.po_number)||'see queue'):f.id==='expenseFinanceForm'?((window.__slLastExpenseResponse&&window.__slLastExpenseResponse.status)==='POSTED'?'Corporate expense posted and audited':(state.boot?.user?.role==='management'?'Corporate expense submitted to Owner approval; GL posts after approval':'Expense submitted to the assigned location authority; GL posts after approval')):f.id==='paymentFinanceForm'?'Payment '+String((window.__slLastPaymentResponse&&window.__slLastPaymentResponse.status)||'submitted')+' and audited':'Accounting record saved');f.reset();if(['poFinanceForm','paymentFinanceForm','expenseFinanceForm'].includes(f.id)&&f.elements.request_key)f.elements.request_key.value=newRequestKey();state.financeLoaded=false;await loadFinance(true);await loadNotifications();
-}catch(err){toast(err.message,true)}finally{f.dataset.busy='0';if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.textContent=original||'SAVE'}}
+let result=null;
+if(f.id==='supplierFinanceForm'){
+const d=Object.fromEntries(new FormData(f));
+d.credit_limit=Number(d.credit_limit||0);d.opening_balance=Number(d.opening_balance||0);
+result=await api('/accounting/suppliers',{method:'POST',body:JSON.stringify(d)});
+if(!result||Number(result.id)<=0)throw new Error('The server did not confirm a saved supplier record. Refresh Supplier Master before retrying.');
+successMessage='Supplier saved. Supplier balance remains ledger-derived.';
+}else if(f.id==='customerFinanceForm'){
+const d=Object.fromEntries(new FormData(f));
+d.credit_limit=Number(d.credit_limit||0);d.opening_balance=Number(d.opening_balance||0);
+result=await api('/accounting/customers',{method:'POST',body:JSON.stringify(d)});
+if(!result||Number(result.id)<=0)throw new Error('The server did not confirm a saved customer record. Refresh Customer Master before retrying.');
+successMessage='Customer saved. Customer balance remains AR-derived.';
+}else if(f.id==='poFinanceForm'){
+const d=Object.fromEntries(new FormData(f));
+const rows=[...f.querySelectorAll('#poFinanceLines .sl-fin-line')].map(x=>({sku:String(x.querySelector('[name="sku"]')?.value||'').trim(),quantity:Number(x.querySelector('[name="quantity"]')?.value),unit_cost:Number(x.querySelector('[name="unit_cost"]')?.value),tax_rate:Number(x.querySelector('[name="tax_rate"]')?.value)}));
+if(!rows.length||rows.some(x=>!x.sku||!Number.isFinite(x.quantity)||x.quantity<=0||!Number.isFinite(x.unit_cost)||x.unit_cost<=0||!Number.isFinite(x.tax_rate)||x.tax_rate<0||x.tax_rate>1))throw new Error('Add at least one valid stockable SKU line. Quantity and unit cost must be positive; tax rate must be between 0 and 1.');
+d.supplier_id=Number(d.supplier_id);d.lines=rows;
+result=await api('/accounting/purchase-orders',{method:'POST',body:JSON.stringify(d)});
+const validStates=['DRAFT','SUBMITTED','OWNER_APPROVED','APPROVED','PARTIALLY_RECEIVED','RECEIVED','CLOSED','REJECTED','CANCELLED'];
+if(!result||Number(result.id)<=0||!String(result.po_number||'').trim()||!validStates.includes(String(result.status||'').toUpperCase()))throw new Error('The server did not confirm the PO number and status. Refresh the purchase-order queue before retrying.');
+window.__slLastPOResponse=result;refreshPO=true;
+successMessage=result.replayed?'Purchase order '+result.po_number+' already exists with status '+result.status+'; no duplicate was created.':'Purchase order '+result.po_number+' saved as DRAFT. It is not submitted yet; use SUBMIT TO OWNER in the purchase-order queue.';
+}else if(f.id==='paymentFinanceForm'){
+const d=Object.fromEntries(new FormData(f));
+d.amount=Number(d.amount);d.supplier_id=Number(d.supplier_id||0);d.customer_id=Number(d.customer_id||0);
+const inputs=[...f.querySelectorAll('[data-payment-allocation]')];
+const allocations=inputs.map(input=>({invoice_id:Number(input.dataset.invoiceId||0),amount:Number(input.value||0),available:Number(input.dataset.outstanding||input.max||0)})).filter(x=>x.amount>0);
+if(allocations.some(x=>!Number.isInteger(x.invoice_id)||x.invoice_id<=0||!Number.isFinite(x.amount)||x.amount<=0||!Number.isFinite(x.available)||x.amount>x.available+0.00001))throw new Error('Check invoice allocations: amounts must be positive and cannot exceed each posted invoice’s outstanding balance.');
+if(String(d.payment_type||'').toUpperCase()==='SUPPLIER'&&!allocations.length)throw new Error('Supplier payments must be allocated to at least one posted AP invoice with an outstanding balance.');
+const allocatedCents=allocations.reduce((sum,x)=>sum+Math.round(x.amount*100),0), paymentCents=Math.round(Number(d.amount||0)*100);
+if(allocations.length&&allocatedCents!==paymentCents)throw new Error('Invoice allocations must equal the payment amount exactly. Allocated ETB '+money(allocatedCents/100)+'; payment ETB '+money(paymentCents/100)+'.');
+d.allocations=allocations.map(x=>({invoice_id:x.invoice_id,amount:x.amount}));
+result=await api('/accounting/payments',{method:'POST',body:JSON.stringify(d)});
+const status=String(result?.status||'').toUpperCase();
+if(!result||Number(result.id)<=0||!String(result.payment_number||'').trim()||!['PENDING','POSTED','REJECTED'].includes(status))throw new Error('The server did not confirm the payment reference and workflow status. Refresh Finance before retrying.');
+window.__slLastPaymentResponse=result;
+successMessage=result.replayed?'Payment '+result.payment_number+' already exists with status '+status+'; no duplicate was created.':status==='PENDING'?'Payment '+result.payment_number+' submitted for Owner approval. No GL posting has occurred yet.':'Payment '+result.payment_number+' status: '+status+'.';
+}else if(f.id==='expenseFinanceForm'){
+const d=Object.fromEntries(new FormData(f));d.amount=Number(d.amount);d.tax_amount=Number(d.tax_amount||0);
+result=await api('/accounting/expenses',{method:'POST',body:JSON.stringify(d)});
+const status=String(result?.status||'').toUpperCase();
+if(!result||Number(result.id)<=0||!String(result.expense_number||'').trim()||!['PENDING','POSTED','REJECTED'].includes(status))throw new Error('The server did not confirm the expense reference and status. Refresh Expense History before retrying.');
+window.__slLastExpenseResponse=result;
+successMessage=result.replayed?'Expense '+result.expense_number+' already exists with status '+status+'; no duplicate was created.':status==='POSTED'?'Corporate expense '+result.expense_number+' posted and audited.':state.boot?.user?.role==='management'?'Corporate expense '+result.expense_number+' submitted to Owner approval; GL posts after approval.':'Expense '+result.expense_number+' submitted to the assigned location authority; GL posts after approval.';
+}else{throw new Error('This form has no registered Finance/Procurement save action.');}
+toast(successMessage);
+f.reset();
+if(['poFinanceForm','paymentFinanceForm','expenseFinanceForm'].includes(f.id)&&f.elements.request_key)f.elements.request_key.value=newRequestKey();
+state.financeLoaded=false;
+try{await loadFinance(true);if(refreshPO&&document.getElementById('poActionQueue'))await loadPurchaseOrders();}
+catch(refreshError){toast('The save was confirmed, but Finance/Procurement could not fully refresh. Use Refresh and verify the saved reference before retrying.',true);}
+try{await loadNotifications();}catch(notificationError){toast('The save was confirmed, but notifications could not refresh. Open Notifications to verify the workflow message.',true);}
+}catch(err){toast(err.message||'Finance/Procurement save failed. Verify the current record state before retrying.',true);}
+finally{f.dataset.busy='0';if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');btn.textContent=original||'SAVE';}}
+}
+function updatePaymentAllocationSummary(form){
+const summary=form?.querySelector('#paymentAllocationSummary');if(!summary)return;
+const inputs=[...form.querySelectorAll('[data-payment-allocation]')];
+const allocatedCents=inputs.reduce((sum,input)=>sum+Math.max(0,Math.round((Number(input.value)||0)*100)),0);
+const amountCents=Math.round((Number(form.elements.amount?.value)||0)*100);
+const type=String(form.elements.payment_type?.value||'SUPPLIER').toUpperCase();
+const hasAllocations=inputs.some(input=>Number(input.value)>0);
+let message='Allocated '+money(allocatedCents/100)+' of '+money(amountCents/100)+'.';
+if(type==='SUPPLIER')message+=' Supplier payments require allocations equal to the full payment amount.';
+else if(!hasAllocations)message+=' Customer payments may remain unapplied only when intended as on-account credit.';
+else message+=allocatedCents===amountCents?' Allocations reconcile.':' Adjust invoice allocations to equal the payment amount.';
+summary.textContent=message;
+summary.classList.toggle('sl-warning-block',type==='SUPPLIER'&&allocatedCents!==amountCents);
+summary.dataset.valid=String(type==='SUPPLIER'?hasAllocations&&allocatedCents===amountCents:!hasAllocations||allocatedCents===amountCents);
+}
+async function loadPaymentAllocations(){
+const form=document.getElementById('paymentFinanceForm');if(!form)return;
+const rowsEl=form.querySelector('#paymentAllocationRows');if(!rowsEl)return;
+const seq=Number(form.dataset.paymentAllocationSeq||0)+1;form.dataset.paymentAllocationSeq=String(seq);
+const type=String(form.elements.payment_type?.value||'SUPPLIER').toUpperCase();
+const partySelect=form.querySelector(type==='SUPPLIER'?'#paymentSupplier':'#paymentCustomer');
+const partyId=Number(partySelect?.value||0);updatePaymentAllocationSummary(form);
+if(!partyId){rowsEl.innerHTML='<div class="sl-empty-rich"><b>Choose a '+(type==='SUPPLIER'?'supplier':'customer')+'.</b><span>Posted invoices with outstanding balances will appear here.</span></div>';return;}
+rowsEl.innerHTML='<div class="sl-empty">Loading posted invoices and outstanding balances…</div>';
+try{
+const path=type==='SUPPLIER'?'/accounting/supplier-invoices?status=POSTED':'/accounting/customer-invoices';
+const data=await api(path);
+if(seq!==Number(form.dataset.paymentAllocationSeq||0)||!form.isConnected)return;
+if(!Array.isArray(data))throw new Error('The invoice endpoint returned an unexpected response.');
+const key=type==='SUPPLIER'?'supplier_id':'customer_id';
+const rows=data.filter(row=>String(row.status||'').toUpperCase()==='POSTED'&&Number(row[key]||0)===partyId&&Number(row.outstanding_amount||0)>0.005);
+if(!rows.length){
+rowsEl.innerHTML=type==='SUPPLIER'?'<div class="sl-notice sl-warning-block"><b>No open posted AP invoices for this supplier.</b><span> A Supplier payment cannot be submitted until it is allocated to one or more posted invoices.</span></div>':'<div class="sl-empty-rich"><b>No open posted AR invoices for this customer.</b><span>An unapplied customer receipt can still be submitted as on-account credit if intended.</span></div>';
+updatePaymentAllocationSummary(form);return;
+}
+rowsEl.innerHTML='<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Invoice</th><th>Date</th><th>Total</th><th>Already allocated</th><th>Outstanding</th><th>Allocate now</th></tr></thead><tbody>'+rows.map(row=>{
+const id=Number(row.id||0),outstanding=Math.max(0,Number(row.outstanding_amount||0));
+return '<tr><td data-label="Invoice"><b>'+esc(row.invoice_number||row.invoice_num||('INV-'+id))+'</b><div class="sl-sub">'+esc(row.po_number||'Posted invoice')+'</div></td><td data-label="Date">'+esc(row.invoice_date||'—')+'</td><td data-label="Total">'+money(row.total_amount||0)+'</td><td data-label="Already allocated">'+money(row.allocated_amount||0)+'</td><td data-label="Outstanding">'+money(outstanding)+'</td><td data-label="Allocate now"><input type="number" min="0" max="'+outstanding.toFixed(2)+'" step="0.01" value="0" data-payment-allocation data-invoice-id="'+id+'" data-outstanding="'+outstanding.toFixed(2)+'" aria-label="Amount allocated to '+esc(row.invoice_number||('INV-'+id))+'" style="width:120px;max-width:100%"></td></tr>';
+}).join('')+'</tbody></table></div>';
+rowsEl.querySelectorAll('[data-payment-allocation]').forEach(input=>input.addEventListener('input',()=>updatePaymentAllocationSummary(form)));
+updatePaymentAllocationSummary(form);
+}catch(error){if(seq!==Number(form.dataset.paymentAllocationSeq||0))return;rowsEl.innerHTML='<div class="sl-notice sl-danger-block"><b>Invoice balances could not load.</b> '+esc(error.message||'Request failed')+' Please retry after checking finance permissions and System Health.</div>';updatePaymentAllocationSummary(form);}
 }
 async function loadFinanceApprovals(){
     const el=document.getElementById('financeApprovalQueue');if(!el)return;
@@ -538,9 +637,7 @@ async function loadFinanceApprovals(){
     if(c.expense_approve)tasks.push(['expense',api('/accounting/expenses?status=PENDING')]);
     if(c.finance_approve){tasks.push(['supplier_invoice',api('/accounting/supplier-invoices?status=PENDING')]);tasks.push(['payment',api('/accounting/payments?status=PENDING')]);}
     const results=await Promise.all(tasks.map(async t=>{try{return {type:t[0],rows:await t[1],error:null}}catch(e){return {type:t[0],rows:[],error:e.message||'Request failed'}}}));
-    const errors=results.filter(x=>x.error);
-    const all=[];
-    const role=state.boot?.user?.role||'';
+    const errors=results.filter(x=>x.error),all=[],role=state.boot?.user?.role||'';
     results.forEach(group=>{
       let rows=Array.isArray(group.rows)?group.rows:[];
       if(group.type==='expense'){
@@ -549,12 +646,13 @@ async function loadFinanceApprovals(){
       }
       rows.forEach(x=>all.push({type:group.type,row:x}));
     });
-    const priority={expense:0,supplier_invoice:1,payment:2};all.sort((a,b)=>priority[a.type]-priority[b.type]||String((b.row.created_at||b.row.expense_date||b.row.invoice_date||b.row.payment_date)||'').localeCompare(String((a.row.created_at||a.row.expense_date||a.row.invoice_date||a.row.payment_date)||'')));
+    const priority={expense:0,supplier_invoice:1,payment:2};
+    all.sort((a,b)=>priority[a.type]-priority[b.type]||String((b.row.created_at||b.row.expense_date||b.row.invoice_date||b.row.payment_date)||'').localeCompare(String((a.row.created_at||a.row.expense_date||a.row.invoice_date||a.row.payment_date)||'')));
     let html=errors.length?'<div class="sl-notice sl-warning-block"><b>Some approval sources could not be loaded.</b><div>'+errors.map(x=>esc(x.type)+': '+esc(x.error)).join('<br>')+'</div></div>':'';
     if(!all.length){html+='<div class="sl-empty-rich"><b>No pending finance approvals.</b><span>Only records explicitly submitted and still pending appear here.</span></div>';el.innerHTML=html;return;}
     html+='<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Type / Reference</th><th>Supplier / Branch / Party</th><th>Submitted by</th><th>Date</th><th>Amount (ETB)</th><th>Decision</th></tr></thead><tbody>';
     all.forEach(({type,row:r})=>{
-      const id=Number(r.id||0);const amount=type==='expense'?Number(r.amount||0)+Number(r.tax_amount||0):Number(r.total_amount||r.amount||0);
+      const id=Number(r.id||0),amount=type==='expense'?Number(r.amount||0)+Number(r.tax_amount||0):Number(r.total_amount||r.amount||0);
       const kind=type==='expense'?(Number(r.location_id||0)>0?'Location expense':'Management corporate expense'):type==='supplier_invoice'?'Supplier invoice':'Finance payment';
       const ref=type==='expense'?(r.expense_number||('EXP-'+id)):type==='supplier_invoice'?(r.invoice_number||('AP-'+id)):(r.payment_number||('PAY-'+id));
       const party=type==='expense'?(r.location_name||'Corporate / Management'):type==='supplier_invoice'?(r.supplier_name||'Supplier'):(r.supplier_name||r.customer_name||r.payment_type||'Finance');
@@ -566,14 +664,35 @@ async function loadFinanceApprovals(){
     el.querySelectorAll('[data-finance-action]').forEach(btn=>{btn.onclick=async()=>{
       const action=String(btn.dataset.financeAction||''),type=String(btn.dataset.financeType||''),id=Number(btn.dataset.financeId||0);
       if(!id||!['expense','supplier_invoice','payment'].includes(type)||!['APPROVE','REJECT'].includes(action))return;
-      let note='';if(action==='REJECT'){const value=await slReasonDialog('Reason for rejecting '+(type==='expense'?'expense':type==='supplier_invoice'?'supplier invoice':'payment'),'');if(value===null)return;note=value;if(note.trim().length<5){toast('Provide a meaningful rejection reason (at least 5 characters).',true);return;}}
-      btn.disabled=true;const row=btn.closest('tr');if(row)row.querySelectorAll('button').forEach(b=>b.disabled=true);
+      let note='';
+      if(action==='REJECT'){
+        const value=await slReasonDialog('Reason for rejecting '+(type==='expense'?'expense':type==='supplier_invoice'?'supplier invoice':'payment'),'');
+        if(value===null)return;
+        note=value;
+        if(note.trim().length<5){toast('Provide a meaningful rejection reason (at least 5 characters).',true);return;}
+      }
+      const row=btn.closest('tr'),originalLabel=btn.textContent;
+      btn.disabled=true;btn.setAttribute('aria-busy','true');btn.textContent=action==='APPROVE'?'APPROVING…':'REJECTING…';
+      if(row)row.querySelectorAll('button').forEach(b=>b.disabled=true);
       const segment=type==='expense'?'expenses':type==='supplier_invoice'?'supplier-invoices':'payments';
-      try{const out=await api('/accounting/'+segment+'/'+id+'/status',{method:'POST',body:JSON.stringify({action,note})});toast((type==='expense'?'Expense':type==='supplier_invoice'?'Supplier invoice':'Payment')+' '+String(out?.status||action)+'; decision and ledger result recorded.');await loadFinanceApprovals();state.financeLoaded=false;await loadFinance(true);await loadFinanceGL();await loadNotifications();}
-      catch(e){toast(e.message||'Decision failed',true);btn.disabled=false;if(row)row.querySelectorAll('button').forEach(b=>b.disabled=false);}
+      let out;
+      try{
+        out=await api('/accounting/'+segment+'/'+id+'/status',{method:'POST',body:JSON.stringify({action,note})});
+        const expectedStatus=action==='APPROVE'?'POSTED':'REJECTED';
+        if(!out||Number(out.id)!==id||String(out.status||'').toUpperCase()!==expectedStatus||(action==='APPROVE'&&Number(out.journal_id||0)<=0)){
+          throw new Error('The server did not confirm the expected '+expectedStatus+' status and required ledger journal. Refresh the queue to verify the saved state before retrying.');
+        }
+      }catch(e){
+        toast((e.message||'Decision failed')+' No success was assumed; refresh the approval queue to verify whether the decision committed.',true);
+        if(row)row.querySelectorAll('button').forEach(b=>b.disabled=false);
+        btn.textContent=originalLabel;btn.removeAttribute('aria-busy');return;
+      }
+      toast((type==='expense'?'Expense':type==='supplier_invoice'?'Supplier invoice':'Payment')+' '+out.status+(action==='APPROVE'?' and journal '+out.journal_id+' recorded.':' recorded as rejected.'));
+      try{
+        await loadFinanceApprovals();state.financeLoaded=false;await loadFinance(true);await loadFinanceGL();await loadNotifications();
+      }catch(refreshError){toast('The '+type.replace('_',' ')+' decision was saved, but the board could not fully refresh. Use Refresh to verify current balances and queues.',true);}
     }});
 }
-
 async function loadFinanceGL(){
 const el=document.getElementById('financeGL');if(!el)return;try{
 const d=await api('/accounting/financials');const p=d.profit_and_loss||{};const b=d.balance_sheet||{};
@@ -772,10 +891,10 @@ async function loadPurchaseOrders(){
             const id=Number(b.dataset.poId),action=String(b.dataset.poAction||'VIEW');if(!id)return;
             if(action==='VIEW'){await openPODetail(id);return;}
             if(action==='RECEIVE'){await openPOReceiveDialog(id);return;}
-            const next={SUBMIT:'SUBMITTED',APPROVE:'OWNER_APPROVED',OWNER_REVIEW:'OWNER_REVIEW',REJECT:'REJECTED',CANCEL:'CANCELLED',CLOSE:'CLOSED'}[action];if(!next)return;if(action==='SUBMIT'&&String(b.closest('tr')?.querySelector('[data-label="Status"]')?.textContent||'').trim()!=='DRAFT'){toast('Only a draft purchase order can be submitted to Owner approval.',true);return;}if(action==='APPROVE'&&String(b.closest('tr')?.querySelector('[data-label="Status"]')?.textContent||'').trim()!=='SUBMITTED'){toast('Owner approval is available only after Management submits the purchase order.',true);return;}
+            const next={SUBMIT:'SUBMITTED',APPROVE:'OWNER_APPROVED',OWNER_REVIEW:'OWNER_REVIEW',REJECT:'REJECTED',CANCEL:'CANCELLED',CLOSE:'CLOSED'}[action];if(!next)return;const expectedStatus=action==='OWNER_REVIEW'?'SUBMITTED':next;if(action==='SUBMIT'&&String(b.closest('tr')?.querySelector('[data-label="Status"]')?.textContent||'').trim()!=='DRAFT'){toast('Only a draft purchase order can be submitted to Owner approval.',true);return;}if(action==='APPROVE'&&String(b.closest('tr')?.querySelector('[data-label="Status"]')?.textContent||'').trim()!=='SUBMITTED'){toast('Owner approval is available only after Management submits the purchase order.',true);return;}
             let note='';
             if(action==='REJECT'||action==='CANCEL'||action==='OWNER_REVIEW'){const prompt=action==='REJECT'?'Purchase-order rejection reason':action==='OWNER_REVIEW'?'Why is this legacy PO being re-reviewed by the Owner?':'Purchase-order cancellation reason';note=await slReasonDialog(prompt,'');if(note===null)return;if((action==='REJECT'||action==='OWNER_REVIEW'||(action==='CANCEL'&&String(b.closest('tr')?.querySelector('[data-label="Status"]')?.textContent||'').trim()!=='DRAFT'))&&!String(note).trim()){toast('A reason is required for this action.',true);return;}}
-            b.disabled=true;b.setAttribute('aria-busy','true');const originalLabel=b.textContent;b.textContent=action==='SUBMIT'?'SUBMITTING…':action==='APPROVE'?'APPROVING…':'SAVING…';try{const result=await api('/accounting/purchase-orders/'+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:next,note})});if(!result||String(result.status||'')!==String(next)){throw new Error('The server did not confirm the expected purchase-order transition. Refresh the queue and verify the saved status before retrying.');}toast(action==='SUBMIT'?'Purchase order submitted to Owner approval. An Owner notification was recorded.':action==='APPROVE'?'Purchase order approved. Central Warehouse has been notified to receive the goods.':'Purchase order updated to '+next);await loadPurchaseOrders();await loadFinance(true);await loadNotifications();}catch(e){toast((e&&e.message?e.message:'Purchase-order update failed')+' No success was assumed; refresh the queue to verify the saved state.',true);b.disabled=false;b.textContent=originalLabel;}finally{b.removeAttribute('aria-busy');}
+            b.disabled=true;b.setAttribute('aria-busy','true');const originalLabel=b.textContent;b.textContent=action==='SUBMIT'?'SUBMITTING…':action==='APPROVE'?'APPROVING…':'SAVING…';try{const result=await api('/accounting/purchase-orders/'+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:next,note})});if(!result||String(result.action||'')!==String(next)||String(result.status||'')!==String(expectedStatus)){throw new Error('The server did not confirm the expected purchase-order action/status. Refresh the queue and verify the saved state before retrying.');}toast(action==='SUBMIT'?'Purchase order submitted to Owner approval. An Owner notification was recorded.':action==='APPROVE'?'Purchase order approved. Central Warehouse has been notified to receive the goods.':action==='OWNER_REVIEW'?'Legacy purchase order returned to the Owner approval queue. Management was notified; no stock or ledger posting occurred.':'Purchase order updated to '+expectedStatus);await loadPurchaseOrders();await loadFinance(true);await loadNotifications();}catch(e){toast((e&&e.message?e.message:'Purchase-order update failed')+' No success was assumed; refresh the queue to verify the saved state.',true);b.disabled=false;b.textContent=originalLabel;}finally{b.removeAttribute('aria-busy');}
         }));
     }catch(e){el.innerHTML='<div class="sl-notice sl-danger-block"><b>Purchase-order queue could not load.</b> '+esc(e.message)+'<div style="margin-top:10px"><button type="button" class="sl-btn" id="retryPOQueue">RETRY</button></div></div>';document.getElementById('retryPOQueue')?.addEventListener('click',loadPurchaseOrders);}
 }
@@ -802,7 +921,13 @@ async function openPOReceiveDialog(id){
             form.querySelectorAll('[data-po-qty]').forEach(input=>{const qty=Number(input.value);const max=Number(input.max);if(!Number.isFinite(qty)||qty<0||qty>max)throw new Error('Received quantity for PO line '+input.dataset.poQty+' must be between zero and the remaining quantity '+max+'.');lines.push({po_item_id:Number(input.dataset.poQty),quantity:qty});});
             if(!lines.some(x=>x.quantity>0)){throw new Error('Enter a positive actual received quantity on at least one line.');}
             const result=await api('/accounting/purchase-orders/'+encodeURIComponent(id)+'/receive',{method:'POST',body:JSON.stringify({request_key:requestKey,receipt_date:String(fd.get('receipt_date')||localDate()),notes:String(fd.get('notes')||''),lines})});
-            ov.remove();toast('Goods Receipt '+String(result.receipt_number||'')+' posted. Inventory and purchase-order balance updated.');await load();await loadNotifications();
+            if(!result||!String(result.receipt_number||'').trim()||!String(result.status||'').trim()||(!result.replayed&&Number(result.accepted_lines||0)<=0))throw new Error('The server did not confirm a receipt number, final PO status and accepted line count. Refresh the receiving queue before retrying.');
+            ov.remove();
+            toast(result.replayed?'Goods Receipt '+result.receipt_number+' was already posted; no duplicate inventory movement was created.':'Goods Receipt '+result.receipt_number+' posted. Inventory and purchase-order balance updated; PO status is '+result.status+'.');
+            const refreshErrors=[];
+            try{await load();}catch(refreshError){refreshErrors.push('inventory');}
+            try{await loadNotifications();}catch(refreshError){refreshErrors.push('notifications');}
+            if(refreshErrors.length)toast('Receipt '+result.receipt_number+' was confirmed and posted, but '+refreshErrors.join(' and ')+' could not refresh. Use Refresh and verify current stock/PO balance.',true);
         }catch(e){toast(e.message,true);form.dataset.busy='0';if(btn){btn.disabled=false;btn.textContent='CONFIRM ACCEPTED QTY & POST STOCK';}}
     };
 }
@@ -829,7 +954,7 @@ function finance(){
       '<div class="sl-panel"><div class="sl-block-head"><h3>Supplier Master</h3><small>Supplier balances are ledger-derived</small></div>'+(canMaster?'<form id="supplierFinanceForm" class="sl-form"><div class="sl-field"><label>Supplier name</label><input name="supplier_name" required></div><div class="sl-field"><label>Phone</label><input name="phone"></div><div class="sl-field"><label>Tax ID</label><input name="tax_id"></div><div class="sl-field"><label>Opening payable</label><input name="opening_balance" type="number" step="0.01" value="0"></div><div class="sl-field full"><button class="sl-btn primary">SAVE SUPPLIER</button></div></form>':'<div class="sl-notice">Supplier master is management-controlled.</div>')+'<div class="sl-table-wrap"><table class="sl-table"><tr><th>Supplier</th><th>Phone</th><th>Balance</th></tr>'+((f.supplier_rows||[]).slice(0,20).map(x=>'<tr><td>'+esc(x.supplier_name)+'</td><td>'+esc(x.phone||'')+'</td><td>'+money(x.balance)+'</td></tr>').join('')||'<tr><td colspan="3">No suppliers</td></tr>')+'</table></div></div>'+
       '<div class="sl-panel"><div class="sl-block-head"><h3>Customer Master</h3><small>Customer balances are AR-derived</small></div>'+(canCustomer?'<form id="customerFinanceForm" class="sl-form"><div class="sl-field"><label>Customer name</label><input name="customer_name" required></div><div class="sl-field"><label>Customer type</label><select name="customer_type" required><option value="RETAIL">Retail</option><option value="WHOLESALE">Wholesale</option><option value="CORPORATE">Corporate</option><option value="ONLINE">Online / Reseller</option><option value="OTHER">Other</option></select></div><div class="sl-field"><label>Phone</label><input name="phone"></div><div class="sl-field"><label>Credit limit</label><input name="credit_limit" type="number" step="0.01" value="0"></div><div class="sl-field full"><button class="sl-btn primary">SAVE CUSTOMER</button></div></form>':'')+'<div class="sl-table-wrap"><table class="sl-table"><tr><th>Customer</th><th>Type</th><th>Balance</th></tr>'+((f.customer_rows||[]).slice(0,20).map(x=>'<tr><td>'+esc(x.customer_name)+'</td><td>'+esc(x.customer_type)+'</td><td>'+money(x.balance)+'</td></tr>').join('')||'<tr><td colspan="3">No customers</td></tr>')+'</table></div></div></div>'+
       (canPO?'<div class="sl-panel"><div class="sl-block-head"><h3>Purchase Order</h3><small>Draft → Submit → Approve → Receive → Invoice → Payment</small></div><form id="poFinanceForm" class="sl-form"><input type="hidden" name="request_key" value="'+esc(newRequestKey())+'"><div class="sl-field"><label>Supplier</label><select name="supplier_id" required>'+supplierOptions+'</select></div><div class="sl-field"><label>Expected date</label><input name="expected_date" type="date"></div><div id="poFinanceLines" class="full"></div><div class="sl-field full"><button type="button" class="sl-btn" id="addPoFinanceLine">+ Add PO line</button> <button class="sl-btn primary">CREATE PURCHASE ORDER</button></div></form></div>':'')+
-      (canPay||canExp?'<div class="sl-two">'+(canPay?'<div class="sl-panel"><h3>AP / AR Payment</h3><form id="paymentFinanceForm" class="sl-form"><input type="hidden" name="request_key" value="'+esc(newRequestKey())+'"><div class="sl-field"><label>Type</label><select name="payment_type" id="paymentType"><option value="SUPPLIER">Supplier / AP</option><option value="CUSTOMER">Customer / AR</option></select></div><div class="sl-field"><label>Supplier</label><select name="supplier_id" id="paymentSupplier"><option value="">Select supplier…</option>'+supplierOptions+'</select></div><div class="sl-field"><label>Customer</label><select name="customer_id" id="paymentCustomer"><option value="">Select customer…</option>'+((f.customer_rows||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.customer_name)+' — '+money(x.balance)+'</option>').join(''))+'</select></div><div class="sl-field"><label>Amount</label><input name="amount" type="number" step="0.01" required></div><div class="sl-field"><label>Method</label><select name="method"><option>CASH</option><option>BANK</option></select></div><div class="sl-field full"><button class="sl-btn primary">POST PAYMENT</button></div></form></div>':'')+(canExp?'<div class="sl-panel"><h3>Expense Management</h3><form id="expenseFinanceForm" class="sl-form"><input type="hidden" name="request_key" value="'+esc(newRequestKey())+'"><div class="sl-field full"><label>Expense scope</label><div class="sl-readonly-field">'+(role==='owner'?'Owner / Corporate expense — no branch attribution':'Management / Corporate expense — no branch attribution')+'</div></div><div class="sl-field"><label>Category</label><input name="category" required></div><div class="sl-field"><label>Description</label><input name="description" required></div><div class="sl-field"><label>Amount before tax</label><input name="amount" type="number" step="0.01" required></div><div class="sl-field"><label>Input VAT</label><input name="tax_amount" type="number" step="0.01" value="0"></div><div class="sl-field full"><button class="sl-btn primary">SUBMIT EXPENSE</button></div></form></div>':'')+'</div>':'')+
+      (canPay||canExp?'<div class="sl-two">'+(canPay?'<div class="sl-panel"><h3>AP / AR Payment</h3><form id="paymentFinanceForm" class="sl-form"><input type="hidden" name="request_key" value="'+esc(newRequestKey())+'"><div class="sl-field"><label>Type</label><select name="payment_type" id="paymentType"><option value="SUPPLIER">Supplier / AP</option><option value="CUSTOMER">Customer / AR</option></select></div><div class="sl-field"><label>Supplier</label><select name="supplier_id" id="paymentSupplier"><option value="">Select supplier…</option>'+supplierOptions+'</select></div><div class="sl-field"><label>Customer</label><select name="customer_id" id="paymentCustomer"><option value="">Select customer…</option>'+((f.customer_rows||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.customer_name)+' — '+money(x.balance)+'</option>').join(''))+'</select></div><div class="sl-field"><label>Amount</label><input name="amount" type="number" min="0.01" step="0.01" required></div><div class="sl-field full" id="paymentAllocationPanel"><label>Invoice allocations</label><div id="paymentAllocationRows"><div class="sl-empty-rich"><b>Choose a supplier or customer.</b><span>Posted invoices with outstanding balances will appear here.</span></div></div><div id="paymentAllocationSummary" class="sl-sub" aria-live="polite">Supplier allocations must equal the payment amount.</div></div><div class="sl-field"><label>Method</label><select name="method"><option>CASH</option><option>BANK</option></select></div><div class="sl-field full"><div class="sl-notice"><b>Approval:</b> payments stay pending until Owner approval. Supplier payments must be allocated to posted AP invoices; customer allocations are optional for on-account receipts.</div></div><div class="sl-field full"><button class="sl-btn primary">SUBMIT PAYMENT FOR APPROVAL</button></div></form></div>':'')+(canExp?'<div class="sl-panel"><h3>Expense Management</h3><form id="expenseFinanceForm" class="sl-form"><input type="hidden" name="request_key" value="'+esc(newRequestKey())+'"><div class="sl-field full"><label>Expense scope</label><div class="sl-readonly-field">'+(role==='owner'?'Owner / Corporate expense — no branch attribution':'Management / Corporate expense — no branch attribution')+'</div></div><div class="sl-field"><label>Category</label><input name="category" required></div><div class="sl-field"><label>Description</label><input name="description" required></div><div class="sl-field"><label>Amount before tax</label><input name="amount" type="number" step="0.01" required></div><div class="sl-field"><label>Input VAT</label><input name="tax_amount" type="number" step="0.01" value="0"></div><div class="sl-field full"><button class="sl-btn primary">SUBMIT EXPENSE</button></div></form></div>':'')+'</div>':'')+
       '<div class="sl-panel"><div class="sl-block-head"><h3>Expense Report — Read Only</h3><small>Owner and Management review only; location expense decisions remain with the assigned Branch/Warehouse Manager.</small></div>'+expenseHistory+'</div>'+
       '<div class="sl-panel"><div class="sl-block-head"><h3>General Ledger / Financial Statements</h3><small>Posted double-entry journals only</small></div><div id="financeGL"><div class="sl-empty">Loading financial ledger…</div></div></div></div>';
 }
@@ -918,7 +1043,7 @@ function bindExtended(){
     if($('#supplierFinanceForm'))$('#supplierFinanceForm').onsubmit=financeSubmit;
     if($('#customerFinanceForm'))$('#customerFinanceForm').onsubmit=financeSubmit;
     if($('#poFinanceForm')){addFinanceLine('poFinanceLines','po');$('#addPoFinanceLine').onclick=()=>addFinanceLine('poFinanceLines','po');$('#poFinanceForm').onsubmit=financeSubmit}
-    if($('#paymentFinanceForm')){const pf=$('#paymentFinanceForm');pf.onsubmit=financeSubmit;const pt=$('#paymentType');const ps=$('#paymentSupplier');const pc=$('#paymentCustomer');const sync=()=>{const sup=pt?.value==='SUPPLIER';if(ps)ps.disabled=!sup;if(pc)pc.disabled=sup;};pt?.addEventListener('change',sync);sync();}if($('#expenseFinanceForm'))$('#expenseFinanceForm').onsubmit=financeSubmit;
+    if($('#paymentFinanceForm')){const pf=$('#paymentFinanceForm');pf.onsubmit=financeSubmit;const pt=$('#paymentType');const ps=$('#paymentSupplier');const pc=$('#paymentCustomer');const refreshAllocations=()=>loadPaymentAllocations();const sync=()=>{const sup=pt?.value==='SUPPLIER';if(ps)ps.disabled=!sup;if(pc)pc.disabled=sup;refreshAllocations();};pt?.addEventListener('change',sync);ps?.addEventListener('change',refreshAllocations);pc?.addEventListener('change',refreshAllocations);pf.elements.amount?.addEventListener('input',()=>updatePaymentAllocationSummary(pf));sync();}if($('#expenseFinanceForm'))$('#expenseFinanceForm').onsubmit=financeSubmit;
     if($('#branchOpsPage'))loadBranchOperations();
     if($('#financePage')&&!state.financeLoaded)loadFinance();if($('#refreshFinance'))$('#refreshFinance').onclick=()=>loadFinance(true);if($('#financeApprovalQueue'))loadFinanceApprovals();if($('#refreshFinanceApprovals'))$('#refreshFinanceApprovals').onclick=loadFinanceApprovals;if($('#financeGL'))loadFinanceGL();if($('#poActionQueue'))loadPurchaseOrders();if($('#refreshPOQueue'))$('#refreshPOQueue').onclick=loadPurchaseOrders;
     if($('#dailyPosImportForm'))$('#dailyPosImportForm').onsubmit=previewDailyImport;

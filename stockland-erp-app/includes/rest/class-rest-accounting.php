@@ -1122,6 +1122,10 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				if ( ! Stockland_Notifications::push_role( 'owner', null, 'purchase_order_approval_required', 'External supply PO awaits Owner approval', 'Management submitted ' . $po['po_number'] . ' for Owner review. No stock or PLEDGER/GL posting has occurred.', 'purchase_order', $id, 'action' ) ) {
 					throw new Exception( 'Owner notification could not be saved; PO submission was rolled back.' );
 				}
+			} elseif ( 'OWNER_REVIEW' === $action ) {
+				if ( ! Stockland_Notifications::push_role( 'management', null, 'purchase_order_owner_rereview', 'Legacy purchase order returned to Owner approval', $po['po_number'] . ' was returned to SUBMITTED for a fresh Owner decision. The previous approval marker was cleared; no new stock or ledger posting occurred.', 'purchase_order', $id, 'info' ) ) {
+					throw new Exception( 'Management re-review notification could not be saved; the PO transition was rolled back.' );
+				}
 			} elseif ( 'OWNER_APPROVED' === $action ) {
 				if ( ! Stockland_Notifications::push_role( 'warehouse_manager', $central, 'purchase_order_receipt_required', 'Approved supply awaiting warehouse receipt', $po['po_number'] . ' is Owner-approved. Verify physical goods and enter only the actual accepted quantity; any balance remains open.', 'purchase_order', $id, 'action' ) ) {
 					throw new Exception( 'Warehouse Manager notification could not be saved; Owner approval was rolled back.' );
@@ -1497,8 +1501,17 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$has_status = in_array( $status, array( 'PENDING', 'POSTED', 'REJECTED' ), true );
 		$rows       = Stockland_DB::read_results(
 			$wpdb->prepare(
-				'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name
+				'SELECT i.*,s.supplier_name,po.po_number,l.location_name,u.display_name AS created_by_name,
+				COALESCE(pa.allocated_amount,0) AS allocated_amount,
+				GREATEST(i.total_amount-COALESCE(pa.allocated_amount,0),0) AS outstanding_amount
 				FROM %i i
+				LEFT JOIN (
+					SELECT a.invoice_id,SUM(a.amount) AS allocated_amount
+					FROM %i a
+					INNER JOIN %i pay ON pay.id=a.payment_id
+					WHERE a.invoice_type=\'AP\' AND pay.status IN (\'PENDING\',\'POSTED\')
+					GROUP BY a.invoice_id
+				) pa ON pa.invoice_id=i.id
 				JOIN %i s ON s.id=i.supplier_id
 				LEFT JOIN %i po ON po.id=i.po_id
 				LEFT JOIN %i l ON l.id=po.location_id
@@ -1506,6 +1519,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				WHERE (%d = 0 OR i.status = %s)
 				ORDER BY i.id DESC LIMIT 500',
 				Stockland_DB::table( 'supplier_invoices' ),
+				Stockland_DB::table( 'payment_allocations' ),
+				Stockland_DB::table( 'payments' ),
 				Stockland_DB::table( 'suppliers' ),
 				Stockland_DB::table( 'purchase_orders' ),
 				Stockland_DB::table( 'locations' ),
@@ -1789,12 +1804,23 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		global $wpdb;
 		$rows = Stockland_DB::read_results(
 			$wpdb->prepare(
-				'SELECT i.*,c.customer_name,l.location_name
+				'SELECT i.*,c.customer_name,l.location_name,
+				COALESCE(ar.allocated_amount,0) AS allocated_amount,
+				GREATEST(i.total_amount-COALESCE(ar.allocated_amount,0),0) AS outstanding_amount
 				FROM %i i
+				LEFT JOIN (
+					SELECT a.invoice_id,SUM(a.amount) AS allocated_amount
+					FROM %i a
+					INNER JOIN %i pay ON pay.id=a.payment_id
+					WHERE a.invoice_type=\'AR\' AND pay.status IN (\'PENDING\',\'POSTED\')
+					GROUP BY a.invoice_id
+				) ar ON ar.invoice_id=i.id
 				JOIN %i c ON c.id=i.customer_id
 				LEFT JOIN %i l ON l.id=i.location_id
 				ORDER BY i.id DESC LIMIT 500',
 				Stockland_DB::table( 'customer_invoices' ),
+				Stockland_DB::table( 'payment_allocations' ),
+				Stockland_DB::table( 'payments' ),
 				Stockland_DB::table( 'customers' ),
 				Stockland_DB::table( 'locations' )
 			),

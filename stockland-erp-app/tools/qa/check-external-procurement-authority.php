@@ -93,6 +93,13 @@ $ok( str_contains( $a, "if ( 'branch_manager' === \$current_role )" ) && str_con
 
 $ok( str_contains( $a, "\$direct_post    = 'owner' === \$role" ) && str_contains( $a, 'CORPORATE_EXPENSE_SUBMIT' ) && str_contains( $a, 'CORPORATE_EXPENSE_OWNER_APPROVE' ), 'Owner corporate expenses post independently while Management corporate expenses require an Owner decision' );
 $ok( str_contains( $a, 'former Management-submission policy without rewriting their history' ) && ! str_contains( $a, 'static function ( $row ) use ( $current_role )' ) && str_contains( $app, "if(role==='owner')rows=rows.filter(x=>Number(x.location_id||0)===0" ), 'legacy location expenses remain actionable by assigned location authority while Owner queue excludes branch records' );
+$ok( str_contains( $app, "const expectedStatus=action==='OWNER_REVIEW'?'SUBMITTED':next;" ) && str_contains( $app, "result.action||'')" ) && str_contains( $app, "String(result.status||'')!==String(expectedStatus)" ), 'legacy PO re-review validates the backend SUBMITTED status instead of false-failing' );
+$ok( str_contains( $a, "elseif ( 'OWNER_REVIEW' === \$action )" ) && str_contains( $a, 'purchase_order_owner_rereview' ) && str_contains( $a, 'Management re-review notification could not be saved' ), 'legacy PO re-review records a Management notification transactionally' );
+$ok( str_contains( $app, 'data-payment-allocation' ) && str_contains( $app, "d.allocations=allocations.map" ) && str_contains( $app, 'outstanding_amount' ), 'AP/AR payment UI collects invoice allocations and displays outstanding balances' );
+$ok( str_contains( $a, "WHERE a.invoice_type=\\'AP\\'" ) && str_contains( $a, "WHERE a.invoice_type=\\'AR\\'" ) && str_contains( $a, 'AS outstanding_amount' ), 'AP/AR invoice reads include allocated and outstanding totals' );
+$ok( str_contains( $app, "Number(out.id)!==id" ) && str_contains( $app, "expectedStatus=action==='APPROVE'?'POSTED':'REJECTED'" ) && str_contains( $app, "Number(out.journal_id||0)<=0" ), 'finance approval buttons require confirmed status and posted journal before success' );
+$ok( str_contains( $app, 'button[type="submit"],button:not([type])' ) && str_contains( $app, 'The save was confirmed, but Finance/Procurement could not fully refresh' ), 'finance save buttons and post-save refresh feedback reflect actual request state' );
+
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
