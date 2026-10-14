@@ -789,14 +789,13 @@ class Stockland_Accounting {
 	 * @return void
 	 */
 	private static function grant_capabilities() {
-		// Finance and procurement authority is company-level only. Warehouse users
-		// may receive/inspect purchasing documents through their operational caps,
-		// but they must not inherit GL/AP/expense/payment powers. Branch users must
-		// never receive financial write capabilities from the accounting installer.
-		$management = array( 'stockland_view_financials', 'stockland_manage_suppliers', 'stockland_manage_customers', 'stockland_manage_purchase_orders', 'stockland_approve_purchase_orders', 'stockland_manage_payables', 'stockland_manage_receivables', 'stockland_manage_expenses', 'stockland_manage_payments', 'stockland_manage_gl' );
+		// Finance and procurement authority is company-level only. Purchase-order
+		// approval is reserved for an independent active Owner profile, not the
+		// shared Management or native WordPress Administrator role.
+		$company_finance = array( 'stockland_view_financials', 'stockland_manage_suppliers', 'stockland_manage_customers', 'stockland_manage_purchase_orders', 'stockland_manage_payables', 'stockland_manage_receivables', 'stockland_manage_expenses', 'stockland_manage_payments', 'stockland_manage_gl' );
 		foreach ( array(
-			Stockland_Roles::ROLE_OWNER      => $management,
-			Stockland_Roles::ROLE_MANAGEMENT => $management,
+			Stockland_Roles::ROLE_OWNER      => array_merge( $company_finance, array( 'stockland_approve_purchase_orders' ) ),
+			Stockland_Roles::ROLE_MANAGEMENT => $company_finance,
 		) as $role_name => $caps ) {
 			$role = get_role( $role_name );
 			if ( $role ) {
@@ -805,12 +804,12 @@ class Stockland_Accounting {
 				}
 			}
 		}
-		// Explicitly strip any historical accounting capabilities from operational roles.
+		// Explicitly strip historical accounting capabilities from operational roles.
 		$operational = array( Stockland_Roles::ROLE_BRANCH_MANAGER, Stockland_Roles::ROLE_SALES_EMPLOYEE, Stockland_Roles::ROLE_WAREHOUSE_EMPLOYEE, Stockland_Roles::ROLE_WAREHOUSE_MANAGER, Stockland_Roles::ROLE_AUDITOR );
 		foreach ( $operational as $role_name ) {
 			$role = get_role( $role_name );
 			if ( $role ) {
-				foreach ( $management as $cap ) {
+				foreach ( array_merge( $company_finance, array( 'stockland_approve_purchase_orders' ) ) as $cap ) {
 					$role->remove_cap( $cap );
 				}
 			}
@@ -821,9 +820,12 @@ class Stockland_Accounting {
 		}
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
-			foreach ( $management as $cap ) {
+			foreach ( $company_finance as $cap ) {
 				$admin->add_cap( $cap );
 			}
+			// Native Administrator accounts do not inherit PO approval globally;
+			// the active Owner profile receives the direct user-level capability.
+			$admin->remove_cap( 'stockland_approve_purchase_orders' );
 		}
 	}
 
