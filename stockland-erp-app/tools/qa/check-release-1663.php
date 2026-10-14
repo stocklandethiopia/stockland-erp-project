@@ -47,11 +47,13 @@ $ok( str_contains( $accounting, 'payment_integrity_error' ) && str_contains( $ac
 $ok( str_contains( $hr, "'SUBMITTED'" ) && str_contains( $hr, 'payroll_approval' ) && str_contains( $hr, 'PAYROLL_APPROVE' ) && str_contains( $hr, 'payroll_paid' ), 'payroll has Management submission, Owner approval/payment, GL and notification markers' );
 $ok( str_contains( $authority, 'can_prepare_hr' ) && str_contains( $authority, 'can_prepare_finance' ) && str_contains( $authority, 'can_approve_finance' ) && str_contains( $authority, 'can_submit_expenses' ), 'server-side role authority helpers enforce prepare vs Owner approval' );
 $ok( str_contains( $app, "appendChild(d);bindSkuPickers()" ), 'legacy Add SKU row binds the live SKU picker after dynamic insertion' );
-$ok( str_contains( $app, "box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>div.remove();bindSkuPickers();" ), 'dynamic Finance/PO lines bind the live touch/click SKU picker after insertion' );
+$ok( str_contains( $app, "box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>{if(type==='po'&&box.querySelectorAll('.sl-fin-line').length<=1)" ) && str_contains( $app, 'div.remove();};bindSkuPickers();' ), 'dynamic Finance/PO lines keep one required PO line and bind the live touch/click SKU picker after insertion' );
 $guards = $read( 'assets/css/06-operational-guards.css' );
 $ok( str_contains( $guards, '.sl-req-line.sl-form{display:grid' ) && str_contains( $guards, '@media(max-width:575.98px)' ), 'dynamic requisition lines use responsive grid layout on mobile' );
 $ok( str_contains( $app, 'RUN DEEP INTEGRITY AUDIT' ) && str_contains( $app, 'QUICK HEALTH ONLY' ), 'UI visibly separates fast checks from the explicit deep audit' );
 $ok( str_contains( $plugin, 'includes/class-stockland-integrity.php' ) && ! preg_match( '/FOREIGN KEY\s*\(/i', $ddl ), 'scanner loaded and no schema expansion/foreign-key migration was introduced' );
+$ok( str_contains( $app, 'The purchase-order transition is confirmed as' ) && str_contains( $app, 'notifications could not refresh. Open Notifications' ), 'post-transition refresh failures remain distinct from server-confirmed procurement decisions' );
+
 if ( $fail ) {
 	fwrite( STDERR, 'Release 16.1.66 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
