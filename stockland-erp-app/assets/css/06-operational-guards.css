@@ -17,7 +17,7 @@
 
 /* CAP-UI-01 / CAP-PAY-01 • Owner payroll component editor. */
 .sl-overlay .sl-payroll-editor{width:min(1040px,100%);max-height:min(92dvh,940px);overflow:auto;background:#f4f7fb;border:1px solid #c6d7e8;border-radius:20px;box-shadow:0 26px 80px rgba(7,28,54,.30)}
-.sl-payroll-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;background:radial-gradient(circle at 88% -30%,rgba(20,184,166,.30),transparent 38%),linear-gradient(125deg,#0d2341,#164a73 64%,#0d766e);color:#fff;border-radius:18px 18px 0 0}
+.sl-payroll-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px;background:#0b1730;color:#fff;border-radius:18px 18px 0 0}
 .sl-payroll-editor-head h2{font-size:clamp(21px,3vw,29px);line-height:1.15;font-weight:900;margin:4px 0 7px;color:#fff;letter-spacing:-.025em}
 .sl-payroll-editor-head p{font-size:13px;line-height:1.5;margin:0;color:#dceafa;max-width:740px}
 .sl-payroll-editor-body{padding:18px;display:grid;gap:14px}
@@ -26,7 +26,7 @@
 .sl-payroll-summary-card span{display:block;font-size:10px;font-weight:800;color:#5e738a;line-height:1.35}
 .sl-payroll-summary-card strong{display:block;margin-top:6px;color:#142d4b;font-size:clamp(14px,2vw,19px);font-weight:900;line-height:1.2;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .sl-payroll-summary-card small{display:block;margin-top:4px;color:#73859a;font-size:10px;line-height:1.4}
-.sl-payroll-summary-card.emphasis{background:linear-gradient(145deg,#eef5ff,#f8fbff);border-color:#bdd5f7}
+.sl-payroll-summary-card.emphasis{background:#f1f6fd;border-color:#bdd5f7}
 .sl-payroll-section{padding:15px;background:#fff;border:1px solid #dce5ef;border-radius:15px;box-shadow:0 3px 10px rgba(18,46,79,.025);min-width:0}
 .sl-payroll-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .sl-payroll-section-head h3{margin:2px 0 4px;font-size:16px;line-height:1.3;color:#132b49;font-weight:900}
@@ -34,14 +34,14 @@
 .sl-payroll-base-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .sl-payroll-allowance-list{display:grid;gap:10px}
 .sl-payroll-allowance-row{border:1px solid #d7e3f0;border-radius:13px;overflow:hidden;background:#fff}
-.sl-payroll-allowance-row-head{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:10px 12px;background:linear-gradient(90deg,#f2f7ff,#f3fbfa);border-bottom:1px solid #e1eaf4}
+.sl-payroll-allowance-row-head{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:10px 12px;background:#f3f7fd;border-bottom:1px solid #e1eaf4}
 .sl-payroll-allowance-row-head b{font-size:12px;color:#183757}
 .sl-payroll-allowance-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(112px,.7fr) minmax(155px,.95fr) auto;align-items:end;gap:10px;padding:12px}
 .sl-payroll-exemption-fields{display:grid;grid-template-columns:1.2fr .8fr;gap:10px;padding:0 12px 12px;background:#fffaf0}
 .sl-payroll-exemption-fields[hidden]{display:none!important}
 .sl-payroll-exemption-fields .sl-payroll-owner-check{grid-column:1/-1;display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #eed5a4;border-radius:10px;background:#fff6e6;color:#774910;font-size:12px;font-weight:750;line-height:1.45}
 .sl-payroll-owner-check input{width:18px;min-height:18px;flex:0 0 18px;margin:1px 0 0}
-.sl-payroll-rule-banner{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:12px 13px;border:1px solid #bed9f7;border-radius:12px;background:linear-gradient(110deg,#edf6ff,#f3fffb);color:#2b557f;font-size:12px;line-height:1.55}
+.sl-payroll-rule-banner{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;padding:12px 13px;border:1px solid #bed9f7;border-radius:12px;background:#edf6ff;color:#2b557f;font-size:12px;line-height:1.55}
 .sl-payroll-rule-banner b{display:block;color:#173b60;margin-bottom:2px}
 .sl-payroll-rule-banner a{font-weight:800;text-decoration:underline;text-underline-offset:2px;color:#174fa5}
 .sl-payroll-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:4px}
@@ -83,11 +83,11 @@
 
 /* ============================================================================
    16.1.66 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
-   Times New Roman typography, full-workspace palette, readable touch controls,
+   Modern sans-serif typography, full-workspace palette, readable touch controls,
    and compact procurement/order line layout. No business data/ledger behavior.
    ============================================================================ */
 :root{
-  --sl-font:"Times New Roman",Times,serif;
+  --sl-font:Inter,"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
   --sl-accent:var(--sl-cobalt);
   --sl-accent-hover:var(--sl-cobalt-2);
   --sl-accent-soft:var(--sl-info-soft);
@@ -96,14 +96,14 @@
   --sl-sheet-shadow:0 14px 38px rgba(16,35,63,.085);
 }
 body.stockland-erp-page,body.stockland-erp-standalone,#stockland-app,#stockland-app *,body .sl-overlay,body .sl-overlay *{
-  font-family:"Times New Roman",Times,serif!important;
+  font-family:var(--sl-font)!important;
 }
 body.stockland-erp-page,body.stockland-erp-standalone{font-size:16px;line-height:1.45}
 #stockland-app{font-size:16px;line-height:1.45;-webkit-font-smoothing:auto;text-rendering:optimizeLegibility}
 #stockland-app .sl-content{background:linear-gradient(180deg,var(--sl-canvas) 0%,var(--sl-bg) 100%)}
 #stockland-app .sl-content-inner{max-width:1840px}
 #stockland-app .sl-content-inner>.sl-page-title{background:var(--sl-canvas);border-bottom:1px solid var(--sl-line);box-shadow:0 6px 16px rgba(16,35,63,.04)}
-#stockland-app .sl-page-title h2{font-family:"Times New Roman",Times,serif;font-size:clamp(24px,3vw,34px);line-height:1.15;letter-spacing:0;font-weight:700}
+#stockland-app .sl-page-title h2{font-family:var(--sl-font);font-size:clamp(24px,3vw,34px);line-height:1.15;letter-spacing:0;font-weight:700}
 #stockland-app .sl-page-title p{font-size:15px;line-height:1.5;color:var(--sl-muted);max-width:78ch}
 #stockland-app .sl-eyebrow{font-size:12px;line-height:1.35;letter-spacing:.06em;font-weight:700}
 #stockland-app .sl-panel,#stockland-app .sl-card,#stockland-app .sl-block,#stockland-app .sl-purpose-card,#stockland-app .sl-availability-card,#stockland-app .sl-pulse-card,#stockland-app .sl-quick-action,#stockland-app .sl-notification-card,#stockland-app .sl-live-approval-panel,#stockland-app .sl-request-create-panel,#stockland-app .sl-branch-receive-panel,#stockland-app .sl-warehouse-action-panel,#stockland-app .sl-warehouse-queue-panel,#stockland-app .sl-sourcing-panel,#stockland-app .sl-training-panel,#stockland-app .sl-inventory-sop{
@@ -183,9 +183,9 @@ body[data-sl-theme="sapphire"]{--sl-bg:#f0f4fb;--sl-canvas:#f7f9fe;--sl-panel-so
 body[data-sl-theme="emerald"]{--sl-bg:#eef7f4;--sl-canvas:#f7fcfa;--sl-panel-soft:#ecf8f4;--sl-cobalt:#087e70;--sl-cobalt-2:#066557;--sl-teal:#0f9b8e;--sl-navy:#092b2a;--sl-navy-2:#0c4943;--sl-info-soft:#e5f7f1;--sl-accent-border:#b4e2d5;--sl-focus:0 0 0 3px rgba(8,126,112,.2)}
 body[data-sl-theme="violet"]{--sl-bg:#f4f1fb;--sl-canvas:#fbf9ff;--sl-panel-soft:#f2edff;--sl-cobalt:#6d45d9;--sl-cobalt-2:#5634b7;--sl-teal:#8b5cf6;--sl-navy:#21163d;--sl-navy-2:#382366;--sl-info-soft:#f1edff;--sl-accent-border:#d3c7fb;--sl-focus:0 0 0 3px rgba(109,69,217,.2)}
 body[data-sl-theme="copper"]{--sl-bg:#fbf3ee;--sl-canvas:#fffaf6;--sl-panel-soft:#fff1e8;--sl-cobalt:#a4512a;--sl-cobalt-2:#873e20;--sl-teal:#bd7845;--sl-navy:#30201b;--sl-navy-2:#543124;--sl-info-soft:#fff1e8;--sl-accent-border:#f0c9b4;--sl-focus:0 0 0 3px rgba(164,81,42,.2)}
-body[data-sl-theme] #stockland-app .sl-sidebar{background:linear-gradient(180deg,var(--sl-navy) 0%,var(--sl-navy-2) 100%)}
+body[data-sl-theme] #stockland-app .sl-sidebar{background:var(--sl-navy)}
 body[data-sl-theme] #stockland-app .sl-side-caption{color:rgba(255,255,255,.66)}
-body[data-sl-theme] #stockland-app .sl-nav button.active{background:linear-gradient(90deg,color-mix(in srgb,var(--sl-cobalt) 32%,transparent),color-mix(in srgb,var(--sl-cobalt) 10%,transparent));border-color:var(--sl-accent-border);box-shadow:inset 3px 0 var(--sl-cobalt);color:#fff}
+body[data-sl-theme] #stockland-app .sl-nav button.active{background:var(--sl-cobalt);border-color:var(--sl-cobalt);box-shadow:inset 3px 0 #fff;color:#fff}
 body[data-sl-theme] #stockland-app .sl-card:before,body[data-sl-theme] #stockland-app .sl-card:nth-child(2):before,body[data-sl-theme] #stockland-app .sl-card:nth-child(3):before,body[data-sl-theme] #stockland-app .sl-card:nth-child(4):before{background:var(--sl-cobalt)}
 body[data-sl-theme] #stockland-app .sl-panel:focus-within,body[data-sl-theme] #stockland-app .sl-card:focus-within{border-color:var(--sl-accent-border)}
 body[data-sl-theme] #stockland-app .sl-kpi-highlight,body[data-sl-theme] #stockland-app .sl-section-accent,body[data-sl-theme] #stockland-app .sl-info-card{background:var(--sl-accent-soft);border-color:var(--sl-accent-border)}
@@ -209,7 +209,7 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
 .sl-theme-option:hover{border-color:var(--sl-cobalt);background:var(--sl-panel-soft)}
 .sl-theme-option:focus-visible{outline:3px solid var(--sl-cobalt);outline-offset:2px;box-shadow:var(--sl-focus)}
 .sl-theme-option.active{border-color:var(--sl-cobalt);box-shadow:inset 0 0 0 1px var(--sl-cobalt);background:var(--sl-info-soft)}
-.sl-theme-swatch{height:44px;width:56px;display:flex;align-items:flex-end;gap:3px;padding:5px;border-radius:9px;background:linear-gradient(145deg,var(--sl-swatch-navy),var(--sl-swatch));overflow:hidden}
+.sl-theme-swatch{height:44px;width:56px;display:flex;align-items:flex-end;gap:3px;padding:5px;border-radius:9px;background:var(--sl-swatch);overflow:hidden}
 .sl-theme-swatch i{display:block;height:23px;flex:1;border-radius:3px 3px 1px 1px;background:rgba(255,255,255,.96)}.sl-theme-swatch i:nth-child(2){height:16px;background:rgba(255,255,255,.72)}.sl-theme-swatch i:nth-child(3){height:10px;background:rgba(255,255,255,.45)}
 .sl-theme-copy{min-width:0}.sl-theme-copy b,.sl-theme-copy small{display:block}.sl-theme-copy b{font-size:15px;font-weight:700;color:var(--sl-ink)}.sl-theme-copy small{margin-top:3px;font-size:13px;color:var(--sl-muted)}
 .sl-theme-check{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-size:15px;font-weight:700;color:#fff;background:var(--sl-cobalt)}
@@ -298,3 +298,24 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
  #stockland-app .sl-req-line.sl-form>.sl-field.full,#stockland-app .sl-req-line.sl-form>.sl-req-live-rule{grid-column:1}
  #stockland-app .sl-req-line.sl-form>[data-remove-req-line]{width:100%;justify-self:stretch}
 }
+
+
+/* 16.1.66 approved Stockland premium ERP system: flat workspace, clear hierarchy,
+   consistent modern typography and compact operational tables. Presentation only. */
+#stockland-app .sl-content{background:var(--sl-canvas)}
+#stockland-app .sl-hero,#stockland-app .sl-hero-modern{background:#0b1730;box-shadow:0 8px 24px rgba(11,23,48,.14)}
+#stockland-app .sl-hero::after,#stockland-app .sl-hero-modern::after{display:none;background:none}
+#stockland-app .sl-block-head{background:#f8fafc}
+#stockland-app .sl-sidebar,body[data-sl-theme] #stockland-app .sl-sidebar{background:var(--sl-navy)}
+#stockland-app .sl-nav button.active,body[data-sl-theme] #stockland-app .sl-nav button.active{background:var(--sl-cobalt);border-color:var(--sl-cobalt);box-shadow:inset 3px 0 #fff;color:#fff}
+#stockland-app .sl-btn.primary,#stockland-app .sl-btn-primary,body[data-sl-theme] #stockland-app .sl-btn.primary,body[data-sl-theme] #stockland-app .sl-btn-primary{background:var(--sl-cobalt);border-color:var(--sl-cobalt);color:#fff}
+#stockland-app .sl-btn.gold,#stockland-app .sl-btn-gold,body[data-sl-theme] #stockland-app .sl-btn.gold,body[data-sl-theme] #stockland-app .sl-btn-gold{background:var(--sl-emerald);border-color:var(--sl-emerald);color:#fff}
+#stockland-app .sl-btn.primary:hover,#stockland-app .sl-btn-primary:hover,body[data-sl-theme] #stockland-app .sl-btn.primary:hover,body[data-sl-theme] #stockland-app .sl-btn-primary:hover{background:var(--sl-cobalt-2);border-color:var(--sl-cobalt-2)}
+#stockland-app .sl-btn.gold:hover,#stockland-app .sl-btn-gold:hover,body[data-sl-theme] #stockland-app .sl-btn.gold:hover,body[data-sl-theme] #stockland-app .sl-btn-gold:hover{background:#047857;border-color:#047857}
+#stockland-app .sl-table-wrap{background:#fff;border-color:var(--sl-line);box-shadow:0 2px 8px rgba(16,35,63,.04)}
+#stockland-app .sl-table{font-size:13px}
+#stockland-app .sl-table th{padding:10px 12px;background:#f3f6fa;color:var(--sl-ink);font-size:11px;letter-spacing:.02em}
+#stockland-app .sl-table td{padding:10px 12px;font-size:13px;line-height:1.35}
+#stockland-app .sl-table tbody tr:nth-child(even) td{background:#fbfcfe}
+#stockland-app .sl-table tbody tr:hover td{background:var(--sl-accent-soft)}
+#stockland-app .sl-panel,#stockland-app .sl-card,#stockland-app .sl-block,#stockland-app .sl-quick-action,#stockland-app .sl-notification-card{border-radius:14px}
