@@ -74,7 +74,7 @@ $ok( str_contains( $auth, 'can_manage_external_supplier_finance' ) && str_contai
 $ok( str_contains( $a, 'po_required' ) && str_contains( $a, 'separately Owner-approved Central Warehouse PO' ), 'supplier invoices cannot bypass the approved PO / receipt path' );
 $ok( str_contains( $a, 'idempotency_key_required' ) && str_contains( $a_compact, "acquire_named_lock('payment_'" ) && str_contains( $a, 'SLPAYREQ:' ) && str_contains( $a, 'payment_integrity_error' ), 'supplier payment retries are serialized, idempotent and journal-verified' );
 $ok( str_contains( $a, 'allocation_total_mismatch' ) && str_contains( $a, 'allocation_required' ), 'supplier payments require exact invoice allocation' );
-$ok( str_contains( $app, 'OWNER_APPROVED' ) && str_contains( $app, 'SUBMIT TO OWNER' ) && str_contains( $app, 'RECEIVE QTY' ) && str_contains( $app, 'sl-po-action-row' ) && str_contains( $operational_css, '.sl-po-action-row' ) && str_contains( $operational_css, 'data-po-action="RECEIVE"' ), 'PO actions remain distinct and touch-readable while preserving Owner-approved receiving SOP' );
+$ok( str_contains( $app, 'OWNER_APPROVED' ) && str_contains( $app, 'SUBMIT TO OWNER' ) && str_contains( $app, 'RECEIVE QTY' ) && str_contains( $app, 'sl-po-action-row' ) && str_contains( $operational_css, '.sl-po-action-row' ) && str_contains( $operational_css, 'data-po-action="RECEIVE"' ) && str_contains( $app, 'sl-po-receipt-lines' ) && str_contains( $operational_css, 'sl-po-receipt-lines' ), 'PO actions and per-line receive controls stay distinct, responsive and consistent with Owner-approved receiving SOP' );
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
