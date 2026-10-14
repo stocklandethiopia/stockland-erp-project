@@ -21,6 +21,7 @@ $css     = $read( 'assets/css/05-responsive-layout.css' );
 $overlay = $read( 'assets/css/04-overlays-workflows.css' );
 $js      = $read( 'assets/app.js' );
 $shell   = $read( 'includes/class-stockland-frontend.php' );
+$shell_compact = preg_replace( '/\\s+/', '', $shell );
 $guards  = $read( 'assets/css/06-operational-guards.css' );
 $ok( str_contains( $css, '@media (min-width:576px) and (max-width:991.98px)' ), 'tablet has an explicit 576–991.98px header layout' );
 $ok( str_contains( $css, 'grid-template-rows:40px 44px' ) && str_contains( $css, 'overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap' ), 'tablet header separates identity/actions and prevents stacked/overlapping action buttons' );
@@ -34,6 +35,9 @@ $ok( str_contains( $js, "trigger.setAttribute('aria-expanded','true')" ) && str_
 $ok( str_contains( $js, "matchMedia('(min-width: 992px)')" ) && str_contains( $js, 'closeMobileMenu(false)' ), 'resizing back to desktop safely dismisses mobile overlay' );
 $ok( str_contains( $js, 'closeMobileMenu(false);render();document.getElementById(\'menu\')?.focus()' ), 'choosing a menu item navigates, closes the overlay and leaves predictable focus' );
 $ok( 1 === preg_match( '/ROUTE_VERSION\\s*=\\s*[\'\"]16\\.1\\.65[\'\"]/', $shell ), 'frontend cache bridge release identity updated' );
+$hash_at  = strpos( $shell_compact, '$digest=hash_file(\'sha256\',$file);' );
+$mtime_at = strpos( $shell_compact, '$mtime=filemtime($file);' );
+$ok( false !== $hash_at && false !== $mtime_at && $hash_at < $mtime_at && str_contains( $shell_compact, '$fingerprint=substr($digest,0,16);' ), 'asset URLs fingerprint file content before timestamp fallback, preventing stale caches in deterministic in-place ZIP updates' );
 $ok( str_contains( $guards, '#stockland-app .sl-quick-actions{display:block!important' ) && str_contains( $guards, '.sl-quick-actions>.sl-quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))' ), 'desktop dashboard shortcut panel keeps heading above readable two-column actions' );
 $ok( str_contains( $guards, 'a.sl-exit{background:var(--sl-navy)!important' ) && str_contains( $guards, 'a.sl-exit:hover' ), 'EXIT action has a contrasting, readable background and hover state' );
 $ok( str_contains( $guards, '@media (max-width:575.98px)' ) && str_contains( $guards, '.sl-quick-actions>.sl-quick-grid{grid-template-columns:1fr' ), 'mobile quick actions become a clean single column' );

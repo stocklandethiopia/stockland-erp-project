@@ -231,15 +231,19 @@ class Stockland_Frontend {
 		$file        = STOCKLAND_PLUGIN_DIR . ltrim( $relative, '/' );
 		$fingerprint = '0';
 		if ( is_file( $file ) && is_readable( $file ) ) {
-			$mtime = filemtime( $file );
-			if ( $mtime ) {
-				$fingerprint = $mtime;
+			// Content identity must lead cache busting: release archives normalize
+			// timestamps for deterministic ZIP builds, so mtime-first fingerprints
+			// can otherwise reuse an old browser/service-worker asset URL after an
+			// in-place update that deliberately retains the ERP release version.
+			$digest = hash_file( 'sha256', $file );
+			if ( false !== $digest && '' !== $digest ) {
+				$fingerprint = substr( $digest, 0, 16 );
 			} else {
-				$digest      = hash_file( 'sha256', $file );
-				$fingerprint = false !== $digest ? substr( $digest, 0, 12 ) : '0';
+				$mtime       = filemtime( $file );
+				$fingerprint = $mtime ? $mtime : '0';
 			}
 		}
-		return STOCKLAND_VERSION . '-' . preg_replace( '/[^0-9A-Za-z_-]/', '', $fingerprint );
+		return STOCKLAND_VERSION . '-' . preg_replace( '/[^0-9A-Za-z_-]/', '', (string) $fingerprint );
 	}
 	/**
 	 * Returns a local asset URL with a release-safe cache-busting version.

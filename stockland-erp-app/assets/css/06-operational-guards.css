@@ -298,3 +298,58 @@ body[data-sl-theme] #stockland-app .sl-table tbody tr:hover td{background:var(--
  #stockland-app .sl-req-line.sl-form>.sl-field.full,#stockland-app .sl-req-line.sl-form>.sl-req-live-rule{grid-column:1}
  #stockland-app .sl-req-line.sl-form>[data-remove-req-line]{width:100%;justify-self:stretch}
 }
+
+/* 16.1.66 procurement UX correction: keep PO actions separated and touch-readable.
+ * Presentation only; action availability and every transition remain server-authoritative.
+ */
+#stockland-app #poActionQueue .sl-po-action-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-width:16rem;
+  max-width:100%;
+}
+#stockland-app #poActionQueue .sl-po-action-row>.sl-btn{
+  display:inline-flex;
+  flex:0 1 auto;
+  align-items:center;
+  justify-content:center;
+  min-width:7rem;
+  max-width:100%;
+  min-height:40px;
+  padding:8px 11px;
+  line-height:1.2;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+#stockland-app #poActionQueue .sl-po-action-row [data-po-action="RECEIVE"]{
+  flex-basis:10rem;
+  border-radius:9px;
+}
+#stockland-app #poActionQueue td[data-label="Actions"]{min-width:17rem}
+#stockland-app .sl-po-value-hidden{display:inline-block;color:var(--sl-muted);font-size:12px;white-space:nowrap}
+body .sl-overlay .sl-po-receipt-lines{min-width:760px;width:100%;table-layout:auto}
+body .sl-overlay .sl-po-receipt-lines th{white-space:normal;vertical-align:bottom}
+body .sl-overlay .sl-po-receipt-lines td{vertical-align:middle}
+body .sl-overlay .sl-po-receipt-lines input[type="number"]{width:116px;min-width:100px;min-height:44px;padding:8px;font-size:16px}
+@media(max-width:991.98px){
+  #stockland-app #poActionQueue .sl-po-action-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    width:100%;
+    min-width:0;
+    gap:8px;
+  }
+  #stockland-app #poActionQueue .sl-po-action-row>.sl-btn{
+    width:100%;
+    min-width:0;
+    min-height:44px;
+    white-space:normal;
+    text-align:center;
+  }
+  #stockland-app #poActionQueue td[data-label="Actions"]{min-width:0}
+  body .sl-overlay .sl-po-receipt-lines{min-width:720px}
+}
