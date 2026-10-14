@@ -33,7 +33,7 @@ $grant_start = strpos( $accounting_caps, 'private static function grant_capabili
 $grant_end = strpos( $accounting_caps, 'private static function seed_walkin_customer', $grant_start === false ? 0 : $grant_start );
 $grant_block = $grant_start !== false && $grant_end !== false ? substr( $accounting_caps, $grant_start, $grant_end - $grant_start ) : '';
 $management_grant = strpos( $grant_block, 'Stockland_Roles::ROLE_MANAGEMENT=>$company_finance' ) !== false;
-$admin_approval_removed = strpos( $grant_block, "\$admin->remove_cap('stockland_approve_purchase_orders')" ) !== false;
+$admin_approval_removed = strpos( $grant_block, '$admin->remove_cap(\'stockland_approve_purchase_orders\')' ) !== false;
 $ok( $management_grant, 'accounting installer does not grant purchase-order approval to Management' );
 $ok( $admin_approval_removed, 'accounting installer removes broad Administrator-role PO approval; active Owner profile receives user-level authority' );
 $plugin = $r( 'stockland-inventory.php' );
