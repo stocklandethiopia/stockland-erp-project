@@ -101,6 +101,8 @@ $ok( str_contains( $a, "WHERE a.invoice_type=\\'AP\\'" ) && str_contains( $a, "W
 $ok( str_contains( $app, "Number(out.id)!==id" ) && str_contains( $app, "expectedStatus=action==='APPROVE'?'POSTED':'REJECTED'" ) && str_contains( $app, "Number(out.journal_id||0)<=0" ), 'finance approval buttons require confirmed status and posted journal before success' );
 $ok( str_contains( $app, 'button[type="submit"],button:not([type])' ) && str_contains( $app, 'The save was confirmed, but Finance/Procurement could not fully refresh' ), 'finance save buttons and post-save refresh feedback reflect actual request state' );
 
+$ok( str_contains( $app, 'Approval results are incomplete.' ) && str_contains( $app, 'A failed source is not equivalent to zero pending items.' ) && str_contains( $app, "querySelector('#retryFinanceApprovalErrors')?.addEventListener('click',loadFinanceApprovals)" ), 'finance approval source failures never masquerade as an empty queue and expose a working retry control' );
+
 if ( $fail ) {
 	fwrite( STDERR, 'External procurement gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );

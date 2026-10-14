@@ -648,8 +648,8 @@ async function loadFinanceApprovals(){
     });
     const priority={expense:0,supplier_invoice:1,payment:2};
     all.sort((a,b)=>priority[a.type]-priority[b.type]||String((b.row.created_at||b.row.expense_date||b.row.invoice_date||b.row.payment_date)||'').localeCompare(String((a.row.created_at||a.row.expense_date||a.row.invoice_date||a.row.payment_date)||'')));
-    let html=errors.length?'<div class="sl-notice sl-warning-block"><b>Some approval sources could not be loaded.</b><div>'+errors.map(x=>esc(x.type)+': '+esc(x.error)).join('<br>')+'</div></div>':'';
-    if(!all.length){html+='<div class="sl-empty-rich"><b>No pending finance approvals.</b><span>Only records explicitly submitted and still pending appear here.</span></div>';el.innerHTML=html;return;}
+    let html=errors.length?'<div class="sl-notice sl-warning-block"><b>Some approval sources could not be loaded.</b><div>'+errors.map(x=>esc(x.type)+': '+esc(x.error)).join('<br>')+'</div><button type="button" class="sl-btn" id="retryFinanceApprovalErrors">RETRY APPROVAL QUEUE</button></div>':'';
+    if(!all.length){if(errors.length){html+='<div class="sl-empty-rich"><b>Approval results are incomplete.</b><span>A failed source is not equivalent to zero pending items. Retry the queue before treating it as empty.</span></div>';}else{html+='<div class="sl-empty-rich"><b>No pending finance approvals.</b><span>Only records explicitly submitted and still pending appear here.</span></div>'; }el.innerHTML=html;el.querySelector('#retryFinanceApprovalErrors')?.addEventListener('click',loadFinanceApprovals);return;}
     html+='<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Type / Reference</th><th>Supplier / Branch / Party</th><th>Submitted by</th><th>Date</th><th>Amount (ETB)</th><th>Decision</th></tr></thead><tbody>';
     all.forEach(({type,row:r})=>{
       const id=Number(r.id||0),amount=type==='expense'?Number(r.amount||0)+Number(r.tax_amount||0):Number(r.total_amount||r.amount||0);
@@ -661,6 +661,7 @@ async function loadFinanceApprovals(){
       html+='<tr><td><b>'+esc(kind)+'</b><div class="sl-sub">'+esc(ref)+'</div><div class="sl-sub">'+esc(detail)+'</div></td><td>'+esc(party)+'</td><td>'+esc(r.created_by_name||'Management')+'</td><td>'+esc(date)+'</td><td>'+money(amount)+'</td><td><div class="sl-action-row"><button class="sl-btn primary" data-finance-action="APPROVE" data-finance-type="'+type+'" data-finance-id="'+id+'">APPROVE</button><button class="sl-btn" data-finance-action="REJECT" data-finance-type="'+type+'" data-finance-id="'+id+'">REJECT</button></div></td></tr>';
     });
     html+='</tbody></table></div>';el.innerHTML=html;
+    el.querySelector('#retryFinanceApprovalErrors')?.addEventListener('click',loadFinanceApprovals);
     el.querySelectorAll('[data-finance-action]').forEach(btn=>{btn.onclick=async()=>{
       const action=String(btn.dataset.financeAction||''),type=String(btn.dataset.financeType||''),id=Number(btn.dataset.financeId||0);
       if(!id||!['expense','supplier_invoice','payment'].includes(type)||!['APPROVE','REJECT'].includes(action))return;
