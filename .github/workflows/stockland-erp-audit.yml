@@ -380,7 +380,7 @@ jobs:
               **evidence,
               "state": "PASS",
           }
-          corrective = manifest.setdefault("corrective_release_16_1_66", {})
+          corrective = manifest.setdefault("corrective_release_16_1_67", {})
           corrective["source_gate"] = source_gate_text
           corrective["source_gate_evidence"] = evidence
           # Remove legacy manually-authored binary certification labels from old manifests.
