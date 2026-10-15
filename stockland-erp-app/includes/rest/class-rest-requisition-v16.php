@@ -59,6 +59,20 @@ class Stockland_REST_Requisition_V16 {
 		);
 		register_rest_route(
 			self::NS,
+			'/requisitions/source-preview/availability',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'source_preview' ),
+				'permission_callback' => function () {
+					if ( ! current_user_can( 'stockland_request_stock' ) ) {
+						return new WP_Error( 'forbidden', 'Stock-request permission is required to preview stock sources.', array( 'status' => 403 ) );
+					}
+					return Stockland_Authority::assert_profile();
+				},
+			)
+		);
+		register_rest_route(
+			self::NS,
 			'/requisitions/(?P<id>[A-Za-z0-9\-]+)',
 			array(
 				'methods'             => 'GET',
@@ -285,6 +299,60 @@ class Stockland_REST_Requisition_V16 {
 	 * @param WP_REST_Request $r REST request containing the requisition identifier.
 	 * @return mixed REST response or a WP_Error.
 	 */
+	/**
+	 * Returns read-only, live branch and warehouse sourcing for a requisition draft.
+	 * This endpoint never creates a requisition, reservation, transfer, or ledger entry.
+	 *
+	 * @param WP_REST_Request $r Request containing branch, SKU and quantity.
+	 * @return mixed Live sourcing advice or a validation error.
+	 */
+	public function source_preview( WP_REST_Request $r ) {
+		global $wpdb;
+		$branch_id = absint( $r->get_param( 'location_id' ) );
+		$sku       = sanitize_text_field( (string) $r->get_param( 'sku' ) );
+		$raw_qty   = $r->get_param( 'quantity' );
+		$quantity  = is_numeric( $raw_qty ) ? (float) $raw_qty : 0.0;
+		if ( $branch_id <= 0 || '' === $sku || $quantity <= 0 ) {
+			return $this->deny( 'invalid_source_preview', 'Choose an authorized branch, a live Product Master SKU and a positive quantity.', 400 );
+		}
+		if ( ! Stockland_Authority::can_access_location( $branch_id ) ) {
+			return $this->deny( 'branch_forbidden', 'This stock-source preview is outside your assigned branch scope.', 403 );
+		}
+		$branch = Stockland_DB::read_row(
+			$wpdb->prepare( 'SELECT id,location_type,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $branch_id ),
+			ARRAY_A
+		);
+		if ( ! $branch || 'Branch' !== (string) $branch['location_type'] || 0 === (int) $branch['is_active'] ) {
+			return $this->deny( 'invalid_branch', 'Select an active branch location to preview stock sources.', 400 );
+		}
+		$product = Stockland_DB::get_product( $sku );
+		if ( ! $product || empty( $product['variant_id'] ) || 'STYLE' === ( $product['product_type'] ?? 'SIMPLE' ) ) {
+			return $this->deny( 'invalid_sku', 'Select an active, stockable Product Master variant. Create missing variations in Product Master before requesting or receiving stock.', 400 );
+		}
+		$preview = Stockland_Sourcing::for_items(
+			array(
+				array(
+					'sku'                => $product['sku'],
+					'variant_id'         => (int) $product['variant_id'],
+					'quantity_requested' => $quantity,
+				),
+			),
+			$branch_id
+		);
+		if ( ! is_array( $preview ) || empty( $preview[0] ) ) {
+			return new WP_Error( 'source_preview_unavailable', 'Live stock-source advice could not be calculated. No ERP data was changed.', array( 'status' => 503 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'checked_at' => current_time( 'mysql' ),
+				'branch_id'  => $branch_id,
+				'sku'        => $product['sku'],
+				'sourcing'   => $preview[0],
+				'read_only'  => true,
+			)
+		);
+	}
+
 	public function detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$req = $this->req( sanitize_text_field( $r['id'] ) );
