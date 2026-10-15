@@ -58,13 +58,13 @@ $ok(
 	'Central Warehouse Manager and Warehouse Employee can pick only reserved requisitions across UI and server authority.'
 );
 $ok(
-	str_contains( $requisition, "'warehouse_manager', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" )
-		&& str_contains( $requisition, "'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" ),
+	str_contains( $requisition, "'warehouse_manager', \$wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" )
+		&& str_contains( $requisition, "'warehouse_employee', \$wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" ),
 	'Reserved stock queue notifies both eligible Central Warehouse pick roles.'
 );
 $ok(
-	str_contains( $frontend, "hash_file( 'sha256', $file )" )
-		&& str_contains( $frontend, "substr( $digest, 0, 16 )" ),
+	str_contains( $frontend, "hash_file( 'sha256', \$file )" )
+		&& str_contains( $frontend, "substr( \$digest, 0, 16 )" ),
 	'Asset cache identity follows file content across reproducible in-place updates.'
 );
 $ok( str_contains( $app, "appendChild(d);bindSkuPickers()" ), 'legacy Add SKU row binds the live SKU picker after dynamic insertion' );
