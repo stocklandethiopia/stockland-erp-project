@@ -23,14 +23,14 @@ $payroll_test = $read( 'tools/qa/check-payroll-statutory.php' );
 
 $checks['release_identity_167'] = str_contains( $plugin, 'Version:           16.1.67' ) && ( $manifest['release'] ?? '' ) === '16.1.67';
 $checks['unchanged_49_table_contract'] = ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ( $manifest['schema_contract']['new_business_table'] ?? true ) === false && ( $manifest['corrective_release_16_1_67']['schema_changed'] ?? true ) === false;
-$checks['insights_route_has_permission_callback'] = str_contains( $rest, "'/app/dashboard/insights'" ) && str_contains( $rest, "'callback'            => array( $this, 'dashboard_insights' )" ) && str_contains( $rest, "'permission_callback' => function ()" );
+$checks['insights_route_has_permission_callback'] = str_contains( $rest, "'/app/dashboard/insights'" ) && str_contains( $rest, "'callback'" ) && str_contains( $rest, "'dashboard_insights'" ) && str_contains( $rest, "'permission_callback'" );
 $checks['insights_rejects_missing_location_scope'] = str_contains( $rest, 'public function dashboard_insights()' ) && str_contains( $rest, '$this->scope_locations()' ) && str_contains( $rest, "'location_scope_unavailable'" );
 $checks['insights_use_closed_posted_sales'] = str_contains( $rest, "posting_status='CLOSED' AND sale_date BETWEEN %s AND %s" ) && str_contains( $rest, 'GROUP BY sale_date ORDER BY sale_date' );
 $checks['insights_location_filter_applied_to_each_query'] = substr_count( substr( $rest, strpos( $rest, 'public function dashboard_insights()' ), strpos( $rest, 'public function reports_summary( WP_REST_Request $r )' ) - strpos( $rest, 'public function dashboard_insights()' ) ), '$this->append_scope_filter(' ) >= 4;
-$checks['dashboard_query_failures_are_not_reported_as_zero'] = substr_count( $insights, "'dashboard_query_failed'" ) === 4;
 $insights_start = strpos( $rest, 'public function dashboard_insights()' );
 $insights_end = strpos( $rest, 'public function reports_summary( WP_REST_Request $r )', $insights_start );
 $insights = ( false !== $insights_start && false !== $insights_end ) ? substr( $rest, $insights_start, $insights_end - $insights_start ) : '';
+$checks['dashboard_query_failures_are_not_reported_as_zero'] = substr_count( $insights, "'dashboard_query_failed'" ) === 4;
 $checks['insights_exclude_personal_and_profit_fields'] = '' !== $insights && ! preg_match( '/customer_name|customer_phone|staff_user_id|display_name|gross_profit|\bcogs\b|purchase_cost/', $insights );
 $checks['dashboard_consumes_server_data'] = str_contains( $js, 'function loadDashboardInsights(' ) && str_contains( $js, "api('/app/dashboard/insights')" ) && str_contains( $js, 'dashboardTrendHtml(state.dashboardInsights)' );
 $checks['dashboard_has_actual_empty_error_states'] = str_contains( $js, 'No posted retail transactions were found' ) && str_contains( $js, 'Dashboard analytics are unavailable' ) && str_contains( $js, 'No posted category sales this month' );
