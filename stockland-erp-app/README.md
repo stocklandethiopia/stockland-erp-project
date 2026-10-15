@@ -1,6 +1,6 @@
 # Stockland Ethiopia ERP 16.1.65 — In-Place Corrective Update Candidate
 
-**Release status: 16.1.65 current in-place corrective candidate.** Exact source/package evidence and the run-specific installer SHA-256 are recorded in the [16.1.65 package identity record](https://github.com/stocklandethiopia/stockland-erp-project/blob/main/AUDIT/16.1.65-package-identity.md). Repository source/package validation and authenticated target-host acceptance are separate gates; the candidate must not be described as production-certified until the staged WordPress/MariaDB workflow, integrity/ledger reconciliation, host/browser, and recovery checks have dated PASS evidence. This update preserves the cumulative ERP workflows and exact 49-table business contract, and is prepared for both fresh installation and in-place update without adding business tables.
+**Release status: 16.1.65 in-place corrective candidate; target-host acceptance: PENDING.** Exact source/package evidence and the run-specific installer SHA-256 are recorded in the [16.1.65 package identity record](https://github.com/stocklandethiopia/stockland-erp-project/blob/main/AUDIT/16.1.65-package-identity.md). A passing repository source/package gate is not proof of target-host acceptance. Keep deployment on hold until the staged WordPress/MariaDB workflow, integrity/ledger reconciliation, host/browser compatibility, and recovery checks have dated PASS evidence tied to the exact installer checksum. This update preserves the cumulative ERP workflows and exact 49-table business contract and adds no business tables.
 
 ## 16.1.53 change
 
@@ -35,17 +35,17 @@ External supplier supply must follow Management entry/submission → separate ac
 
 1. Back up the plugin files and database; make an isolated staging clone first.
 2. Use this single ZIP on an isolated WordPress staging clone through Plugins → Add New Plugin → Upload Plugin; do not install intermediate versions separately or apply it to production before the release gates and rollback checks are complete.
-3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.63.
+3. Confirm only one Stockland ERP plugin copy is active and that the version reads 16.1.65.
 4. Test at real device widths. On tablets, swipe the second header row horizontally when a user action is beyond the visible strip. On phones, test the menu open/close and item navigation.
 5. Before production, complete the purchasing approval/receiving/concurrent retry checks and review the read-only integrity scan. Preserve a known rollback point.
 
-This package uses the official local Bootstrap CSS 5.3.8 asset verified against its upstream Git blob and documented SRI; no CDN runtime dependency is added. This candidate is staging-only, not production-certified.
+This package uses the official local Bootstrap CSS 5.3.8 asset verified against its upstream Git blob and documented SRI; no CDN runtime dependency is added. Target-host acceptance remains PENDING. Use the package only on isolated staging until every required acceptance gate has dated PASS evidence tied to the exact installer checksum.
 
 
 ## 16.1.57 integration notes
 
 - Preserves the 16.1.53 responsive mobile/tablet menu and header, desktop quick-action and EXIT contrast fixes, prior import/workflow authority controls, and the 49-table schema contract.
-- Merges the 16.1.54 quick health endpoint. Quick service/schema checks explicitly state `QUICK HEALTH ONLY`; deferred audit/stock/PLEDGER/AP-AR/GL/reservation checks are not green or certified.
+- Merges the 16.1.54 quick health endpoint. Quick service/schema checks explicitly state `QUICK HEALTH ONLY`; deferred audit/stock/PLEDGER/AP-AR/GL/reservation checks remain UNVERIFIED and must not be counted as PASS.
 - Merges the 16.1.55 namespace-aware XLSX workbook/sheet relationship discovery fix, including root-absolute worksheet targets.
 - Database schema constants are intentionally unchanged. No live deployment or live database migration occurred during package assembly.
 - The ZIP is a staging candidate for both fresh install and upgrade; fresh WordPress setup and an in-place update from the exact plugin bytes installed on the owner-provided WordPress site must be tested on staging before production use. The target was previously reported as 16.1.62; confirm actual site version and file identity during acceptance.
@@ -60,6 +60,6 @@ This package uses the official local Bootstrap CSS 5.3.8 asset verified against 
 - System Health's standard button remains fast and read-only. `RUN DEEP INTEGRITY AUDIT` explicitly opts into full-table checks, including orphan relationships, ledger journal balance, PO/receipt/stock movement, AP/GRNI, supplier payment allocation and PLEDGER source-journal cross-checks. Any unknown query is displayed as incomplete, never counted as zero.
 - Fresh installation must begin with schema and configuration only: no fake sales, stock, payroll, orders or customer transactions are seeded. Fresh activation and the 16.1.54 in-place update must be exercised on a disposable WordPress staging copy before production.
 
-## Live certification limits
+## Target-host acceptance status
 
-The ZIP, source, static QA and archive can be verified locally, but the builder has no authenticated access to the target WordPress host or database. No live-data deep scan, concurrency test against MariaDB, fresh WordPress activation, or update against the exact production plugin bytes was performed. This artifact is a comprehensive release candidate, not an assertion that existing live records are reconciled. Back up production and use staging for acceptance first.
+The ZIP, source, static QA and archive can be inspected locally, but this build environment has no authenticated access to the target WordPress host or database. No live-data deep scan, MariaDB concurrency test, fresh WordPress activation, or update against the exact installed plugin bytes was performed. Target-host acceptance remains PENDING; this source candidate does not assert that existing live records reconcile. Back up the live system and use isolated staging for acceptance first.
