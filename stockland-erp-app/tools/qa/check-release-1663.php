@@ -23,7 +23,9 @@ $accounting = $read( 'includes/rest/class-rest-accounting.php' );
 $accounting_compact = preg_replace( '/\\s+/', '', $accounting );
 $hr         = $read( 'includes/rest/class-rest-hr.php' );
 $authority  = $read( 'includes/class-stockland-authority.php' );
+$requisition = $read( 'includes/rest/class-rest-requisition-v16.php' );
 $integrity  = $read( 'includes/class-stockland-integrity.php' );
+$frontend   = $read( 'includes/class-stockland-frontend.php' );
 $ddl        = $read( 'includes/class-stockland-activator.php' );
 $app        = $read( 'assets/app.js' );
 $ok( ( $manifest['release'] ?? '' ) === '16.1.66' && str_contains( $plugin, 'Version:           16.1.66' ), 'plugin header and manifest use the same release identity' );
@@ -46,6 +48,25 @@ $ok( str_contains( $accounting, 'separately Owner-approved Central Warehouse PO'
 $ok( str_contains( $accounting, 'payment_integrity_error' ) && str_contains( $accounting_compact, "acquire_named_lock('payment_'" ) && str_contains( $accounting_compact, "'status'=>\$status" ), 'manual finance payments use idempotency, a named lock and pending approval' );
 $ok( str_contains( $hr, "'SUBMITTED'" ) && str_contains( $hr, 'payroll_approval' ) && str_contains( $hr, 'PAYROLL_APPROVE' ) && str_contains( $hr, 'payroll_paid' ), 'payroll has Management submission, Owner approval/payment, GL and notification markers' );
 $ok( str_contains( $authority, 'can_prepare_hr' ) && str_contains( $authority, 'can_prepare_finance' ) && str_contains( $authority, 'can_approve_finance' ) && str_contains( $authority, 'can_submit_expenses' ), 'server-side role authority helpers enforce prepare vs Owner approval' );
+$authority_compact = preg_replace( '/\\s+/', '', $authority );
+$ok(
+	str_contains( $authority_compact, 'returnin_array($r,array(self::WAREHOUSE_EMPLOYEE,self::WAREHOUSE_MANAGER),true);' )
+		&& str_contains( $requisition, 'Only the Central Warehouse Manager or a Warehouse Employee may pick a reserved requisition.' )
+		&& str_contains( $requisition, "'Central Warehouse Manager or Warehouse Employee'" )
+		&& str_contains( $app, "const canPick=role==='warehouse_employee'||role==='warehouse_manager';" )
+		&& str_contains( $app, "const canPick=(role==='warehouse_employee'||role==='warehouse_manager')&&q.status==='Reserved';" ),
+	'Central Warehouse Manager and Warehouse Employee can pick only reserved requisitions across UI and server authority.'
+);
+$ok(
+	str_contains( $requisition, "'warehouse_manager', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" )
+		&& str_contains( $requisition, "'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" ),
+	'Reserved stock queue notifies both eligible Central Warehouse pick roles.'
+);
+$ok(
+	str_contains( $frontend, "hash_file( 'sha256', $file )" )
+		&& str_contains( $frontend, "substr( $digest, 0, 16 )" ),
+	'Asset cache identity follows file content across reproducible in-place updates.'
+);
 $ok( str_contains( $app, "appendChild(d);bindSkuPickers()" ), 'legacy Add SKU row binds the live SKU picker after dynamic insertion' );
 $ok( str_contains( $app, "box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>{if(type==='po'&&box.querySelectorAll('.sl-fin-line').length<=1)" ) && str_contains( $app, 'div.remove();};bindSkuPickers();' ), 'dynamic Finance/PO lines keep one required PO line and bind the live touch/click SKU picker after insertion' );
 $guards = $read( 'assets/css/06-operational-guards.css' );
