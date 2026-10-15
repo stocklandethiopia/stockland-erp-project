@@ -1,6 +1,6 @@
 {
-  "release": "16.1.67",
-  "release_label": "16.1.67 — Stockland Ethiopia ERP cumulative in-place update",
+  "release": "16.1.77",
+  "release_label": "16.1.77 — Stockland Ethiopia ERP cumulative in-place update",
   "classification": "Cumulative in-place Stockland Ethiopia ERP update. Preserves the 49-table data contract and existing ledger/workflow services; adds role-scoped dashboard analytics and applies the employee-pension-before-PAYE calculation basis.",
   "baseline": "Cumulative update from the 16.1.66 source line. Existing business records, ledger history, role boundaries and the unchanged 49-table application contract are preserved.",
   "schema_contract": {
