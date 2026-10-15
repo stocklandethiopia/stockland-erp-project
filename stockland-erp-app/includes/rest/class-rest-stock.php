@@ -84,7 +84,42 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 			if ( ! $product ) {
 				return rest_ensure_response( array() );
 			}
-			$variant_id = (int) $product['variant_id'];
+			$variant_id = (int) ( $product['variant_id'] ?? 0 );
+
+			// A valid Product Master variant may have no posted movement yet.
+			// For a location-scoped SKU lookup, return its authoritative zero balance
+			// instead of hiding it or confusing it with a missing SKU.
+			if ( $location_id ) {
+				$sku_rows = Stockland_DB::read_results(
+					$wpdb->prepare(
+						"SELECT %d location_id,p.variant_id,p.sku,p.product_name,p.product_type,p.style_code,p.parent_sku,p.color,p.size,p.barcode,p.gtin,
+						COALESCE((SELECT SUM(t.quantity_signed) FROM %i t WHERE t.location_id=%d AND (t.variant_id=p.variant_id OR (t.variant_id IS NULL AND t.sku=p.sku))),0) physical_stock,
+						COALESCE((SELECT SUM(r.quantity_reserved) FROM %i r WHERE r.location_id=%d AND r.status='Active' AND (r.variant_id=p.variant_id OR (r.variant_id IS NULL AND r.sku=p.sku))),0) reserved_stock,
+						COALESCE((SELECT SUM(t.quantity_signed) FROM %i t WHERE t.location_id=%d AND (t.variant_id=p.variant_id OR (t.variant_id IS NULL AND t.sku=p.sku))),0)-
+						COALESCE((SELECT SUM(r.quantity_reserved) FROM %i r WHERE r.location_id=%d AND r.status='Active' AND (r.variant_id=p.variant_id OR (r.variant_id IS NULL AND r.sku=p.sku))),0) available_stock
+						FROM %i p WHERE p.is_active=1 AND p.product_type<>'STYLE' AND p.sku=%s LIMIT 1",
+						(int) $location_id,
+					$tx,
+					(int) $location_id,
+					$res,
+					(int) $location_id,
+					$tx,
+					(int) $location_id,
+					$res,
+					(int) $location_id,
+					$products,
+					(string) $product['sku']
+					),
+					ARRAY_A
+				);
+				if ( $wpdb->last_error ) {
+					return new WP_Error( 'stock_read_failed', 'Live branch stock could not be read. No stock balance was assumed; refresh or contact ERP support.', array( 'status' => 503 ) );
+				}
+				if ( ! is_array( $sku_rows ) || empty( $sku_rows ) ) {
+					return new WP_Error( 'stock_identity_changed', 'The selected SKU is no longer available as an active stockable Product Master variant. Refresh Product Master search before requesting stock.', array( 'status' => 409 ) );
+				}
+				return rest_ensure_response( $sku_rows );
+			}
 		}
 
 		$rows = Stockland_DB::read_results(
@@ -145,7 +180,7 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 		foreach ( $rows as &$row ) {
 			$current       = (float) $row['current_stock'];
 			$level         = (float) $row['reorder_level'];
-			$row['status'] = 0.0 === $current ? 'CRITICAL' : ( $current <= $level ? 'REORDER NOW' : 'OK' );
+			$row['status'] = $current <= 0.0 ? 'CRITICAL' : ( $current <= $level ? 'REORDER NOW' : 'OK' );
 		}
 		return rest_ensure_response( $rows );
 	}
