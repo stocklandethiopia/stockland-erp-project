@@ -2427,17 +2427,17 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			$uid              = get_current_user_id();
 			$approver_role    = Stockland_Authority::role( $uid );
-			$creator_id       = (int) $row['created_by'];
-			$creator_role     = Stockland_Authority::role( $creator_id );
-			if ( $creator_id === $uid ) {
+			// Separation of duties: the expense creator may never decide the same expense.
+			if ( (int) $row['created_by'] === $uid ) {
 				throw new Exception( 'Self-approval is prohibited. A different authorized user must decide this expense.' );
 			}
+			$creator_role     = Stockland_Authority::role( (int) $row['created_by'] );
 			$expense_location = (int) ( $row['location_id'] ?? 0 );
 			$central_id       = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 			$is_corporate     = $expense_location <= 0;
 			$journal_location = $expense_location > 0 ? $expense_location : null;
 			if ( 'owner' === $approver_role ) {
-				if ( ! $is_corporate || 'management' !== $creator_role || (int) $row['created_by'] === $uid ) {
+				if ( ! $is_corporate || 'management' !== $creator_role ) {
 					throw new Exception( 'Owner approval is limited to a Management corporate expense submitted by a different active ERP user.' );
 				}
 				$authority_label = 'Owner';
