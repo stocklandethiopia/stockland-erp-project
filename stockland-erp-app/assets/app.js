@@ -1416,7 +1416,59 @@ function slLocationDialog(initialName,initialActive){
     requestAnimationFrame(()=>name.focus());
   });
 }
-function addReqItemV16(){const box=document.getElementById('v16ReqItems');if(!box)return;const d=document.createElement('div');d.className='sl-form sl-req-line';d.innerHTML='<div class="sl-field"><label>SKU</label>'+skuPickerField('reqsku[]','',{label:'Requested SKU'})+'</div><div class="sl-field"><label>Quantity</label><input name="reqqty[]" type="number" min="1" step="1" value="1" required></div><div class="sl-field full sl-req-live-rule"><div class="sl-notice sl-notice-soft">Live system sourcing compares Central Warehouse first and eligible peer branches second. No stock is moved automatically; the existing approval, reservation and transfer SOP remains mandatory.</div></div><button type="button" class="sl-btn sl-btn-sm" data-remove-req-line>Remove</button>';box.appendChild(d);bindSkuPickers();d.querySelector('[data-remove-req-line]').onclick=()=>d.remove()}
+async function refreshReqStockPreview(line){
+ if(!line||!line.isConnected)return;
+ const out=line.querySelector('[data-req-stock-preview]');
+ if(!out)return;
+ const sku=String(line.querySelector('[name="reqsku[]"]')?.value||'').trim();
+ const quantity=Math.max(0,Number(line.querySelector('[name="reqqty[]"]')?.value||0));
+ const loc=Number(document.querySelector('#v16ReqForm [name="location_id"]')?.value||0);
+ const seq=(Number(line.dataset.stockPreviewSeq||0)+1);
+ line.dataset.stockPreviewSeq=String(seq);
+ if(!sku){out.innerHTML='<div class="sl-notice sl-notice-soft">Select an active Product Master SKU to see branch stock and available warehouse sources.</div>';return}
+ if(!loc){out.innerHTML='<div class="sl-notice sl-notice-soft">Select an authorized branch to check live stock.</div>';return}
+ out.innerHTML='<div class="sl-notice sl-notice-soft">Checking live branch stock and current sources…</div>';
+ try{
+  const rows=await api('/stock?location_id='+encodeURIComponent(loc)+'&sku='+encodeURIComponent(sku),{cache:'no-store'});
+  if(!line.isConnected||Number(line.dataset.stockPreviewSeq)!==seq)return;
+  if(!Array.isArray(rows))throw new Error('Branch stock endpoint returned an unexpected response.');
+  const row=rows.find(x=>Number(x.location_id)===loc&&String(x.sku||'')===sku);
+  if(!row)throw new Error('No authoritative branch stock row was returned for this SKU. Refresh; a missing row is not assumed to mean zero stock.');
+  const physical=Number(row.physical_stock||0);
+  const reserved=Number(row.reserved_stock||0);
+  const available=Math.max(0,Number(row.available_stock??(physical-reserved)));
+  const shortfall=Math.max(0,quantity-available);
+  const shortage=shortfall>0?'<div class="sl-sub"><b>Branch gap:</b> '+esc(shortfall)+' unit(s) above the branch’s available balance. This does not block a request.</div>':'<div class="sl-sub">'+(quantity>0?'The branch balance covers the requested quantity.':'Enter a quantity to calculate any branch shortfall.')+'</div>';
+  let sourceHtml='';
+  try{
+   const response=await api16('/requisitions/source-preview/availability?location_id='+encodeURIComponent(loc)+'&sku='+encodeURIComponent(sku)+'&quantity='+encodeURIComponent(quantity||1),{cache:'no-store'});
+   if(!line.isConnected||Number(line.dataset.stockPreviewSeq)!==seq)return;
+   const source=response?.sourcing||null;
+   if(source&&source.status==='SOURCING_UNAVAILABLE'){
+    sourceHtml='<div class="sl-notice sl-notice-warn"><b>Source availability not verified.</b> '+esc(source.message||'The ERP could not read one or more source ledgers safely.')+' The branch balance is shown separately; do not treat unavailable source data as zero.</div>';
+   }else if(source){
+    const best=source.recommended_source;
+    const locations=(source.sources||[]).slice(0,3);
+    const sourceRows=locations.map(x=>'<div class="sl-source-preview-row"><span><b>'+esc(x.location_name)+'</b><small>'+esc(x.location_type==='CENTRAL_WAREHOUSE'?'Central Warehouse':'Peer branch')+'</small></span><span><b>'+esc(x.available)+'</b><small>available</small></span><span><b>'+esc(x.claimable)+'</b><small>claimable</small></span></div>').join('');
+    sourceHtml='<div class="sl-source-preview"><div class="sl-block-head"><b>Live source availability</b><span class="sl-pill '+(best?'ok':'warn')+'">'+esc(source.status||'CHECK')+'</span></div><div class="sl-statline"><div class="sl-stat"><b>'+esc(source.central_available??0)+'</b><span>Central Warehouse available</span></div><div class="sl-stat"><b>'+esc(source.peer_branch_available??0)+'</b><span>Peer-branch source total*</span></div><div class="sl-stat"><b>'+esc(source.demand?.suggested_request??quantity)+'</b><span>Suggested replenishment</span></div></div>'+(best?'<div class="sl-sub"><b>Best current source:</b> '+esc(best.location_name)+' — '+esc(best.available)+' available, '+esc(best.claimable)+' claimable. '+esc(best.reason||'Availability is advisory only.')+'</div>':'<div class="sl-sub">No eligible external source is currently available for this SKU. Review supply timing or procurement options; do not invent a variant or change stock here.</div>')+(sourceRows?'<div class="sl-source-preview-list">'+sourceRows+'</div>':'')+'<div class="sl-sub">*Peer-branch source total respects active reservations and the source branch reorder threshold. These are advisory figures; approval and a posted warehouse pick are still required.</div></div>';
+   }else{sourceHtml='<div class="sl-notice sl-notice-warn"><b>Source availability not verified.</b> The branch balance is shown, but Central Warehouse / peer-branch sourcing could not be confirmed. Refresh before using source availability.</div>';}
+  }catch(sourceError){if(!line.isConnected||Number(line.dataset.stockPreviewSeq)!==seq)return;sourceHtml='<div class="sl-notice sl-notice-warn"><b>Source availability not verified.</b> '+esc(sourceError.message||'The source preview service is unavailable.')+' The branch balance is shown separately.</div>';}
+  if(!line.isConnected||Number(line.dataset.stockPreviewSeq)!==seq)return;
+  out.innerHTML='<div class="sl-notice sl-notice-soft"><div class="sl-block-head"><b>Live branch stock · '+esc(sku)+'</b><span class="sl-pill ok">LIVE BALANCE</span></div><div class="sl-statline"><div class="sl-stat"><b>'+esc(physical)+'</b><span>Posted on-hand</span></div><div class="sl-stat"><b>'+esc(reserved)+'</b><span>Reserved</span></div><div class="sl-stat"><b>'+esc(available)+'</b><span>Available now</span></div><div class="sl-stat"><b>'+esc(quantity)+'</b><span>Request qty</span></div><div class="sl-stat"><b>'+esc(shortfall)+'</b><span>Branch gap</span></div></div>'+shortage+'<div class="sl-sub">Available = posted on-hand minus active reservations. This preview is read-only and refreshes when SKU, quantity or branch changes.</div></div>'+sourceHtml;
+ }catch(e){if(!line.isConnected||Number(line.dataset.stockPreviewSeq)!==seq)return;out.innerHTML='<div class="sl-notice sl-danger-block"><b>Live branch stock could not be verified.</b> '+esc(e.message||'The stock service is unavailable.')+' Do not rely on stale stock figures; refresh before submitting the request.</div>';}
+}
+function refreshAllReqStockPreviews(){document.querySelectorAll('#v16ReqItems .sl-req-line').forEach(line=>refreshReqStockPreview(line))}
+function addReqItemV16(){
+ const box=document.getElementById('v16ReqItems');if(!box)return;
+ const d=document.createElement('div');d.className='sl-form sl-req-line';
+ d.innerHTML='<div class="sl-field"><label>SKU</label>'+skuPickerField('reqsku[]','',{label:'Requested SKU'})+'</div><div class="sl-field"><label>Quantity</label><input name="reqqty[]" type="number" min="1" step="1" value="1" required></div><div class="sl-field full sl-req-live-rule"><div data-req-stock-preview><div class="sl-notice sl-notice-soft">Select a Product Master SKU to view live stock and sources.</div></div></div><button type="button" class="sl-btn sl-btn-sm" data-remove-req-line>Remove</button>';
+ box.appendChild(d);bindSkuPickers();
+ const sku=d.querySelector('[name="reqsku[]"]');const qty=d.querySelector('[name="reqqty[]"]');
+ if(sku)sku.addEventListener('change',()=>refreshReqStockPreview(d));
+ if(qty)qty.addEventListener('input',()=>refreshReqStockPreview(d));
+ d.querySelector('[data-remove-req-line]').onclick=()=>d.remove();
+ refreshReqStockPreview(d);
+}
 function dailyInventoryPage(){
     const locs=authorizedLocations().filter(l=>['Branch','Warehouse'].includes(l.location_type));
     const allowMulti=state.boot.user.can_all||locs.length>1;
