@@ -38,7 +38,7 @@ $ok(
 );
 $ok( ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ! ( $manifest['schema_contract']['new_business_table'] ?? true ), '49-table business schema contract remains exact; no business table added' );
 $ok( str_contains( $health, 'Stockland_Integrity::scan()' ) && str_contains( $health, 'supplemental_integrity_scan' ), 'explicit deep health invokes the read-only supplemental integrity scanner' );
-$ok( str_contains( $health, "&& \$checks['supplemental_integrity_scan']" ), 'deep live-ready certification requires supplemental ledger/procurement integrity to pass' );
+$ok( str_contains( $health, "&& \$checks['supplemental_integrity_scan']" ), 'deep live-ready state requires supplemental ledger/procurement integrity to pass' );
 $ok( str_contains( $integrity, 'supplier_invoice_receipt_grni_reconciliation' ) && str_contains( $integrity, 'posted_supplier_invoice_grni_ap_gl_mismatch' ) && str_contains( $integrity, 'supplier_payment_allocation_total_mismatch' ), 'deep scanner checks GRNI, supplier AP journal values and PLEDGER allocations' );
 $ok( str_contains( $accounting_compact, "\$status='PENDING'" ) && str_contains( $accounting, 'BRANCH_EXPENSE_SUBMIT' ) && str_contains( $accounting, 'can_approve_expenses' ), 'branch expenses use pending submission and Owner decision flow' );
 $ok( str_contains( $accounting, 'separately Owner-approved Central Warehouse PO' ) && str_contains( $accounting_compact, "'account_code'=>'2010'" ) && str_contains( $accounting_compact, "'account_code'=>'2000'" ) && str_contains( $accounting_compact, "\$invoice['total_amount']" ), 'supplier invoice approval clears receipt GRNI to AP without a second VAT debit' );

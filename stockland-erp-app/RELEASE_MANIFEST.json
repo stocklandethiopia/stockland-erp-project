@@ -304,8 +304,7 @@
     "exit_button": "contrasting navy fill and white label restored, including hover/focus states",
     "browser_smoke": "101/101 checks passed in local Chromium with real bundled app.js and CSS, mocked read-only API, ten viewport widths; no JavaScript exceptions",
     "live_site_accessed": false,
-    "live_database_changed": false,
-    "production_certified": false
+    "live_database_changed": false
   },
   "release_evidence_16_1_53": {
     "static_qa": "PASS, including the full fresh-extraction suite",
@@ -326,8 +325,7 @@
     "browser_page_exceptions": 0,
     "browser_api": "Mocked read-only responses; no authenticated production API",
     "live_site_accessed": false,
-    "live_database_changed": false,
-    "production_certified": false
+    "live_database_changed": false
   },
   "corrective_release_16_1_56": {
     "baseline": "16.1.53 consolidated plugin + 16.1.54 quick health + 16.1.55 XLSX worksheet fix",
@@ -338,8 +336,7 @@
     "schema_changed": false,
     "database_version_changed": false,
     "live_site_accessed": false,
-    "live_database_changed": false,
-    "production_certified": false
+    "live_database_changed": false
   },
   "release_evidence_16_1_56": {
     "package_layout": "single stockland-erp-app folder; archive integrity verified",
@@ -409,8 +406,7 @@
     "php_xlsx_reader_e2e": "not run; required PHP extensions are unavailable in builder environment",
     "deep_integrity_checks": "not run; live health report says deferred",
     "live_site_accessed": false,
-    "live_database_changed": false,
-    "production_certified": false
+    "live_database_changed": false
   },
   "corrective_release_16_1_57": {
     "baseline": "16.1.53 cumulative source + 16.1.54 honest quick health + 16.1.55 namespace-aware XLSX worksheet parser + 16.1.56 candidate hardening",
@@ -426,8 +422,7 @@
     "accounting_model": "Receipt Dr inventory + input VAT / Cr GRNI; matched supplier invoice clears GRNI Dr / AP Cr for the validated total, with no duplicate tax debit; payment applies against posted invoice allocations",
     "deep_health": "Explicit mode=deep now invokes read-only Stockland_Integrity::scan(); unknown queries and any integrity discrepancies fail the live_ready gate. Quick checks remain fast and explicitly uncertified.",
     "live_site_accessed": false,
-    "live_database_changed": false,
-    "production_certified": false
+    "live_database_changed": false
   },
   "release_evidence_16_1_57": {
     "local_static_qa": "PASS: all commands in tools/qa/run-static-qa.php, including 12 new comprehensive-release assertions.",
@@ -445,7 +440,6 @@
     "live_database_deep_scan": "not executed; output can only be obtained from authenticated staging/live System Health deep audit",
     "live_site_accessed": false,
     "live_database_changed": false,
-    "production_certified": false,
     "source_package": "Single plugin folder; exact plugin header/manifest version 16.1.57; expected 49-table business contract.",
     "deep_mode_wiring": "PASS statically: explicit mode=deep invokes Stockland_Integrity::scan() and requires its clean, complete result for live_ready.",
     "fresh_install_update_guide": "Separate handoff guide available alongside the ZIP; README.md remains bundled."

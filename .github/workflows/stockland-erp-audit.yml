@@ -373,11 +373,11 @@ jobs:
           corrective = manifest.setdefault("corrective_release_16_1_65", {})
           corrective["source_gate"] = source_gate_text
           corrective["source_gate_evidence"] = evidence
-          # Remove legacy manually-authored binary certification labels from old manifests.
+          # Binary release-certification flags are not CI evidence; strip both legacy names recursively.
           def remove_legacy_certification_flags(value):
               if isinstance(value, dict):
                   for key in list(value.keys()):
-                      if key.startswith("live_" + "certification"):
+                      if key in ("live_certification", "production_certified"):
                           value.pop(key, None)
                   for child in value.values():
                       remove_legacy_certification_flags(child)
