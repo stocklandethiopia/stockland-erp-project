@@ -170,7 +170,7 @@ final class Stockland_Payroll_Statutory {
 		// employee's mandatory pension contribution. Employer pension is not
 		// deducted from employee earnings. Clamp only the tax base at zero;
 		// gross pay and deduction validation remain independent.
-		$taxable_gross = Stockland_Money::add( $base, $taxable_allow );
+		$taxable_gross  = Stockland_Money::add( $base, $taxable_allow );
 		$taxable_income = Stockland_Money::subtract( $taxable_gross, $employee_pension );
 		if ( Stockland_Money::minor( $taxable_income ) < 0 ) {
 			$taxable_income = '0.00';
