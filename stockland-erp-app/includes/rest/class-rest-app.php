@@ -2477,13 +2477,13 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( '' !== (string) $wpdb->last_error ) {
 			return new WP_Error( 'dashboard_query_failed', 'The posted sales trend could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
 		}
-		$trend_map  = array();
+		$trend_map = array();
 		foreach ( (array) $trend_rows as $row ) {
 			$trend_map[ (string) $row['sale_date'] ] = (float) $row['sales'];
 		}
 		$trend = array();
 		for ( $index = 0; $index < 7; $index++ ) {
-			$day = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
+			$day     = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
 			$trend[] = array(
 				'date'  => $day,
 				'sales' => (float) ( $trend_map[ $day ] ?? 0 ),
