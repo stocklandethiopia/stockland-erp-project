@@ -42,6 +42,8 @@ $guards = file_get_contents( $root . '/assets/css/06-operational-guards.css' );
 $ok( str_contains( $guards, '16.1.66 cumulative compact UX pass' ) && str_contains( $guards, "#stockland-app .sl-card{\n  min-height:96px;" ) && str_contains( $guards, 'min-height:48px;font-size:16px' ), 'compact dashboard cards retain mobile-friendly form touch targets' );
 $ok( str_contains( $guards, '#stockland-app .sl-notification-card strong' ) && str_contains( $guards, '#stockland-app .sl-notification-card small{display:block;margin-top:5px' ) && str_contains( $guards, '#stockland-app .sl-notification-actions .sl-btn' ), 'notifications have readable message metadata and usable action controls' );
 $ok( str_contains( $guards, 'radial-gradient' ) && str_contains( $guards, 'Replace decorative illustration files with lightweight CSS curves' ) && str_contains( $guards, '@media (prefers-reduced-motion:reduce)' ), 'premium header and menu treatment is lightweight and respects reduced-motion preference' );
+$accounting = file_get_contents( $root . '/includes/rest/class-rest-accounting.php' );
+$ok( str_contains( $accounting, 'Self-approval is prohibited.' ) && str_contains( $accounting, "if ( (int) \\$row['created_by'] === \\$uid )" ), 'expense final-authority contract rejects creator self-approval before location routing' );
 if ( $fail ) {
 	fwrite( STDERR, 'Operational UI contracts FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
