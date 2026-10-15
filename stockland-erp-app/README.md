@@ -2,9 +2,17 @@
 
 **Stockland ERP** is a role-based, responsive operations and finance platform for Stockland Ethiopia, supporting the central warehouse, branches, Product Master, retail operations, procurement, finance, reporting and payroll.
 
+## Cumulative workflow corrections in 16.1.77
+
+- Requisition creation requires a stable retry key; identical retries return the existing request and a reused key with different content returns a conflict.
+- Branch requisition drafts display live branch availability and read-only Central Warehouse/peer-branch sourcing. A failed source lookup is not presented as zero stock and does not mutate inventory.
+- Authorized Central Warehouse Managers and Warehouse Employees may pick an approved requisition directly without mandatory pickup scheduling. Stock availability, reservation, transfer status, workflow and audit are checked in the transaction before ledger dispatch.
+- The PAYE preview and server calculation deduct the employee pension before PAYE under the versioned Stockland rule; the ETB 30,000 regression expects pension 2,100, PAYE 7,715 and net 20,185. Historical posted payroll is not silently recalculated.
+- Owner-created corporate expenses remain pending and unposted rather than self-approving or creating an unreviewed GL journal.
+
 ## Included capabilities
 
-- Command Center and role-aware navigation with a responsive desktop, tablet and mobile interface.
+- Data-backed role-scoped dashboard with posted-sales trend, category mix, branch performance, recent transactions and explicit empty/error states; responsive desktop, tablet and mobile shell with persistent operational sidebar.
 - Product Master and live SKU lookup for stockable products and variants.
 - Retail POS and branch-scoped Daily POS Import from external POS Excel workbooks.
 - Inventory, requisitions, transfers, Central Warehouse receiving, returns, stock count and reconciliation.
@@ -59,3 +67,6 @@ The interface uses the local Bootstrap 5.3.8 stylesheet and a compact six-module
 ## Acceptance boundary
 
 The automated source/package gate validates code quality and package integrity; it does not by itself establish production acceptance. Target-host acceptance is currently **PENDING** until the exact packaged SHA-256 is verified on the intended WordPress/PHP/MariaDB environment, the 49-table schema and existing data are reconciled, role-separated requisition/picking, procurement, finance, imports and payroll flows pass, and backup restoration plus rollback are demonstrated. The plugin does not include demonstration sales, stock movements, payroll entries or orders.
+
+
+**Release acceptance:** source/package CI is separate from authenticated target-host acceptance. Do not infer live database reconciliation, backup restoration, rollback or payroll/legal approval from CI alone. The package remains blocked from production certification until the master release acceptance record contains evidence for those gates.
