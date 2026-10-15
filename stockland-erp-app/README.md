@@ -1,4 +1,4 @@
-# Stockland Ethiopia ERP 16.1.67
+# Stockland Ethiopia ERP 16.1.77
 
 **Stockland ERP** is a role-based, responsive operations and finance platform for Stockland Ethiopia, supporting the central warehouse, branches, Product Master, retail operations, procurement, finance, reporting and payroll.
 
@@ -40,7 +40,7 @@ The ERP enforces the authority model on the server as well as in the interface. 
 ## Install or update in WordPress
 
 1. Back up the current plugin files and WordPress database before an in-place update.
-2. In WordPress, open **Plugins → Add New Plugin → Upload Plugin** and select the Stockland ERP 16.1.67 installer ZIP.
+2. In WordPress, open **Plugins → Add New Plugin → Upload Plugin** and select the Stockland ERP 16.1.77 installer ZIP.
 3. For an in-place update, choose the option to replace the existing Stockland ERP plugin when WordPress offers it. For a fresh installation, install and activate the plugin.
 4. Open the Stockland ERP front end. Use the Owner's Users & Organization controls to assign each active ERP role and its branch/location.
 5. Use **Finance & Procurement** from the ERP navigation for purchasing, expenses, AP/AR, payments and financial reporting.
