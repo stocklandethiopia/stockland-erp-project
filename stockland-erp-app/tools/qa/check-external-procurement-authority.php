@@ -27,7 +27,7 @@ $manifest  = json_decode( $r( 'RELEASE_MANIFEST.json' ), true );
 $a_compact    = preg_replace( '/\\s+/', '', $a );
 $auth_compact  = preg_replace( '/\\s+/', '', $auth );
 $roles_compact = preg_replace( '/\\s+/', '', $roles );
-$ok( ( $manifest['release'] ?? '' ) === '16.1.66', 'release manifest marks 16.1.66' );
+$ok( ( $manifest['release'] ?? '' ) === '16.1.67', 'release manifest marks 16.1.67' );
 $plugin = $r( 'stockland-inventory.php' );
 $ok( str_contains( $plugin, "STOCKLAND_ROLE_CAPS_VERSION', '16.1.66-finance-procurement-authority-v1'" ) && str_contains( $plugin, "get_option( 'stockland_roles_cap_version', '' ) !== STOCKLAND_ROLE_CAPS_VERSION" ), 'in-place release re-syncs role capabilities even when the plugin version is unchanged' );
 $ok( str_contains( $roles, "SELECT wp_user_id, role, is_active FROM %i" ) && str_contains( $roles, "'owner' === (string) ( \$profile['role'] ?? '' )" ) && str_contains( $roles, "\$wp_user->add_cap( 'stockland_approve_purchase_orders' )" ) && str_contains( $roles, "\$wp_user->remove_cap( 'stockland_approve_purchase_orders' )" ), 'only active ERP Owner profiles receive the direct PO approval capability when needed' );
