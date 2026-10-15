@@ -2483,7 +2483,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$trend = array();
 		for ( $index = 0; $index < 7; $index++ ) {
-			$day = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
+			$day     = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
 			$trend[] = array(
 				'date'  => $day,
 				'sales' => (float) ( $trend_map[ $day ] ?? 0 ),
@@ -2519,8 +2519,8 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$recent_sql   = "SELECT s.sale_id,s.sale_date,s.sales_total,s.posting_status,s.quantity_sold,l.location_name
 			FROM %i s LEFT JOIN %i l ON l.id=s.branch_location_id
 			WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s";
-		$recent_sql .= $this->append_scope_filter( 's.branch_location_id', $recent_args, $scope );
-		$recent_sql .= ' ORDER BY s.sale_date DESC,s.created_at DESC LIMIT 8';
+		$recent_sql  .= $this->append_scope_filter( 's.branch_location_id', $recent_args, $scope );
+		$recent_sql  .= ' ORDER BY s.sale_date DESC,s.created_at DESC LIMIT 8';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
 		$recent = Stockland_DB::read_results( $wpdb->prepare( $recent_sql, $recent_args ), ARRAY_A );
 		if ( '' !== (string) $wpdb->last_error ) {
@@ -2529,34 +2529,45 @@ class Stockland_REST_App extends Stockland_REST_Base {
 
 		return rest_ensure_response(
 			array(
-				'trend'       => $trend,
-				'categories'  => array_map(
+				'trend'        => $trend,
+				'categories'   => array_map(
 					static function ( $row ) {
-						return array( 'category' => (string) $row['category'], 'sales' => (float) $row['sales'] );
+						return array(
+							'category' => (string) $row['category'],
+							'sales'    => (float) $row['sales'],
+						);
 					},
 					(array) $categories
 				),
-				'branches'    => array_map(
+				'branches'     => array_map(
 					static function ( $row ) {
-						return array( 'location_id' => (int) $row['location_id'], 'location_name' => (string) $row['location_name'], 'sales' => (float) $row['sales'] );
+						return array(
+							'location_id'   => (int) $row['location_id'],
+							'location_name' => (string) $row['location_name'],
+							'sales'         => (float) $row['sales'],
+						);
 					},
 					(array) $branches
 				),
 				'recent_sales' => array_map(
 					static function ( $row ) {
 						return array(
-							'sale_id'       => (string) $row['sale_id'],
-							'sale_date'     => (string) $row['sale_date'],
-						'sales_total'   => (float) $row['sales_total'],
-						'posting_status' => (string) $row['posting_status'],
-						'quantity_sold' => (float) $row['quantity_sold'],
-						'location_name' => (string) ( $row['location_name'] ?? '' ),
-					);
+							'sale_id'        => (string) $row['sale_id'],
+							'sale_date'      => (string) $row['sale_date'],
+							'sales_total'    => (float) $row['sales_total'],
+							'posting_status' => (string) $row['posting_status'],
+							'quantity_sold'  => (float) $row['quantity_sold'],
+							'location_name'  => (string) ( $row['location_name'] ?? '' ),
+						);
 					},
 					(array) $recent
 				),
-				'range'       => array( 'from' => $trend_start, 'to' => $today, 'month_from' => $month_start ),
-				'source'      => 'CLOSED_RETAIL_SALES_ONLY',
+				'range'        => array(
+					'from'       => $trend_start,
+					'to'         => $today,
+					'month_from' => $month_start,
+				),
+				'source'       => 'CLOSED_RETAIL_SALES_ONLY',
 			)
 		);
 	}
