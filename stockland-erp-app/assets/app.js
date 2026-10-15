@@ -1,4 +1,4 @@
-(function(){'use strict';const A=window.StocklandApp;const root=document.getElementById('stockland-app');let state={boot:null,view:'dashboard',q:'',inventoryQuery:'',productQuery:'',catalog:null,catalogQuery:null,catalogSearchPending:false,catalogLoading:false,catalogRequestId:0,reqDetails:{},users:[],report:null,finance:null,financeLoaded:false,unreadNotifications:0,setupAdvancing:false,skuPickerSeq:0,calendarMonth:null,calendarData:null,posSales:[]};
+(function(){'use strict';const A=window.StocklandApp;const root=document.getElementById('stockland-app');let state={boot:null,view:'dashboard',q:'',inventoryQuery:'',productQuery:'',catalog:null,catalogQuery:null,catalogSearchPending:false,catalogLoading:false,catalogRequestId:0,reqDetails:{},users:[],report:null,finance:null,financeLoaded:false,unreadNotifications:0,setupAdvancing:false,skuPickerSeq:0,calendarMonth:null,calendarData:null,posSales:[],dashboardInsights:null,dashboardInsightsLoading:false,dashboardInsightsRequestId:0};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const uiIcon=name=>{const p={home:'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9Z',cash:'M4 7h16v10H4zM8 12h8M9 9h.01M15 15h.01',chart:'M5 19V10m7 9V5m7 14v-7',box:'M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4 7.5l8 4.5 8-4.5M12 12v9',arrow:'M4 12h16m-7-7 7 7-7 7',list:'M6 6h13M6 12h13M6 18h13M3 6h.01M3 12h.01M3 18h.01',warehouse:'M3 21V8l9-5 9 5v16M6 21v-9h12v9M9 21v-5h6v5',transfer:'M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4',return:'M9 6 4 11l5 5M4 11h10a5 5 0 0 1 5 5v1',close:'M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0Zm8-4v5l3 2',report:'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5',product:'M4 6h16M7 4v4m10-4v4M6 10h12v10H6z',upload:'M12 16V4m0 0-4 4m4-4 4 4M5 20h14',users:'M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm5 1a3 3 0 1 0 0-6',settings:'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8-3.5-2 1.2.2 2.3-2.1 2.1-2.3-.2-1.2 2H9.4l-1.2-2-2.3.2-2.1-2.1.2-2.3-2-1.2v-3l2-1.2-.2-2.3L7 3.4l2.3.2 1.2-2h3l1.2 2 2.3-.2 2.1 2.1-.2 2.3 2 1.2v3Z',audit:'M7 3h10v4H7zM6 7h12a2 2 0 0 1 2 2v9H4V9a2 2 0 0 1 2-2Zm3 5h6M9 16h6',calendar:'M5 4h14v16H5zM8 2v4m8-4v4M5 9h14M8 13h3m2 0h3m-8 4h3m2 0h3',health:'M12 20s-7-4.2-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.8-7 10-7 10',bell:'M4.5 6A2.5 2.5 0 0 1 7 3.5h10A2.5 2.5 0 0 1 19.5 6v7A2.5 2.5 0 0 1 17 15.5h-6L6 19v-3.5H7A2.5 2.5 0 0 1 4.5 13Z',profile:'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'};return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(p[name]||p.list)+'"/></svg>'};
 const money=n=>new Intl.NumberFormat('en-ET',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0))+' ETB';
@@ -286,16 +286,112 @@ if(force||(viewAtStart==='finance'&&state.view==='finance'))render();
 }catch(e){toast(e.message,true)}
 }
 function dashboard(){
-const d=state.boot.dashboard,b=state.boot.brand;const locations=(b.locations||[]).map(x=>'<div class="sl-location"><div class="sl-location-mark">'+esc((x.name||'S').slice(0,1).toUpperCase())+'</div><div><b>'+esc(x.name)+'</b><span>'+esc(x.detail)+'</span></div></div>').join('');
-const scope=state.boot.user.can_cost?'Management view':'Operational view';const c=state.boot.user.capabilities||{};
-const canDailyPos=['branch_manager','sales_employee'].includes(state.boot.user.role) && !!c.daily_import;
-const quick=[['daily','Daily POS Import','Validate today’s external POS workbook',canDailyPos,'upload'],['requests','Requisition','Seek Stock with live Central + peer-branch sourcing',!!c.request,'list'],['inventory','Inventory','See physical, reserved and available stock',true,'box'],['warehouse','Warehouse','Reserve, pick and receive approved work',!!c.warehouse,'warehouse'],['products','Product Master','Create or correct live product variants',!!c.products,'product']].filter(x=>x[3]);
-const alerts=Number(d.low_stock||0)>0?'<div class="sl-pulse-card danger"><span class="sl-pulse-icon">!</span><div><b>'+esc(d.low_stock)+' low-stock alerts</b><small>Open Reorder Alerts for immediate action.</small></div><button class="sl-btn sl-btn-sm" data-view="reorder">OPEN</button></div>':'<div class="sl-pulse-card ok"><span class="sl-pulse-icon">✓</span><div><b>No low-stock alerts in this snapshot</b><small>Continue with normal workflow review.</small></div></div>';
-return '<div class="sl-hero sl-hero-modern"><div><div class="sl-hero-kicker">'+scope.toUpperCase()+' <span>•</span> LIVE ERP</div><h2>Command Center</h2><p>One operating surface for daily work, stock control, approvals, warehouse execution and business evidence.</p><div class="sl-hero-actions"><button class="sl-btn sl-btn-light" id="refresh">Refresh data</button><button class="sl-btn sl-btn-ghost-light" id="dashboardSopBtn">View SOP guide</button></div></div><div class="sl-hero-side-modern"><span class="sl-hero-date">'+esc(new Intl.DateTimeFormat('en-ET',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}).format(new Date()))+'</span><div class="sl-command-hint"><kbd>⌘</kbd><kbd>K</kbd><span>Jump to function</span></div></div></div>'+ 
-'<div class="sl-grid sl-kpi-grid sl-kpi-modern">'+card('Today’s Sales',money(d.today_sales),'ERP POS + external POS posted today')+(state.boot.user.can_cost?card('Month Sales',money(d.month_sales),'Closed transactions')+card('Year Sales',money(d.year_sales),'Closed transactions')+card('Gross Profit',money(d.gross_profit),'Retail + wholesale')+card('Inventory Value',money(d.inventory_value),'Management view'):card('Month Sales','Restricted','Management only')+card('Year Sales','Restricted','Management only')+card('Gross Profit','Restricted','Management only')+card('Inventory Value','Restricted','Management only'))+card('Low Stock',d.low_stock,'Reorder alerts')+card('Active SKUs',((state.boot.products||[]).length),'Sellable variants')+'</div>'+ 
-'<div class="sl-modern-grid sl-modern-grid-main"><div class="sl-block sl-quick-actions"><div class="sl-block-head"><div><div class="sl-eyebrow">FAST OPERATIONS</div><h3>Open the next task</h3></div><small>Role-aware shortcuts</small></div><div class="sl-quick-grid">'+quick.map(x=>'<button class="sl-quick-action" data-view="'+x[0]+'"><span class="sl-quick-icon">'+uiIcon(x[4])+'</span><span><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span><span class="sl-control-arrow">›</span></button>').join('')+'</div></div><div class="sl-block sl-live-pulse"><div class="sl-block-head"><div><div class="sl-eyebrow">LIVE CONTROL PULSE</div><h3>What needs attention</h3></div><span class="sl-live-marker"><i></i>Live</span></div><div class="sl-pulse-stack">'+alerts+'<div class="sl-pulse-card"><span class="sl-pulse-icon">↗</span><div><b>'+esc(d.pending_requests||0)+' pending requisitions</b><small>Waiting for the next SOP-controlled stage.</small></div><button class="sl-btn sl-btn-sm" data-view="requests">VIEW</button></div><div class="sl-pulse-card"><span class="sl-pulse-icon">▣</span><div><b>'+esc(d.pending_branch_receipts||0)+' branch receipts pending</b><small>Receiving stays separate from warehouse dispatch.</small></div><button class="sl-btn sl-btn-sm" data-view="requests">VIEW</button></div></div></div></div>'+ 
-'<div class="sl-modern-grid sl-modern-grid-lower"><div class="sl-block"><div class="sl-block-head"><div><div class="sl-eyebrow">ACTIVITY</div><h3>Live workflow activity</h3></div><small>Latest ERP events</small></div><div id="slActivityFeed"><div class="sl-skeleton-feed"><div></div><div></div><div></div><div></div></div></div></div><div class="sl-block"><div class="sl-block-head"><div><div class="sl-eyebrow">NETWORK</div><h3>Stockland locations</h3></div><small>Authorized operational network</small></div><div class="sl-block-body"><div class="sl-location-grid sl-location-grid-modern">'+locations+'</div></div></div></div>'+ 
-(state.boot.user.role==='owner'||state.boot.user.role==='management'?'<div class="sl-panel sl-control-center sl-control-center-modern"><div class="sl-block-head"><div><div class="sl-eyebrow">APPROVAL & SUPPLY CENTER</div><h3>Management cockpit</h3></div><button class="sl-btn" data-view="requests">Open workflow</button></div><div class="sl-control-grid"><button class="sl-control-tile" data-view="requests"><span class="sl-control-icon">'+uiIcon('list')+'</span><span><b>'+esc(d.approval_queue||0)+'</b><small>Requests awaiting approval</small></span><span class="sl-control-arrow">›</span></button><button class="sl-control-tile" data-view="warehouse"><span class="sl-control-icon">'+uiIcon('warehouse')+'</span><span><b>'+esc(d.warehouse_queue||0)+'</b><small>Approved warehouse work</small></span><span class="sl-control-arrow">›</span></button><button class="sl-control-tile" id="openHeaderNotifications"><span class="sl-control-icon">'+uiIcon('bell')+'</span><span><b id="ownerUnreadCount">'+esc(state.unreadNotifications||0)+'</b><small>Unread workflow alerts</small></span><span class="sl-control-arrow">›</span></button></div></div>':'');
+const d=state.boot.dashboard||{},b=state.boot.brand||{},u=state.boot.user||{},c=u.capabilities||{};
+const locations=Array.isArray(state.boot.locations)?state.boot.locations:[];
+const scope= u.can_cost ? 'MANAGEMENT VIEW' : 'OPERATIONAL VIEW';
+const canDailyPos=['branch_manager','sales_employee'].includes(u.role)&&!!c.daily_import;
+const actions=[
+ ['pos','New Sale','Create a posted retail sale',!!c.sale,'cash'],
+ ['products','Product Master','Find or maintain catalog SKUs',!!c.products,'product'],
+ ['daily','Daily POS Import','Upload a branch POS workbook',canDailyPos,'upload'],
+ ['requests','Requisitions','Request and review stock',!!(c.request||c.review_request),'list'],
+ ['warehouse','Central Warehouse','Execute approved warehouse work',!!(c.warehouse||c.receive_warehouse),'warehouse'],
+ ['finance','Finance & Procurement','Review finance and purchase workflows',!!c.finance_view,'chart'],
+ ['reports','Reports & Analytics','View scoped operational reports',!!(c.reports||u.can_cost),'report'],
+ ['inventory','Inventory','Review physical and available stock',true,'box']
+].filter(x=>x[3]);
+const today=new Intl.DateTimeFormat('en-ET',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}).format(new Date());
+const insights=state.dashboardInsights||{};
+const branchCount=locations.filter(x=>String(x.location_type||'').toLowerCase()==='branch').length;
+const dashboardStatus=state.dashboardInsightsLoading?'Refreshing analytics':(insights.range?'Updated from posted ERP sales':'Live data');
+const alerts=Number(d.low_stock||0)>0
+ ? '<div class="sl-pulse-card danger"><span class="sl-pulse-icon">!</span><div><b>'+esc(d.low_stock)+' low-stock alerts</b><small>Reorder status comes from physical stock vs. configured thresholds.</small></div><button class="sl-btn sl-btn-sm" data-view="reorder">OPEN</button></div>'
+ : '<div class="sl-pulse-card ok"><span class="sl-pulse-icon">✓</span><div><b>No low-stock alerts in this snapshot</b><small>Current result from the authorized inventory scope.</small></div></div>';
+return '<div class="sl-dashboard-shell"><div class="sl-dashboard-main">'+
+ '<section class="sl-dashboard-hero"><div class="sl-dashboard-hero-copy"><div class="sl-hero-kicker">STOCKLAND ETHIOPIA ERP <span>•</span> '+scope+'</div><h2>Smarter Operations.<br>Better Business.</h2><p>Real-time inventory, controlled sales, warehouse execution and business evidence in one place.</p><div class="sl-hero-actions"><button class="sl-btn sl-btn-light" id="refresh" type="button">Refresh data</button><button class="sl-btn sl-btn-ghost-light" id="dashboardSopBtn" type="button">View SOP guide</button></div></div><div class="sl-dashboard-hero-meta"><span>'+esc(today)+'</span><small>Authorized ERP data</small></div></section>'+
+ '<div class="sl-grid sl-kpi-grid sl-dashboard-kpis">'+
+ card('Retail Sales Today',money(d.today_sales),'Closed retail transactions')+
+ card('Physical Stock Units',Number(d.stock_total||0).toLocaleString('en-ET',{maximumFractionDigits:2}),'Append-only stock ledger')+
+ card('Low Stock Items',String(d.low_stock||0),'Configured reorder thresholds')+
+ card('Branches in Scope',String(branchCount),'Role-authorized locations')+
+ '</div>'+
+ '<div class="sl-dashboard-chart-grid">'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-trend"><div class="sl-block-head"><div><div class="sl-eyebrow">SALES OVERVIEW</div><h3>Posted retail sales</h3></div><small>Last 7 business dates</small></div><div id="slDashboardSalesTrend" class="sl-dashboard-chart-body"><div class="sl-empty">Loading posted sales trend…</div></div></section>'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-category"><div class="sl-block-head"><div><div class="sl-eyebrow">PRODUCT MIX</div><h3>Sales by category</h3></div><small>Current month</small></div><div id="slDashboardCategories" class="sl-dashboard-chart-body"><div class="sl-empty">Loading category totals…</div></div></section>'+
+ '</div>'+
+ '<div class="sl-dashboard-lower-grid">'+
+ '<section class="sl-block sl-dashboard-card"><div class="sl-block-head"><div><div class="sl-eyebrow">LOCATION PERFORMANCE</div><h3>Branch performance</h3></div><small>Current month • scoped</small></div><div id="slDashboardBranches" class="sl-dashboard-list"><div class="sl-empty">Loading branch totals…</div></div></section>'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-activity"><div class="sl-block-head"><div><div class="sl-eyebrow">WORKFLOW EVENTS</div><h3>Recent activity</h3></div><small>Latest recorded events</small></div><div id="slActivityFeed"><div class="sl-skeleton-feed"><div></div><div></div><div></div><div></div></div></div></section>'+
+ '</div>'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-transactions"><div class="sl-block-head"><div><div class="sl-eyebrow">POSTED RETAIL TRANSACTIONS</div><h3>Recent transactions</h3></div><div class="sl-dashboard-head-actions"><small id="slDashboardInsightsStatus">'+esc(dashboardStatus)+'</small><button type="button" class="sl-btn sl-btn-sm" data-view="reports">View reports</button></div></div><div id="slDashboardTransactions"><div class="sl-empty">Loading recent posted transactions…</div></div></section>'+
+ '<footer class="sl-dashboard-footer"><div class="sl-dashboard-footer-mark">'+uiIcon('chart')+'</div><div><b>Built for growth</b><span>Multi-branch control, role-based authority and live operational records.</span></div><div class="sl-dashboard-footer-feature"><b>Multi-Branch</b><span>Scoped operations</span></div><div class="sl-dashboard-footer-feature"><b>Secure</b><span>Permission-controlled data</span></div><div class="sl-dashboard-footer-feature"><b>Traceable</b><span>Posted activity only</span></div><button class="sl-btn sl-btn-light" type="button" data-view="operate">Go to operations</button></footer>'+
+ '</div><aside class="sl-dashboard-side">'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-quick"><div class="sl-block-head"><div><div class="sl-eyebrow">QUICK ACTIONS</div><h3>Open a task</h3></div><small>Role-aware</small></div><div class="sl-dashboard-quick-grid">'+actions.map(x=>'<button class="sl-dashboard-action" type="button" data-view="'+x[0]+'"><span class="sl-dashboard-action-icon">'+uiIcon(x[4])+'</span><span><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span><span class="sl-control-arrow">›</span></button>').join('')+'</div></section>'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-pulse"><div class="sl-block-head"><div><div class="sl-eyebrow">OPERATIONAL PULSE</div><h3>Needs attention</h3></div><span class="sl-live-marker"><i></i>Live</span></div><div class="sl-pulse-stack">'+alerts+
+ '<div class="sl-pulse-card"><span class="sl-pulse-icon">↗</span><div><b>'+esc(d.pending_requests||0)+' pending requisitions</b><small>Continue the approved workflow stage.</small></div><button class="sl-btn sl-btn-sm" data-view="requests">VIEW</button></div>'+
+ '<div class="sl-pulse-card"><span class="sl-pulse-icon">▣</span><div><b>'+esc(d.pending_branch_receipts||0)+' branch receipts pending</b><small>Receipt quantities are recorded separately from picking.</small></div><button class="sl-btn sl-btn-sm" data-view="requests">VIEW</button></div></div></section>'+
+ '<section class="sl-block sl-dashboard-card sl-dashboard-locations"><div class="sl-block-head"><div><div class="sl-eyebrow">AUTHORIZED NETWORK</div><h3>Stockland locations</h3></div></div><div class="sl-dashboard-location-list">'+(Array.isArray(b.locations)?b.locations:[]).map(x=>'<div class="sl-location"><div class="sl-location-mark">'+esc((x.name||'S').slice(0,1).toUpperCase())+'</div><div><b>'+esc(x.name)+'</b><span>'+esc(x.detail||'Authorized location')+'</span></div></div>').join('')+'</div></section>'+
+ (u.role==='owner'||u.role==='management'?'<section class="sl-block sl-dashboard-card sl-dashboard-management"><div class="sl-block-head"><div><div class="sl-eyebrow">MANAGEMENT COCKPIT</div><h3>Approval & supply</h3></div></div><button class="sl-control-tile" data-view="requests"><span class="sl-control-icon">'+uiIcon('list')+'</span><span><b>'+esc(d.approval_queue||0)+'</b><small>Requests awaiting approval</small></span><span class="sl-control-arrow">›</span></button><button class="sl-control-tile" data-view="warehouse"><span class="sl-control-icon">'+uiIcon('warehouse')+'</span><span><b>'+esc(d.warehouse_queue||0)+'</b><small>Approved warehouse work</small></span><span class="sl-control-arrow">›</span></button><button class="sl-control-tile" id="openHeaderNotifications"><span class="sl-control-icon">'+uiIcon('bell')+'</span><span><b>'+esc(state.unreadNotifications||0)+'</b><small>Unread workflow alerts</small></span><span class="sl-control-arrow">›</span></button></section>':'')+
+ '</aside></div>';
+}
+function dashboardTrendHtml(payload){
+const rows=Array.isArray(payload?.trend)?payload.trend:[];
+if(!rows.length)return '<div class="sl-empty">No sales-trend data was returned for the authorized scope.</div>';
+const values=rows.map(x=>Math.max(0,Number(x.sales||0))),max=Math.max(1,...values),left=48,right=624,top=18,bottom=184;
+const x=i=>left+(rows.length<2?0:i*(right-left)/(rows.length-1));
+const y=v=>bottom-(v/max)*(bottom-top);
+const path=values.map((v,i)=>(i?'L':'M')+x(i).toFixed(2)+' '+y(v).toFixed(2)).join(' ');
+const area=path+' L '+right+' '+bottom+' L '+left+' '+bottom+' Z';
+const grid=[0,0.333,0.666,1].map(k=>{const yy=bottom-k*(bottom-top);const val=max*k;return '<line x1="'+left+'" y1="'+yy.toFixed(2)+'" x2="'+right+'" y2="'+yy.toFixed(2)+'" stroke="#e8eef6" stroke-width="1"/><text x="39" y="'+(yy+3).toFixed(2)+'" text-anchor="end" font-size="10" fill="#73839a">'+esc(new Intl.NumberFormat('en-ET',{notation:'compact',maximumFractionDigits:1}).format(val))+'</text>'}).join('');
+const points=values.map((v,i)=>'<circle cx="'+x(i).toFixed(2)+'" cy="'+y(v).toFixed(2)+'" r="3.5" fill="#2563eb" stroke="#fff" stroke-width="2"><title>'+esc(rows[i].date)+': '+esc(money(v))+'</title></circle>').join('');
+const labels=rows.map((r,i)=>{const dt=new Date(String(r.date||'')+'T12:00:00');const label=Number.isNaN(dt.getTime())?String(r.date||''):new Intl.DateTimeFormat('en-ET',{month:'short',day:'numeric'}).format(dt);return '<text x="'+x(i).toFixed(2)+'" y="211" text-anchor="middle" font-size="10" fill="#73839a">'+esc(label)+'</text>'}).join('');
+const total=values.reduce((a,v)=>a+v,0);
+return '<div class="sl-dashboard-chart-summary"><b>'+esc(money(total))+'</b><span>Total across returned dates</span></div><svg class="sl-dashboard-linechart" viewBox="0 0 650 228" role="img" aria-label="Posted retail sales for the last seven dates"><title>Posted retail sales by date</title><desc>Values are retrieved from closed retail sales in the current user's authorized location scope.</desc>'+grid+'<path d="'+area+'" fill="#eaf2ff"/><path d="'+path+'" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+points+labels+'</svg>';
+}
+function dashboardCategoryHtml(payload){
+const all=Array.isArray(payload?.categories)?payload.categories.map(x=>({category:String(x.category||'Uncategorized'),sales:Math.max(0,Number(x.sales||0))})).filter(x=>x.sales>0):[];
+const total=all.reduce((sum,x)=>sum+x.sales,0);
+if(!all.length||total<=0)return '<div class="sl-empty">No posted category sales this month. The chart will populate from actual posted transactions.</div>';
+const colors=['#2563eb','#10b981','#f59e0b','#8b5cf6','#64748b','#0ea5e9','#ef4444','#94a3b8'];
+let cursor=0;
+const stops=all.map((x,i)=>{const a=cursor;cursor+=x.sales/total*100;return colors[i%colors.length]+' '+a.toFixed(3)+'% '+cursor.toFixed(3)+'%'}).join(',');
+const legend=all.map((x,i)=>'<div class="sl-dashboard-category-row"><span class="sl-dashboard-legend-dot" style="--sl-category-color:'+colors[i%colors.length]+'"></span><span>'+esc(x.category)+'</span><b>'+Math.round(x.sales/total*100)+'%</b><small>'+esc(money(x.sales))+'</small></div>').join('');
+return '<div class="sl-dashboard-donut-wrap"><div class="sl-dashboard-donut" style="background:conic-gradient('+stops+')"><div><small>ETB</small><b>'+esc(new Intl.NumberFormat('en-ET',{notation:'compact',maximumFractionDigits:1}).format(total))+'</b></div></div><div class="sl-dashboard-category-legend">'+legend+'</div></div>';
+}
+function dashboardBranchesHtml(payload){
+const rows=Array.isArray(payload?.branches)?payload.branches:[];
+if(!rows.length)return '<div class="sl-empty">No active branches are available in this user's reporting scope.</div>';
+const maximum=Math.max(1,...rows.map(x=>Math.max(0,Number(x.sales||0))));
+return '<div class="sl-dashboard-performance-list">'+rows.map((x,i)=>{const amount=Math.max(0,Number(x.sales||0)),percent=amount/maximum*100;return '<div class="sl-dashboard-performance-row"><div class="sl-dashboard-performance-head"><span class="sl-dashboard-location-pin">'+uiIcon('home')+'</span><div><b>'+esc(x.location_name||'Authorized location')+'</b><small>'+esc(money(amount))+'</small></div><strong>'+Math.round(percent)+'%</strong></div><div class="sl-dashboard-performance-track"><i style="width:'+percent.toFixed(2)+'%"></i></div></div>'}).join('')+'</div>';
+}
+function dashboardTransactionsHtml(payload){
+const rows=Array.isArray(payload?.recent_sales)?payload.recent_sales:[];
+if(!rows.length)return '<div class="sl-empty">No posted retail transactions were found in the recent 30-day window.</div>';
+return '<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Date</th><th>Type</th><th>Document</th><th>Branch</th><th>Amount</th><th>Status</th></tr></thead><tbody>'+rows.map(x=>'<tr><td data-label="Date">'+esc(x.sale_date||'')+'</td><td data-label="Type"><span class="sl-dashboard-transaction-type">'+uiIcon('cash')+' Retail sale</span></td><td data-label="Document"><b>'+esc(x.sale_id||'')+'</b></td><td data-label="Branch">'+esc(x.location_name||'—')+'</td><td data-label="Amount"><b>'+esc(money(x.sales_total||0))+'</b></td><td data-label="Status"><span class="sl-pill ok">'+esc(x.posting_status||'CLOSED')+'</span></td></tr>').join('')+'</tbody></table></div>';
+}
+async function loadDashboardInsights(force=false){
+const host=document.getElementById('slDashboardSalesTrend');if(!host||state.view!=='dashboard'||!state.boot)return;
+if(state.dashboardInsightsLoading&&!force)return;
+const requestId=++state.dashboardInsightsRequestId;state.dashboardInsightsLoading=true;
+const status=document.getElementById('slDashboardInsightsStatus');if(status)status.textContent='Loading authorized data…';
+try{
+ const payload=await api('/app/dashboard/insights');
+ if(requestId!==state.dashboardInsightsRequestId||state.view!=='dashboard')return;
+ state.dashboardInsights=payload||{};
+ const target=(id,html)=>{const node=document.getElementById(id);if(node)node.innerHTML=html};
+ target('slDashboardSalesTrend',dashboardTrendHtml(state.dashboardInsights));
+ target('slDashboardCategories',dashboardCategoryHtml(state.dashboardInsights));
+ target('slDashboardBranches',dashboardBranchesHtml(state.dashboardInsights));
+ target('slDashboardTransactions',dashboardTransactionsHtml(state.dashboardInsights));
+ const st=document.getElementById('slDashboardInsightsStatus');if(st)st.textContent=payload?.range?'Live • '+String(payload.range.from||'')+' to '+String(payload.range.to||''):'Live insights';
+}catch(e){
+ if(requestId!==state.dashboardInsightsRequestId)return;
+ const msg=esc(e.message||'Dashboard analytics are unavailable.');
+ ['slDashboardSalesTrend','slDashboardCategories','slDashboardBranches','slDashboardTransactions'].forEach(id=>{const node=document.getElementById(id);if(node)node.innerHTML='<div class="sl-empty">'+msg+'</div>'});
+ const st=document.getElementById('slDashboardInsightsStatus');if(st)st.textContent='Analytics unavailable';
+}finally{
+ if(requestId===state.dashboardInsightsRequestId)state.dashboardInsightsLoading=false;
+}
 }
 
 /* 16.1.44 production runtime. Retail POS and external Daily POS reconciliation share server-side posting rules. */
@@ -508,7 +604,7 @@ if($('#reconTable'))loadRecon();
 if($('#printOpsReport'))$('#printOpsReport').onclick=()=>{if(!document.getElementById('reportResult')?.querySelector('.sl-panel')){toast('Generate a report first',true);return}window.print()};
 
 
-const sopBtn=document.getElementById('slSopBtn');if(sopBtn)sopBtn.onclick=openSopGuide;const themeBtn=document.getElementById('slThemeBtn');if(themeBtn)themeBtn.onclick=openThemePicker;const cmdBtn=document.getElementById('slCommandBtn');if(cmdBtn)cmdBtn.onclick=openCommandPalette;const ds=document.getElementById('dashboardSopBtn');if(ds)ds.onclick=openSopGuide;if(document.getElementById('slActivityFeed'))loadActivityFeed();if(document.getElementById('v16ReqForm')){}bindExtended();bindSkuPickers();
+const sopBtn=document.getElementById('slSopBtn');if(sopBtn)sopBtn.onclick=openSopGuide;const themeBtn=document.getElementById('slThemeBtn');if(themeBtn)themeBtn.onclick=openThemePicker;const cmdBtn=document.getElementById('slCommandBtn');if(cmdBtn)cmdBtn.onclick=openCommandPalette;const ds=document.getElementById('dashboardSopBtn');if(ds)ds.onclick=openSopGuide;if(document.getElementById('slActivityFeed'))loadActivityFeed();if(document.getElementById('slDashboardSalesTrend'))loadDashboardInsights();if(document.getElementById('v16ReqForm')){}bindExtended();bindSkuPickers();
 }
 function addFinanceLine(container,type,preset){
 const box=document.getElementById(container);if(!box)return;
