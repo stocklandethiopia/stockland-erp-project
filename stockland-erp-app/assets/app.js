@@ -346,7 +346,7 @@ const grid=[0,0.333,0.666,1].map(k=>{const yy=bottom-k*(bottom-top);const val=ma
 const points=values.map((v,i)=>'<circle cx="'+x(i).toFixed(2)+'" cy="'+y(v).toFixed(2)+'" r="3.5" fill="#2563eb" stroke="#fff" stroke-width="2"><title>'+esc(rows[i].date)+': '+esc(money(v))+'</title></circle>').join('');
 const labels=rows.map((r,i)=>{const dt=new Date(String(r.date||'')+'T12:00:00');const label=Number.isNaN(dt.getTime())?String(r.date||''):new Intl.DateTimeFormat('en-ET',{month:'short',day:'numeric'}).format(dt);return '<text x="'+x(i).toFixed(2)+'" y="211" text-anchor="middle" font-size="10" fill="#73839a">'+esc(label)+'</text>'}).join('');
 const total=values.reduce((a,v)=>a+v,0);
-return '<div class="sl-dashboard-chart-summary"><b>'+esc(money(total))+'</b><span>Total across returned dates</span></div><svg class="sl-dashboard-linechart" viewBox="0 0 650 228" role="img" aria-label="Posted retail sales for the last seven dates"><title>Posted retail sales by date</title><desc>Values are retrieved from closed retail sales in the current user's authorized location scope.</desc>'+grid+'<path d="'+area+'" fill="#eaf2ff"/><path d="'+path+'" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+points+labels+'</svg>';
+return '<div class="sl-dashboard-chart-summary"><b>'+esc(money(total))+'</b><span>Total across returned dates</span></div><svg class="sl-dashboard-linechart" viewBox="0 0 650 228" role="img" aria-label="Posted retail sales for the last seven dates"><title>Posted retail sales by date</title><desc>Values are retrieved from closed retail sales in the authorized location scope.</desc>'+grid+'<path d="'+area+'" fill="#eaf2ff"/><path d="'+path+'" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'+points+labels+'</svg>';
 }
 function dashboardCategoryHtml(payload){
 const all=Array.isArray(payload?.categories)?payload.categories.map(x=>({category:String(x.category||'Uncategorized'),sales:Math.max(0,Number(x.sales||0))})).filter(x=>x.sales>0):[];
@@ -360,7 +360,7 @@ return '<div class="sl-dashboard-donut-wrap"><div class="sl-dashboard-donut" sty
 }
 function dashboardBranchesHtml(payload){
 const rows=Array.isArray(payload?.branches)?payload.branches:[];
-if(!rows.length)return '<div class="sl-empty">No active branches are available in this user's reporting scope.</div>';
+if(!rows.length)return '<div class="sl-empty">No active branches are available in the current reporting scope.</div>';
 const maximum=Math.max(1,...rows.map(x=>Math.max(0,Number(x.sales||0))));
 return '<div class="sl-dashboard-performance-list">'+rows.map((x,i)=>{const amount=Math.max(0,Number(x.sales||0)),percent=amount/maximum*100;return '<div class="sl-dashboard-performance-row"><div class="sl-dashboard-performance-head"><span class="sl-dashboard-location-pin">'+uiIcon('home')+'</span><div><b>'+esc(x.location_name||'Authorized location')+'</b><small>'+esc(money(amount))+'</small></div><strong>'+Math.round(percent)+'%</strong></div><div class="sl-dashboard-performance-track"><i style="width:'+percent.toFixed(2)+'%"></i></div></div>'}).join('')+'</div>';
 }
