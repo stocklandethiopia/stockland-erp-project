@@ -604,7 +604,7 @@ if($('#reconTable'))loadRecon();
 if($('#printOpsReport'))$('#printOpsReport').onclick=()=>{if(!document.getElementById('reportResult')?.querySelector('.sl-panel')){toast('Generate a report first',true);return}window.print()};
 
 
-const sopBtn=document.getElementById('slSopBtn');if(sopBtn)sopBtn.onclick=openSopGuide;const themeBtn=document.getElementById('slThemeBtn');if(themeBtn)themeBtn.onclick=openThemePicker;const cmdBtn=document.getElementById('slCommandBtn');if(cmdBtn)cmdBtn.onclick=openCommandPalette;const ds=document.getElementById('dashboardSopBtn');if(ds)ds.onclick=openSopGuide;if(document.getElementById('slActivityFeed'))loadActivityFeed();if(document.getElementById('slDashboardSalesTrend'))loadDashboardInsights();if(document.getElementById('v16ReqForm')){}bindExtended();bindSkuPickers();
+const sopBtn=document.getElementById('slSopBtn');if(sopBtn)sopBtn.onclick=openSopGuide;const themeBtn=document.getElementById('slThemeBtn');if(themeBtn)themeBtn.onclick=openThemePicker;const cmdBtn=document.getElementById('slCommandBtn');if(cmdBtn)cmdBtn.onclick=openCommandPalette;const ds=document.getElementById('dashboardSopBtn');if(ds)ds.onclick=openSopGuide;const alertAction=document.getElementById('openHeaderNotifications');if(alertAction)alertAction.onclick=()=>document.getElementById('notificationBell')?.click();if(document.getElementById('slActivityFeed'))loadActivityFeed();if(document.getElementById('slDashboardSalesTrend'))loadDashboardInsights();if(document.getElementById('v16ReqForm')){}bindExtended();bindSkuPickers();
 }
 function addFinanceLine(container,type,preset){
 const box=document.getElementById(container);if(!box)return;
