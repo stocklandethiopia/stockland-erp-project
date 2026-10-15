@@ -2426,7 +2426,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
 			// Separation of duties: the expense creator may never decide the same expense.
-			if ( (int) $row['created_by'] === get_current_user_id() ) {
+			if ( get_current_user_id() === (int) $row['created_by'] ) {
 				throw new Exception( 'Self-approval is prohibited. A different authorized user must decide this expense.' );
 			}
 			$uid              = get_current_user_id();
