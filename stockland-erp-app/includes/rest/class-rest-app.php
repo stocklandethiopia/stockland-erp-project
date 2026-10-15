@@ -1123,6 +1123,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		// Fail closed: quick mode did not evaluate mandatory deep gates. This is runtime readiness, not release metadata.
 		$checks['live_ready'] = false;
 		$checks['ok']         = false;
+
 		$diagnostics['live_ready_status'] = 'NOT_EVALUATED';
 		return rest_ensure_response(
 			array(
