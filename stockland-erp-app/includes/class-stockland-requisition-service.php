@@ -42,6 +42,7 @@ class Stockland_Requisition_Service {
 			if ( ! $sku || $q <= 0 ) {
 				continue;
 			}$seen[ $sku ] = ( $seen[ $sku ] ?? 0 ) + $q;}
+		ksort( $seen, SORT_STRING );
 		$clean = array();
 		foreach ( $seen as $sku => $q ) {
 			$prod = Stockland_DB::get_product( $sku );
@@ -55,7 +56,70 @@ class Stockland_Requisition_Service {
 		if ( empty( $clean ) ) {
 			return new WP_Error( 'invalid', 'At least one valid requisition item is required.', array( 'status' => 400 ) );
 		}
+		$request_key = sanitize_text_field( (string) ( $payload['request_key'] ?? '' ) );
+		if ( ! preg_match( '/^[A-Za-z0-9_-]{16,80}$/', $request_key ) ) {
+			return new WP_Error( 'idempotency_key_required', 'A stable request_key is required to prevent duplicate requisitions after a timeout. Retry with the same form key.', array( 'status' => 400 ) );
+		}
+		$fingerprint = substr(
+			hash(
+				'sha256',
+				wp_json_encode(
+					array(
+						'user_id'   => $user_id,
+						'branch_id' => $branch,
+						'notes'     => sanitize_text_field( $payload['notes'] ?? '' ),
+						'items'     => array_map(
+							static function ( $item ) {
+								return array(
+									'sku'      => (string) $item['sku'],
+									'quantity' => number_format( (float) $item['quantity'], 2, '.', '' ),
+								);
+							},
+							$clean
+						),
+					)
+				)
+			),
+			0,
+			32
+		);
+		$key_hash = substr( hash( 'sha256', strtolower( $request_key ) ), 0, 20 );
+		$marker   = '[[SLREQ:' . $key_hash . ':' . $fingerprint . ']]';
+		$lock     = Stockland_DB::acquire_named_lock( 'requisition_create_' . $key_hash, 10 );
+		if ( empty( $lock['ok'] ) ) {
+			return new WP_Error( 'busy', 'This requisition submission is already being processed. Retry the same form shortly.', array( 'status' => 409 ) );
+		}
+		$pattern  = $wpdb->esc_like( '[[SLREQ:' . $key_hash . ':' ) . '%';
+		$existing = Stockland_DB::read_row(
+			$wpdb->prepare(
+				'SELECT requisition_id,notes,status,branch_location_id FROM %i WHERE requested_by=%d AND notes LIKE %s ORDER BY created_at DESC LIMIT 1',
+				Stockland_DB::table( 'requisitions' ),
+				$user_id,
+				$pattern
+			),
+			ARRAY_A
+		);
+		if ( $wpdb->last_error ) {
+			Stockland_DB::release_named_lock( $lock );
+			return new WP_Error( 'idempotency_lookup_failed', 'Could not verify the earlier requisition submission; no new requisition was created. Retry shortly.', array( 'status' => 500 ) );
+		}
+		if ( $existing ) {
+			if ( ! preg_match( '/^\\[\\[SLREQ:([a-f0-9]{20}):([a-f0-9]{32})\\]\\]/', (string) $existing['notes'], $match ) || ! hash_equals( $key_hash, $match[1] ) || ! hash_equals( $fingerprint, $match[2] ) ) {
+				Stockland_DB::release_named_lock( $lock );
+				return new WP_Error( 'idempotency_conflict', 'This requisition request key has already been used with different details.', array( 'status' => 409 ) );
+			}
+			Stockland_DB::release_named_lock( $lock );
+			return rest_ensure_response(
+				array(
+					'requisition_id' => $existing['requisition_id'],
+					'status'         => $existing['status'],
+					'replayed'       => true,
+					'availability'   => self::availability_snapshot( $clean ),
+				)
+			);
+		}
 		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
+			Stockland_DB::release_named_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start requisition transaction.', array( 'status' => 500 ) );
 		}
 		$id = null;
@@ -69,7 +133,7 @@ class Stockland_Requisition_Service {
 					'requested_by'       => $user_id,
 					'date_requested'     => current_time( 'Y-m-d' ),
 					'status'             => 'Requested',
-					'notes'              => sanitize_text_field( $payload['notes'] ?? '' ),
+					'notes'              => substr( $marker . ' ' . sanitize_text_field( $payload['notes'] ?? '' ), 0, 255 ),
 				)
 			) ) {
 				throw new Exception( 'Could not create requisition.' );}
@@ -95,6 +159,7 @@ class Stockland_Requisition_Service {
 			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Requisition create commit failed.' );
 			}
+			Stockland_DB::release_named_lock( $lock );
 			$role = Stockland_Authority::role( $user_id );
 			if ( Stockland_Authority::BRANCH_MANAGER !== $role ) {
 				Stockland_Notifications::push_role( 'branch_manager', $branch, 'requisition_review', 'Requisition awaiting review', 'Requisition ' . $id . ' was requested and is waiting for Branch Manager review.', 'requisition', $id, 'action' );
@@ -108,6 +173,7 @@ class Stockland_Requisition_Service {
 			);
 		} catch ( Throwable $e ) {
 			Stockland_DB::execute_query( 'ROLLBACK' );
+			Stockland_DB::release_named_lock( $lock );
 			return new WP_Error( 'requisition_create_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
 	/**
@@ -139,4 +205,15 @@ class Stockland_Requisition_Service {
 			);}
 		return $out;
 	}
+	/**
+	 * Removes the internal idempotency marker from the user-visible reason.
+	 * The marker lives in the existing notes column; no table/schema change is required.
+	 *
+	 * @param string|null $notes Stored notes field.
+	 * @return string Cleaned notes suitable for UI/API display.
+	 */
+	public static function display_notes( $notes ) {
+		return trim( (string) preg_replace( '/^\\[\\[SLREQ:[a-f0-9]{20}:[a-f0-9]{32}\\]\\]\\s*/i', '', (string) $notes ) );
+	}
+
 }
