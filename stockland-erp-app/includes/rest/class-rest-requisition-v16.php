@@ -249,7 +249,7 @@ class Stockland_REST_Requisition_V16 {
 				if ( Stockland_Authority::can_pick_requisition() ) {
 					$actions[] = 'PICK';
 				} else {
-					$pending = 'Warehouse Employee';
+					$pending = 'Central Warehouse Manager or Warehouse Employee';
 				}
 			} elseif ( 'Picked' === $st ) {
 				if ( Stockland_Authority::can_receive_requisition() ) {
@@ -642,7 +642,7 @@ class Stockland_REST_Requisition_V16 {
 			return $this->deny( 'forbidden', 'Only the Store/Warehouse Manager can reserve an approved requisition.', 403 );
 		}
 		if ( 'pick' === $action && ! Stockland_Authority::can_pick_requisition() ) {
-			return $this->deny( 'forbidden', 'Only Store/Warehouse personnel can pick a reserved requisition.', 403 );
+			return $this->deny( 'forbidden', 'Only the Central Warehouse Manager or a Warehouse Employee may pick a reserved requisition.', 403 );
 		}
 		$req = $this->req( $id );
 		if ( ! $req ) {
@@ -736,7 +736,8 @@ class Stockland_REST_Requisition_V16 {
 					throw new Exception( 'Audit event could not be recorded.' );
 				}
 				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Warehouse reservation confirmed', 'Requisition ' . $id . ' is reserved. Pickup appointment: ' . $pickup . '. Please bring the approved receiving representative.', 'info' );
-				Stockland_Notifications::push_role( 'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
+				Stockland_Notifications::push_role( 'warehouse_manager', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: the Central Warehouse Manager or a Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
+				Stockland_Notifications::push_role( 'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: the Central Warehouse Manager or a Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
 			} else {
 				if ( ! in_array( $req['status'], array( 'Reserved', 'Picked' ), true ) ) {
 					throw new Exception( 'Reserve the requisition before picking.' );
