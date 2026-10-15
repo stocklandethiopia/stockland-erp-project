@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * legislation/directives change. Historical payroll rows are never recalculated.
  */
 final class Stockland_Payroll_Statutory {
-	const RULE_VERSION          = 'ET-PAYE-1395-2025-v2';
+	const RULE_VERSION          = 'ET-PAYE-1395-2025-v3-pension-deducted-tax-base';
 	const EMPLOYEE_PENSION_RATE = '0.07';
 	const EMPLOYER_PENSION_RATE = '0.11';
 	// Proclamation No. 1395/2025, Effective Date clause 4(3), applies the other
@@ -163,10 +163,18 @@ final class Stockland_Payroll_Statutory {
 			throw new InvalidArgumentException( 'Pensionable salary cannot exceed gross pay.' );
 		}
 
-		$taxable_income                       = Stockland_Money::add( $base, $taxable_allow );
+		$income_before_pension = Stockland_Money::add( $base, $taxable_allow );
+		$employee_pension      = Stockland_Money::percentage( $pensionable, self::EMPLOYEE_PENSION_RATE );
+		$employer_pension      = Stockland_Money::percentage( $pensionable, self::EMPLOYER_PENSION_RATE );
+
+		// Apply the employer-approved payroll SOP: employee pension is deducted
+		// before applying the monthly PAYE schedule. Keep this base and rate
+		// calculation identical in the editor preview and server-side payroll posting.
+		$taxable_income = Stockland_Money::subtract( $income_before_pension, $employee_pension );
+		if ( Stockland_Money::minor( $taxable_income ) < 0 ) {
+			$taxable_income = '0.00';
+		}
 		list( $income_tax, $income_tax_rate ) = self::income_tax( $taxable_income );
-		$employee_pension                     = Stockland_Money::percentage( $pensionable, self::EMPLOYEE_PENSION_RATE );
-		$employer_pension                     = Stockland_Money::percentage( $pensionable, self::EMPLOYER_PENSION_RATE );
 		$deduction_total                      = Stockland_Money::add( Stockland_Money::add( $income_tax, $employee_pension ), $other );
 		$net                                  = Stockland_Money::subtract( $gross, $deduction_total );
 		if ( Stockland_Money::minor( $net ) < 0 ) {
