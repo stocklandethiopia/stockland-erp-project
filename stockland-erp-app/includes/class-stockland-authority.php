@@ -349,7 +349,7 @@ class Stockland_Authority {
 	 */
 	public static function can_pick_requisition( $user_id = null ) {
 		$r = self::role( $user_id );
-		return self::WAREHOUSE_EMPLOYEE === $r;
+		return in_array( $r, array( self::WAREHOUSE_EMPLOYEE, self::WAREHOUSE_MANAGER ), true );
 	}
 
 	/**
