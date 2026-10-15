@@ -97,7 +97,7 @@ $ok(
 	'Quick health reports UNVERIFIED and retains fail-closed live readiness.'
 );
 $ok(
-	str_contains( $app, "const setupRequired=q.health_mode==='setup';"
+	str_contains( $app, "const setupRequired=q.health_mode==='setup';" )
 		&& str_contains( $app, 'Full integrity scan has not run in setup mode.' )
 		&& str_contains( $app, 'SETUP REPAIR REQUIRED' ),
 	'Frontend does not present a deferred setup-mode audit as a passed audit.'
