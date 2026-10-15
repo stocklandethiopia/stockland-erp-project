@@ -218,6 +218,7 @@ class Stockland_REST_Requisition_V16 {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The query uses fixed SELECT/JOIN fragments, an allow-listed role/status clause and generated integer placeholders; table identifiers and location IDs are bound through prepare().
 		$rows = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		foreach ( $rows as &$row ) {
+			$row['notes'] = Stockland_Requisition_Service::display_notes( $row['notes'] ?? '' );
 			$actions = array();
 			$st      = $row['status'];
 			$pending = '';
@@ -240,10 +241,15 @@ class Stockland_REST_Requisition_V16 {
 					$pending = 'Owner or Management';
 				}
 			} elseif ( 'Approved' === $st ) {
+				// Immediate picking is an approved option; reservation and pickup scheduling remain optional.
+				if ( Stockland_Authority::can_pick_requisition() ) {
+					$actions[] = 'PICK';
+				}
 				if ( Stockland_Authority::can_reserve_requisition() ) {
 					$actions[] = 'RESERVE';
-				} else {
-					$pending = 'Store Manager';
+				}
+				if ( ! $actions ) {
+					$pending = 'Central Warehouse Manager or Warehouse Employee';
 				}
 			} elseif ( 'Reserved' === $st ) {
 				if ( Stockland_Authority::can_pick_requisition() ) {
@@ -287,6 +293,7 @@ class Stockland_REST_Requisition_V16 {
 		}if ( ! $this->scope_ok( $req ) ) {
 			return $this->deny( 'forbidden', 'This requisition is outside your branch scope.' );
 		}
+		$req['notes'] = Stockland_Requisition_Service::display_notes( $req['notes'] ?? '' );
 		$items        = Stockland_DB::read_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.brand,p.color,p.size FROM %i ri LEFT JOIN %i p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s ORDER BY ri.id', Stockland_DB::table( 'requisition_items' ), Stockland_DB::table( 'products' ), $req['requisition_id'] ), ARRAY_A );
 		$availability = $this->availability( $items );
 		$map          = array();
@@ -661,7 +668,75 @@ class Stockland_REST_Requisition_V16 {
 		try {
 			$req    = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
 			$items  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
+			if ( ! $req || ! is_array( $items ) || empty( $items ) ) {
+				throw new Exception( 'The requisition header or approved items could not be loaded for warehouse action.' );
+			}
 			$pickup = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
+			$direct_pick = 'pick' === $action && 'Approved' === $req['status'];
+			if ( $direct_pick ) {
+				$pickup = current_time( 'Y-m-d' );
+				$prepared = 0;
+				foreach ( $items as $item ) {
+					$transfer = Stockland_DB::read_row(
+						$wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status='Approved' ORDER BY created_at LIMIT 1 FOR UPDATE", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ),
+						ARRAY_A
+					);
+					if ( ! $transfer ) {
+						throw new Exception( 'Approved warehouse transfer record is missing for requisition item ' . $item['id'] . '.' );
+					}
+					$qty = (float) $transfer['quantity'];
+					if ( $qty <= 0 || $qty > (float) $item['quantity_approved'] ) {
+						throw new Exception( 'The approved transfer quantity is invalid for ' . $item['sku'] . '.' );
+					}
+					$available = Stockland_DB::get_available_stock( $wh, (string) $item['sku'] );
+					if ( $available < $qty ) {
+						throw new Exception( 'Insufficient available Central Warehouse stock for ' . $item['sku'] . '. Available ' . $available . ', required ' . $qty . '.' );
+					}
+					$variant_id = (int) ( $item['variant_id'] ?? ( Stockland_DB::get_product( $item['sku'] )['variant_id'] ?? 0 ) );
+					$res_ok = Stockland_DB::insert_record(
+						Stockland_DB::table( 'reservations' ),
+						array(
+							'location_id'       => $wh,
+							'sku'               => (string) $item['sku'],
+							'variant_id'        => $variant_id,
+							'requisition_id'    => $id,
+							'quantity_reserved' => $qty,
+							'status'            => 'Active',
+							'transfer_id'       => $transfer['transfer_id'],
+							'created_at'        => current_time( 'mysql' ),
+						)
+					);
+					if ( false === $res_ok ) {
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Immediate-pick reservation could not be saved.' );
+					}
+					$tr_ok = Stockland_DB::update_record(
+						Stockland_DB::table( 'transfers' ),
+						array( 'status' => 'Reserved', 'pickup_date' => $pickup, 'reserved_by' => get_current_user_id(), 'reserved_at' => current_time( 'mysql' ) ),
+						array( 'transfer_id' => $transfer['transfer_id'] )
+					);
+					if ( false === $tr_ok ) {
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Immediate-pick transfer could not be prepared.' );
+					}
+					++$prepared;
+				}
+				if ( 0 === $prepared ) {
+					throw new Exception( 'No approved quantity is available to pick.' );
+				}
+				if ( false === Stockland_DB::update_record(
+					Stockland_DB::table( 'requisitions' ),
+					array( 'status' => 'Reserved', 'pickup_date' => $pickup, 'warehouse_reserved_by' => get_current_user_id(), 'warehouse_reserved_at' => current_time( 'mysql' ) ),
+					array( 'requisition_id' => $id )
+				) ) {
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Immediate-pick requisition state could not be prepared.' );
+				}
+				if ( ! Stockland_Workflow::event( 'requisition', $id, 'Approved', 'Reserved', get_current_user_id(), $req['branch_location_id'], array( 'pickup_date' => $pickup, 'mode' => 'immediate_pick' ) ) ) {
+					throw new Exception( 'Immediate-pick reservation workflow event could not be recorded.' );
+				}
+				if ( ! Stockland_Audit::log( get_current_user_id(), $req['branch_location_id'], 'WAREHOUSE_RESERVE', null, null, 'Approved', 'Reserved', 'Reservation created inside the authorized immediate-pick transaction.', $id ) ) {
+					throw new Exception( 'Immediate-pick reservation audit event could not be recorded.' );
+				}
+				$req['status'] = 'Reserved';
+			}
 			if ( 'reserve' === $action ) {
 				if ( ! $pickup ) {
 					throw new Exception( 'Warehouse pickup date is required when reserving a branch requisition.' );
