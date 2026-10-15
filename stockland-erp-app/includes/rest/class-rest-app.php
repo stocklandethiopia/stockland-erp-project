@@ -2483,7 +2483,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		}
 		$trend = array();
 		for ( $index = 0; $index < 7; $index++ ) {
-			$day     = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
+			$day = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
 			$trend[] = array(
 				'date'  => $day,
 				'sales' => (float) ( $trend_map[ $day ] ?? 0 ),
