@@ -40,14 +40,14 @@ try {
 	$r    = Stockland_Payroll_Statutory::calculate( '20000.00', '1000.00', '500.00', '20000.00', '200.00' );
 	$want = array(
 		'gross_pay'           => '21500.00',
-		'taxable_income'      => '21000.00',
-		'income_tax'          => '5300.00',
+		'taxable_income'      => '19600.00',
+		'income_tax'          => '4810.00',
 		'employee_pension'    => '1400.00',
 		'employer_pension'    => '2200.00',
-		'deduction_total'     => '6900.00',
-		'net_pay'             => '14600.00',
+		'deduction_total'     => '6410.00',
+		'net_pay'             => '15090.00',
 		'employer_cost_total' => '23700.00',
-		'tax_rule_version'    => 'ET-PAYE-1395-2025-v2',
+		'tax_rule_version'    => 'ET-PAYE-1395-2025-v3-pension-deducted-tax-base',
 		'statutory_status'    => 'CALCULATED',
 	);
 	foreach ( $want as $k => $v ) {
@@ -59,6 +59,29 @@ try {
 	}
 } catch ( Throwable $e ) {
 	$fail[] = 'Valid payroll calculation threw: ' . $e->getMessage();}
+// Agreed payroll SOP regression: pension is deducted before PAYE.
+// ETB 30,000 gross => 7% pension 2,100; PAYE base 27,900;
+// PAYE 7,715; net pay 20,185. Existing posted payroll is not recalculated.
+try {
+	$r    = Stockland_Payroll_Statutory::calculate( '30000.00', '0.00', '0.00', '30000.00', '0.00' );
+	$want = array(
+		'taxable_income'      => '27900.00',
+		'income_tax'          => '7715.00',
+		'employee_pension'    => '2100.00',
+		'employer_pension'    => '3300.00',
+		'net_pay'             => '20185.00',
+		'employer_cost_total' => '33300.00',
+	);
+	foreach ( $want as $k => $v ) {
+		if ( ( $r[ $k ] ?? null ) !== $v ) {
+			$fail[] = "ETB 30,000 SOP regression {$k}: expected {$v}, got " . var_export( $r[ $k ] ?? null, true );
+		} else {
+			++$pass;
+		}
+	}
+} catch ( Throwable $e ) {
+	$fail[] = 'ETB 30,000 SOP regression threw: ' . $e->getMessage();
+}
 foreach ( array(
 	array( '-1', '0', '0', '0', '0', 'negative base accepted' ),
 	array( '1000', '-1', '0', '1000', '0', 'negative allowance accepted' ),
