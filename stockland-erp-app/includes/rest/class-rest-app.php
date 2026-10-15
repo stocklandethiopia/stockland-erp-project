@@ -2474,6 +2474,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$trend_sql .= ' GROUP BY sale_date ORDER BY sale_date';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query fragments and scope column are constants; identifiers and values are bound in prepare().
 		$trend_rows = Stockland_DB::read_results( $wpdb->prepare( $trend_sql, $trend_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'The posted sales trend could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
 		$trend_map  = array();
 		foreach ( (array) $trend_rows as $row ) {
 			$trend_map[ (string) $row['sale_date'] ] = (float) $row['sales'];
@@ -2495,6 +2498,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$category_sql .= " GROUP BY COALESCE(NULLIF(TRIM(p.category),''),'Uncategorized') ORDER BY sales DESC LIMIT 8";
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
 		$categories = Stockland_DB::read_results( $wpdb->prepare( $category_sql, $category_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'The category sales summary could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
 
 		$branch_args = array( $locations, $sales, $month_start, $today );
 		$branch_sql  = "SELECT l.id location_id,l.location_name,COALESCE(SUM(s.sales_total),0) sales
@@ -2504,6 +2510,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$branch_sql .= ' GROUP BY l.id,l.location_name ORDER BY sales DESC LIMIT 12';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
 		$branches = Stockland_DB::read_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'The branch performance summary could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
 
 		$recent_start = $today_obj->modify( '-30 days' )->format( 'Y-m-d' );
 		$recent_args  = array( $sales, $locations, $recent_start, $today );
@@ -2514,6 +2523,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$recent_sql .= ' ORDER BY s.sale_date DESC,s.created_at DESC LIMIT 8';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
 		$recent = Stockland_DB::read_results( $wpdb->prepare( $recent_sql, $recent_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'Recent posted transactions could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
 
 		return rest_ensure_response(
 			array(
