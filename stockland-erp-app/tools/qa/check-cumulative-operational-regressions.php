@@ -21,6 +21,7 @@ $requisition_service = $read( 'includes/class-stockland-requisition-service.php'
 $requisition_rest = $read( 'includes/rest/class-rest-requisition-v16.php' );
 $accounting = $read( 'includes/rest/class-rest-accounting.php' );
 $css_nav = $read( 'assets/css/02-shell-navigation.css' );
+$stock = $read( 'includes/rest/class-rest-stock.php' );
 $ddl = $read( 'includes/class-stockland-activator.php' );
 $fail = array();
 $pass = 0;
@@ -41,6 +42,7 @@ $expense_create = false !== $expense_create_start && false !== $expense_decision
 $check( str_contains( $plugin, 'Version:           16.1.77' ) && ( $manifest['release'] ?? '' ) === '16.1.77' && str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.77' );" ), 'Plugin, manifest and runtime version are aligned at 16.1.77' );
 $check( ( $manifest['schema_contract']['total'] ?? 0 ) === 49, 'Release manifest preserves the 49-table business schema contract' );
 $check( str_contains( $ddl, 'stock_requisitions' ) && str_contains( $ddl, 'payment_allocations' ) && str_contains( $ddl, 'hr_payroll_runs' ), 'Existing requisition, accounting and payroll tables remain in the core DDL contract' );
+$check( str_contains( $stock, 'valid Product Master variant may have no posted movement yet' ) && str_contains( $stock, "'stock_read_failed'" ) && str_contains( $stock, "$current <= 0.0 ? 'CRITICAL'" ), 'SKU stock lookup returns verified zero balances and negative/zero stock is treated as critical' );
 $check( str_contains( $payroll, 'Stockland_Money::subtract( $income_before_pension, $employee_pension )' ) && str_contains( $payroll, 'ET-PAYE-1395-2025-v3-PENSION-BASE' ), 'Server PAYE taxable base deducts employee pension under the agreed rule version' );
 $check( str_contains( $app, 'taxableIncome=Math.max(0,incomeBeforePension-emp)' ) && str_contains( $app, 'PAYE base after pension' ), 'Frontend payroll preview uses the same pension-first PAYE base' );
 $check( str_contains( $payroll_test, "'taxable_income'      => '27900.00'" ) && str_contains( $payroll_test, "'income_tax'          => '7715.00'" ) && str_contains( $payroll_test, "'net_pay'             => '20185.00'" ), 'ETB 30,000 agreed payroll regression expects tax 7,715 and net 20,185' );
