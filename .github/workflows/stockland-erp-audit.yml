@@ -367,11 +367,12 @@ jobs:
               "php_runtime": "PHP 8.4",
               "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
               "json_manifest_validation": "PASS (python json.tool)",
+              "target_host_acceptance": "PENDING: source/package CI does not execute authenticated target-host workflows, live-ledger reconciliation, backup restoration, or rollback.",
           }
           quality["source_gate_evidence"] = evidence
           source_gate_text = (
               f"PASS — exact 16.1.66 source/package gate for commit "
-              f"{evidence['commit_sha']} in run #{evidence['workflow_run_id']}"
+              f"{evidence['commit_sha']} in run #{evidence['workflow_run_id']}; target-host acceptance is tracked separately"
           )
           quality["source_gate"] = source_gate_text
           manifest["source_gate"] = source_gate_text
@@ -386,7 +387,7 @@ jobs:
           def remove_legacy_certification_flags(value):
               if isinstance(value, dict):
                   for key in list(value.keys()):
-                      if key.startswith("live_" + "certification"):
+                      if key in ("live_certification", "production_certified"):
                           value.pop(key, None)
                   for child in value.values():
                       remove_legacy_certification_flags(child)
