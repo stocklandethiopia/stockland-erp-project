@@ -14,7 +14,7 @@ $ok      = function ( $cond, $label ) use ( &$fail, &$pass ) {
 		echo "FAIL {$label}\n";
 	}};
 $modules = json_decode( file_get_contents( $root . '/assets/css/modules.json' ), true );
-$ok( is_array( $modules ) && ( $modules['release'] ?? '' ) === '16.1.65' && count( $modules['modules'] ?? array() ) === 6, 'six ordered CSS source modules declared' );
+$ok( is_array( $modules ) && ( $modules['release'] ?? '' ) === '16.1.66' && count( $modules['modules'] ?? array() ) === 6, 'six ordered CSS source modules declared' );
 $chunks = array();
 $modsOk = is_array( $modules );
 foreach ( ( $modules['modules'] ?? array() ) as $name ) {
@@ -38,6 +38,12 @@ $ok( str_contains( $js, 'id="dailyPosImportForm"' ) && str_contains( $js, "api16
 $ok( str_contains( $js, 'id="productImportForm"' ) && str_contains( $js, "api16('/import/products/preview" ) && str_contains( $js, 'COMMIT PRODUCT MASTER' ) && str_contains( $js, "'/import/products/commit'" ) && str_contains( $imports, 'Product Master commit rejected physical stock field' ), 'Product Master preview/commit is explicit and blocks stock quantity mutation' );
 $ok( str_contains( $js, 'data-label="Location"' ) && str_contains( $js, 'data-label="SKU"' ) && str_contains( $js, 'data-label="Status"' ) && str_contains( $js, 'data-label="ERP field"' ), 'operational report/import cells carry accessible mobile labels' );
 $ok( str_contains( $js, "'sl-page-title-static'" ) && str_contains( $css, '.sl-page-title-static' ), 'System Health uses a non-sticky evidence heading' );
+$guards = file_get_contents( $root . '/assets/css/06-operational-guards.css' );
+$ok( str_contains( $guards, '16.1.66 cumulative compact UX pass' ) && str_contains( $guards, "#stockland-app .sl-card{\n  min-height:96px;" ) && str_contains( $guards, 'min-height:48px;font-size:16px' ), 'compact dashboard cards retain mobile-friendly form touch targets' );
+$ok( str_contains( $guards, '#stockland-app .sl-notification-card strong' ) && str_contains( $guards, '#stockland-app .sl-notification-card small{display:block;margin-top:5px' ) && str_contains( $guards, '#stockland-app .sl-notification-actions .sl-btn' ), 'notifications have readable message metadata and usable action controls' );
+$ok( str_contains( $guards, 'radial-gradient' ) && str_contains( $guards, 'Replace decorative illustration files with lightweight CSS curves' ) && str_contains( $guards, '@media (prefers-reduced-motion:reduce)' ), 'premium header and menu treatment is lightweight and respects reduced-motion preference' );
+$accounting = file_get_contents( $root . '/includes/rest/class-rest-accounting.php' );
+$ok( str_contains( $accounting, 'Self-approval is prohibited.' ) && str_contains( $accounting, 'if ( get_current_user_id() === (int) $row[\'created_by\'] )' ), 'expense final-authority contract rejects creator self-approval before location routing' );
 if ( $fail ) {
 	fwrite( STDERR, 'Operational UI contracts FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );

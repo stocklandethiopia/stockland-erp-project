@@ -589,9 +589,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'receive_transfer'       => (bool) current_user_can( 'stockland_receive_transfer' ),
 						'request_adjustment'     => (bool) current_user_can( 'stockland_request_adjustment' ),
 						'reports'                => (bool) ( current_user_can( 'stockland_view_branch_reports' ) || current_user_can( 'stockland_view_all_branches' ) || current_user_can( 'stockland_view_warehouse' ) ),
-						'finance_view'           => (bool) current_user_can( 'stockland_view_financials' ),
+						'finance_view'           => (bool) ( current_user_can( 'stockland_view_financials' ) || Stockland_Authority::can_submit_expenses() ),
 						'finance_manage'         => (bool) current_user_can( 'stockland_manage_settings' ),
-						'finance'                => (bool) current_user_can( 'stockland_view_financials' ),
+						'finance'                => (bool) ( current_user_can( 'stockland_view_financials' ) || Stockland_Authority::can_submit_expenses() ),
 						'manage_suppliers'       => (bool) current_user_can( 'stockland_manage_suppliers' ),
 						'manage_customers'       => (bool) current_user_can( 'stockland_manage_customers' ),
 						'manage_po'              => (bool) current_user_can( 'stockland_manage_purchase_orders' ),
@@ -599,7 +599,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'po_approve'             => (bool) Stockland_Authority::can_approve_external_purchase_order(),
 						'po_receive'             => (bool) Stockland_Authority::can_receive_external_purchase_order(),
 						'manage_payments'        => (bool) current_user_can( 'stockland_manage_payments' ),
-						'manage_expenses'        => (bool) ( in_array( Stockland_Authority::role(), array( 'owner', 'management', 'branch_manager' ), true ) && current_user_can( 'stockland_manage_expenses' ) ),
+						'manage_expenses'        => (bool) ( in_array( Stockland_Authority::role(), array( 'owner', 'management', 'branch_manager', 'warehouse_manager' ), true ) && current_user_can( 'stockland_manage_expenses' ) ),
 						'expense_approve'        => (bool) Stockland_Authority::can_approve_expenses(),
 						'finance_approve'        => (bool) Stockland_Authority::can_approve_finance(),
 						'manage_payables'        => (bool) current_user_can( 'stockland_manage_payables' ),
@@ -1113,15 +1113,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			'full_import_and_workflow_contract_gates',
 		);
 		$diagnostics['deferred_checks'] = $deferred;
-		$diagnostics['live_ready_rule'] = 'Quick checks are not production certification. Live readiness requires a separately controlled deep integrity scan; deferred checks are not assumed healthy.';
+		$diagnostics['live_ready_rule'] = 'Quick health skips the full integrity matrix. Live readiness is UNVERIFIED until explicit deep integrity checks run; deferred checks are not assumed healthy.';
 		$failed_checks                  = array();
 		foreach ( $checks as $key => $value ) {
 			if ( ! $value ) {
 				$failed_checks[] = $key;
 			}
 		}
-		$checks['live_ready'] = false;
-		$checks['ok']         = false;
+		// Fail closed: quick mode did not evaluate mandatory deep gates.
+		$checks['live_ready']             = false;
+		$checks['ok']                     = false;
+		$diagnostics['live_ready_status'] = 'NOT_EVALUATED';
 		return rest_ensure_response(
 			array(
 				'ok'                  => false,
@@ -1144,7 +1146,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'data_policy'         => 'Read-only quick health check; no business data is changed.',
 				'failed_checks'       => $failed_checks,
 				'deferred_checks'     => $deferred,
-				'live_ready_reasons'  => array( 'Deep integrity scans are deferred; no production-ready claim is made.' ),
+				'live_ready_reasons'  => array( 'Deep integrity checks are deferred; live readiness is UNVERIFIED.' ),
 			)
 		);
 	}

@@ -7,6 +7,8 @@ $root  = dirname( __DIR__, 2 );
 $health = is_file( $root . '/includes/rest/class-rest-app.php' ) ? file_get_contents( $root . '/includes/rest/class-rest-app.php' ) : '';
 $import = is_file( $root . '/includes/rest/class-rest-import-v16.php' ) ? file_get_contents( $root . '/includes/rest/class-rest-import-v16.php' ) : '';
 $app    = is_file( $root . '/assets/app.js' ) ? file_get_contents( $root . '/assets/app.js' ) : '';
+$manifest_raw = is_file( $root . '/RELEASE_MANIFEST.json' ) ? file_get_contents( $root . '/RELEASE_MANIFEST.json' ) : '';
+$manifest = is_string( $manifest_raw ) ? json_decode( $manifest_raw, true ) : null;
 $fail   = array();
 $pass   = 0;
 $ok     = function ( $condition, $message ) use ( &$fail, &$pass ) {
@@ -20,6 +22,26 @@ $ok     = function ( $condition, $message ) use ( &$fail, &$pass ) {
 };
 $compact_import = preg_replace( '/\s+/', '', $import );
 $compact_health = preg_replace( '/\s+/', '', $health );
+$has_legacy_certification_flag = function ( $value ) use ( &$has_legacy_certification_flag ) {
+	if ( ! is_array( $value ) ) {
+		return false;
+	}
+	foreach ( $value as $key => $child ) {
+		if ( in_array( $key, array( 'live_certification', 'production_certified' ), true ) ) {
+			return true;
+		}
+		if ( $has_legacy_certification_flag( $child ) ) {
+			return true;
+		}
+	}
+	return false;
+};
+$ok(
+	is_array( $manifest )
+		&& ! $has_legacy_certification_flag( $manifest )
+		&& ( $manifest['release_acceptance']['target_host'] ?? '' ) === 'PENDING',
+	'Release manifest uses explicit target-host PENDING status and omits legacy binary certification flags.'
+);
 $ok(
 	str_contains( $health, 'if ( is_string( $import_source ) )' )
 		&& str_contains( $health, "preg_replace( '/\\s+/', '', $"."import_source )" )
@@ -39,6 +61,13 @@ $ok(
 		&& str_contains( $app, 'UNKNOWN — query did not return a reliable result' )
 		&& str_contains( $app, 'CHECKS CLEAN — FK metadata reviewed separately' ),
 	'System Health shows non-zero/unknown scanner checks and separates FK metadata status.'
+);
+$ok(
+	str_contains( $health, 'Quick health skips the full integrity matrix.' )
+		&& str_contains( $health, "\$diagnostics['live_ready_status'] = 'NOT_EVALUATED';" )
+		&& str_contains( $app, 'Deep integrity checks pending — status UNVERIFIED' )
+		&& str_contains( $app, 'It has not checked ledger, PLEDGER, AP/AR, GL, stock or audit-chain integrity.' ),
+	'Quick health reports UNVERIFIED and preserves fail-closed readiness until deep checks run.'
 );
 $setup = is_file( $root . '/includes/rest/class-rest-setup.php' ) ? file_get_contents( $root . '/includes/rest/class-rest-setup.php' ) : '';
 $accounting = is_file( $root . '/includes/class-stockland-accounting.php' ) ? file_get_contents( $root . '/includes/class-stockland-accounting.php' ) : '';

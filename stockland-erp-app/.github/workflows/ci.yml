@@ -18,17 +18,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, xml, dom, zip, fileinfo
           coverage: none
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: ${{ matrix.node }}
 
@@ -55,9 +55,7 @@ jobs:
       - name: ZIP/runtime residue gate
         shell: bash
         run: |
-          if find . -type f \
-            \( -name '*.zip' -o -name '*.log' -o -name '*.bak' -o -name '*.orig' -o -name '*.old' \\) \
-            -print -quit | grep -q .; then
+          if find . -type f \( -name '*.zip' -o -name '*.log' -o -name '*.bak' -o -name '*.orig' -o -name '*.old' \) -print -quit | grep -q .; then
             echo 'Unexpected runtime residue found'
             exit 1
           fi
