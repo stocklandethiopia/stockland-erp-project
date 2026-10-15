@@ -9,6 +9,12 @@
 - No formal GitHub Release entry exists at this check; #11828421033 is a retention-limited Actions artifact, not a published Release.
 - **Release decision: SOURCE/PACKAGE PASS; production certification remains pending.** This workflow did not access the live WordPress site or business database. Authenticated live browser/DB, deep integrity and ledger reconciliation, owner-management-warehouse SOP E2E, SKU/product saving, POS/catalog imports, payroll, target-host compatibility, and backup restore/rollback remain to be executed and recorded against the exact installer SHA. No historic test or checksum is substituted for the current one.
 
+## Follow-up correction — 2026-10-15 legacy binary release flags
+
+The initial 16.1.57 source-import PR (#1) introduced manually authored `live_certification: false` and `production_certified: false` fields in the release manifest, alongside human-readable staging/acceptance warnings in the bundled README. GitHub Actions did not generate those fields. The later cleanup removed `live_certification` keys but matched only that name, leaving six `production_certified` keys in the nested historical 16.1.53, 16.1.56 and 16.1.57 manifest records. The prior statement that all binary certification fields had been removed was therefore incomplete.
+
+This follow-up removes both legacy key names from the current manifest and adds the same protection to package generation. The README and quick-health copy now use explicit `PENDING` / `UNVERIFIED` wording. The PHP quick-health response deliberately retains its boolean `live_ready = false` compatibility value when deep checks were not run: that is fail-closed runtime logic, not a release certification flag. No readiness guard has been weakened. The cleanup is not a new source-gate PASS until the branch workflow completes; target-host acceptance is still a separate evidence requirement.
+
 # Stockland ERP audit-status adjudication — 2026-10-12
 
 ## Purpose
