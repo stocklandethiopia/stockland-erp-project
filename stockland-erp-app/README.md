@@ -54,3 +54,8 @@ Product Master is the SKU catalog. Adding a product master record does not itsel
 ## Design and compatibility
 
 The interface uses the local Bootstrap 5.3.8 stylesheet and a compact six-module responsive CSS build. Finance forms use live data, role-scoped actions and server-side validation. The plugin does not seed demonstration sales, stock movements, payroll entries, orders or customer transactions.
+
+
+## Acceptance boundary
+
+The automated source/package gate validates code quality and package integrity; it does not by itself establish production acceptance. Target-host acceptance is currently **PENDING** until the exact packaged SHA-256 is verified on the intended WordPress/PHP/MariaDB environment, the 49-table schema and existing data are reconciled, role-separated requisition/picking, procurement, finance, imports and payroll flows pass, and backup restoration plus rollback are demonstrated. The plugin does not include demonstration sales, stock movements, payroll entries or orders.
