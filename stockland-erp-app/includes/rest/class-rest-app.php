@@ -1113,15 +1113,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			'full_import_and_workflow_contract_gates',
 		);
 		$diagnostics['deferred_checks'] = $deferred;
-		$diagnostics['live_ready_rule'] = 'Quick checks are not production certification. Live readiness requires a separately controlled deep integrity scan; deferred checks are not assumed healthy.';
+		$diagnostics['live_ready_rule'] = 'Quick health skips the full integrity matrix. Live readiness is UNVERIFIED until explicit deep integrity checks run; deferred checks are not assumed healthy.';
 		$failed_checks                  = array();
 		foreach ( $checks as $key => $value ) {
 			if ( ! $value ) {
 				$failed_checks[] = $key;
 			}
 		}
+		// Fail closed: quick mode did not evaluate mandatory deep gates.
 		$checks['live_ready'] = false;
 		$checks['ok']         = false;
+		$diagnostics['live_ready_status'] = 'NOT_EVALUATED';
 		return rest_ensure_response(
 			array(
 				'ok'                  => false,
@@ -1144,7 +1146,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'data_policy'         => 'Read-only quick health check; no business data is changed.',
 				'failed_checks'       => $failed_checks,
 				'deferred_checks'     => $deferred,
-				'live_ready_reasons'  => array( 'Deep integrity scans are deferred; no production-ready claim is made.' ),
+				'live_ready_reasons'  => array( 'Deep integrity checks are deferred; live readiness is UNVERIFIED.' ),
 			)
 		);
 	}
