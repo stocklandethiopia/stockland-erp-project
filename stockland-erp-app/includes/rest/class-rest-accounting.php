@@ -2395,7 +2395,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			$uid              = get_current_user_id();
+			$uid = get_current_user_id();
 			if ( (int) $row['created_by'] === $uid ) {
 				throw new Exception( 'Expense creators cannot approve or reject their own expense.' );
 			}
