@@ -63,6 +63,9 @@ $check(
 		&& str_contains( $app, "const canApprove=status==='SUBMITTED'&&!!caps.payroll_approve;")
 		&& str_contains( $app, "const canPay=status==='APPROVED'&&!!caps.payroll_approve;")
 		&& str_contains( $app, "data-payroll-line-form")
+		&& str_contains( $app, "const owner=state.boot.user.role==='owner';")
+		&& str_contains( $app, "legacyTaxableDefault")
+		&& str_contains( $app, "legacyExemptDefault")
 		&& str_contains( $app, "'/hr/payroll/'+encodeURIComponent(form.dataset.periodId)+'/line/'+encodeURIComponent(form.dataset.lineId)"),
 	'Only Management can edit DRAFT lines; Owner approval/payment actions are status-gated in the review panel.'
 );
