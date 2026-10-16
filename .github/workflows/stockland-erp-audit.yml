@@ -1,5 +1,5 @@
 name: Stockland ERP package and source gate
-# Exact source/package evidence is generated from the release commit. The previously accepted full LIVE READY host baseline carries forward; this workflow never modifies or certifies a deployment.
+# Source/package PASS is not deployment acceptance. This workflow never deploys or certifies the target host.
 
 on:
   push:
@@ -387,12 +387,12 @@ jobs:
               "php_runtime": "PHP 8.4",
               "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
               "json_manifest_validation": "PASS (python json.tool)",
-              "target_host_acceptance": "ACCEPTED_EXISTING_HOST_BASELINE_FROM_PRIOR_FULL_LIVE_READY_REPORT; this workflow verifies the current release package and does not deploy it.",
+              "target_host_acceptance": "PENDING: exact 16.1.78 package has not been installed; source CI does not run authenticated host workflows, ledger reconciliation, backup restoration or rollback.",
           }
           quality["source_gate_evidence"] = evidence
           source_gate_text = (
               f"PASS — exact 16.1.78 source/package gate for commit "
-              f"{evidence['commit_sha']} in run #{evidence['workflow_run_id']}; previously accepted full LIVE READY host baseline carried forward"
+              f"{evidence['commit_sha']} in run #{evidence['workflow_run_id']}; exact target-host acceptance remains PENDING because CI does not deploy this package"
           )
           quality["source_gate"] = source_gate_text
           manifest["source_gate"] = source_gate_text
@@ -402,13 +402,18 @@ jobs:
           }
           acceptance = manifest.setdefault("acceptance", {})
           acceptance["source_package_gate"] = source_gate_text
-          acceptance["target_host"] = "ACCEPTED_EXISTING_HOST_BASELINE_FROM_PRIOR_FULL_LIVE_READY_REPORT"
-          acceptance["production_deployment"] = "PACKAGE_READY; CI_DOES_NOT_DEPLOY_TO_HOST"
+          acceptance["target_host"] = "PENDING"
+          acceptance["production_deployment"] = "NOT_AUTHORIZED_BY_SOURCE_CI"
           acceptance["note"] = (
               "The exact source/package CI gate passed for the evidence recorded above. "
-              "The previously accepted full LIVE READY host baseline is carried forward; this source/package workflow does not deploy to the host. "
-              "The release preserves the 49-table contract and records no claim that this exact release was already installed."
+              "The workflow does not deploy or test the package on WordPress/MariaDB. Exact-release authenticated workflows, live ledger/AP/AR/GL reconciliation, backup restoration, rollback and statutory adviser verification remain pending. "
+              "The older 16.1.66 LIVE READY screenshot is not acceptance evidence for this package."
           )
+          release_acceptance = manifest.setdefault("release_acceptance", {})
+          release_acceptance["source_package_gate"] = source_gate_text
+          release_acceptance["target_host"] = "PENDING"
+          release_acceptance["production_deployment"] = "NOT_AUTHORIZED_BY_SOURCE_CI"
+          release_acceptance["note"] = acceptance["note"]
           corrective = manifest.setdefault("corrective_release_16_1_67", {})
           corrective["source_gate"] = source_gate_text
           corrective["source_gate_evidence"] = evidence
@@ -459,8 +464,8 @@ jobs:
           text = p.read_text(encoding="utf-8")
           paragraphs = text.split("\n\n")
           for i, paragraph in enumerate(paragraphs):
-              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.78 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph:
-                  paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The official Bootstrap 5.3.8 installer is built from this source and its SHA-256 is recorded by this exact release run. The previously accepted host baseline is carried forward."
+              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.78 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph or "previously accepted host baseline is carried forward" in paragraph or "LIVE READY host baseline is carried forward" in paragraph:
+                  paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The official Bootstrap 5.3.8 installer is built from this source and its SHA-256 is recorded by this exact release run. Source/package gates do not prove target-host acceptance; the exact package remains PENDING authenticated WordPress/MariaDB workflow, ledger/reconciliation, backup restoration and rollback checks."
           text = "\n\n".join(paragraphs)
           markers = [
               "\n## Rebuilt candidate package (automated build evidence)",
@@ -476,7 +481,7 @@ jobs:
               "- SHA-256: " + sys.argv[1] + "\n"
               "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\n"
               "- The full-runtime PHPCS/WPCS result is evaluated by the final workflow gate. A non-zero result leaves this artifact review-only and blocks release.\n"
-              "- Source/package acceptance is complete only when the exact release gates succeed; the workflow does not modify the accepted host environment.\n"
+              "- Source/package acceptance is complete only when the exact release gates succeed; the workflow does not deploy to the host; exact-package target-host acceptance remains PENDING.\n"
           )
           p.write_text(text, encoding="utf-8")
           PY

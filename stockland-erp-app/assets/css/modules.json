@@ -1,6 +1,6 @@
 {
   "release": "16.1.78",
-  "description": "Six ordered CSS source modules compile to the mobile-first Stockland stylesheet; 16.1.78 adds the live role-scoped global search field and responsive mobile header while preserving the 49-table business contract.",
+  "description": "Six ordered CSS source modules compile to the mobile-first Stockland stylesheet; 16.1.78 aligns the dashboard analytics row and right-rail activity with the agreed reference while preserving responsive behavior and the 49-table business contract.",
   "modules": [
     "01-foundation.css",
     "02-shell-navigation.css",

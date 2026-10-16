@@ -35,6 +35,18 @@ $checks['insights_exclude_personal_and_profit_fields'] = '' !== $insights && ! p
 $checks['dashboard_consumes_server_data'] = str_contains( $js, 'function loadDashboardInsights(' ) && str_contains( $js, "api('/app/dashboard/insights')" ) && str_contains( $js, 'dashboardTrendHtml(state.dashboardInsights)' );
 $checks['dashboard_has_actual_empty_error_states'] = str_contains( $js, 'No posted retail transactions were found' ) && str_contains( $js, 'Dashboard analytics are unavailable' ) && str_contains( $js, 'No posted category sales this month' );
 $checks['dashboard_layout_contract'] = str_contains( $js, 'sl-dashboard-hero' ) && str_contains( $js, 'slDashboardSalesTrend' ) && str_contains( $js, 'slDashboardCategories' ) && str_contains( $js, 'slDashboardBranches' ) && str_contains( $js, 'slDashboardTransactions' ) && str_contains( $js, 'sl-dashboard-quick-grid' );
+$dashboard_start = strpos( $js, 'function dashboard(){' );
+$dashboard_end = strpos( $js, 'function dashboardTrendHtml', $dashboard_start );
+$dashboard = ( false !== $dashboard_start && false !== $dashboard_end ) ? substr( $js, $dashboard_start, $dashboard_end - $dashboard_start ) : '';
+$chart_grid_pos = strpos( $dashboard, 'sl-dashboard-chart-grid' );
+$branch_panel_pos = strpos( $dashboard, 'sl-dashboard-branch-performance' );
+$transactions_pos = strpos( $dashboard, 'sl-dashboard-transactions' );
+$side_pos = strpos( $dashboard, 'sl-dashboard-side' );
+$quick_pos = strpos( $dashboard, 'sl-dashboard-quick-grid' );
+$activity_pos = strpos( $dashboard, 'sl-dashboard-activity' );
+$pulse_pos = strpos( $dashboard, 'sl-dashboard-pulse' );
+$checks['reference_dashboard_panel_order'] = false !== $chart_grid_pos && false !== $branch_panel_pos && false !== $transactions_pos && $chart_grid_pos < $branch_panel_pos && $branch_panel_pos < $transactions_pos && false !== $side_pos && false !== $quick_pos && false !== $activity_pos && false !== $pulse_pos && $side_pos < $quick_pos && $quick_pos < $activity_pos && $activity_pos < $pulse_pos;
+$checks['desktop_dashboard_has_three_analytics_columns'] = (bool) preg_match( '/\\.sl-dashboard-chart-grid\\{[^}]*grid-template-columns:repeat\\(3,minmax\\(0,1fr\\)\\)/', $css );
 $checks['dashboard_data_driven_styles_in_bundles'] = str_contains( $css, '.sl-dashboard-shell' ) && str_contains( $css, '.sl-dashboard-linechart' ) && str_contains( $css, '.sl-dashboard-donut' ) && str_contains( $mini, '.sl-dashboard-shell' ) && str_contains( $mini, '.sl-dashboard-donut' );
 $checks['responsive_dashboard_breakpoints'] = preg_match( '/@media\s*\(max-width:\s*991px\)/', $css ) && preg_match( '/@media\s*\(max-width:\s*700px\)/', $css ) && preg_match( '/@media\s*\(max-width:\s*390px\)/', $css );
 $checks['css_source_modules_remain_six_ordered'] = ( $modules['release'] ?? '' ) === '16.1.78' && count( $modules['modules'] ?? array() ) === 6;
