@@ -396,16 +396,17 @@ const today=new Intl.DateTimeFormat('en-ET',{weekday:'short',day:'2-digit',month
 const insights=state.dashboardInsights||{};
 const branchCount=locations.filter(x=>String(x.location_type||'').toLowerCase()==='branch').length;
 const dashboardStatus=state.dashboardInsightsLoading?'Refreshing analytics':(insights.range?'Updated from posted ERP sales':'Live data');
+const metricCard=(icon,label,value,meta,tone)=>'<div class="sl-card sl-dashboard-kpi-card sl-dashboard-kpi-'+tone+'"><span class="sl-dashboard-kpi-icon">'+uiIcon(icon)+'</span><div class="sl-dashboard-kpi-copy"><div class="label">'+esc(label)+'</div><div class="value">'+esc(value)+'</div><div class="meta">'+esc(meta)+'</div></div></div>';
 const alerts=Number(d.low_stock||0)>0
  ? '<div class="sl-pulse-card danger"><span class="sl-pulse-icon">!</span><div><b>'+esc(d.low_stock)+' low-stock alerts</b><small>Reorder status comes from physical stock vs. configured thresholds.</small></div><button class="sl-btn sl-btn-sm" data-view="reorder">OPEN</button></div>'
  : '<div class="sl-pulse-card ok"><span class="sl-pulse-icon">✓</span><div><b>No low-stock alerts in this snapshot</b><small>Current result from the authorized inventory scope.</small></div></div>';
 return '<div class="sl-dashboard-shell"><div class="sl-dashboard-main">'+
- '<section class="sl-dashboard-hero"><div class="sl-dashboard-hero-copy"><div class="sl-hero-kicker">STOCKLAND ETHIOPIA ERP <span>•</span> '+scope+'</div><h2>Smarter Operations.<br>Better Business.</h2><p>Real-time inventory, controlled sales, warehouse execution and business evidence in one place.</p><div class="sl-hero-actions"><button class="sl-btn sl-btn-light" id="refresh" type="button">Refresh data</button><button class="sl-btn sl-btn-ghost-light" id="dashboardSopBtn" type="button">View SOP guide</button></div></div><div class="sl-dashboard-hero-meta"><span>'+esc(today)+'</span><small>Authorized ERP data</small></div></section>'+
+ '<section class="sl-dashboard-hero"><div class="sl-dashboard-hero-copy"><div class="sl-hero-kicker">STOCKLAND ETHIOPIA ERP <span>•</span> '+scope+'</div><h2>Smarter Operations.<br>Better Business.</h2><p>Real-time inventory, seamless sales, and complete control — all in one place.</p><div class="sl-hero-actions"><button class="sl-btn sl-dashboard-primary-action" data-view="operate" type="button">Go to operations</button><button class="sl-btn sl-btn-ghost-light" id="dashboardSopBtn" type="button">View SOP guide</button><button class="sl-btn sl-btn-ghost-light" id="refresh" type="button">Refresh data</button></div></div><div class="sl-dashboard-hero-meta"><span>'+esc(today)+'</span><small>Authorized ERP data</small></div></section>'+
  '<div class="sl-grid sl-kpi-grid sl-dashboard-kpis">'+
- card('Retail Sales Today',money(d.today_sales),'Closed retail transactions')+
- card('Physical Stock Units',Number(d.stock_total||0).toLocaleString('en-ET',{maximumFractionDigits:2}),'Append-only stock ledger')+
- card('Low Stock Items',String(d.low_stock||0),'Configured reorder thresholds')+
- card('Branches in Scope',String(branchCount),'Role-authorized locations')+
+ metricCard('cash',"Today's Sales",money(d.today_sales),'Closed retail transactions','blue')+
+ metricCard('box','Total Inventory',Number(d.stock_total||0).toLocaleString('en-ET',{maximumFractionDigits:2}),'Physical stock units','green')+
+ metricCard('bell','Low Stock Items',String(d.low_stock||0),'Configured reorder thresholds','orange')+
+ metricCard('users','Branches in Scope',String(branchCount),'Role-authorized locations','purple')+
  '</div>'+
  '<div class="sl-dashboard-chart-grid">'+
  '<section class="sl-block sl-dashboard-card sl-dashboard-trend"><div class="sl-block-head"><div><div class="sl-eyebrow">SALES OVERVIEW</div><h3>Posted retail sales</h3></div><small>Last 7 business dates</small></div><div id="slDashboardSalesTrend" class="sl-dashboard-chart-body"><div class="sl-empty">Loading posted sales trend…</div></div></section>'+
