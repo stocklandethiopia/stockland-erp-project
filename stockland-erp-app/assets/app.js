@@ -1088,6 +1088,160 @@ function openCompensationEditor(button){
   recalc();requestAnimationFrame(()=>form.elements.base_salary.focus());
 }
 
+function slPayrollLineEditForm(line,periodId){
+  const owner=state.boot.user.role==='owner';
+  const currentBreakdown=(()=>{try{const v=JSON.parse(line.allowance_breakdown_json||'[]');return Array.isArray(v)?v:[]}catch(_e){return[]}})();
+  const exemptComponent=currentBreakdown.find(x=>String(x.tax_treatment||'').toUpperCase()==='EXEMPT')||{};
+  const verified=!!exemptComponent.owner_verified&&String(exemptComponent.legal_basis||'').trim().length>=20&&String(exemptComponent.evidence_reference||'').trim().length>=4;
+  return '<details class="sl-payroll-line-edit"><summary>Edit draft amounts</summary><form class="sl-payroll-line-form" data-payroll-line-form data-period-id="'+esc(periodId)+'" data-line-id="'+esc(line.id)+'">'+
+    '<div class="sl-payroll-edit-grid">'+
+      '<div class="sl-field"><label>Taxable allowances (ETB)</label><input name="taxable_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.taxable_allowance_total??line.allowance_total??'0.00')+'" required></div>'+
+      '<div class="sl-field"><label>Exempt allowances (ETB)</label><input name="exempt_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.exempt_allowance_total??'0.00')+'" '+(owner?'':'readonly')+' required><small class="sl-sub">'+(owner?'A change requires legal basis, evidence and Owner confirmation.':'Locked for Management; only the Owner may change an exemption.')+'</small></div>'+
+      '<div class="sl-field"><label>Pensionable salary (ETB)</label><input name="pensionable_salary" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.pensionable_salary??line.base_salary??'0.00')+'" required></div>'+
+      '<div class="sl-field"><label>Other deductions (ETB)</label><input name="other_deduction_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.other_deduction_total??'0.00')+'" required></div>'+
+      (owner?'<div class="sl-field full"><label>Current legal basis for exemption / non-standard pensionable salary</label><textarea name="statutory_classification_note" minlength="20" placeholder="Enter the current legal clause and application to this employee">'+esc(exemptComponent.legal_basis||'')+'</textarea></div><div class="sl-field"><label>Evidence reference</label><input name="exemption_evidence_reference" value="'+esc(exemptComponent.evidence_reference||'')+'" placeholder="Document reference"></div><label class="sl-payroll-owner-check"><input type="checkbox" name="owner_confirmed_exemption" value="1" '+(verified?'checked':'')+'><span>As Owner, verify the legal basis and evidence for any exemption.</span></label>':'')+
+      '<div class="sl-field full"><label>Adjustment reason / notes</label><textarea name="notes" rows="2" placeholder="Keep a short reason for this draft adjustment">'+esc(line.notes||'')+'</textarea></div>'+
+      '<div class="sl-field full"><button class="sl-btn primary" type="submit">SAVE & RECALCULATE LINE</button></div>'+
+    '</div></form></details>';
+}
+function renderPayrollReview(period){
+  document.querySelector('[data-payroll-review-overlay]')?.remove();
+  const caps=state.boot.user.capabilities||{};
+  const status=String(period.status||'UNKNOWN').toUpperCase();
+  const lines=Array.isArray(period.lines)?period.lines:[];
+  const canEdit=status==='DRAFT'&&!!caps.payroll_manage;
+  const canApprove=status==='SUBMITTED'&&!!caps.payroll_approve;
+  const canPay=status==='APPROVED'&&!!caps.payroll_approve;
+  const rows=lines.map(line=>{
+    const breakdown=(()=>{try{const v=JSON.parse(line.allowance_breakdown_json||'[]');return Array.isArray(v)?v:[]}catch(_e){return[]}})();
+    const parts=breakdown.map(x=>'<span class="sl-payroll-component">'+esc(x.label||x.category||'Allowance')+' · '+money(x.amount||0)+' '+esc(String(x.tax_treatment||'TAXABLE').toUpperCase())+'</span>').join('');
+    return '<article class="sl-payroll-review-line"><div class="sl-payroll-review-line-head"><div><b>'+esc(line.employee_name||'Employee')+'</b><small>'+esc(line.employee_code||'')+' · '+esc(line.branch_location_id||'No branch')+'</small></div><div class="sl-payroll-line-net"><span>NET PAY</span><strong>'+money(line.net_pay||0)+'</strong></div></div>'+
+      '<div class="sl-payroll-review-metrics">'+
+        '<div><span>Base</span><b>'+money(line.base_salary||0)+'</b></div>'+
+        '<div><span>Gross</span><b>'+money(line.gross_pay||0)+'</b></div>'+
+        '<div><span>Taxable income</span><b>'+money(line.taxable_income||0)+'</b></div>'+
+        '<div><span>PAYE</span><b>'+money(line.income_tax||0)+'</b></div>'+
+        '<div><span>Employee pension</span><b>'+money(line.employee_pension||0)+'</b></div>'+
+        '<div><span>Employer pension</span><b>'+money(line.employer_pension||0)+'</b></div>'+
+        '<div><span>Other deductions</span><b>'+money(line.other_deduction_total||0)+'</b></div>'+
+        '<div><span>Rule</span><b>'+esc(line.tax_rule_version||line.statutory_status||'Legacy review required')+'</b></div>'+
+      '</div>'+
+      '<div class="sl-payroll-review-allowances"><span>Taxable allowances '+money(line.taxable_allowance_total||0)+'</span><span>Exempt allowances '+money(line.exempt_allowance_total||0)+'</span></div>'+
+      (parts?'<details class="sl-payroll-components"><summary>Allowance components ('+breakdown.length+')</summary>'+parts+'</details>':'')+
+      (canEdit?slPayrollLineEditForm(line,period.id):'')+
+    '</article>';
+  }).join('');
+  let actionHtml='';
+  if(canEdit&&lines.length){
+    actionHtml='<button type="button" class="sl-btn primary" data-pay-review-action="SUBMIT" data-pay-id="'+esc(period.id)+'">SUBMIT FOR OWNER APPROVAL</button>';
+  }else if(canApprove){
+    actionHtml='<button type="button" class="sl-btn primary" data-pay-review-action="APPROVE" data-pay-id="'+esc(period.id)+'">OWNER APPROVE & POST GL</button>';
+  }else if(canPay){
+    actionHtml='<button type="button" class="sl-btn gold" data-pay-review-action="PAY_BANK" data-pay-id="'+esc(period.id)+'">RECORD BANK PAYMENT</button> <button type="button" class="sl-btn" data-pay-review-action="PAY_CASH" data-pay-id="'+esc(period.id)+'">RECORD CASH PAYMENT</button>';
+  }else if(status==='DRAFT'&&canEdit&&!lines.length){
+    actionHtml='<p class="sl-sub">Generate the payroll lines from approved employee compensation before review or submission.</p>';
+  }else if(status==='SUBMITTED'){
+    actionHtml='<p class="sl-sub">Awaiting the independent Owner decision. This view does not post a journal.</p>';
+  }else if(status==='APPROVED'){
+    actionHtml='<p class="sl-sub">Approved; awaiting the Owner to record the actual bank or cash payment.</p>';
+  }else if(status==='PAID'){
+    actionHtml='<p class="sl-success-text">Payment has been recorded. This period is read-only.</p>';
+  }
+  const overlay=document.createElement('div');
+  overlay.className='sl-overlay';
+  overlay.setAttribute('data-payroll-review-overlay','');
+  overlay.innerHTML='<div class="sl-payroll-review" role="dialog" aria-modal="true" aria-labelledby="slPayrollReviewTitle">'+
+    '<div class="sl-payroll-review-head"><div><div class="sl-eyebrow">MONTHLY PAYROLL REVIEW</div><h2 id="slPayrollReviewTitle">'+esc(period.period_key||'Payroll period')+'</h2><p>'+esc(period.start_date||'')+' → '+esc(period.end_date||'')+' · '+esc(period.employee_count??lines.length)+' employee line(s)</p></div><div class="sl-payroll-review-head-actions"><span class="sl-pill '+(status==='PAID'?'ok':status==='DRAFT'?'warn':'info')+'">'+esc(status)+'</span><button type="button" class="sl-icon-btn" data-payroll-review-close aria-label="Close payroll review">×</button></div></div>'+
+    '<div class="sl-payroll-review-body">'+
+      '<div class="sl-payroll-summary-grid">'+
+        '<div class="sl-payroll-summary-card"><span>Gross pay</span><strong>'+money(period.gross_total||0)+'</strong></div>'+
+        '<div class="sl-payroll-summary-card"><span>PAYE</span><strong>'+money(period.income_tax_total||0)+'</strong></div>'+
+        '<div class="sl-payroll-summary-card"><span>Employee pension</span><strong>'+money(period.employee_pension_total||0)+'</strong></div>'+
+        '<div class="sl-payroll-summary-card"><span>Employer pension</span><strong>'+money(period.employer_pension_total||0)+'</strong></div>'+
+        '<div class="sl-payroll-summary-card"><span>Other deductions</span><strong>'+money(period.other_deduction_total||0)+'</strong></div>'+
+        '<div class="sl-payroll-summary-card emphasis"><span>Net paid to employees</span><strong>'+money(period.net_total||0)+'</strong></div>'+
+      '</div>'+
+      '<div class="sl-payroll-rule-banner"><b>Calculation and posting guard</b><span>Rule version is stored on each line. The server recalculates draft adjustments. Only the Owner may approve/post the payroll journal or record payment; submitted, approved and paid periods cannot be edited.</span></div>'+
+      (lines.length?'<div class="sl-payroll-review-lines">'+rows+'</div>':'<div class="sl-empty-rich"><b>No payroll lines yet.</b><span>Use Generate Payroll after employee compensation is active and statutory classifications are complete.</span></div>')+
+      '<div class="sl-payroll-review-footer"><div class="sl-sub">Status changes are audited. Cancel closes this view without changing payroll.</div><div class="sl-action-row"><button type="button" class="sl-btn" data-payroll-review-close>Close</button>'+actionHtml+'</div></div>'+
+    '</div></div>';
+  document.body.appendChild(overlay);
+  const close=()=>overlay.remove();
+  overlay.querySelectorAll('[data-payroll-review-close]').forEach(b=>b.addEventListener('click',close));
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+  overlay.querySelectorAll('[data-payroll-line-form]').forEach(form=>form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    if(!form.reportValidity())return;
+    const button=form.querySelector('button[type="submit"]');
+    if(button){button.disabled=true;button.textContent='Recalculating…'}
+    const payload=Object.fromEntries(new FormData(form));
+    payload.owner_confirmed_exemption=!!form.elements.namedItem('owner_confirmed_exemption')?.checked;
+    try{
+      const out=await api16('/hr/payroll/'+encodeURIComponent(form.dataset.periodId)+'/line/'+encodeURIComponent(form.dataset.lineId),{method:'POST',body:JSON.stringify(payload)});
+      toast('Draft line recalculated and audited. Review the updated totals before submission.');
+      await loadHR();
+      renderPayrollReview(out);
+    }catch(e2){
+      toast(e2.message,true);
+      if(button){button.disabled=false;button.textContent='SAVE & RECALCULATE LINE'}
+    }
+  }));
+  overlay.querySelectorAll('[data-pay-review-action]').forEach(button=>button.addEventListener('click',async()=>{
+    const action=button.dataset.payReviewAction,id=button.dataset.payId;
+    button.disabled=true;button.textContent='Processing…';
+    try{
+      let out;
+      if(action==='SUBMIT')out=await api16('/hr/payroll/'+encodeURIComponent(id)+'/submit',{method:'POST',body:'{}'});
+      else if(action==='APPROVE')out=await api16('/hr/payroll/'+encodeURIComponent(id)+'/approve',{method:'POST',body:'{}'});
+      else out=await api16('/hr/payroll/'+encodeURIComponent(id)+'/pay',{method:'POST',body:JSON.stringify({method:action==='PAY_BANK'?'BANK':'CASH'})});
+      toast(action==='SUBMIT'?'Payroll submitted for independent Owner approval.':action==='APPROVE'?'Owner approved payroll and the GL journal was posted.':'Payroll payment recorded and audited.');
+      await loadHR();
+      renderPayrollReview(out);
+    }catch(e2){
+      toast(e2.message,true);
+      button.disabled=false;
+      button.textContent=action==='SUBMIT'?'SUBMIT FOR OWNER APPROVAL':action==='APPROVE'?'OWNER APPROVE & POST GL':action==='PAY_BANK'?'RECORD BANK PAYMENT':'RECORD CASH PAYMENT';
+    }
+  }));
+}
+async function openPayrollReview(id){
+  try{
+    const period=await api16('/hr/payroll/'+encodeURIComponent(id));
+    if(!period||!Array.isArray(period.lines))throw new Error('The payroll detail response was incomplete. No approval or payment action was taken.');
+    renderPayrollReview(period);
+  }catch(e){toast('Payroll review could not be loaded. '+e.message,true)}
+}
+function renderPayrollTable(d,c){
+  const pe=document.getElementById('hrPayroll');
+  if(!pe)return;
+  const periods=Array.isArray(d.payroll)?d.payroll:[];
+  if(!periods.length){
+    pe.innerHTML='<div class="sl-empty-rich"><b>No payroll periods yet.</b><span>Management can create a draft for the current calendar month above.</span></div>';
+    return;
+  }
+  const rows=periods.map(p=>{
+    const status=String(p.status||'UNKNOWN').toUpperCase();
+    let action='';
+    if(status==='DRAFT'&&Number(p.employee_count||0)===0){
+      action=c.payroll_manage?'<button class="sl-btn primary" data-pay-action="GENERATE" data-pay-id="'+esc(p.id)+'">GENERATE PAYROLL</button>':'<span class="sl-sub">Awaiting Management generation</span>';
+    }else if(status==='DRAFT'){
+      action=c.payroll_manage?'<button class="sl-btn primary" data-pay-review="'+esc(p.id)+'">REVIEW / EDIT DRAFT</button>':'<span class="sl-sub">Draft review unavailable</span>';
+    }else if(status==='SUBMITTED'){
+      action='<button class="sl-btn primary" data-pay-review="'+esc(p.id)+'">'+(c.payroll_approve?'REVIEW FOR OWNER APPROVAL':'VIEW SUBMITTED PAYROLL')+'</button>';
+    }else if(status==='APPROVED'){
+      action='<button class="sl-btn gold" data-pay-review="'+esc(p.id)+'">'+(c.payroll_approve?'REVIEW & RECORD PAYMENT':'VIEW APPROVED PAYROLL')+'</button>';
+    }else{
+      action='<button class="sl-btn" data-pay-review="'+esc(p.id)+'">VIEW PAYROLL</button>';
+    }
+    return '<tr><td data-label="Period"><b>'+esc(p.period_key)+'</b><div class="sl-sub">'+esc(p.start_date)+' → '+esc(p.end_date)+'</div></td>'+
+      '<td data-label="Status"><span class="sl-pill '+(status==='PAID'?'ok':status==='DRAFT'?'warn':'info')+'">'+esc(status)+'</span></td>'+
+      '<td data-label="Employees">'+esc(p.employee_count||0)+'</td>'+
+      '<td data-label="Payroll total"><strong>Net '+money(p.net_total||0)+'</strong><div class="sl-sub">Gross '+money(p.gross_total||0)+'</div></td>'+
+      '<td data-label="Deductions / employer cost"><div class="sl-sub">PAYE '+money(p.income_tax_total||0)+' · Employee pension '+money(p.employee_pension_total||0)+'</div><div class="sl-sub">Other '+money(p.other_deduction_total||0)+' · Employer pension '+money(p.employer_pension_total||0)+'</div></td>'+
+      '<td data-label="Next step">'+action+'</td></tr>';
+  }).join('');
+  pe.innerHTML='<div class="sl-table-wrap sl-payroll-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Period</th><th>Status</th><th>Employees</th><th>Payroll total</th><th>Deductions / employer cost</th><th>Next step</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
 async function loadHR(){const page=document.getElementById('hrPage');if(!page)return;try{const d=await api16('/hr/bootstrap');state.hr=d;const c=state.boot.user.capabilities||{};const ee=document.getElementById('hrEmployees');if(ee)ee.innerHTML=(d.employees||[]).length?'<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Employee</th><th>Branch</th><th>Position</th><th>Status</th>'+ ((c.payroll_manage||c.payroll_approve)?'<th>Salary components / statutory status</th>':'')+'<th>Action</th></tr></thead><tbody>'+(d.employees||[]).map(e=>'<tr><td><b>'+esc(e.employee_id)+'</b><div class="sl-sub">'+esc(e.full_name)+'</div></td><td>'+esc(e.location_name||'Unassigned')+'</td><td>'+esc(e.position_title||'')+'</td><td><span class="sl-pill '+(e.status==='ACTIVE'?'ok':'warn')+'">'+esc(e.status)+'</span></td>'+((c.payroll_manage||c.payroll_approve)?'<td>'+money(e.current_base_salary)+' / '+money(e.current_allowance_total)+' / '+money(e.current_deduction_total)+'<div class="sl-sub">Tax class: '+esc(e.current_statutory_classification_status||'REVIEW_REQUIRED')+'</div><div class="sl-sub">Taxable '+money(e.current_taxable_allowance_total||0)+' · Exempt '+money(e.current_exempt_allowance_total||0)+'</div>'+'</td>':'')+'<td>'+(e.status==='PENDING'&&state.boot.user.role==='owner'&&!!c.hr_manage?'<button class="sl-btn primary" data-hr-employee-approve="'+esc(e.id)+'">OWNER APPROVE EMPLOYEE</button> ':'')+(String(e.employment_type||'').toUpperCase()==='RETAINER_SERVICE'?'<span class="sl-sub">Service contract — outside employee PAYE payroll; follow approved contract/payment SOP</span>':(c.hr_manage?'<button class="sl-btn" data-hr-comp="'+esc(e.id)+'" data-hr-name="'+esc(e.full_name)+'">SET COMPENSATION</button>':'<span class="sl-sub">View only</span>'))+'</td></tr>').join('')+'</tbody></table></div>':'<div class="sl-empty-rich"><b>No employee records yet.</b><span>Management can create the first employee from the HR panel.</span></div>';if(c.payroll_manage||c.payroll_approve){const pe=document.getElementById('hrPayroll');pe.innerHTML=(d.payroll||[]).length?'<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Period</th><th>Status</th><th>Employees</th><th>Gross</th><th>Deductions</th><th>Employer Pension</th><th>Net</th><th>One-touch action</th></tr></thead><tbody>'+(d.payroll||[]).map(p=>{let acts='';if(p.status==='DRAFT'){if(Number(p.employee_count||0)===0)acts=c.payroll_manage?'<button class="sl-btn" data-pay-action="GENERATE" data-pay-id="'+p.id+'">GENERATE</button>':'<span class="sl-sub">Draft generation restricted</span>';else acts=c.payroll_manage?'<button class="sl-btn primary" data-pay-action="SUBMIT" data-pay-id="'+p.id+'">SUBMIT FOR OWNER APPROVAL</button>':'<span class="sl-sub">Awaiting submission</span>';}else if(p.status==='SUBMITTED')acts=c.payroll_approve?'<button class="sl-btn primary" data-pay-action="APPROVE" data-pay-id="'+p.id+'">OWNER APPROVE</button>':'<span class="sl-sub">Awaiting Owner approval</span>';else if(p.status==='APPROVED')acts=c.payroll_approve?'<button class="sl-btn gold" data-pay-action="PAY_BANK" data-pay-id="'+p.id+'">PAY BANK</button> <button class="sl-btn" data-pay-action="PAY_CASH" data-pay-id="'+p.id+'">PAY CASH</button>':'<span class="sl-sub">Awaiting Owner payment</span>';else acts='<span class="sl-success-text">'+esc(p.status)+'</span>';return '<tr><td><b>'+esc(p.period_key)+'</b><div class="sl-sub">'+esc(p.start_date)+' → '+esc(p.end_date)+'</div></td><td><span class="sl-pill '+(p.status==='PAID'?'ok':p.status==='DRAFT'?'warn':'info')+'">'+esc(p.status)+'</span></td><td>'+esc(p.employee_count)+'</td><td>'+money(p.gross_total)+'</td><td>'+money(p.deduction_total)+'<div class="sl-sub">PAYE '+money(p.income_tax_total||0)+' · Employee pension '+money(p.employee_pension_total||0)+' · Other '+money(p.other_deduction_total||0)+'</div></td><td>'+money(p.employer_pension_total||0)+'</td><td>'+money(p.net_total)+'</td><td>'+acts+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="sl-empty-rich"><b>No payroll periods.</b><span>Create one above.</span></div>';}document.querySelectorAll('[data-hr-comp]').forEach(b=>b.onclick=()=>openCompensationEditor(b));document.querySelectorAll('[data-hr-employee-approve]').forEach(b=>b.onclick=async()=>{const id=b.dataset.hrEmployeeApprove;if(!id)return;b.disabled=true;try{await api16('/hr/employees/'+encodeURIComponent(id)+'/decision',{method:'POST',body:JSON.stringify({decision:'APPROVE'})});toast('Employee file approved and activated');await loadHR()}catch(e){toast(e.message,true)}finally{b.disabled=false}});document.querySelectorAll('[data-pay-action]').forEach(b=>b.onclick=async()=>{const a=b.dataset.payAction,id=b.dataset.payId;b.disabled=true;try{let out;if(a==='GENERATE')out=await api16('/hr/payroll/'+id+'/generate',{method:'POST',body:'{}'});else if(a==='SUBMIT')out=await api16('/hr/payroll/'+id+'/submit',{method:'POST',body:'{}'});else if(a==='APPROVE')out=await api16('/hr/payroll/'+id+'/approve',{method:'POST',body:'{}'});else out=await api16('/hr/payroll/'+id+'/pay',{method:'POST',body:JSON.stringify({method:a==='PAY_BANK'?'BANK':'CASH'})});if(a==='GENERATE'&&out&&Array.isArray(out.excluded_service_contracts)&&out.excluded_service_contracts.length){toast('Payroll generated; '+out.excluded_service_contracts.length+' RETAINER_SERVICE contract(s) excluded from employee PAYE. Review period notes and use the approved contract/payment procedure.')}else{toast(a==='SUBMIT'?'Payroll submitted for independent Owner approval':a==='APPROVE'?'Owner approved payroll and accounting journal was posted':'Payroll '+a.toLowerCase()+' completed and audited')}await loadHR();await load()}catch(e){toast(e.message,true)}finally{b.disabled=false}});const ef=document.getElementById('hrEmployeeForm');if(ef)ef.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));try{await api16('/hr/employees',{method:'POST',body:JSON.stringify(d)});toast('Employee file created and sent to Owner for approval; it is not active yet');e.currentTarget.reset();await loadHR()}catch(x){toast(x.message,true)}};const pf=document.getElementById('hrPayrollPeriodForm');if(pf)pf.onsubmit=async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));try{await api16('/hr/payroll',{method:'POST',body:JSON.stringify(d)});toast('Payroll period created');e.currentTarget.reset();await loadHR()}catch(x){toast(x.message,true)}}}catch(e){toast(e.message,true)}}
 async function loadBranchOperations(filters={}){
     const el=document.getElementById('branchOpsPage');if(!el)return;
