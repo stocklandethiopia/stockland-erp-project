@@ -7,7 +7,7 @@
 - Requisition creation requires a stable retry key; identical retries return the existing request and a reused key with different content returns a conflict.
 - Branch requisition drafts display live branch availability and read-only Central Warehouse/peer-branch sourcing. A failed source lookup is not presented as zero stock and does not mutate inventory.
 - The Central Warehouse Manager may PICK NOW from an Approved requisition or choose RESERVE / ASSIGN when a pickup appointment is needed. A Warehouse Employee may pick only after the requisition is Reserved. The server rechecks role, row-locked state, available stock, active reservation, ledger dispatch, workflow and audit before committing.
-- The PAYE preview and server calculation deduct the employee pension before PAYE under the versioned Stockland rule; the ETB 30,000 regression expects pension 2,100, PAYE 7,715 and net 20,185. Historical posted payroll is not silently recalculated.
+- The PAYE preview and server calculation consistently deduct the employee pension before PAYE under the versioned Stockland rule; the ETB 30,000 regression expects pension 2,100, PAYE 7,715 and net 20,185. This is the configured application rule, not a legal certification: an Ethiopian payroll/tax professional must confirm the taxable-base interpretation before production payroll sign-off. Historical posted payroll is not silently recalculated.
 - Owner-created corporate expenses remain pending and unposted rather than self-approving or creating an unreviewed GL journal.
 
 ## Included capabilities
