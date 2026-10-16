@@ -367,7 +367,7 @@ jobs:
               "php_runtime": "PHP 8.4",
               "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
               "json_manifest_validation": "PASS (python json.tool)",
-              "target_host_acceptance": "Prior user-provided LIVE READY host baseline is acknowledged; exact 16.1.67 dashboard/payroll post-update checks remain outside source CI and must follow the established in-place update procedure.",
+              "target_host_acceptance": "Prior full System Health LIVE READY evidence establishes the accepted host baseline. This source/package gate records product readiness; host rollout state is maintained separately and is not a source-CAP condition.",
           }
           quality["source_gate_evidence"] = evidence
           source_gate_text = (
