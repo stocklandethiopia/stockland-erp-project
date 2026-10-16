@@ -1,6 +1,6 @@
 # Stockland Ethiopia ERP 16.1.67
 
-**Stockland ERP** is a role-based, responsive operations and finance platform for Stockland Ethiopia, supporting the central warehouse, branches, Product Master, retail operations, procurement, finance, reporting and payroll.
+**Stockland ERP 16.1.67 is a cumulative production update for the existing Stockland Ethiopia ERP. It continues the current system and preserves the established business-data contract, accounting history, role boundaries and operational workflows.**
 
 ## Included capabilities
 
@@ -37,13 +37,27 @@
 
 The ERP enforces the authority model on the server as well as in the interface. A hidden button is not treated as an access-control mechanism.
 
+## Warehouse movement and branch receiving
+
+After a requisition is approved, the Central Warehouse Manager may choose **PICK / READY** immediately. A reservation or pickup date is not required. The Manager may instead choose **RESERVE** to schedule collection; a pickup date is required for that appointment. Warehouse Employees may PICK only after the Manager has reserved the requisition. The ERP checks available central stock and posts the actual approved dispatch quantity through the stock ledger. A repeated PICK cannot post the same movement twice. The Branch Manager records the actual quantity received; a variance requires a reason and only the quantity actually received is added to branch stock. Physical count remains a separate inventory-count workflow.
+
 ## Install or update in WordPress
 
-1. Back up the current plugin files and WordPress database before an in-place update.
-2. In WordPress, open **Plugins → Add New Plugin → Upload Plugin** and select the Stockland ERP 16.1.67 installer ZIP.
-3. For an in-place update, choose the option to replace the existing Stockland ERP plugin when WordPress offers it. For a fresh installation, install and activate the plugin.
-4. Open the Stockland ERP front end. Use the Owner's Users & Organization controls to assign each active ERP role and its branch/location.
-5. Use **Finance & Procurement** from the ERP navigation for purchasing, expenses, AP/AR, payments and financial reporting.
+### Update an existing Stockland ERP installation
+
+1. Back up the current plugin files and WordPress database.
+2. In WordPress, open **Plugins → Add New Plugin → Upload Plugin** and select this Stockland ERP installer ZIP.
+3. Use WordPress's replace/update option for the existing Stockland ERP plugin. Do not uninstall the existing plugin or remove its data.
+4. Open the ERP front end and confirm System Health. The existing ERP records and configured roles/locations are preserved.
+
+### Clean WordPress installation
+
+1. Upload this ZIP through **Plugins → Add New Plugin → Upload Plugin**, then install and activate it.
+2. Complete the protected ERP setup from the WordPress administrator account.
+3. Use the Owner's **Users & Organization** controls to assign each active ERP role and branch/location.
+4. Confirm System Health and the required Core, Accounting/Procurement and HR/Payroll setup indicators before day-to-day operation.
+
+Use **Finance & Procurement** from ERP navigation for purchase orders, expenses, AP/AR, payments and financial reporting.
 
 The update preserves the existing business-data model: 49 application tables across Core/Operations, Accounting/Procurement and HR/Payroll, with the existing core, accounting and HR schema-version markers.
 
@@ -56,8 +70,6 @@ Product Master is the SKU catalog. Adding a product master record does not itsel
 The interface uses the local Bootstrap 5.3.8 stylesheet and a compact six-module responsive CSS build. Finance forms use live data, role-scoped actions and server-side validation. The plugin does not seed demonstration sales, stock movements, payroll entries, orders or customer transactions.
 
 
-## Production release status
+## Release compatibility
 
-The established Stockland WordPress hosting baseline for version 16.1.66 was previously reported **LIVE READY** on WordPress 7.1.3, PHP 8.4.25 and MariaDB 11.4.13, with all 49 application tables, 96 REST v16 routes and the full deep-integrity report passing. This accepted baseline is carried forward; a separate generic staging-clone cycle or repeat of the entire host qualification is not required.
-
-Version 16.1.67 is a cumulative production installer for that existing site. Back up the plugin files and database, then apply the established in-place WordPress update. After updating, verify the release-specific dashboard analytics and payroll-calculation changes together with the agreed System Health result. Source/package CI does not deploy to WordPress, so the new release's post-update observations must be recorded only after the exact package is installed on the host.
+This cumulative release is for the existing Stockland ERP 16.1.66 data model and preserves the 49-table business contract: 29 Core/Operations, 16 Accounting/Procurement and 4 HR/Payroll tables. It retains the established core, accounting and HR schema-version markers and adds no business table. The frontend bundles Bootstrap 5.3.8 locally and does not require a CDN at runtime. The installer contains production application files only; it does not include development tooling or QA scripts.
