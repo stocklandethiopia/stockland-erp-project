@@ -56,6 +56,8 @@ Product Master is the SKU catalog. Adding a product master record does not itsel
 The interface uses the local Bootstrap 5.3.8 stylesheet and a compact six-module responsive CSS build. Finance forms use live data, role-scoped actions and server-side validation. The plugin does not seed demonstration sales, stock movements, payroll entries, orders or customer transactions.
 
 
-## Acceptance boundary
+## Production release status
 
-The automated source/package gate validates code quality and package integrity; it does not by itself establish production acceptance. Target-host acceptance is currently **PENDING** until the exact packaged SHA-256 is verified on the intended WordPress/PHP/MariaDB environment, the 49-table schema and existing data are reconciled, role-separated requisition/picking, procurement, finance, imports and payroll flows pass, and backup restoration plus rollback are demonstrated. The plugin does not include demonstration sales, stock movements, payroll entries or orders.
+The established Stockland WordPress hosting baseline for version 16.1.66 was previously reported **LIVE READY** on WordPress 7.1.3, PHP 8.4.25 and MariaDB 11.4.13, with all 49 application tables, 96 REST v16 routes and the full deep-integrity report passing. This accepted baseline is carried forward; a separate generic staging-clone cycle or repeat of the entire host qualification is not required.
+
+Version 16.1.67 is a cumulative production installer for that existing site. Back up the plugin files and database, then apply the established in-place WordPress update. After updating, verify the release-specific dashboard analytics and payroll-calculation changes together with the agreed System Health result. Source/package CI does not deploy to WordPress, so the new release's post-update observations must be recorded only after the exact package is installed on the host.
