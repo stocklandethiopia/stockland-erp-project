@@ -1,6 +1,6 @@
 <?php
 /**
- * Source-contract regression checks for cumulative release 16.1.77.
+ * Source-contract regression checks for cumulative release 16.1.78.
  * These static checks do not replace authenticated database/ledger acceptance.
  */
 if ( PHP_SAPI !== 'cli' ) {
@@ -43,7 +43,7 @@ $expense_decision_start = strpos( $accounting, 'public function expense_status' 
 $expense_create = false !== $expense_create_start && false !== $expense_decision_start
 	? substr( $accounting, $expense_create_start, $expense_decision_start - $expense_create_start )
 	: '';
-$check( str_contains( $plugin, 'Version:           16.1.77' ) && ( $manifest['release'] ?? '' ) === '16.1.77' && str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.77' );" ), 'Plugin, manifest and runtime version are aligned at 16.1.77' );
+$check( str_contains( $plugin, 'Version:           16.1.78' ) && ( $manifest['release'] ?? '' ) === '16.1.78' && str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.78' );" ), 'Plugin, manifest and runtime version are aligned at 16.1.78' );
 $check( ( $manifest['schema_contract']['total'] ?? 0 ) === 49, 'Release manifest preserves the 49-table business schema contract' );
 $check( str_contains( $ddl, "'requisitions'" ) && str_contains( $ddl, "'transactions'" ), 'Core requisition and stock-ledger tables remain in the core DDL contract' );
 $check( str_contains( $stock, 'valid Product Master variant may have no posted movement yet' ) && str_contains( $stock, "'stock_read_failed'" ) && str_contains( $stock, 'current_stock' ) && str_contains( $stock, 'CRITICAL' ), 'SKU stock lookup returns verified zero balances and negative/zero stock is treated as critical' );
@@ -90,9 +90,10 @@ $check( str_contains( $expense_create, '$owner_expense_hold = $corporate_expense
 $check( str_contains( $accounting, 'Owner approval is limited to a Management corporate expense submitted by a different active ERP user.' ), 'Expense decision endpoint enforces independent Owner approval' );
 $check( str_contains( $accounting, 'Expense creators cannot approve or reject their own expense.' ), 'All expense creators are prevented from self-approval or self-rejection' );
 $check( ! str_contains( $css_nav, '.sl-sidebar{display:none!important}' ) && str_contains( $css_nav, '.sl-sidebar' ), 'Responsive operational sidebar is preserved and not forcibly hidden' );
+$check( str_contains( $hr_rest, "'status'             => 'PENDING'" ) && str_contains( $hr_rest, 'public function employee_decision' ) && str_contains( $hr_rest, 'Only an authorized ERP Owner may approve an employee file.' ) && str_contains( $hr_rest, 'employee-file creator cannot approve the same employee file' ) && str_contains( $hr_rest, 'HR_EMPLOYEE_APPROVE' ) && str_contains( $app, 'data-hr-employee-approve' ), 'Management-created employee files stay pending until independent Owner approval, notification, workflow and audit are committed' );
 if ( $fail ) {
 	fwrite( STDERR, 'FAIL cumulative operational source checks: ' . count( $fail ) . " failure(s)\n" );
 	exit( 1 );
-$check( str_contains( $hr_rest, "'status'             => 'PENDING'" ) && str_contains( $hr_rest, 'public function employee_decision' ) && str_contains( $hr_rest, 'Only an authorized ERP Owner may approve an employee file.' ) && str_contains( $hr_rest, 'employee-file creator cannot approve the same employee file' ) && str_contains( $hr_rest, 'HR_EMPLOYEE_APPROVE' ) && str_contains( $app, 'data-hr-employee-approve' ), 'Management-created employee files stay pending until independent Owner approval, notification, workflow and audit are committed' );
+
 }
 echo 'PASS cumulative operational source checks: ' . $pass . " assertions\n";

@@ -125,7 +125,7 @@ final class Stockland_Integrity {
 	/**
 	 * Read-only inventory of actual InnoDB FK metadata for this plugin's tables.
 	 * This intentionally never runs ALTER TABLE: legacy ERP data must be orphan-
-	 * checked and migration-tested on a staging copy before any constraints are added.
+	 * reconciled and separately reviewed with an explicit recovery plan before constraints are added.
 	 */
 	/**
 	 * Read actual InnoDB foreign-key metadata without modifying the schema.

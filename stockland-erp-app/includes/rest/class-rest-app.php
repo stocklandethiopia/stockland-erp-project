@@ -257,6 +257,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 		register_rest_route(
 			self::NAMESPACE_V1,
+			'/app/global-search',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'global_search' ),
+				'permission_callback' => function () {
+					return is_user_logged_in() && ( current_user_can( 'manage_options' ) || Stockland_Authority::assert_profile() );
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE_V1,
 			'/app/dashboard/insights',
 			array(
 				'methods'             => 'GET',
@@ -2441,6 +2452,159 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'settings_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
+	/**
+	 * Provides a small, read-only global search across records the current ERP profile may access.
+	 *
+	 * Search results contain labels/references only; no customer contact, cost, profit or balances.
+	 *
+	 * @param WP_REST_Request $request Search query parameters.
+	 * @return mixed Role-scoped search response or a REST error.
+	 * @throws RuntimeException When a search query fails; the method catches the failure and returns a REST error.
+	 */
+	public function global_search( WP_REST_Request $request ) {
+		global $wpdb;
+		$term = substr( trim( sanitize_text_field( (string) $request->get_param( 'q' ) ) ), 0, 80 );
+		if ( strlen( $term ) < 2 ) {
+			return rest_ensure_response(
+				array(
+					'term'    => $term,
+					'results' => array(),
+				)
+			);
+		}
+		$profile_status = Stockland_Authority::assert_profile();
+		if ( ! current_user_can( 'manage_options' ) && is_wp_error( $profile_status ) ) {
+			return $profile_status;
+		}
+		$prefix              = $wpdb->esc_like( $term ) . '%';
+		$like                = '%' . $wpdb->esc_like( $term ) . '%';
+		$can_manage_products = current_user_can( 'stockland_manage_products' );
+		$results             = array();
+		$push                = static function ( $type, $title, $subtitle, $target, $query ) use ( &$results ) {
+			if ( count( $results ) >= 24 ) {
+				return;
+			}
+			$results[] = array(
+				'type'     => (string) $type,
+				'title'    => (string) $title,
+				'subtitle' => (string) $subtitle,
+				'target'   => (string) $target,
+				'query'    => (string) $query,
+			);
+		};
+		try {
+			$product_rows = Stockland_DB::read_results(
+				$wpdb->prepare(
+					"SELECT variant_id,sku,product_name,brand,color,size,is_active
+					FROM %i
+					WHERE product_type<>'STYLE'
+						AND (%d = 1 OR is_active = 1)
+						AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR brand LIKE %s OR barcode LIKE %s)
+					ORDER BY CASE WHEN sku=%s THEN 0 ELSE 1 END,sku ASC LIMIT %d",
+					Stockland_DB::table( 'products' ),
+					$can_manage_products ? 1 : 0,
+					$prefix,
+					$like,
+					$prefix,
+					$like,
+					$prefix,
+					$term,
+					6
+				),
+				ARRAY_A
+			);
+			if ( $wpdb->last_error ) {
+				throw new RuntimeException( 'Product search query failed.' );
+			}
+			foreach ( (array) $product_rows as $row ) {
+				$details = array_filter(
+					array(
+						' SKU ' . (string) ( $row['sku'] ?? '' ),
+						(string) ( $row['brand'] ?? '' ),
+						trim( (string) ( $row['color'] ?? '' ) . ' ' . (string) ( $row['size'] ?? '' ) ),
+					)
+				);
+				if ( isset( $row['is_active'] ) && 1 !== (int) $row['is_active'] ) {
+					$details[] = 'INACTIVE MASTER SKU';
+				}
+				$push( 'product', $row['product_name'] ?? $row['sku'], implode( ' · ', $details ), 'products', $row['sku'] ?? '' );
+			}
+			$uid  = get_current_user_id();
+			$role = Stockland_Authority::role( $uid );
+			if ( current_user_can( 'stockland_view_financials' ) || current_user_can( 'stockland_manage_customers' ) ) {
+				$customer_sql  = 'SELECT id,customer_code,customer_name,customer_type FROM %i WHERE is_active=1 AND (customer_name LIKE %s OR customer_code LIKE %s)';
+				$customer_args = array( Stockland_DB::table( 'customers' ), $like, $prefix );
+				if ( in_array( $role, array( 'branch_manager', 'sales_employee' ), true ) ) {
+					$customer_sql   .= ' AND created_by=%d';
+					$customer_args[] = $uid;
+				}
+				$customer_sql   .= ' ORDER BY customer_name ASC LIMIT %d';
+				$customer_args[] = 5;
+				// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL uses fixed clauses and server-built role constraints; all identifiers and values are bound in prepare().
+				$customer_rows = Stockland_DB::read_results( $wpdb->prepare( $customer_sql, $customer_args ), ARRAY_A );
+				if ( $wpdb->last_error ) {
+					throw new RuntimeException( 'Customer search query failed.' );
+				}
+				foreach ( (array) $customer_rows as $row ) {
+					$push( 'customer', $row['customer_name'] ?? '', trim( (string) ( $row['customer_code'] ?? '' ) . ' · ' . (string) ( $row['customer_type'] ?? 'Customer' ) ), 'finance', $row['customer_code'] ?? $row['customer_name'] ?? '' );
+				}
+			}
+			if ( current_user_can( 'stockland_view_own_branch' ) || current_user_can( 'stockland_view_all_branches' ) ) {
+				$scope = $this->scope_locations();
+				if ( false !== $scope ) {
+					$sales_args   = array( Stockland_DB::table( 'sales' ), Stockland_DB::table( 'locations' ), $prefix, $prefix, $prefix );
+					$scope_sql    = $this->append_scope_filter( 's.branch_location_id', $sales_args, $scope );
+					$sales_sql    = 'SELECT s.sale_id,s.sale_date,s.branch_location_id,s.sku,s.posting_status,l.location_name
+						FROM %i s LEFT JOIN %i l ON l.id=s.branch_location_id
+						WHERE (s.sale_id LIKE %s OR s.sku LIKE %s OR s.external_receipt_no LIKE %s)';
+					$sales_sql   .= $scope_sql . ' ORDER BY s.sale_date DESC,s.sale_id DESC LIMIT %d';
+					$sales_args[] = 6;
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The role-scoped clause is generated by the trusted helper; all identifiers, values, and scope IDs are bound in prepare().
+					$sales_rows = Stockland_DB::read_results( $wpdb->prepare( $sales_sql, $sales_args ), ARRAY_A );
+					if ( $wpdb->last_error ) {
+						throw new RuntimeException( 'Sales search query failed.' );
+					}
+					foreach ( (array) $sales_rows as $row ) {
+						$label = 'Sale ' . (string) ( $row['sale_id'] ?? '' );
+						$push( 'sale', $label, trim( (string) ( $row['sku'] ?? '' ) . ' · ' . (string) ( $row['sale_date'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ) ), 'pos:' . (string) ( $row['sale_date'] ?? '' ) . ':' . (string) ( $row['branch_location_id'] ?? '' ), $row['sale_id'] ?? '' );
+					}
+				}
+			}
+			if ( Stockland_Authority::can_view_external_purchase_orders() ) {
+				$company_scope = Stockland_Authority::company_scope();
+				$po_scope      = $company_scope ? array() : array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
+				if ( $company_scope || $po_scope ) {
+					$po_sql  = 'SELECT po.po_number,po.order_date,po.status,s.supplier_name,l.location_name FROM %i po JOIN %i s ON s.id=po.supplier_id JOIN %i l ON l.id=po.location_id WHERE (po.po_number LIKE %s OR s.supplier_name LIKE %s OR po.notes LIKE %s)';
+					$po_args = array( Stockland_DB::table( 'purchase_orders' ), Stockland_DB::table( 'suppliers' ), Stockland_DB::table( 'locations' ), $prefix, $like, $like );
+					if ( ! $company_scope ) {
+						$ph      = implode( ',', array_fill( 0, count( $po_scope ), '%d' ) );
+						$po_sql .= ' AND po.location_id IN(' . $ph . ')';
+						$po_args = array_merge( $po_args, $po_scope );
+					}
+					$po_sql   .= ' ORDER BY po.id DESC LIMIT %d';
+					$po_args[] = 5;
+					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Scope placeholders are generated from authorized integer location IDs and bound with all other query arguments.
+					$po_rows = Stockland_DB::read_results( $wpdb->prepare( $po_sql, $po_args ), ARRAY_A );
+					if ( $wpdb->last_error ) {
+						throw new RuntimeException( 'Purchase-order search query failed.' );
+					}
+					foreach ( (array) $po_rows as $row ) {
+						$push( 'purchase_order', 'PO ' . (string) ( $row['po_number'] ?? '' ), trim( (string) ( $row['supplier_name'] ?? '' ) . ' · ' . (string) ( $row['status'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ) ), 'finance', $row['po_number'] ?? '' );
+					}
+				}
+			}
+		} catch ( Throwable $e ) {
+			Stockland_Runtime_Diagnostics::log_error( 'Stockland global search failed: ' . $e->getMessage() );
+			return new WP_Error( 'global_search_failed', 'Global search could not complete. No ERP data was changed.', array( 'status' => 500 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'term'    => $term,
+				'results' => $results,
+			)
+		);
+	}
+
 	/**
 	 * Returns role-scoped, read-only dashboard visualizations from posted retail sales.
 	 *

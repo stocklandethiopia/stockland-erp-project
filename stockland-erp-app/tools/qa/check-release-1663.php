@@ -28,7 +28,7 @@ $integrity  = $read( 'includes/class-stockland-integrity.php' );
 $frontend   = $read( 'includes/class-stockland-frontend.php' );
 $ddl        = $read( 'includes/class-stockland-activator.php' );
 $app        = $read( 'assets/app.js' );
-$ok( ( $manifest['release'] ?? '' ) === '16.1.77' && str_contains( $plugin, 'Version:           16.1.77' ), 'plugin header and manifest use the same release identity' );
+$ok( ( $manifest['release'] ?? '' ) === '16.1.78' && str_contains( $plugin, 'Version:           16.1.78' ), 'plugin header and manifest use the same release identity' );
 $plugin_compact     = preg_replace( '/\\s+/', '', $plugin );
 $owner_po_guard      = '$owner_po_cap_missing=!$owner_role||!$owner_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
 $management_po_guard = '$management_po_cap_bad=$management_role&&$management_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
@@ -82,6 +82,6 @@ $ok( str_contains( $plugin, 'includes/class-stockland-integrity.php' ) && ! preg
 $ok( str_contains( $app, 'The purchase-order transition is confirmed as' ) && str_contains( $app, 'notifications could not refresh. Open Notifications' ), 'post-transition refresh failures remain distinct from server-confirmed procurement decisions' );
 
 if ( $fail ) {
-	fwrite( STDERR, 'Release 16.1.77 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
+	fwrite( STDERR, 'Release 16.1.78 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
-}echo "Release 16.1.77 comprehensive gate PASS: {$pass} assertions.\n";
+}echo "Release 16.1.78 comprehensive gate PASS: {$pass} assertions.\n";
