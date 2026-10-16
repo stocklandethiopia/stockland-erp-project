@@ -381,6 +381,15 @@ jobs:
               **evidence,
               "state": "PASS",
           }
+          acceptance = manifest.setdefault("release_acceptance", {})
+          acceptance["source_package_gate"] = source_gate_text
+          acceptance["target_host"] = "PENDING"
+          acceptance["production_deployment"] = "NOT_AUTHORIZED_BY_SOURCE_CI"
+          acceptance["note"] = (
+              "The exact source/package CI gate passed for the evidence recorded above. "
+              "This does not establish authenticated target-host behavior, live ledger reconciliation, "
+              "backup restoration, rollback, or Ethiopian payroll/tax-adviser validation."
+          )
           corrective = manifest.setdefault("corrective_release_16_1_67", {})
           corrective["source_gate"] = source_gate_text
           corrective["source_gate_evidence"] = evidence
