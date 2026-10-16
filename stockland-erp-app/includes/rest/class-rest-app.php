@@ -2566,7 +2566,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					}
 					foreach ( (array) $sales_rows as $row ) {
 						$label = 'Sale ' . (string) ( $row['sale_id'] ?? '' );
-						$push( 'sale', $label, trim( (string) ( $row['sku'] ?? '' ) . ' · ' . (string) ( $row['sale_date'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ) ), 'pos', $row['sale_id'] ?? '' );
+						$push( 'sale', $label, trim( (string) ( $row['sku'] ?? '' ) . ' · ' . (string) ( $row['sale_date'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ) ), 'pos:' . (string) ( $row['sale_date'] ?? '' ) . ':' . (string) ( $row['branch_location_id'] ?? '' ), $row['sale_id'] ?? '' );
 					}
 				}
 			}
