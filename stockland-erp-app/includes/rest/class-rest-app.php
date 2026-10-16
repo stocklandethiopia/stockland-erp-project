@@ -2477,6 +2477,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! current_user_can( 'manage_options' ) && ! Stockland_Authority::assert_profile() ) {
 			return new WP_Error( 'no_profile', 'A valid Stockland ERP profile is required for global search.', array( 'status' => 403 ) );
 		}
+		$prefix  = $wpdb->esc_like( $term ) . '%';
 		$like    = '%' . $wpdb->esc_like( $term ) . '%';
 		$results = array();
 		$push    = static function ( $type, $title, $subtitle, $target, $query ) use ( &$results ) {
@@ -2500,11 +2501,11 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR brand LIKE %s OR barcode LIKE %s)
 					ORDER BY CASE WHEN sku=%s THEN 0 ELSE 1 END,sku ASC LIMIT %d",
 					Stockland_DB::table( 'products' ),
+					$prefix,
 					$like,
+					$prefix,
 					$like,
-					$like,
-					$like,
-					$like,
+					$prefix,
 					$term,
 					6
 				),
@@ -2527,7 +2528,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			$role = Stockland_Authority::role( $uid );
 			if ( current_user_can( 'stockland_view_financials' ) || current_user_can( 'stockland_manage_customers' ) ) {
 				$customer_sql  = 'SELECT id,customer_code,customer_name,customer_type FROM %i WHERE is_active=1 AND (customer_name LIKE %s OR customer_code LIKE %s)';
-				$customer_args = array( Stockland_DB::table( 'customers' ), $like, $like );
+				$customer_args = array( Stockland_DB::table( 'customers' ), $like, $prefix );
 				if ( in_array( $role, array( 'branch_manager', 'sales_employee' ), true ) ) {
 					$customer_sql   .= ' AND created_by=%d';
 					$customer_args[] = $uid;
@@ -2545,7 +2546,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			if ( current_user_can( 'stockland_view_own_branch' ) || current_user_can( 'stockland_view_all_branches' ) ) {
 				$scope = $this->scope_locations();
 				if ( false !== $scope ) {
-					$sales_args = array( Stockland_DB::table( 'sales' ), Stockland_DB::table( 'locations' ), $like, $like, $like );
+					$sales_args = array( Stockland_DB::table( 'sales' ), Stockland_DB::table( 'locations' ), $prefix, $prefix, $prefix );
 					$scope_sql  = $this->append_scope_filter( 's.branch_location_id', $sales_args, $scope );
 					$sales_sql  = "SELECT s.sale_id,s.sale_date,s.branch_location_id,s.sku,s.posting_status,l.location_name
 						FROM %i s LEFT JOIN %i l ON l.id=s.branch_location_id
@@ -2567,7 +2568,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$po_scope      = $company_scope ? array() : array_values( array_unique( array_map( 'intval', Stockland_Authority::location_ids() ) ) );
 				if ( $company_scope || $po_scope ) {
 					$po_sql  = 'SELECT po.po_number,po.order_date,po.status,s.supplier_name,l.location_name FROM %i po JOIN %i s ON s.id=po.supplier_id JOIN %i l ON l.id=po.location_id WHERE (po.po_number LIKE %s OR s.supplier_name LIKE %s OR po.notes LIKE %s)';
-					$po_args = array( Stockland_DB::table( 'purchase_orders' ), Stockland_DB::table( 'suppliers' ), Stockland_DB::table( 'locations' ), $like, $like, $like );
+					$po_args = array( Stockland_DB::table( 'purchase_orders' ), Stockland_DB::table( 'suppliers' ), Stockland_DB::table( 'locations' ), $prefix, $like, $like );
 					if ( ! $company_scope ) {
 						$ph        = implode( ',', array_fill( 0, count( $po_scope ), '%d' ) );
 						$po_sql   .= ' AND po.location_id IN(' . $ph . ')';
