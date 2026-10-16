@@ -53,7 +53,7 @@ $ok(
 	str_contains( $authority_compact, 'returnin_array($r,array(self::WAREHOUSE_EMPLOYEE,self::WAREHOUSE_MANAGER),true);' )
 		&& str_contains( $requisition, 'Only the Central Warehouse Manager may PICK an approved requisition directly.' )
 		&& str_contains( $requisition, 'Only the Central Warehouse Manager or a Warehouse Employee may pick a reserved requisition.' )
-		&& str_contains( $requisition, "\\$cur['dispatched_qty'] = \\$dispatch" )
+		&& str_contains( $requisition, "\$cur['dispatched_qty'] = \$dispatch" )
 		&& str_contains( $app, "const canPick=role==='warehouse_employee'||role==='warehouse_manager';" )
 		&& str_contains( $app, "const canDirectPick=role==='warehouse_manager'&&q.status==='Approved'" ),
 	'Central Warehouse Manager can direct-PICK approved stock; Warehouse Employees retain reserved/assigned-only picking, with exact quantity and role controls.'
