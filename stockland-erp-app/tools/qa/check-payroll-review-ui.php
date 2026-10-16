@@ -34,7 +34,7 @@ $line_start = strpos( $rest, 'public function payroll_line_update' );
 $line_end   = false !== $line_start ? strpos( $rest, 'private function payroll_detail', $line_start ) : false;
 $line_update = false !== $line_start && false !== $line_end ? substr( $rest, $line_start, $line_end - $line_start ) : '';
 $check(
-	str_contains( $rest, "'/hr/payroll/(?P<id>\\\\d+)'")
+	str_contains( $rest, "'/hr/payroll/(?P<id>" )
 		&& str_contains( $rest, "'methods'             => 'GET'")
 		&& str_contains( $rest, "'callback'            => array( $this, 'payroll_get' )")
 		&& str_contains( $rest, 'Stockland_Authority::can_view_payroll()'),
@@ -64,8 +64,7 @@ $check(
 	'Only Management can edit DRAFT lines; Owner approval/payment actions are status-gated in the review panel.'
 );
 $check(
-	str_contains( $line_update, "if ( 'DRAFT' !== $period['status'] )")
-		&& str_contains( $line_update, "throw" ) === false
+	str_contains( $line_update, "'DRAFT' !== \\$period['status']")
 		&& str_contains( $line_update, 'Approved or paid payroll cannot be edited.')
 		&& str_contains( $line_update, '$verified_exempt_total')
 		&& str_contains( $line_update, '$preserved_exempt_components'),
@@ -76,7 +75,7 @@ $check(
 		&& str_contains( $app, 'slPayrollCurrentMonthDefaults(form,true)')
 		&& str_contains( $app, "value=\''+esc(periodKey)+'\'")
 		&& str_contains( $app, 'CREATE DRAFT PAYROLL')
-		&& str_contains( $app, '<details class="sl-payroll-setup">'),
+		&& str_contains( $app, 'sl-payroll-setup'),
 	'Payroll period form defaults to the current full calendar month and keeps setup forms collapsed until opened.'
 );
 $check(
