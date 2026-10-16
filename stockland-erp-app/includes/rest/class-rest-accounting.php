@@ -2265,7 +2265,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					AND (%d = 0 OR e.expense_date <= %s)
 					AND (%d = 0 OR e.category = %s)",
 				$table,
-				...$filters
+				$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter,
+				$has_from ? 1 : 0,
+				$has_from ? $date_from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $date_to : '',
+				$has_category ? 1 : 0,
+				$has_category ? $category : ''
 			),
 			ARRAY_A
 		);
@@ -2288,7 +2297,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$table,
 				Stockland_DB::table( 'locations' ),
 				$wpdb->users,
-$has_status ? 1 : 0,
+				$has_status ? 1 : 0,
 				$has_status ? $status : '',
 				$company_wide ? 0 : 1,
 				$location_filter,
