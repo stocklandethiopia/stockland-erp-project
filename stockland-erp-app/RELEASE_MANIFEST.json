@@ -1,8 +1,8 @@
 {
-  "release": "16.1.77",
-  "release_label": "16.1.77 — Stockland Ethiopia ERP cumulative in-place update",
-  "classification": "Cumulative in-place Stockland Ethiopia ERP update from the existing 16.1.67 source line. Preserves the 49-table contract and existing ledger/workflow services; includes data-backed scoped dashboard analytics, pension-first PAYE, stable requisition retry idempotency, optional reservation before authorized picking, live read-only stock sourcing preview and independent expense authority.",
-  "baseline": "Cumulative repair using 16.1.67 as the exact-source CI baseline and reconciling confirmed operational fixes recorded in 16.1.76/16.1.77 Library audits. No blind ZIP merge; existing business data and unchanged 49-table contract are preserved.",
+  "release": "16.1.78",
+  "release_label": "16.1.78 — Stockland Ethiopia ERP cumulative in-place update",
+  "classification": "Cumulative in-place update on the merged 16.1.77 source line. Preserves existing operational, finance, procurement, payroll and warehouse corrections and adds a live role-scoped global record search. The existing 49-table contract and ledger/workflow services remain unchanged.",
+  "baseline": "Cumulative repair from exact merged source commit eade7cbe39bfca57334a6cbea08d21ee144052b6 (16.1.77), retaining the fixes reconciled from 16.1.73–16.1.77. No blind ZIP merge; existing business data and the unchanged 49-table contract are preserved.",
   "schema_contract": {
     "core_operations": 29,
     "accounting_procurement": 16,
@@ -46,7 +46,10 @@
     "tablet_menu_fix": "576–991px two-row header; action strip scrolls horizontally; hamburger opens touch-scrollable dialog; Escape/backdrop/selection cleanup reset body lock and aria-expanded; keyboard focus restoration/trap; dismiss overlay on desktop resize",
     "bootstrap_version": "5.3.8",
     "bootstrap_source_git_blob_sha1": "1d8bac41b3b586410aed1077d9abc05e169cb924",
-    "bootstrap_sri_sha384": "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+    "bootstrap_sri_sha384": "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB",
+    "global_search": true,
+    "global_search_api": "/app/global-search",
+    "global_search_scope": "read-only; authenticated ERP profile; capability and authorized location scope; no customer contacts, balances, costs or profit in returned search labels"
   },
   "frontend_css_architecture": {
     "source_modules": [
@@ -143,7 +146,9 @@
     "Requisition creation uses a caller-stable request key and a normalized payload fingerprint with lock-protected replay/conflict detection; internal request markers are stripped from UI/API notes.",
     "Approved requisitions allow authorized Central Warehouse Managers or Warehouse Employees to pick immediately without mandatory pickup scheduling; the same transaction validates live available stock, creates reservation records, transitions workflow/audit history and uses the existing transfer ledger.",
     "Requisition drafts show a read-only branch balance and Central Warehouse/peer-branch sourcing preview using live authorized data; lookup failures remain explicit and never create stock or substitute zero values.",
-    "Owner-created corporate expenses remain pending and unposted until an independent authority is defined; no self-approval or direct Owner GL self-post is allowed."
+    "Owner-created corporate expenses remain pending and unposted until an independent authority is defined; no self-approval or direct Owner GL self-post is allowed.",
+    "The top header adds an always-visible global search across active Product Master variants/SKUs, permitted customers, location-scoped retail sales and authorized purchase orders; server responses return labels/references only and preserve role/location scope.",
+    "Mobile and tablet header layout reserves its own responsive search row without replacing the existing mega-menu, command palette, SOP, alerts or profile controls."
   ],
   "quality": {},
   "release_acceptance": {
@@ -164,5 +169,24 @@
     "schema_changed": false,
     "database_version_changed": false,
     "live_acceptance": "PENDING; do not infer production readiness from source CI"
+  },
+  "corrective_release_16_1_78": {
+    "scope": "Cumulative 16.1.77 carry-forward plus read-only global record search for products/SKUs, permitted customers, location-scoped sales and authorized purchase orders; responsive header search control.",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "business_table_contract": "49 unchanged",
+    "target_host_acceptance": "PENDING"
+  },
+  "source_gate": "PENDING exact-source CI for 16.1.78; live target-host acceptance remains separate",
+  "source_gate_evidence": {
+    "result": "PENDING",
+    "release": "16.1.78",
+    "target_host_acceptance": "PENDING"
+  },
+  "acceptance": {
+    "source_package_gate": "PENDING exact-source CI result for 16.1.78",
+    "target_host": "PENDING",
+    "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
+    "note": "Source CI does not establish authenticated target-host behavior, live ledger reconciliation, backup restoration, rollback, or Ethiopian payroll/tax-adviser validation. Do not claim deployed status until the exact ZIP is installed and the target-host acceptance evidence is captured."
   }
 }
