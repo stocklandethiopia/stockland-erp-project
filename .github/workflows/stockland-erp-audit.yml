@@ -1,5 +1,5 @@
 name: Stockland ERP package and source gate
-# Exact source/package evidence is generated from the release commit. The previously accepted full LIVE READY host baseline carries forward; this workflow never modifies or certifies a deployment.
+# Source/package PASS is not deployment acceptance. This workflow never deploys or certifies the target host.
 
 on:
   push:
