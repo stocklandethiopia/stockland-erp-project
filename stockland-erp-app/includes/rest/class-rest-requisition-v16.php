@@ -778,10 +778,10 @@ class Stockland_REST_Requisition_V16 {
 					throw new Exception( 'Warehouse pickup date is required when reserving a branch requisition.' );
 				}
 				foreach ( $items as $item ) {
-					$qty = (float) $item['quantity_approved'];
-					if ( $qty <= 0 ) {
+					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
 						continue;
 					}
+					$qty = (float) $item['quantity_approved'];
 					$transfer = Stockland_DB::read_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status NOT IN('Rejected','Cancelled','Completed') ORDER BY created_at LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
 						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
@@ -853,7 +853,11 @@ class Stockland_REST_Requisition_V16 {
 				if ( ! in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked' ), true ) ) {
 					throw new Exception( 'Only an approved or reserved requisition can be picked.' );
 				}
+				$picked_line_count = 0;
 				foreach ( $items as $item ) {
+					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
+						continue;
+					}
 					$transfer = Stockland_DB::read_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status IN('Approved','Reserved') ORDER BY created_at DESC LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
 						throw new Exception( 'Required approved/reserved warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
@@ -928,6 +932,10 @@ class Stockland_REST_Requisition_V16 {
 					if ( false === $ri_pick_ok ) {
 						throw new Exception( 'Requisition dispatched quantity could not be saved.' );
 					}
+					++$picked_line_count;
+				}
+				if ( $picked_line_count < 1 ) {
+					throw new Exception( 'No positive approved requisition line is available to pick.' );
 				}
 				$pick_req_ok = Stockland_DB::update_record(
 					Stockland_DB::table( 'requisitions' ),
