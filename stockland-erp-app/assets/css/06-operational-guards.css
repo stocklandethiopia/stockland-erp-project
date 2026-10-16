@@ -480,3 +480,5 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
  #stockland-app .sl-dashboard-action-icon{width:28px;height:28px}
  #stockland-app .sl-dashboard-card .sl-block-head{padding:11px}
 }
+/* Reorder action controls: compact, touch-friendly and safe on narrow screens. */
+.sl-reorder-action{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.sl-reorder-qty{width:88px;min-width:72px;min-height:38px;border:1px solid var(--sl-border);border-radius:8px;padding:7px 9px;font:inherit;background:var(--sl-surface);color:var(--sl-text)}.sl-reorder-action .sl-btn{white-space:nowrap}
