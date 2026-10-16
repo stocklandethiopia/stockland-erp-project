@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.77 • Breakpoint and responsive layout rules • Ordered source module. */
+/* Stockland ERP 16.1.78 • Breakpoint and responsive layout rules • Ordered source module. */
 /* ==========================================================================
    16.1.39 RESPONSIVE SYSTEM
    Bootstrap-aligned breakpoints; one intentional cascade for all devices.
@@ -7,13 +7,14 @@
 /* XL+ desktop */
 @media (min-width:1400px){
   #stockland-app .sl-shell{grid-template-columns:268px minmax(0,1fr)}
-  #stockland-app .sl-top{padding-inline:22px;grid-template-columns:minmax(250px,1fr) auto minmax(420px,auto)}
+  #stockland-app .sl-top{padding-inline:22px;grid-template-columns:minmax(250px,1fr) minmax(240px,.95fr) auto minmax(420px,auto)}
   .sl-page-title h2{font-size:30px}
 }
 
 /* Desktop / laptop */
 @media (min-width:992px) and (max-width:1399.98px){
-  #stockland-app .sl-top{grid-template-columns:minmax(220px,1fr) auto minmax(360px,auto);gap:9px}
+  #stockland-app .sl-top{grid-template-columns:minmax(175px,.75fr) minmax(150px,1fr) minmax(300px,auto);gap:8px}
+  #stockland-app .sl-top-center{display:none}
   .sl-user{gap:5px}
   .sl-user-copy{max-width:116px}
   .sl-top-action,.sl-notification-trigger,.sl-exit{padding-inline:8px}
@@ -25,11 +26,12 @@
 
 /* Tablet: replace fixed sidebar with accessible menu trigger; never shrink text into unreadability. */
 @media (max-width:991.98px){
-  :root{--sl-header-h:72px}
+  #stockland-app{--sl-header-h:160px}
+  :root{--sl-header-h:160px}
   #stockland-app .sl-shell{grid-template-columns:1fr}
   #stockland-app .sl-sidebar{display:none}
   #stockland-app .sl-menu-btn{display:inline-flex}
-  #stockland-app .sl-top{grid-template-columns:minmax(0,1fr) auto;min-height:72px;height:72px;padding:10px 14px;gap:8px}
+  #stockland-app .sl-top{grid-template-columns:minmax(0,1fr);grid-template-rows:40px 42px 44px;min-height:160px;height:160px;padding:8px 14px;gap:6px;align-content:center}
   .sl-top-center{display:none}
   .sl-top-left{min-width:0;overflow:hidden}
   .sl-top-brand{min-width:0}
@@ -50,15 +52,16 @@
 /* Tablet menu correction: keep the hamburger and brand on row one, action strip on row two.
    The action strip scrolls horizontally, so tablet widths never overlay or stack buttons. */
 @media (min-width:576px) and (max-width:991.98px){
-  :root{--sl-header-h:116px}
+  #stockland-app{--sl-header-h:160px}
+  :root{--sl-header-h:160px}
   #stockland-app .sl-top{
     display:grid;
     grid-template-columns:minmax(0,1fr);
-    grid-template-rows:40px 44px;
+    grid-template-rows:40px 42px 44px;
     align-content:center;
     gap:7px;
-    height:116px;
-    min-height:116px;
+    height:160px;
+    min-height:160px;
     padding:8px 12px;
   }
   #stockland-app .sl-top-left{height:40px;min-width:0;overflow:visible;gap:9px}
@@ -90,8 +93,9 @@
 
 /* Phone landscape / large phone. Header uses two clean rows when needed. */
 @media (max-width:575.98px){
-  :root{--sl-header-h:116px}
-  #stockland-app .sl-top{height:116px;min-height:116px;padding:8px 10px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;align-content:center;gap:7px}
+  #stockland-app{--sl-header-h:160px}
+  :root{--sl-header-h:160px}
+  #stockland-app .sl-top{height:160px;min-height:160px;padding:8px 10px;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:40px 42px 44px;align-content:center;gap:6px}
   .sl-top-left{height:38px}
   .sl-top-logo{width:34px;height:34px;flex:0 0 34px}
   .sl-top-brand h1{font-size:12px}
@@ -137,8 +141,9 @@
 
 /* Small phone: preserve labels by allowing horizontal control scrolling instead of hiding them. */
 @media (max-width:390px){
-  :root{--sl-header-h:116px}
-  #stockland-app .sl-top{height:116px;min-height:116px;padding-inline:7px}
+  #stockland-app{--sl-header-h:160px}
+  :root{--sl-header-h:160px}
+  #stockland-app .sl-top{height:160px;min-height:160px;padding-inline:7px}
   .sl-top-logo{display:none}
   .sl-top-brand h1{font-size:12px;max-width:62vw}
   .sl-top-brand small{font-size:9px;max-width:62vw}
