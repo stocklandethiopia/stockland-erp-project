@@ -2581,10 +2581,10 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						$po_sql .= ' AND po.location_id IN(' . $ph . ')';
 						$po_args = array_merge( $po_args, $po_scope );
 					}
-					$po_sql       .= ' ORDER BY po.id DESC LIMIT %d';
-					$po_args[]     = 5;
+					$po_sql   .= ' ORDER BY po.id DESC LIMIT %d';
+					$po_args[] = 5;
 					// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Scope placeholders are generated from authorized integer location IDs and bound with all other query arguments.
-					$po_rows       = Stockland_DB::read_results( $wpdb->prepare( $po_sql, $po_args ), ARRAY_A );
+					$po_rows   = Stockland_DB::read_results( $wpdb->prepare( $po_sql, $po_args ), ARRAY_A );
 					if ( $wpdb->last_error ) {
 						throw new RuntimeException( 'Purchase-order search query failed.' );
 					}
