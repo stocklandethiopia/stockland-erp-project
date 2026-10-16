@@ -745,13 +745,6 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	}
 
 	/**
-	 * Creates a draft payroll period within the configured statutory rules.
-	 *
-	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
-	 * @return mixed The HR/payroll operation result.
-	 * @throws Exception When validation or transaction processing fails.
-	 */
-	/**
 	 * Returns one payroll period and its detail lines for read-only review.
 	 *
 	 * @param WP_REST_Request $r REST request containing the payroll period ID.
@@ -768,6 +761,13 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		return rest_ensure_response( $period );
 	}
 
+	/**
+	 * Creates a draft payroll period within the configured statutory rules.
+	 *
+	 * @param WP_REST_Request $r REST request containing the HR/payroll parameters.
+	 * @return mixed The HR/payroll operation result.
+	 * @throws Exception When validation or transaction processing fails.
+	 */
 	public function payroll_create( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
 			return $this->deny( 'Only active Stockland Management can prepare payroll; the Owner has read and final-approval access.', 403 );
