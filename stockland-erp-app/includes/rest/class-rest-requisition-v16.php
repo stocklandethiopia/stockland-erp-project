@@ -822,7 +822,7 @@ class Stockland_REST_Requisition_V16 {
 					if ( $active < $dispatch ) {
 						throw new Exception( 'Active reservation missing for ' . $transfer['sku'] . '.' );
 					}
-					$cur                  = $transfer;
+					$cur                   = $transfer;
 					$cur['dispatched_qty'] = $dispatch;
 					if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, get_current_user_id() ) ) {
 						throw new Exception( 'Warehouse ledger could not post the pick for ' . $transfer['sku'] . '.' );
