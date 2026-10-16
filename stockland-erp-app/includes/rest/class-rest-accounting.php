@@ -2355,6 +2355,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		} else {
 			$location = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $location_id ), ARRAY_A );
+			if ( $branch_role && ! in_array( $category, array( 'Transport', 'Labor', 'Customer refreshments', 'Packing material', 'Other' ), true ) ) {
+				return new WP_Error( 'invalid_expense_category', 'Branch operational expenses must use Transport, Labor, Customer refreshments, Packing material, or Other.', array( 'status' => 400 ) );
+			}
 			if ( ! $location || empty( $location['is_active'] ) ) {
 				return new WP_Error( 'invalid_location', 'The assigned active branch/warehouse location was not found.', array( 'status' => 400 ) );
 			}
