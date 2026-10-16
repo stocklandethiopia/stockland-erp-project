@@ -167,6 +167,19 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				),
 			)
 		);
+		// Read-only payroll review is a separate GET route. It exposes line-level
+		// amounts only to users already authorized to view payroll and never changes state.
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/hr/payroll/(?P<id>\\d+)',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'payroll_get' ),
+				'permission_callback' => function () {
+					return Stockland_Authority::can_view_payroll();
+				},
+			)
+		);
 		register_rest_route(
 			self::NAMESPACE_V1,
 			'/hr/payroll/(?P<id>\\d+)/generate',
@@ -738,6 +751,23 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 * @return mixed The HR/payroll operation result.
 	 * @throws Exception When validation or transaction processing fails.
 	 */
+	/**
+	 * Returns one payroll period and its detail lines for read-only review.
+	 *
+	 * @param WP_REST_Request $r REST request containing the payroll period ID.
+	 * @return mixed Read-only payroll detail or a not-found/forbidden response.
+	 */
+	public function payroll_get( WP_REST_Request $r ) {
+		if ( ! Stockland_Authority::can_view_payroll() ) {
+			return $this->deny( 'You do not have permission to view payroll details.', 403 );
+		}
+		$period = $this->payroll_detail( (int) $r['id'] );
+		if ( ! $period ) {
+			return new WP_Error( 'not_found', 'Payroll period not found.', array( 'status' => 404 ) );
+		}
+		return rest_ensure_response( $period );
+	}
+
 	public function payroll_create( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
 			return $this->deny( 'Only active Stockland Management can prepare payroll; the Owner has read and final-approval access.', 403 );
