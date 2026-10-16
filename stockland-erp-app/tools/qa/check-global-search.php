@@ -89,6 +89,7 @@ $check(
 $check(
 	str_contains( $app, "const [,saleDate,locationId]=target.split(':');" )
 		&& str_contains( $app, "state.posSales=selectedSale?scopedRows.filter" )
+		&& str_contains( $app, "if(!\$('#posForm')&&\$('#posSalesTable'))loadPosSales();" )
 		&& str_contains( $app, "const visibleRows=selectedPO?rows.filter" )
 		&& str_contains( $app, "customerRows.slice(0,30)" )
 		&& str_contains( $app, "data-clear-global-search" ),
