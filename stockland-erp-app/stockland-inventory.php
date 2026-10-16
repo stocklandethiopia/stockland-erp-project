@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Stockland Ethiopia ERP
- * Description:       Fresh production ERP for Stockland Ethiopia. Supports controlled branch POS entry and branch Daily POS XLSX reconciliation. Includes Product Master, inventory ledger, warehouse/requisitions/transfers, procurement, double-entry finance, audit, owner-controlled organization and live PWA frontend.
+ * Description:       Cumulative Stockland Ethiopia ERP update: warehouse movement, branch POS, Product Master, procurement, finance, HR/payroll and responsive PWA.
  * Version:           16.1.67
  * Author:            Stockland Ethiopia
  * Text Domain:       stockland-inventory
