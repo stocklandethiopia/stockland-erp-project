@@ -86,7 +86,7 @@ $check(
 $check(
 	str_contains( $app, 'RETAINER_SERVICE')
 		&& str_contains( $app, 'service contract(s) were excluded from employee PAYE payroll')
-		&& str_contains( $app, 'Historical payroll')
+		&& str_contains( $rest, 'Preserve posted payroll; do not silently recalculate historical periods.')
 		&& str_contains( $css, '.sl-payroll-review')
 		&& str_contains( $css, '@media(max-width:760px)')
 		&& str_contains( $css, '.sl-payroll-setup-grid'),
