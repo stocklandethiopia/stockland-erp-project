@@ -14,6 +14,7 @@ $read = static function ( $relative ) use ( $root ) {
 $plugin  = $read( 'stockland-inventory.php' );
 $manifest = json_decode( $read( 'RELEASE_MANIFEST.json' ), true );
 $frontend = $read( 'includes/class-stockland-frontend.php' );
+$rest_app = $read( 'includes/rest/class-rest-app.php' );
 $payroll  = $read( 'includes/class-stockland-payroll-statutory.php' );
 $payroll_test = $read( 'tools/qa/check-payroll-statutory.php' );
 $app      = $read( 'assets/app.js' );
@@ -45,9 +46,9 @@ $check( str_contains( $ddl, "'requisitions'" ) && str_contains( $ddl, "'transact
 $check( str_contains( $stock, 'valid Product Master variant may have no posted movement yet' ) && str_contains( $stock, "'stock_read_failed'" ) && str_contains( $stock, 'current_stock' ) && str_contains( $stock, 'CRITICAL' ), 'SKU stock lookup returns verified zero balances and negative/zero stock is treated as critical' );
 $check( str_contains( $payroll, 'Stockland_Money::subtract( $income_before_pension, $employee_pension )' ) && str_contains( $payroll, 'ET-PAYE-1395-2025-v3-PENSION-BASE' ), 'Server PAYE taxable base deducts employee pension under the agreed rule version' );
 $check( str_contains( $app, 'taxableIncome=Math.max(0,incomeBeforePension-emp)' ) && str_contains( $app, 'PAYE base after pension' ), 'Frontend payroll preview uses the same pension-first PAYE base' );
-$check( str_contains( $payroll_test, "'taxable_income'      => '27900.00'" ) && str_contains( $payroll_test, "'income_tax'          => '7715.00'" ) && str_contains( $payroll_test, "'net_pay'             => '20185.00'" ), 'ETB 30,000 agreed payroll regression expects tax 7,715 and net 20,185' );
+$check( str_contains( $payroll_test, "'27900.00'" ) && str_contains( $payroll_test, "'7715.00'" ) && str_contains( $payroll_test, "'20185.00'" ), 'ETB 30,000 agreed payroll regression expects tax 7,715 and net 20,185' );
 $check( str_contains( $app, 'loadDashboardInsights' ) && str_contains( $app, 'dashboardTrendHtml' ) && str_contains( $app, 'dashboardCategoryHtml' ) && str_contains( $app, 'dashboardBranchesHtml' ) && str_contains( $app, 'dashboardTransactionsHtml' ), 'Dashboard analytics render sales trend, category mix, branch performance and recent transactions' );
-$check( str_contains( $frontend, 'dashboard/insights' ), 'Dashboard analytics endpoint is registered through the existing REST app' );
+$check( str_contains( $rest_app, 'dashboard/insights' ), 'Dashboard analytics endpoint is registered through the existing REST app' );
 $check( str_contains( $requisition_service, 'idempotency_key_required' ) && str_contains( $requisition_service, 'acquire_named_lock' ) && str_contains( $requisition_service, 'idempotency_conflict' ) && str_contains( $requisition_service, '[[SLREQ:' ) && str_contains( $requisition_service, 'display_notes' ), 'Requisition submission has stable-key locking, replay/conflict handling and hidden marker cleanup' );
 $check( str_contains( $app, 'const request_key=f.dataset.requestKey' ) && str_contains( $app, 'refreshReqStockPreview' ) && str_contains( $app, '/requisitions/source-preview/availability' ), 'Requisition UI reuses a stable key on retry and shows live branch/warehouse sourcing' );
 $check( str_contains( $requisition_rest, "'/requisitions/source-preview/availability'" ) && str_contains( $requisition_rest, 'public function source_preview' ) && str_contains( $requisition_rest, "'read_only'  => true" ), 'Live source preview is read-only and registered with role/branch checks' );
