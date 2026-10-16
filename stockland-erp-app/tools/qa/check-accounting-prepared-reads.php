@@ -85,10 +85,10 @@ foreach ( $cases as $label => $case ) {
 		$fixed_predicates = array(
 			"WHERE (%d = 0 OR e.status = %s)",
 			"FIND_IN_SET(e.location_id, %s)",
-			"$has_status ? $status",
-			"$has_from ? $date_from",
-			"$has_to ? $date_to",
-			"$has_category ? $category",
+			'$has_status ? $status',
+			'$has_from ? $date_from',
+			'$has_to ? $date_to',
+			'$has_category ? $category',
 		);
 		foreach ( $fixed_predicates as $predicate ) {
 			if ( false === strpos( $method, $predicate ) ) {
