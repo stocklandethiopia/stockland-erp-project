@@ -75,3 +75,5 @@ The automated source/package gate validates code quality and package integrity; 
 ### 16.1.78 global search
 
 The header search is connected to a read-only REST endpoint. Results are scoped by ERP role, capability and assigned location; product/SKU matches do not expose cost/profit data, and customer matches do not expose contact or balance data. Database failures return an error rather than a false empty result. This update preserves the existing 49-table schema contract.
+
+The header search returns active Product Master variants to authorized ERP profiles. Inactive variants are discoverable only by users with the existing `stockland_manage_products` capability and are explicitly labeled `INACTIVE MASTER SKU`; inventory quantity does not define catalog identity. SKU/receipt/PO identifiers use prefix matching, while product/customer/supplier descriptive fields may use text matching.
