@@ -49,7 +49,7 @@
     "bootstrap_sri_sha384": "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB",
     "global_search": true,
     "global_search_api": "/app/global-search",
-    "global_search_scope": "read-only; authenticated ERP profile; capability and authorized location scope; no customer contacts, balances, costs or profit in returned search labels"
+    "global_search_scope": "read-only; authenticated ERP profile; capability and authorized location scope; active variants for ordinary users, inactive variants only for stockland_manage_products managers; no customer contacts, balances, costs or profit in returned search labels"
   },
   "frontend_css_architecture": {
     "source_modules": [
@@ -147,7 +147,7 @@
     "Approved requisitions allow authorized Central Warehouse Managers or Warehouse Employees to pick immediately without mandatory pickup scheduling; the same transaction validates live available stock, creates reservation records, transitions workflow/audit history and uses the existing transfer ledger.",
     "Requisition drafts show a read-only branch balance and Central Warehouse/peer-branch sourcing preview using live authorized data; lookup failures remain explicit and never create stock or substitute zero values.",
     "Owner-created corporate expenses remain pending and unposted until an independent authority is defined; no self-approval or direct Owner GL self-post is allowed.",
-    "The top header adds an always-visible global search across active Product Master variants/SKUs, permitted customers, location-scoped retail sales and authorized purchase orders; server responses return labels/references only and preserve role/location scope.",
+    "The top header adds an always-visible global search across active Product Master SKU/variant records plus inactive variants only for Product Master managers, permitted customers, location-scoped retail sales and authorized purchase orders; results return safe labels/references, prefix-match identifiers and preserve role/location scope.",
     "Mobile and tablet header layout reserves its own responsive search row without replacing the existing mega-menu, command palette, SOP, alerts or profile controls."
   ],
   "quality": {},
