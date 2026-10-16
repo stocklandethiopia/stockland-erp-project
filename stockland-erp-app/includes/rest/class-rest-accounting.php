@@ -2226,6 +2226,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$page             = max( 1, absint( $r->get_param( 'page' ) ?? 1 ) );
 		$per_page         = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?? 30 ) ) );
 		$offset           = ( $page - 1 ) * $per_page;
+		$page_filters     = array_merge( $filters, array( $per_page, $offset ) );
 		$wpdb->last_error = '';
 		$total            = (int) Stockland_DB::read_var(
 			$wpdb->prepare(
@@ -2282,9 +2283,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$table,
 				Stockland_DB::table( 'locations' ),
 				$wpdb->users,
-				...$filters,
-				$per_page,
-				$offset
+				...$page_filters
 			),
 			ARRAY_A
 		);
