@@ -2474,8 +2474,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( strlen( $term ) < 2 ) {
 			return rest_ensure_response( array( 'term' => $term, 'results' => array() ) );
 		}
-		if ( ! current_user_can( 'manage_options' ) && ! Stockland_Authority::assert_profile() ) {
-			return new WP_Error( 'no_profile', 'A valid Stockland ERP profile is required for global search.', array( 'status' => 403 ) );
+		$profile_status = Stockland_Authority::assert_profile();
+		if ( ! current_user_can( 'manage_options' ) && is_wp_error( $profile_status ) ) {
+			return $profile_status;
 		}
 		$prefix  = $wpdb->esc_like( $term ) . '%';
 		$like    = '%' . $wpdb->esc_like( $term ) . '%';
