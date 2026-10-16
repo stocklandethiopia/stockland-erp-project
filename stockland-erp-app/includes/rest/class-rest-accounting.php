@@ -2250,22 +2250,17 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_report_failed', 'Expense report totals failed; no partial summary was returned.', array( 'status' => 503 ) );
 		}
 		$wpdb->last_error = '';
-		$rows = Stockland_DB::read_results(
-			$wpdb->prepare(
-				' SELECT e.*,l.location_name,wu.display_name AS created_by_name
-				FROM %i e
-				LEFT JOIN %i l ON l.id=e.location_id
-				LEFT JOIN %i wu ON wu.ID=e.created_by ' . $where . '
-				ORDER BY e.expense_date DESC,e.id DESC LIMIT %d OFFSET %d',
-				$table,
-				Stockland_DB::table( 'locations' ),
-				$wpdb->users,
-				...$filters,
-				$per_page,
-				$offset
-			),
-			ARRAY_A
+		$row_sql = ' SELECT e.*,l.location_name,wu.display_name AS created_by_name
+			FROM %i e
+			LEFT JOIN %i l ON l.id=e.location_id
+			LEFT JOIN %i wu ON wu.ID=e.created_by ' . $where . '
+			ORDER BY e.expense_date DESC,e.id DESC LIMIT %d OFFSET %d';
+		$row_args = array_merge(
+			array( $table, Stockland_DB::table( 'locations' ), $wpdb->users ),
+			$filters,
+			array( $per_page, $offset )
 		);
+		$rows = Stockland_DB::read_results( $wpdb->prepare( $row_sql, ...$row_args ), ARRAY_A );
 		if ( $wpdb->last_error || ! is_array( $rows ) ) {
 			return new WP_Error( 'expense_report_failed', 'Expense report rows failed; no partial report was returned.', array( 'status' => 503 ) );
 		}
