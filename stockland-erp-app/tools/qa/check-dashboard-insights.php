@@ -1,6 +1,6 @@
 <?php
 /**
- * Static contract gate for the 16.1.77 read-only dashboard analytics.
+ * Static contract gate for the 16.1.78 read-only dashboard analytics.
  */
 if ( PHP_SAPI !== 'cli' ) {
 	http_response_code( 404 );
@@ -21,7 +21,7 @@ $modules = json_decode( $read( 'assets/css/modules.json' ), true );
 $payroll = $read( 'includes/class-stockland-payroll-statutory.php' );
 $payroll_test = $read( 'tools/qa/check-payroll-statutory.php' );
 
-$checks['release_identity_167'] = str_contains( $plugin, 'Version:           16.1.77' ) && ( $manifest['release'] ?? '' ) === '16.1.77';
+$checks['release_identity_167'] = str_contains( $plugin, 'Version:           16.1.78' ) && ( $manifest['release'] ?? '' ) === '16.1.78';
 $checks['unchanged_49_table_contract'] = ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ( $manifest['schema_contract']['new_business_table'] ?? true ) === false && ( $manifest['corrective_release_16_1_67']['schema_changed'] ?? true ) === false;
 $checks['insights_route_has_permission_callback'] = str_contains( $rest, "'/app/dashboard/insights'" ) && str_contains( $rest, "'callback'" ) && str_contains( $rest, "'dashboard_insights'" ) && str_contains( $rest, "'permission_callback'" );
 $checks['insights_rejects_missing_location_scope'] = str_contains( $rest, 'public function dashboard_insights()' ) && str_contains( $rest, '$this->scope_locations()' ) && str_contains( $rest, "'location_scope_unavailable'" );
@@ -37,7 +37,7 @@ $checks['dashboard_has_actual_empty_error_states'] = str_contains( $js, 'No post
 $checks['dashboard_layout_contract'] = str_contains( $js, 'sl-dashboard-hero' ) && str_contains( $js, 'slDashboardSalesTrend' ) && str_contains( $js, 'slDashboardCategories' ) && str_contains( $js, 'slDashboardBranches' ) && str_contains( $js, 'slDashboardTransactions' ) && str_contains( $js, 'sl-dashboard-quick-grid' );
 $checks['dashboard_data_driven_styles_in_bundles'] = str_contains( $css, '.sl-dashboard-shell' ) && str_contains( $css, '.sl-dashboard-linechart' ) && str_contains( $css, '.sl-dashboard-donut' ) && str_contains( $mini, '.sl-dashboard-shell' ) && str_contains( $mini, '.sl-dashboard-donut' );
 $checks['responsive_dashboard_breakpoints'] = preg_match( '/@media\s*\(max-width:\s*991px\)/', $css ) && preg_match( '/@media\s*\(max-width:\s*700px\)/', $css ) && preg_match( '/@media\s*\(max-width:\s*390px\)/', $css );
-$checks['css_source_modules_remain_six_ordered'] = ( $modules['release'] ?? '' ) === '16.1.77' && count( $modules['modules'] ?? array() ) === 6;
+$checks['css_source_modules_remain_six_ordered'] = ( $modules['release'] ?? '' ) === '16.1.78' && count( $modules['modules'] ?? array() ) === 6;
 $checks['payroll_base_less_employee_pension'] = str_contains( $payroll, 'ET-PAYE-1395-2025-v3-PENSION-BASE' ) && str_contains( $payroll, 'TAXABLE_GROSS_LESS_EMPLOYEE_PENSION' ) && str_contains( $payroll, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )' );
 $checks['etb_30000_payroll_regression_present'] = str_contains( $payroll_test, "'30000.00'" ) && str_contains( $payroll_test, "'27900.00'" ) && str_contains( $payroll_test, "'7715.00'" ) && str_contains( $payroll_test, "'20185.00'" );
 
