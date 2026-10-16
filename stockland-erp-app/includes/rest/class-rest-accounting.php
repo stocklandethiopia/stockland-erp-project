@@ -2300,7 +2300,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
 			$num                = $this->next_number( 'EXP-', $date );
-			$direct_post = $corporate_expense && 'owner' === $role;
+			$direct_post    = 'owner' === $role && $corporate_expense;
 			$status      = $direct_post ? 'POSTED' : 'PENDING';
 			$user_reference     = sanitize_text_field( $p['reference'] ?? '' );
 			$reference          = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
