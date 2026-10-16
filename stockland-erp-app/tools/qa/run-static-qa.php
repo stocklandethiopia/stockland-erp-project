@@ -35,7 +35,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-external-procurement-authority.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-product-master-search.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-accounting-prepared-reads.php' ),
-	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1663.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1679.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-health-gate-diagnostics.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-global-search.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-warehouse-direct-pick.php' ),
