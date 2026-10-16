@@ -65,7 +65,7 @@ $check(
 );
 $check(
 	str_contains( $line_update, "'DRAFT' !==" )
-		&& str_contains( $line_update, '$period[\\'status\\']' )
+		&& str_contains( $line_update, '$period[\'status\']' )
 		&& str_contains( $line_update, 'Approved or paid payroll cannot be edited.' )
 		&& str_contains( $line_update, '$verified_exempt_total' )
 		&& str_contains( $line_update, '$preserved_exempt_components' ),
