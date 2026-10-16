@@ -1249,7 +1249,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				if ( strtoupper( (string) ( $saved['tax_treatment'] ?? '' ) ) !== 'EXEMPT' ) {
 					continue;
 				}
-				$saved_amount        = $this->money( $saved['amount'] ?? '0.00' );
+				try {
+					$saved_amount = $this->money( $saved['amount'] ?? '0.00' );
+				} catch ( Throwable $e ) {
+					return new WP_Error( 'invalid_exemption_snapshot', 'Saved exemption evidence contains an invalid amount; the draft remains unchanged and requires authorized review.', array( 'status' => 409 ) );
+				}
 				$saved_exempt_total  = Stockland_Money::add( $saved_exempt_total, $saved_amount );
 				$has_current_evidence = ! empty( $saved['owner_verified'] )
 					&& strlen( trim( (string) ( $saved['legal_basis'] ?? '' ) ) ) >= 20
@@ -1403,6 +1407,24 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			$count = (int) Stockland_DB::read_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE period_id=%d', Stockland_DB::table( 'payroll_lines' ), $id ) );
 			if ( $count < 1 ) {
 				throw new Exception( 'Generate payroll lines before submission.' );
+			}
+			$wpdb->last_error = '';
+			$unverified_lines = (int) Stockland_DB::read_var(
+				$wpdb->prepare(
+					' SELECT COUNT(*) FROM %i WHERE period_id=%d AND (COALESCE(statutory_status,%s)<>%s OR COALESCE(tax_rule_version,%s)<>%s)',
+					Stockland_DB::table( 'payroll_lines' ),
+					$id,
+					'',
+					'CALCULATED',
+					'',
+					Stockland_Payroll_Statutory::RULE_VERSION
+				)
+			);
+			if ( ! empty( $wpdb->last_error ) ) {
+				throw new Exception( 'Could not verify payroll line classifications; submission was blocked.' );
+			}
+			if ( $unverified_lines > 0 ) {
+				throw new Exception( 'Recalculate and review every payroll line under the current statutory rule before submission. No status change was made.' );
 			}
 			$totals = $this->payroll_totals( $id );
 			if ( Stockland_Money::minor( $totals['gross_total'] ) <= 0 ) {
