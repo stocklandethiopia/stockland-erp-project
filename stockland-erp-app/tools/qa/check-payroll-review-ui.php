@@ -64,18 +64,20 @@ $check(
 	'Only Management can edit DRAFT lines; Owner approval/payment actions are status-gated in the review panel.'
 );
 $check(
-	str_contains( $line_update, "'DRAFT' !== \\$period['status']")
-		&& str_contains( $line_update, 'Approved or paid payroll cannot be edited.')
-		&& str_contains( $line_update, '$verified_exempt_total')
-		&& str_contains( $line_update, '$preserved_exempt_components'),
+	str_contains( $line_update, "'DRAFT' !==" )
+		&& str_contains( $line_update, '$period[\\'status\\']' )
+		&& str_contains( $line_update, 'Approved or paid payroll cannot be edited.' )
+		&& str_contains( $line_update, '$verified_exempt_total' )
+		&& str_contains( $line_update, '$preserved_exempt_components' ),
 	'Draft line recalculation stays locked after submission and preserves previously verified exemption evidence.'
 );
 $check(
-	str_contains( $app, 'slPayrollCurrentMonthDefaults(pf)')
-		&& str_contains( $app, 'slPayrollCurrentMonthDefaults(form,true)')
-		&& str_contains( $app, "value=\''+esc(periodKey)+'\'")
-		&& str_contains( $app, 'CREATE DRAFT PAYROLL')
-		&& str_contains( $app, 'sl-payroll-setup'),
+	str_contains( $app, 'slPayrollCurrentMonthDefaults(pf)' )
+		&& str_contains( $app, 'slPayrollCurrentMonthDefaults(form,true)' )
+		&& str_contains( $app, "periodStart=periodKey+'-01'" )
+		&& str_contains( $app, "periodEnd=periodKey+'-'+last" )
+		&& str_contains( $app, 'CREATE DRAFT PAYROLL' )
+		&& str_contains( $app, 'sl-payroll-setup' ),
 	'Payroll period form defaults to the current full calendar month and keeps setup forms collapsed until opened.'
 );
 $check(
