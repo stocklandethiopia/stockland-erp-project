@@ -2481,7 +2481,6 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		$prefix                  = $wpdb->esc_like( $term ) . '%';
 		$like                    = '%' . $wpdb->esc_like( $term ) . '%';
 		$can_manage_products     = current_user_can( 'stockland_manage_products' );
-		$product_status_filter   = $can_manage_products ? '' : ' AND is_active=1';
 		$results                 = array();
 		$push    = static function ( $type, $title, $subtitle, $target, $query ) use ( &$results ) {
 			if ( count( $results ) >= 24 ) {
@@ -2500,10 +2499,12 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				$wpdb->prepare(
 					"SELECT variant_id,sku,product_name,brand,color,size,is_active
 					FROM %i
-					WHERE product_type<>'STYLE'{$product_status_filter}
-					AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR brand LIKE %s OR barcode LIKE %s)
+					WHERE product_type<>'STYLE'
+						AND (%d = 1 OR is_active = 1)
+						AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR brand LIKE %s OR barcode LIKE %s)
 					ORDER BY CASE WHEN sku=%s THEN 0 ELSE 1 END,sku ASC LIMIT %d",
 					Stockland_DB::table( 'products' ),
+					$can_manage_products ? 1 : 0,
 					$prefix,
 					$like,
 					$prefix,
