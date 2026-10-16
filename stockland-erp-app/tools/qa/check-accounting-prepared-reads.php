@@ -103,7 +103,7 @@ foreach ( $cases as $label => $case ) {
 			}
 		}
 		if ( false !== strpos( $method, '$where .=' ) || false !== strpos( $method, '$sql' ) || false === strpos( $method, '$wpdb->prepare(' ) ) {
-			fwrite( STDERR, "FAIL: accounting expense query must not construct SQL fragments dynamically.\\n" );
+			fwrite( STDERR, "FAIL: accounting expense query must not construct SQL fragments dynamically.\n" );
 			exit( 1 );
 		}
 	}
