@@ -175,14 +175,14 @@
     "business_table_contract": "49 unchanged",
     "schema_changed": false,
     "database_version_changed": false,
-    "live_acceptance": "The previously accepted host baseline is carried forward; this metadata does not change host state."
+    "live_acceptance": "Historical 16.1.66 host evidence only; source metadata does not establish acceptance of the exact 16.1.77 release."
   },
   "corrective_release_16_1_78": {
     "scope": "Cumulative 16.1.77 carry-forward plus read-only global record search for products/SKUs, permitted customers, location-scoped sales and authorized purchase orders; responsive header search control.",
     "schema_changed": false,
     "database_version_changed": false,
     "business_table_contract": "49 unchanged",
-    "target_host_acceptance": "ACCEPTED_EXISTING_HOST_BASELINE_FROM_PRIOR_FULL_LIVE_READY_REPORT"
+    "target_host_acceptance": "PENDING — historical 16.1.66 host evidence does not certify the exact 16.1.78 release."
   },
   "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
   "source_gate_evidence": {
