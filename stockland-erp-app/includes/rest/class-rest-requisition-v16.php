@@ -666,7 +666,7 @@ class Stockland_REST_Requisition_V16 {
 			if ( ! $req ) {
 				throw new Exception( 'Requisition disappeared during warehouse action.' );
 			}
-			$locked_status         = (string ( $req['status'] ?? '' );
+			$locked_status         = (string) ( $req['status'] ?? '' );
 			$locked_allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Reserved', 'Picked' );
 			if ( ! in_array( $locked_status, $locked_allowed_states, true ) ) {
 				throw new Exception( 'This requisition cannot be moved to the requested warehouse state. Current status: ' . $locked_status . '.' );
