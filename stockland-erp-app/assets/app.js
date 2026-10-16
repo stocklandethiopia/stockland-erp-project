@@ -1273,6 +1273,7 @@ function bindExtended(){
     bindFilePickers();
     const $=s=>document.querySelector(s);
     if($('#posForm')&&!$('#posForm').__slBound){$('#posForm').__slBound=1;$('#posForm').onsubmit=submitPOS;bindSkuPickers();loadPosSales();}
+    if(!$('#posForm')&&$('#posSalesTable'))loadPosSales();
     if($('#refreshPosSales'))$('#refreshPosSales').onclick=loadPosSales;
     if($('#businessCalendarGrid')){if(!state.calendarMonth)state.calendarMonth=localMonthStart().slice(0,7);loadBusinessCalendar(state.calendarMonth);}
     if($('#refreshCalendar'))$('#refreshCalendar').onclick=()=>loadBusinessCalendar(state.calendarMonth||localMonthStart().slice(0,7));
