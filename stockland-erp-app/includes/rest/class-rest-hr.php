@@ -1242,13 +1242,24 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		if ( Stockland_Money::minor( $exempt ) > 0 ) {
 			$old_exempt      = Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' );
 			$same_exempt     = Stockland_Money::minor( $exempt ) === $old_exempt;
-			$saved_breakdown = json_decode( (string) ( $line['allowance_breakdown_json'] ?? '' ), true );
-			$saved_evidence  = false;
+			$saved_breakdown       = json_decode( (string) ( $line['allowance_breakdown_json'] ?? '' ), true );
+			$saved_exempt_total    = '0.00';
+			$verified_exempt_total = '0.00';
 			foreach ( (array) $saved_breakdown as $saved ) {
-				if ( strtoupper( (string) ( $saved['tax_treatment'] ?? '' ) ) === 'EXEMPT' && ! empty( $saved['owner_verified'] ) && strlen( (string) ( $saved['legal_basis'] ?? '' ) ) >= 20 && strlen( (string) ( $saved['evidence_reference'] ?? '' ) ) >= 4 ) {
-					$saved_evidence = true;
-					break;}
+				if ( strtoupper( (string) ( $saved['tax_treatment'] ?? '' ) ) !== 'EXEMPT' ) {
+					continue;
+				}
+				$saved_amount        = $this->money( $saved['amount'] ?? '0.00' );
+				$saved_exempt_total  = Stockland_Money::add( $saved_exempt_total, $saved_amount );
+				$has_current_evidence = ! empty( $saved['owner_verified'] )
+					&& strlen( trim( (string) ( $saved['legal_basis'] ?? '' ) ) ) >= 20
+					&& strlen( trim( (string) ( $saved['evidence_reference'] ?? '' ) ) ) >= 4;
+				if ( $has_current_evidence ) {
+					$verified_exempt_total = Stockland_Money::add( $verified_exempt_total, $saved_amount );
+				}
 			}
+			$saved_evidence = Stockland_Money::minor( $saved_exempt_total ) === Stockland_Money::minor( $exempt )
+				&& Stockland_Money::minor( $verified_exempt_total ) === Stockland_Money::minor( $exempt );
 			if ( ! $same_exempt || ! $saved_evidence ) {
 				if ( strlen( trim( $basis ) ) < 20 || strlen( trim( $evidence ) ) < 4 || ! $exemption_confirmed ) {
 					return new WP_Error( 'classification_basis_required', 'An exempt payroll adjustment requires a current legal clause, supporting evidence reference, and explicit Owner confirmation.', array( 'status' => 400 ) );
@@ -1275,6 +1286,17 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}
 		}
 		if ( Stockland_Money::minor( $snapshot_tax ) !== Stockland_Money::minor( $taxable ) || Stockland_Money::minor( $snapshot_exempt ) !== Stockland_Money::minor( $exempt ) ) {
+			$preserved_exempt_components = array();
+			$same_saved_exemption        = Stockland_Money::minor( $exempt ) > 0
+				&& Stockland_Money::minor( $exempt ) === Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' )
+				&& Stockland_Money::minor( $snapshot_exempt ) === Stockland_Money::minor( $exempt );
+			if ( $same_saved_exemption && $saved_evidence ) {
+				foreach ( $line_snapshot as $component ) {
+					if ( strtoupper( (string) ( $component['tax_treatment'] ?? 'TAXABLE' ) ) === 'EXEMPT' ) {
+						$preserved_exempt_components[] = $component;
+					}
+				}
+			}
 			$line_snapshot = array();
 			if ( Stockland_Money::minor( $taxable ) > 0 ) {
 				$line_snapshot[] = array(
@@ -1287,7 +1309,9 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 					'owner_verified'     => false,
 				);
 			}
-			if ( Stockland_Money::minor( $exempt ) > 0 ) {
+			if ( $preserved_exempt_components ) {
+				$line_snapshot = array_merge( $line_snapshot, $preserved_exempt_components );
+			} elseif ( Stockland_Money::minor( $exempt ) > 0 ) {
 				$line_snapshot[] = array(
 					'category'           => 'OTHER',
 					'label'              => 'Draft line exempt adjustment',
