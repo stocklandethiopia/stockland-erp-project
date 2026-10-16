@@ -2478,9 +2478,11 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		if ( ! current_user_can( 'manage_options' ) && is_wp_error( $profile_status ) ) {
 			return $profile_status;
 		}
-		$prefix  = $wpdb->esc_like( $term ) . '%';
-		$like    = '%' . $wpdb->esc_like( $term ) . '%';
-		$results = array();
+		$prefix                  = $wpdb->esc_like( $term ) . '%';
+		$like                    = '%' . $wpdb->esc_like( $term ) . '%';
+		$can_manage_products     = current_user_can( 'stockland_manage_products' );
+		$product_status_filter   = $can_manage_products ? '' : ' AND is_active=1';
+		$results                 = array();
 		$push    = static function ( $type, $title, $subtitle, $target, $query ) use ( &$results ) {
 			if ( count( $results ) >= 24 ) {
 				return;
@@ -2496,9 +2498,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		try {
 			$product_rows = Stockland_DB::read_results(
 				$wpdb->prepare(
-					"SELECT variant_id,sku,product_name,brand,color,size
+					"SELECT variant_id,sku,product_name,brand,color,size,is_active
 					FROM %i
-					WHERE is_active=1 AND product_type<>'STYLE'
+					WHERE product_type<>'STYLE'{$product_status_filter}
 					AND (sku LIKE %s OR product_name LIKE %s OR parent_sku LIKE %s OR brand LIKE %s OR barcode LIKE %s)
 					ORDER BY CASE WHEN sku=%s THEN 0 ELSE 1 END,sku ASC LIMIT %d",
 					Stockland_DB::table( 'products' ),
@@ -2523,6 +2525,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						trim( (string) ( $row['color'] ?? '' ) . ' ' . (string) ( $row['size'] ?? '' ) ),
 					)
 				);
+				if ( isset( $row['is_active'] ) && 1 !== (int) $row['is_active'] ) {
+					$details[] = 'INACTIVE MASTER SKU';
+				}
 				$push( 'product', $row['product_name'] ?? $row['sku'], implode( ' · ', $details ), 'products', $row['sku'] ?? '' );
 			}
 			$uid  = get_current_user_id();
