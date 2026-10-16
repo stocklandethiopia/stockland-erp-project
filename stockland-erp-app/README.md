@@ -1,8 +1,8 @@
-# Stockland Ethiopia ERP 16.1.77
+# Stockland Ethiopia ERP 16.1.78
 
 **Stockland ERP** is a role-based, responsive operations and finance platform for Stockland Ethiopia, supporting the central warehouse, branches, Product Master, retail operations, procurement, finance, reporting and payroll.
 
-## Cumulative workflow corrections in 16.1.77
+## Cumulative workflow corrections in 16.1.78
 
 - Requisition creation requires a stable retry key; identical retries return the existing request and a reused key with different content returns a conflict.
 - Branch requisition drafts display live branch availability and read-only Central Warehouse/peer-branch sourcing. A failed source lookup is not presented as zero stock and does not mutate inventory.
@@ -70,3 +70,8 @@ The automated source/package gate validates code quality and package integrity; 
 
 
 **Release acceptance:** source/package CI is separate from authenticated target-host acceptance. Do not infer live database reconciliation, backup restoration, rollback or payroll/legal approval from CI alone. The package remains blocked from production certification until the master release acceptance record contains evidence for those gates.
+
+
+### 16.1.78 global search
+
+The header search is connected to a read-only REST endpoint. Results are scoped by ERP role, capability and assigned location; product/SKU matches do not expose cost/profit data, and customer matches do not expose contact or balance data. Database failures return an error rather than a false empty result. This update preserves the existing 49-table schema contract.
