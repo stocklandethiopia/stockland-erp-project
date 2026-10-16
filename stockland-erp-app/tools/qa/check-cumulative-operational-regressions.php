@@ -90,9 +90,10 @@ $check( str_contains( $expense_create, '$owner_expense_hold = $corporate_expense
 $check( str_contains( $accounting, 'Owner approval is limited to a Management corporate expense submitted by a different active ERP user.' ), 'Expense decision endpoint enforces independent Owner approval' );
 $check( str_contains( $accounting, 'Expense creators cannot approve or reject their own expense.' ), 'All expense creators are prevented from self-approval or self-rejection' );
 $check( ! str_contains( $css_nav, '.sl-sidebar{display:none!important}' ) && str_contains( $css_nav, '.sl-sidebar' ), 'Responsive operational sidebar is preserved and not forcibly hidden' );
+$check( str_contains( $hr_rest, "'status'             => 'PENDING'" ) && str_contains( $hr_rest, 'public function employee_decision' ) && str_contains( $hr_rest, 'Only an authorized ERP Owner may approve an employee file.' ) && str_contains( $hr_rest, 'employee-file creator cannot approve the same employee file' ) && str_contains( $hr_rest, 'HR_EMPLOYEE_APPROVE' ) && str_contains( $app, 'data-hr-employee-approve' ), 'Management-created employee files stay pending until independent Owner approval, notification, workflow and audit are committed' );
 if ( $fail ) {
 	fwrite( STDERR, 'FAIL cumulative operational source checks: ' . count( $fail ) . " failure(s)\n" );
 	exit( 1 );
-$check( str_contains( $hr_rest, "'status'             => 'PENDING'" ) && str_contains( $hr_rest, 'public function employee_decision' ) && str_contains( $hr_rest, 'Only an authorized ERP Owner may approve an employee file.' ) && str_contains( $hr_rest, 'employee-file creator cannot approve the same employee file' ) && str_contains( $hr_rest, 'HR_EMPLOYEE_APPROVE' ) && str_contains( $app, 'data-hr-employee-approve' ), 'Management-created employee files stay pending until independent Owner approval, notification, workflow and audit are committed' );
+
 }
 echo 'PASS cumulative operational source checks: ' . $pass . " assertions\n";
