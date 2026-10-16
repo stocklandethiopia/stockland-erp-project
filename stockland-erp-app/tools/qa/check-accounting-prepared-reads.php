@@ -96,8 +96,17 @@ foreach ( $cases as $label => $case ) {
 				exit( 1 );
 			}
 		}
-		if ( false !== strpos( $method, '$where .=' ) || false !== strpos( $method, '$sql' ) || false === strpos( $method, '$filters = array(' ) ) {
-			fwrite( STDERR, "FAIL: accounting expense query must not construct SQL fragments dynamically.\n" );
+		if (
+			false !== strpos( $method, '$where .=' )
+			|| false !== strpos( $method, '$sql' )
+			|| false !== strpos( $method, '$filters' )
+			|| false !== strpos( $method, '$page_filters' )
+		) {
+			fwrite( STDERR, "FAIL: accounting expense query must not construct SQL fragments dynamically.\\n" );
+			exit( 1 );
+		}
+		if ( 4 !== substr_count( $method, '$has_status ? 1 : 0' ) ) {
+			fwrite( STDERR, "FAIL: all four expense reads must bind the same explicit status filter.\\n" );
 			exit( 1 );
 		}
 	}
