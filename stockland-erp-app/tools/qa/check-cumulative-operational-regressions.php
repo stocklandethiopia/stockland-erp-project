@@ -55,6 +55,7 @@ $check( str_contains( $requisition_rest, '$direct_pick = \'pick\' === $action &&
 $check( str_contains( $requisition_rest, 'Stockland_Workflow::event( \'requisition\', $id, \'Approved\', \'Reserved\'' ) && str_contains( $requisition_rest, 'Immediate-pick reservation audit event' ), 'Immediate pick records the reserved intermediate state and immutable audit evidence' );
 $check( str_contains( $expense_create, '$owner_expense_hold = $corporate_expense && \'owner\' === $role' ) && str_contains( $expense_create, '$status             = \'PENDING\'' ) && str_contains( $expense_create, 'OWNER_CORPORATE_EXPENSE_PENDING_AUTHORITY' ) && ! str_contains( $expense_create, '$direct_post' ), 'Owner-created corporate expense is held pending and cannot self-post a GL journal' );
 $check( str_contains( $accounting, 'Owner approval is limited to a Management corporate expense submitted by a different active ERP user.' ), 'Expense decision endpoint enforces independent Owner approval' );
+$check( str_contains( $accounting, 'Expense creators cannot approve or reject their own expense.' ), 'All expense creators are prevented from self-approval or self-rejection' );
 $check( ! str_contains( $css_nav, '.sl-sidebar{display:none!important}' ) && str_contains( $css_nav, '.sl-sidebar' ), 'Responsive operational sidebar is preserved and not forcibly hidden' );
 if ( $fail ) {
 	fwrite( STDERR, 'FAIL cumulative operational source checks: ' . count( $fail ) . " failure(s)\n" );
