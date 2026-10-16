@@ -43,7 +43,7 @@
     "local_assets": true,
     "body_appended_overlay_stacking": "fixed above fullscreen ERP root",
     "service_worker_refresh": "versioned worker URL + update() on existing registration",
-    "tablet_menu_fix": "576–991px two-row header; action strip scrolls horizontally; hamburger opens touch-scrollable dialog; Escape/backdrop/selection cleanup reset body lock and aria-expanded; keyboard focus restoration/trap; dismiss overlay on desktop resize",
+    "tablet_menu_fix": "576–991px three-row header (identity, dedicated search row, horizontally scrollable action strip); hamburger opens touch-scrollable dialog; Escape/backdrop/selection cleanup reset body lock and aria-expanded; keyboard focus restoration/trap; dismiss overlay on desktop resize.",
     "bootstrap_version": "5.3.8",
     "bootstrap_source_git_blob_sha1": "1d8bac41b3b586410aed1077d9abc05e169cb924",
     "bootstrap_sri_sha384": "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB",
