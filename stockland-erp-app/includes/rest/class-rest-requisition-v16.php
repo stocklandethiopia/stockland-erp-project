@@ -59,6 +59,20 @@ class Stockland_REST_Requisition_V16 {
 		);
 		register_rest_route(
 			self::NS,
+			'/requisitions/source-preview/availability',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'source_preview' ),
+				'permission_callback' => function () {
+					if ( ! current_user_can( 'stockland_request_stock' ) ) {
+						return new WP_Error( 'forbidden', 'Stock-request permission is required to preview stock sources.', array( 'status' => 403 ) );
+					}
+					return Stockland_Authority::assert_profile();
+				},
+			)
+		);
+		register_rest_route(
+			self::NS,
 			'/requisitions/(?P<id>[A-Za-z0-9\-]+)',
 			array(
 				'methods'             => 'GET',
@@ -213,14 +227,15 @@ class Stockland_REST_Requisition_V16 {
 		}
 		if ( Stockland_Authority::can_warehouse_operate_requisition() ) {
 			$where = " AND r.status IN('Approved','Reserved','Picked','Received','Completed')";}
-		$sql  = "SELECT r.requisition_id,r.branch_location_id,r.requested_by,r.date_requested,r.status,r.notes,r.reviewed_at,r.management_decision,r.owner_decision,r.approval_mode,r.created_at,r.pickup_date,l.location_name,u.display_name requester_name,COUNT(ri.id) item_count,COALESCE(SUM(ri.quantity_requested),0) requested_units,COALESCE(SUM(ri.quantity_approved),0) approved_units FROM %i r JOIN %i l ON l.id=r.branch_location_id LEFT JOIN %i u ON u.ID=r.requested_by LEFT JOIN %i ri ON ri.requisition_id=r.requisition_id WHERE 1=1 {$where} GROUP BY r.requisition_id ORDER BY r.created_at DESC LIMIT 300";
+		$sql  = "SELECT r.requisition_id,r.branch_location_id,r.requested_by,r.date_requested,r.status,r.notes,r.reviewed_at,r.management_decision,r.owner_decision,r.approval_mode,r.created_at,l.location_name,u.display_name requester_name,COUNT(ri.id) item_count,COALESCE(SUM(ri.quantity_requested),0) requested_units,COALESCE(SUM(ri.quantity_approved),0) approved_units FROM %i r JOIN %i l ON l.id=r.branch_location_id LEFT JOIN %i u ON u.ID=r.requested_by LEFT JOIN %i ri ON ri.requisition_id=r.requisition_id WHERE 1=1 {$where} GROUP BY r.requisition_id ORDER BY r.created_at DESC LIMIT 300";
 		$args = array_merge( array( Stockland_DB::table( 'requisitions' ), Stockland_DB::table( 'locations' ), $wpdb->users, Stockland_DB::table( 'requisition_items' ) ), $args );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The query uses fixed SELECT/JOIN fragments, an allow-listed role/status clause and generated integer placeholders; table identifiers and location IDs are bound through prepare().
 		$rows = Stockland_DB::read_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
 		foreach ( $rows as &$row ) {
-			$actions = array();
-			$st      = $row['status'];
-			$pending = '';
+			$row['notes'] = Stockland_Requisition_Service::display_notes( $row['notes'] ?? '' );
+			$actions      = array();
+			$st           = $row['status'];
+			$pending      = '';
 			if ( 'Requested' === $st ) {
 				if ( Stockland_Authority::can_review_requisition() ) {
 					$actions[] = 'REVIEW';
@@ -240,10 +255,15 @@ class Stockland_REST_Requisition_V16 {
 					$pending = 'Owner or Management';
 				}
 			} elseif ( 'Approved' === $st ) {
+				// Immediate picking is an approved option; reservation and pickup scheduling remain optional.
+				if ( Stockland_Authority::can_pick_requisition() ) {
+					$actions[] = 'PICK';
+				}
 				if ( Stockland_Authority::can_reserve_requisition() ) {
 					$actions[] = 'RESERVE';
-				} else {
-					$pending = 'Store Manager';
+				}
+				if ( ! $actions ) {
+					$pending = 'Central Warehouse Manager or Warehouse Employee';
 				}
 			} elseif ( 'Reserved' === $st ) {
 				if ( Stockland_Authority::can_pick_requisition() ) {
@@ -279,6 +299,66 @@ class Stockland_REST_Requisition_V16 {
 	 * @param WP_REST_Request $r REST request containing the requisition identifier.
 	 * @return mixed REST response or a WP_Error.
 	 */
+	/**
+	 * Returns read-only, live branch and warehouse sourcing for a requisition draft.
+	 * This endpoint never creates a requisition, reservation, transfer, or ledger entry.
+	 *
+	 * @param WP_REST_Request $r Request containing branch, SKU and quantity.
+	 * @return mixed Live sourcing advice or a validation error.
+	 */
+	public function source_preview( WP_REST_Request $r ) {
+		global $wpdb;
+		$branch_id = absint( $r->get_param( 'location_id' ) );
+		$sku       = sanitize_text_field( (string) $r->get_param( 'sku' ) );
+		$raw_qty   = $r->get_param( 'quantity' );
+		$quantity  = is_numeric( $raw_qty ) ? (float) $raw_qty : 0.0;
+		if ( $branch_id <= 0 || '' === $sku || $quantity <= 0 ) {
+			return $this->deny( 'invalid_source_preview', 'Choose an authorized branch, a live Product Master SKU and a positive quantity.', 400 );
+		}
+		if ( ! Stockland_Authority::can_access_location( $branch_id ) ) {
+			return $this->deny( 'branch_forbidden', 'This stock-source preview is outside your assigned branch scope.', 403 );
+		}
+		$branch = Stockland_DB::read_row(
+			$wpdb->prepare( 'SELECT id,location_type,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $branch_id ),
+			ARRAY_A
+		);
+		if ( ! $branch || 'Branch' !== (string) $branch['location_type'] || 0 === (int) $branch['is_active'] ) {
+			return $this->deny( 'invalid_branch', 'Select an active branch location to preview stock sources.', 400 );
+		}
+		$product = Stockland_DB::get_product( $sku );
+		if ( ! $product || empty( $product['variant_id'] ) || 'STYLE' === ( $product['product_type'] ?? 'SIMPLE' ) ) {
+			return $this->deny( 'invalid_sku', 'Select an active, stockable Product Master variant. Create missing variations in Product Master before requesting or receiving stock.', 400 );
+		}
+		$preview = Stockland_Sourcing::for_items(
+			array(
+				array(
+					'sku'                => $product['sku'],
+					'variant_id'         => (int) $product['variant_id'],
+					'quantity_requested' => $quantity,
+				),
+			),
+			$branch_id
+		);
+		if ( ! is_array( $preview ) || empty( $preview[0] ) ) {
+			return new WP_Error( 'source_preview_unavailable', 'Live stock-source advice could not be calculated. No ERP data was changed.', array( 'status' => 503 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'checked_at' => current_time( 'mysql' ),
+				'branch_id'  => $branch_id,
+				'sku'        => $product['sku'],
+				'sourcing'   => $preview[0],
+				'read_only'  => true,
+			)
+		);
+	}
+
+	/**
+	 * Returns the selected requisition and current source availability.
+	 *
+	 * @param WP_REST_Request $r Request containing the requisition ID.
+	 * @return mixed Authorized requisition detail or a REST error.
+	 */
 	public function detail( WP_REST_Request $r ) {
 		global $wpdb;
 		$req = $this->req( sanitize_text_field( $r['id'] ) );
@@ -287,6 +367,7 @@ class Stockland_REST_Requisition_V16 {
 		}if ( ! $this->scope_ok( $req ) ) {
 			return $this->deny( 'forbidden', 'This requisition is outside your branch scope.' );
 		}
+		$req['notes'] = Stockland_Requisition_Service::display_notes( $req['notes'] ?? '' );
 		$items        = Stockland_DB::read_results( $wpdb->prepare( 'SELECT ri.*,p.product_name,p.brand,p.color,p.size FROM %i ri LEFT JOIN %i p ON (p.variant_id=ri.variant_id OR (ri.variant_id IS NULL AND p.sku=ri.sku)) WHERE ri.requisition_id=%s ORDER BY ri.id', Stockland_DB::table( 'requisition_items' ), Stockland_DB::table( 'products' ), $req['requisition_id'] ), ARRAY_A );
 		$availability = $this->availability( $items );
 		$map          = array();
@@ -647,13 +728,8 @@ class Stockland_REST_Requisition_V16 {
 		$req = $this->req( $id );
 		if ( ! $req ) {
 			return $this->deny( 'not_found', 'Requisition not found.', 404 );
-		}
-		$allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Approved', 'Reserved', 'Picked' );
-		if ( ! in_array( $req['status'], $allowed_states, true ) ) {
-			return $this->deny( 'invalid_state', 'This requisition cannot be moved to the requested warehouse state.', 409 );
-		}
-		if ( 'pick' === $action && 'Approved' === $req['status'] && Stockland_Authority::role() !== Stockland_Authority::WAREHOUSE_MANAGER ) {
-			return $this->deny( 'forbidden', 'Only the Central Warehouse Manager may PICK an approved requisition directly. Warehouse Employees may PICK after the Manager reserves it.', 403 );
+		}if ( ! in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked' ), true ) ) {
+			return $this->deny( 'invalid_state', 'This requisition is not ready for warehouse action.', 409 );
 		}
 		$wh   = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		$lock = Stockland_DB::acquire_day_lock( $wh, current_time( 'Y-m-d' ) );
@@ -666,32 +742,99 @@ class Stockland_REST_Requisition_V16 {
 		try {
 			$req   = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
 			$items = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
-			if ( ! $req ) {
-				throw new Exception( 'Requisition disappeared during warehouse action.' );
+			if ( ! $req || ! is_array( $items ) || empty( $items ) ) {
+				throw new Exception( 'The requisition header or approved items could not be loaded for warehouse action.' );
 			}
-			$locked_status         = (string) ( $req['status'] ?? '' );
-			$locked_allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Approved', 'Reserved', 'Picked' );
-			if ( ! in_array( $locked_status, $locked_allowed_states, true ) ) {
-				throw new Exception( 'This requisition cannot be moved to the requested warehouse state. Current status: ' . $locked_status . '.' );
-			}
-			if ( 'pick' === $action && 'Approved' === $locked_status && Stockland_Authority::role() !== Stockland_Authority::WAREHOUSE_MANAGER ) {
-				throw new Exception( 'Only the Central Warehouse Manager may PICK an approved requisition directly. Warehouse Employees must wait until it is Reserved.' );
-			}
-			if ( 'pick' === $action && 'Picked' === $locked_status ) {
-				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
-					throw new Exception( 'Could not confirm the existing warehouse pick state.' );
+			$pickup      = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
+			$direct_pick = 'pick' === $action && 'Approved' === $req['status'];
+			if ( $direct_pick ) {
+				$pickup   = current_time( 'Y-m-d' );
+				$prepared = 0;
+				foreach ( $items as $item ) {
+					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
+						continue;
+					}
+					$transfer = Stockland_DB::read_row(
+						$wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status='Approved' ORDER BY created_at LIMIT 1 FOR UPDATE", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ),
+						ARRAY_A
+					);
+					if ( ! $transfer ) {
+						throw new Exception( 'Approved warehouse transfer record is missing for requisition item ' . $item['id'] . '.' );
+					}
+					$qty = (float) $transfer['quantity'];
+					if ( $qty <= 0 || $qty > (float) $item['quantity_approved'] ) {
+						throw new Exception( 'The approved transfer quantity is invalid for ' . $item['sku'] . '.' );
+					}
+					$available = Stockland_DB::get_available_stock( $wh, (string) $item['sku'] );
+					if ( $available < $qty ) {
+						throw new Exception( 'Insufficient available Central Warehouse stock for ' . $item['sku'] . '. Available ' . $available . ', required ' . $qty . '.' );
+					}
+					$variant_id = (int) ( $item['variant_id'] ?? ( Stockland_DB::get_product( $item['sku'] )['variant_id'] ?? 0 ) );
+					$res_ok     = Stockland_DB::insert_record(
+						Stockland_DB::table( 'reservations' ),
+						array(
+							'location_id'       => $wh,
+							'sku'               => (string) $item['sku'],
+							'variant_id'        => $variant_id,
+							'requisition_id'    => $id,
+							'quantity_reserved' => $qty,
+							'status'            => 'Active',
+							'transfer_id'       => $transfer['transfer_id'],
+							'created_at'        => current_time( 'mysql' ),
+						)
+					);
+					if ( false === $res_ok ) {
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Immediate-pick reservation could not be saved.' );
+					}
+					$tr_ok = Stockland_DB::update_record(
+						Stockland_DB::table( 'transfers' ),
+						array(
+							'status'      => 'Reserved',
+							'pickup_date' => $pickup,
+							'reserved_by' => get_current_user_id(),
+							'reserved_at' => current_time( 'mysql' ),
+						),
+						array( 'transfer_id' => $transfer['transfer_id'] )
+					);
+					if ( false === $tr_ok ) {
+						throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Immediate-pick transfer could not be prepared.' );
+					}
+					++$prepared;
 				}
-				Stockland_DB::release_day_lock( $lock );
-				return rest_ensure_response(
+				if ( 0 === $prepared ) {
+					throw new Exception( 'No approved quantity is available to pick.' );
+				}
+				if ( false === Stockland_DB::update_record(
+					Stockland_DB::table( 'requisitions' ),
 					array(
-						'message'        => 'This requisition is already picked; no additional stock movement was posted.',
-						'idempotent'     => true,
-						'requisition_id' => $id,
-						'status'         => 'Picked',
+						'status'                => 'Reserved',
+						'pickup_date'           => $pickup,
+						'warehouse_reserved_by' => get_current_user_id(),
+						'warehouse_reserved_at' => current_time( 'mysql' ),
+					),
+					array( 'requisition_id' => $id )
+				) ) {
+					throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Immediate-pick requisition state could not be prepared.' );
+				}
+				if ( ! Stockland_Workflow::event(
+					'requisition',
+					$id,
+					'Approved',
+					'Reserved',
+					get_current_user_id(),
+					$req['branch_location_id'],
+					array(
+						'pickup_date' => $pickup,
+						'mode'        => 'immediate_pick',
 					)
-				);
+				) ) {
+					throw new Exception( 'Immediate-pick reservation workflow event could not be recorded.' );
+				}
+				if ( ! Stockland_Audit::log( get_current_user_id(), $req['branch_location_id'], 'WAREHOUSE_RESERVE', null, null, 'Approved', 'Reserved', 'Reservation created inside the authorized immediate-pick transaction.', $id ) ) {
+					throw new Exception( 'Immediate-pick reservation audit event could not be recorded.' );
+				}
+				$req['status'] = 'Reserved';
 			}
-			$pickup = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
 			if ( 'reserve' === $action ) {
 				if ( ! $pickup ) {
 					throw new Exception( 'Warehouse pickup date is required when reserving a branch requisition.' );
@@ -769,61 +912,21 @@ class Stockland_REST_Requisition_V16 {
 				Stockland_Notifications::push_role( 'warehouse_manager', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: the Central Warehouse Manager or a Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
 				Stockland_Notifications::push_role( 'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: the Central Warehouse Manager or a Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
 			} else {
-				if ( ! in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked' ), true ) ) {
-					throw new Exception( 'Only an approved or reserved requisition can be picked.' );
+				if ( ! in_array( $req['status'], array( 'Reserved', 'Picked' ), true ) ) {
+					throw new Exception( 'Reserve the requisition before picking.' );
 				}
 				foreach ( $items as $item ) {
-					$transfer = Stockland_DB::read_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status IN('Approved','Reserved') ORDER BY created_at DESC LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
+					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
+						continue;
+					}
+					$transfer = Stockland_DB::read_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status='Reserved' LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
-						throw new Exception( 'Required approved/reserved warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
-					}
-					$dispatch = (float) $transfer['quantity'];
-					if ( $dispatch <= 0 ) {
-						throw new Exception( 'Warehouse transfer quantity must be greater than zero for ' . $transfer['sku'] . '.' );
-					}
-					if ( 'Approved' === $transfer['status'] ) {
-						// Direct Manager PICK creates a short-lived reservation inside this transaction,
-						// preventing an unguarded dispatch while keeping appointment reservation optional.
-						$available = Stockland_DB::get_available_stock( $wh, $transfer['sku'] );
-						if ( $available < $dispatch ) {
-							throw new Exception( 'Insufficient available warehouse stock for ' . $transfer['sku'] . '. Available ' . $available . ', approved ' . $dispatch . '.' );
-						}
-						$res_ok = Stockland_DB::insert_record(
-							Stockland_DB::table( 'reservations' ),
-							array(
-								'location_id'       => $wh,
-								'sku'               => $transfer['sku'],
-								'variant_id'        => (int) ( $transfer['variant_id'] ?? ( Stockland_DB::get_product( $transfer['sku'] )['variant_id'] ?? 0 ) ),
-								'requisition_id'    => $id,
-								'quantity_reserved' => $dispatch,
-								'status'            => 'Active',
-								'transfer_id'       => $transfer['transfer_id'],
-								'created_at'        => current_time( 'mysql' ),
-							)
-						);
-						if ( false === $res_ok ) {
-							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Direct-pick stock protection could not be saved.' );
-						}
-						$tr_reserve_ok = Stockland_DB::update_record(
-							Stockland_DB::table( 'transfers' ),
-							array(
-								'status'      => 'Reserved',
-								'reserved_by' => get_current_user_id(),
-								'reserved_at' => current_time( 'mysql' ),
-							),
-							array( 'transfer_id' => $transfer['transfer_id'] )
-						);
-						if ( false === $tr_reserve_ok ) {
-							throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Direct-pick transfer protection state could not be saved.' );
-						}
-						$transfer['status'] = 'Reserved';
-					}
-					$active = (float) Stockland_DB::read_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), $transfer['transfer_id'] ) );
-					if ( $active < $dispatch ) {
+						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
+					}$active = (float) Stockland_DB::read_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity_reserved),0) FROM %i WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), $transfer['transfer_id'] ) );
+					if ( $active < (float) $transfer['quantity'] ) {
 						throw new Exception( 'Active reservation missing for ' . $transfer['sku'] . '.' );
-					}
-					$cur                   = $transfer;
-					$cur['dispatched_qty'] = $dispatch;
+					}$dispatch = (float) $transfer['quantity'];
+					$cur       = $transfer;
 					if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, get_current_user_id() ) ) {
 						throw new Exception( 'Warehouse ledger could not post the pick for ' . $transfer['sku'] . '.' );
 					}$released = Stockland_DB::execute_query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $transfer['transfer_id'] ) );
@@ -866,7 +969,7 @@ class Stockland_REST_Requisition_V16 {
 				if ( ! Stockland_Audit::log( get_current_user_id(), $req['branch_location_id'], 'WAREHOUSE_PICK', null, null, $req['status'], 'Picked', 'Warehouse picked approved requisition', $id ) ) {
 					throw new Exception( 'Audit event could not be recorded.' );
 				}
-				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Stock ready — RECEIVE required', 'Requisition ' . $id . ' has been PICKED. Next action: Branch Manager must RECEIVE the picked stock' . ( ! empty( $req['pickup_date'] ) ? ' for the scheduled pickup on ' . $req['pickup_date'] : ' when the branch collection is ready' ) . '.', 'action' );
+				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Stock ready — RECEIVE required', 'Requisition ' . $id . ' has been PICKED. Next action: Branch Manager must RECEIVE the picked stock on ' . $req['pickup_date'] . '.', 'action' );
 			}
 			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Warehouse requisition action commit failed.' );
