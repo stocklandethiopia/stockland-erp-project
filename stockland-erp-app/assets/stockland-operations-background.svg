@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="900" viewBox="0 0 1800 900">
+<defs>
+  <linearGradient id="base" x2="0" y2="1"><stop stop-color="#17354d"/><stop offset=".48" stop-color="#0d233b"/><stop offset="1" stop-color="#07172b"/></linearGradient>
+  <linearGradient id="window" x2="0" y2="1"><stop stop-color="#37677e"/><stop offset=".54" stop-color="#163c54"/><stop offset="1" stop-color="#0b263d"/></linearGradient>
+  <linearGradient id="glassGlow"><stop stop-color="#e1d6b9" stop-opacity=".12"/><stop offset=".5" stop-color="#96c6be" stop-opacity=".04"/><stop offset="1" stop-color="#7da7b9" stop-opacity=".11"/></linearGradient>
+  <linearGradient id="cloth" x2="0" y2="1"><stop stop-color="#a4d0bc" stop-opacity=".94"/><stop offset="1" stop-color="#1b8d6c" stop-opacity=".85"/></linearGradient>
+  <linearGradient id="sand" x2="0" y2="1"><stop stop-color="#e9dcc8" stop-opacity=".85"/><stop offset="1" stop-color="#b1987e" stop-opacity=".72"/></linearGradient>
+  <pattern id="thinGrid" width="38" height="38" patternUnits="userSpaceOnUse"><path d="M38 0H0V38" fill="none" stroke="#bbd2df" stroke-opacity=".06"/></pattern>
+</defs>
+<rect width="1800" height="900" fill="url(#base)"/>
+<rect width="1800" height="900" fill="url(#thinGrid)"/>
+<circle cx="1450" cy="215" r="300" fill="#1f9c75" opacity=".12"/>
+<circle cx="1060" cy="620" r="350" fill="#2770a1" opacity=".08"/>
+<!-- expansive boutique windows with a quiet city silhouette -->
+<g>
+  <rect x="560" y="80" width="1160" height="500" rx="18" fill="#06172a" stroke="#7893a4" stroke-opacity=".65" stroke-width="3"/>
+  <rect x="578" y="98" width="1124" height="464" rx="10" fill="url(#window)"/>
+  <rect x="578" y="98" width="1124" height="464" rx="10" fill="url(#glassGlow)"/>
+  <path d="M578 420L648 363 702 388 775 319 834 374 898 298 965 354 1030 289 1098 354 1156 282 1216 338 1284 252 1349 317 1414 263 1473 312 1544 239 1602 293 1654 250 1702 280V562H578Z" fill="#0a2439"/>
+  <path d="M578 470L661 442 725 452 803 405 866 429 932 383 1008 421 1081 385 1150 423 1225 377 1305 411 1374 365 1451 409 1527 370 1600 409 1662 385 1702 395V562H578Z" fill="#091d31"/>
+  <g fill="#20475c" stroke="#7092a4" stroke-opacity=".46" stroke-width="2">
+    <path d="M612 440V323H648V440Z"/><path d="M670 440V350H713V440Z"/><path d="M736 440V300H776V440Z"/>
+    <path d="M800 440V333H843V440Z"/><path d="M872 440V286H916V440Z"/><path d="M940 440V328H981V440Z"/>
+    <path d="M1004 440V270H1048V440Z"/><path d="M1071 440V316H1111V440Z"/><path d="M1137 440V282H1177V440Z"/>
+    <path d="M1201 440V309H1244V440Z"/><path d="M1268 440V250H1310V440Z"/><path d="M1336 440V303H1377V440Z"/>
+    <path d="M1402 440V262H1446V440Z"/><path d="M1470 440V296H1513V440Z"/><path d="M1537 440V242H1581V440Z"/>
+    <path d="M1603 440V287H1645V440Z"/>
+  </g>
+  <path d="M860 98V562M1140 98V562M1420 98V562M578 335H1702" stroke="#a3bac6" stroke-opacity=".45" stroke-width="3" fill="none"/>
+</g>
+<!-- softly lit hanging rail, with clothing silhouettes -->
+<ellipse cx="1290" cy="742" rx="520" ry="74" fill="#020c18" opacity=".38"/>
+<g fill="none" stroke="#b0c1ca" stroke-opacity=".78" stroke-width="6" stroke-linecap="round">
+  <path d="M700 514H1700"/><path d="M746 508V812M1660 508V812" stroke-width="8"/>
+  <path d="M794 514l15 40 15-40M912 514l15 40 15-40M1030 514l15 40 15-40M1148 514l15 40 15-40M1266 514l15 40 15-40M1384 514l15 40 15-40M1502 514l15 40 15-40M1620 514l15 40 15-40" stroke-width="3"/>
+</g>
+<g stroke="#9cb2c0" stroke-opacity=".68" stroke-width="3" stroke-linejoin="round">
+  <path d="M766 555Q810 607 850 555L877 587 861 630 875 822Q808 849 741 822L755 630 739 587Z" fill="url(#sand)"/>
+  <path d="M873 555Q917 607 957 555L984 587 968 630 982 830Q915 855 848 830L862 630 846 587Z" fill="#345c76"/>
+  <path d="M980 555Q1024 607 1064 555L1091 587 1075 630 1089 816Q1022 843 955 816L969 630 953 587Z" fill="url(#cloth)"/>
+  <path d="M1087 555Q1131 607 1171 555L1198 587 1182 630 1196 829Q1129 852 1062 829L1076 630 1060 587Z" fill="#d9e0e2" fill-opacity=".9"/>
+  <path d="M1194 555Q1238 607 1278 555L1305 587 1289 630 1303 820Q1236 846 1169 820L1183 630 1167 587Z" fill="#536f85"/>
+  <path d="M1301 555Q1345 607 1385 555L1412 587 1396 630 1410 834Q1343 856 1276 834L1290 630 1274 587Z" fill="url(#sand)"/>
+  <path d="M1408 555Q1452 607 1492 555L1519 587 1503 630 1517 818Q1450 846 1383 818L1397 630 1381 587Z" fill="url(#cloth)"/>
+  <path d="M1515 555Q1559 607 1599 555L1626 587 1610 630 1624 827Q1557 852 1490 827L1504 630 1488 587Z" fill="#9caebc"/>
+  <path d="M1622 555Q1666 607 1706 555L1733 587 1717 630 1731 812Q1664 840 1597 812L1611 630 1595 587Z" fill="#214b66"/>
+</g>
+<path d="M0 850Q500 815 900 850T1800 828V900H0Z" fill="#050f1e" opacity=".78"/>
+<path d="M0 868H1800" stroke="#41a981" stroke-opacity=".27" stroke-width="3"/>
+</svg>

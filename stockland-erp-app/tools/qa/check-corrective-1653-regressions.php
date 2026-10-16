@@ -88,8 +88,8 @@ $ok( str_contains( $accountingRoutes, 'Purchase-order create commit failed' ) &&
 $ok( str_contains( $ledger, 'begin_unit_of_work' ) && str_contains( $ledger, 'commit_unit_of_work' ) && str_contains( $ledger, 'ROLLBACK TO SAVEPOINT' ) && str_contains( $ledger, 'Stock balance update failed' ) && str_contains( $ledger, 'Could not rebuild a derived balance row' ) && str_contains( $skuService, 'No-change SKU replacement verification commit failed' ), 'inventory ledger, derived-balance rebuild and SKU replacement use checked atomic transactions/savepoints' );
 $ok( str_contains( $skuService, "case 'reservations':" ) && str_contains( $skuService, "case 'transfers':" ) && str_contains( $skuService, "case 'requisitions':" ) && str_contains( $skuService, "case 'purchase_orders':" ) && ! str_contains( $skuService, 'prepare( $check' ), 'SKU replacement reference checks use allow-listed static prepared SQL per operational table' );
 $manifest = json_decode( $read( 'RELEASE_MANIFEST.json' ), true );
-$ok( ( $manifest['release'] ?? $manifest['version'] ?? '' ) === '16.1.65' && str_contains( $read( 'stockland-inventory.php' ), 'Version:           16.1.65' ), '16.1.65 release markers are consistent' );
+$ok( ( $manifest['release'] ?? $manifest['version'] ?? '' ) === '16.1.77' && str_contains( $read( 'stockland-inventory.php' ), 'Version:           16.1.77' ), '16.1.77 release markers are consistent' );
 if ( $fail ) {
-	fwrite( STDERR, '16.1.65 inherited regression gate FAILED: ' . implode( '; ', $fail ) . "\n" );
+	fwrite( STDERR, '16.1.77 inherited regression gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
-}echo "16.1.65 inherited regression QA PASS: {$pass} assertions.\n";
+}echo "16.1.77 inherited regression QA PASS: {$pass} assertions.\n";

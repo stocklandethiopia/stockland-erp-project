@@ -21,6 +21,7 @@ $commands = array(
 	'python3 ' . escapeshellarg( $root . '/tools/qa/rebuild-css.py' ),
 	'bash ' . escapeshellarg( $root . '/tools/qa/check-css.sh' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-operational-ui-contracts.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-dashboard-insights.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-menu-mobile-layout.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-runtime-hygiene.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-critical-workflows.php' ),
@@ -35,6 +36,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-accounting-prepared-reads.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-release-1663.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-health-gate-diagnostics.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-cumulative-operational-regressions.php' ),
 );
 foreach ( $commands as $command ) {
 	passthru( $command, $code );

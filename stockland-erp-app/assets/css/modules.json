@@ -1,6 +1,6 @@
 {
-  "release": "16.1.65",
-  "description": "Six ordered source modules compile to the mobile-first Stockland stylesheet; 16.1.65 repairs active Owner purchase approval capability, touch-safe Product Master SKU selection and truthful POS posting outcomes while preserving the 49-table business contract.",
+  "release": "16.1.77",
+  "description": "Six ordered source modules compile to the mobile-first Stockland stylesheet; 16.1.77 aligns the data-driven dashboard and responsive analytics table binding, location-scoped expense authority, and corporate expense attribution while preserving the 49-table business contract.",
   "modules": [
     "01-foundation.css",
     "02-shell-navigation.css",

@@ -22,12 +22,12 @@ $cases = array(
 	'supplier invoices' => array(
 		'start' => 'public function supplier_invoices(',
 		'end'   => '/**\n\t * Creates a supplier invoice',
-		'needles' => array( 'FROM %i i', 'LEFT JOIN %i u', 'WHERE (%d = 0 OR i.status = %s)', '$wpdb->prepare(' ),
+		'needles' => array( 'FROM %i i', 'LEFT JOIN %i u', 'WHERE (%d = 0 OR i.status = %s)', 'AS outstanding_amount', "Stockland_DB::table( 'payment_allocations' )", "Stockland_DB::table( 'payments' )", '$wpdb->prepare(' ),
 	),
 	'customer invoices' => array(
 		'start' => 'public function customer_invoices(',
 		'end'   => '/**\n\t * Inserts a customer payment',
-		'needles' => array( 'FROM %i i', 'JOIN %i c', 'LEFT JOIN %i l', '$wpdb->prepare(' ),
+		'needles' => array( 'FROM %i i', 'JOIN %i c', 'LEFT JOIN %i l', 'AS outstanding_amount', "Stockland_DB::table( 'payment_allocations' )", "Stockland_DB::table( 'payments' )", '$wpdb->prepare(' ),
 	),
 	'expenses' => array(
 		'start' => 'public function expenses(',
