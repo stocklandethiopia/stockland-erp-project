@@ -129,6 +129,17 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		);
 		register_rest_route(
 			self::NAMESPACE_V1,
+			'/hr/employees/(?P<id>\\d+)/decision',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'employee_decision' ),
+				'permission_callback' => function () {
+					return Stockland_Authority::can_manage_hr();
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE_V1,
 			'/hr/employees/(?P<id>\\d+)/compensation',
 			array(
 				'methods'             => 'POST',
@@ -315,7 +326,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			'position_title'     => sanitize_text_field( $p['position_title'] ?? '' ),
 			'employment_type'    => sanitize_text_field( $p['employment_type'] ?? 'FULL_TIME' ),
 			'hire_date'          => $this->valid_date( $p['hire_date'] ?? null, null ),
-			'status'             => in_array( strtoupper( $p['status'] ?? 'ACTIVE' ), array( 'ACTIVE', 'INACTIVE', 'TERMINATED' ), true ) ? strtoupper( $p['status'] ) : 'ACTIVE',
+			'status'             => 'PENDING',
 			'phone'              => sanitize_text_field( $p['phone'] ?? '' ),
 			'email'              => sanitize_email( $p['email'] ?? '' ),
 			'notes'              => sanitize_textarea_field( $p['notes'] ?? '' ),
@@ -333,6 +344,12 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! Stockland_Audit::log( get_current_user_id(), $branch, 'HR_EMPLOYEE_CREATE', null, null, null, $code, $name, 'EMP' . $id ) ) {
 				throw new Exception( 'Audit event could not be recorded; employee was not committed.' );
 			}
+			if ( false === Stockland_Workflow::event( 'employee', $id, 'NEW', 'PENDING', get_current_user_id(), $branch, array( 'employee_id' => $code ) ) ) {
+				throw new Exception( 'Employee approval workflow event could not be recorded.' );
+			}
+			if ( ! Stockland_Notifications::push_role( 'owner', null, 'hr_employee_approval', 'Employee file awaiting approval', 'Management created employee ' . $code . ' — ' . $name . '. The file remains PENDING and is excluded from active payroll until Owner approval.', 'employee', $id, 'action' ) ) {
+				throw new Exception( 'Owner approval notification could not be recorded; employee file was not committed.' );
+			}
 			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Employee commit failed.' );
 			}
@@ -340,6 +357,80 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		} catch ( Throwable $e ) {
 			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'save_failed', $e->getMessage(), array( 'status' => 500 ) );}
+	}
+
+	/**
+	 * Applies an independent Owner decision to a Management-created employee file.
+	 *
+	 * @param WP_REST_Request $r Employee identifier and decision request.
+	 * @return mixed The updated employee row or a REST error.
+	 * @throws Exception When the approval, audit, notification, or transaction fails.
+	 */
+	public function employee_decision( WP_REST_Request $r ) {
+		global $wpdb;
+		$user_id = get_current_user_id();
+		if ( Stockland_Authority::role( $user_id ) !== Stockland_Authority::OWNER || ! Stockland_Authority::can_manage_hr( $user_id ) ) {
+			return $this->deny( 'Only an authorized ERP Owner may approve an employee file.', 403 );
+		}
+		$id = (int) $r['id'];
+		if ( $id < 1 ) {
+			return new WP_Error( 'invalid_employee', 'A valid employee identifier is required.', array( 'status' => 400 ) );
+		}
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
+			return new WP_Error( 'transaction_failed', 'Could not start employee approval transaction.', array( 'status' => 500 ) );
+		}
+		try {
+			$employee = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'employees' ), $id ), ARRAY_A );
+			if ( ! $employee ) {
+				throw new Exception( 'Employee file not found.' );
+			}
+			if ( 'PENDING' !== strtoupper( (string) $employee['status'] ) ) {
+				throw new Exception( 'Only a pending employee file can be approved. Current status: ' . $employee['status'] . '.' );
+			}
+			if ( (int) ( $employee['created_by'] ?? 0 ) === $user_id ) {
+				throw new Exception( 'The employee-file creator cannot approve the same employee file.' );
+			}
+			if ( false === Stockland_DB::update_record(
+				Stockland_DB::table( 'employees' ),
+				array(
+					'status'     => 'ACTIVE',
+					'updated_by' => $user_id,
+				),
+				array(
+					'id'     => $id,
+					'status' => 'PENDING',
+				)
+			) ) {
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Employee approval status could not be saved.' );
+			}
+			if ( false === Stockland_Workflow::event(
+				'employee',
+				$id,
+				'PENDING',
+				'ACTIVE',
+				$user_id,
+				$employee['branch_location_id'],
+				array(
+					'employee_id' => $employee['employee_id'],
+					'decision'    => 'APPROVE',
+				)
+			) ) {
+				throw new Exception( 'Employee approval workflow event could not be recorded.' );
+			}
+			if ( ! Stockland_Audit::log( $user_id, $employee['branch_location_id'], 'HR_EMPLOYEE_APPROVE', null, null, 'PENDING', 'ACTIVE', 'Owner approved employee file', 'EMP' . $id, $user_id ) ) {
+				throw new Exception( 'Employee approval audit event could not be recorded.' );
+			}
+			if ( ! Stockland_Notifications::push_user( (int) $employee['created_by'], 'hr_employee_approved', 'Employee file approved', 'Employee ' . $employee['employee_id'] . ' — ' . $employee['full_name'] . ' was approved by the Owner and is now active.', 'employee', $id, 'info' ) ) {
+				throw new Exception( 'Employee approval notification could not be recorded.' );
+			}
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
+				throw new Exception( 'Employee approval commit failed.' );
+			}
+			return rest_ensure_response( Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d', Stockland_DB::table( 'employees' ), $id ), ARRAY_A ) );
+		} catch ( Throwable $e ) {
+			Stockland_DB::execute_query( 'ROLLBACK' );
+			return new WP_Error( 'employee_decision_failed', $e->getMessage(), array( 'status' => 409 ) );
+		}
 	}
 
 	/**
@@ -373,7 +464,14 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				return new WP_Error( 'location', 'Active location not found.', array( 'status' => 400 ) );
 			}$data['branch_location_id'] = $b; }
 		if ( array_key_exists( 'status', $p ) ) {
-			$data['status'] = in_array( strtoupper( $p['status'] ), array( 'ACTIVE', 'INACTIVE', 'TERMINATED' ), true ) ? strtoupper( $p['status'] ) : $cur['status'];
+			$requested_status = strtoupper( sanitize_text_field( (string) $p['status'] ) );
+			$current_status   = strtoupper( (string) ( $cur['status'] ?? '' ) );
+			// Management may deactivate or terminate an employee but cannot activate or self-approve a pending employee file.
+			if ( 'PENDING' === $current_status || 'ACTIVE' === $requested_status ) {
+				$data['status'] = $cur['status'];
+			} elseif ( in_array( $requested_status, array( 'INACTIVE', 'TERMINATED' ), true ) ) {
+				$data['status'] = $requested_status;
+			}
 		}
 		if ( array_key_exists( 'hire_date', $p ) ) {
 			$data['hire_date'] = $this->valid_date( $p['hire_date'], null );

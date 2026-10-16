@@ -73,10 +73,41 @@ foreach ( $cases as $label => $case ) {
 			exit( 1 );
 		}
 	}
-	if ( false !== strpos( $method, '$sql' ) || false !== strpos( $method, '$where' ) ) {
+	if ( false !== strpos( $method, '$sql' ) ) {
+		fwrite( STDERR, 'FAIL: accounting ' . $label . ' query still uses a dynamic SQL variable.' . "\n" );
+		exit( 1 );
+	}
+	if ( 'expenses' !== $label && false !== strpos( $method, '$where' ) ) {
 		fwrite( STDERR, 'FAIL: accounting ' . $label . ' query still builds SQL fragments dynamically.' . "\n" );
 		exit( 1 );
 	}
+	if ( 'expenses' === $label ) {
+		$fixed_predicates = array(
+			"WHERE (%d = 0 OR e.status = %s)",
+			"FIND_IN_SET(e.location_id, %s)",
+			'$has_status ? 1 : 0',
+			'$has_status ? $status',
+			'$company_wide ? 0 : 1',
+			'$location_filter',
+			'$has_from ? 1 : 0',
+			'$has_from ? $date_from',
+			'$has_to ? 1 : 0',
+			'$has_to ? $date_to',
+			'$has_category ? 1 : 0',
+			'$has_category ? $category',
+		);
+		foreach ( $fixed_predicates as $predicate ) {
+			if ( false === strpos( $method, $predicate ) ) {
+				fwrite( STDERR, "FAIL: accounting expense filters must stay fixed SQL predicates with separately prepared values: " . $predicate . "\\n" );
+				exit( 1 );
+			}
+		}
+		if ( false !== strpos( $method, '$where .=' ) || false !== strpos( $method, '$sql' ) || false === strpos( $method, '$wpdb->prepare(' ) ) {
+			fwrite( STDERR, "FAIL: accounting expense query must not construct SQL fragments dynamically.\n" );
+			exit( 1 );
+		}
+	}
+
 	echo 'PASS: accounting ' . $label . " read query is static and prepared.\n";
 }
 

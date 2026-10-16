@@ -2129,6 +2129,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$company_wide = Stockland_Authority::company_scope();
 		$current_role = Stockland_Authority::role();
 		$location_ids = array();
+
+		$requested_location = absint( $r->get_param( 'location_id' ) );
 		if ( ! $company_wide ) {
 			if ( 'branch_manager' === $current_role ) {
 				$branch       = Stockland_Authority::branch_id();
@@ -2148,28 +2150,192 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			if ( ! $location_ids ) {
 				return rest_ensure_response( array() );
 			}
+			if ( $requested_location && ! in_array( $requested_location, $location_ids, true ) ) {
+				return new WP_Error( 'location_scope', 'Expense report location is outside your assigned scope.', array( 'status' => 403 ) );
+			}
+		} elseif ( $requested_location ) {
+			$location = Stockland_DB::read_row(
+				$wpdb->prepare( 'SELECT id,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $requested_location ),
+				ARRAY_A
+			);
+			if ( ! $location || empty( $location['is_active'] ) ) {
+				return new WP_Error( 'invalid_location', 'Expense report location is not an active ERP location.', array( 'status' => 400 ) );
+			}
+			$location_ids = array( $requested_location );
+			$company_wide = false;
+		}
+		if ( $requested_location && $company_wide ) {
+			return new WP_Error( 'location_scope', 'The requested report location could not be resolved safely.', array( 'status' => 403 ) );
 		}
 		$location_filter = implode( ',', array_map( 'intval', $location_ids ) );
-		$rows            = Stockland_DB::read_results(
+		$date_from       = sanitize_text_field( (string) $r->get_param( 'date_from' ) );
+		$date_to         = sanitize_text_field( (string) $r->get_param( 'date_to' ) );
+		$category        = sanitize_text_field( (string) $r->get_param( 'category' ) );
+		foreach ( array(
+			'date_from' => $date_from,
+			'date_to'   => $date_to,
+		) as $label => $date_value ) {
+			if ( '' !== $date_value && ( ! preg_match( '/^\\d{4}-\\d{2}-\\d{2}$/', $date_value ) || ! checkdate( (int) substr( $date_value, 5, 2 ), (int) substr( $date_value, 8, 2 ), (int) substr( $date_value, 0, 4 ) ) ) ) {
+				return new WP_Error( 'invalid_expense_date', 'Expense report dates must be valid YYYY-MM-DD calendar dates.', array( 'status' => 400 ) );
+			}
+		}
+		if ( '' !== $date_from && '' !== $date_to && $date_from > $date_to ) {
+			return new WP_Error( 'invalid_expense_date_range', 'Expense report start date must not be after its end date.', array( 'status' => 400 ) );
+		}
+		$has_from     = '' !== $date_from;
+		$has_to       = '' !== $date_to;
+		$has_category = '' !== $category;
+		$report_mode  = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
+		if ( ! $report_mode ) {
+			$rows = Stockland_DB::read_results(
+				$wpdb->prepare(
+					' SELECT e.*,l.location_name,wu.display_name AS created_by_name
+					FROM %i e
+					LEFT JOIN %i l ON l.id=e.location_id
+					LEFT JOIN %i wu ON wu.ID=e.created_by
+					WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)
+					ORDER BY e.expense_date DESC,e.id DESC LIMIT 500',
+					$table,
+					Stockland_DB::table( 'locations' ),
+					$wpdb->users,
+					$has_status ? 1 : 0,
+					$has_status ? $status : '',
+					$company_wide ? 0 : 1,
+					$location_filter,
+					$has_from ? 1 : 0,
+					$has_from ? $date_from : '',
+					$has_to ? 1 : 0,
+					$has_to ? $date_to : '',
+					$has_category ? 1 : 0,
+					$has_category ? $category : ''
+				),
+				ARRAY_A
+			);
+			if ( $wpdb->last_error ) {
+				return new WP_Error( 'expense_read_failed', 'Expense records could not be loaded. Retry instead of treating a failed read as an empty list.', array( 'status' => 503 ) );
+			}
+			return rest_ensure_response( is_array( $rows ) ? $rows : array() );
+		}
+		$page_input       = absint( $r->get_param( 'page' ) );
+		$per_page_input   = absint( $r->get_param( 'per_page' ) );
+		$page             = max( 1, $page_input > 0 ? $page_input : 1 );
+		$per_page         = min( 100, max( 10, $per_page_input > 0 ? $per_page_input : 30 ) );
+		$offset           = ( $page - 1 ) * $per_page;
+		$wpdb->last_error = '';
+		$total            = (int) Stockland_DB::read_var(
 			$wpdb->prepare(
-				'SELECT e.*,l.location_name,wu.display_name AS created_by_name
+				'SELECT COUNT(*) FROM %i e
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)',
+				$table,
+				$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter,
+				$has_from ? 1 : 0,
+				$has_from ? $date_from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $date_to : '',
+				$has_category ? 1 : 0,
+				$has_category ? $category : ''
+			)
+		);
+		if ( $wpdb->last_error ) {
+			return new WP_Error( 'expense_report_failed', 'Expense report count failed; no partial total was returned.', array( 'status' => 503 ) );
+		}
+		$wpdb->last_error = '';
+		$summary          = Stockland_DB::read_row(
+			$wpdb->prepare(
+				"SELECT COUNT(*) total_count,
+				COALESCE(SUM(CASE WHEN e.status='POSTED' THEN e.amount+e.tax_amount ELSE 0 END),0) posted_total,
+				COALESCE(SUM(CASE WHEN e.status='PENDING' THEN e.amount+e.tax_amount ELSE 0 END),0) pending_total,
+				COALESCE(SUM(CASE WHEN e.status='REJECTED' THEN e.amount+e.tax_amount ELSE 0 END),0) rejected_total,
+				SUM(CASE WHEN e.status='POSTED' THEN 1 ELSE 0 END) posted_count,
+				SUM(CASE WHEN e.status='PENDING' THEN 1 ELSE 0 END) pending_count,
+				SUM(CASE WHEN e.status='REJECTED' THEN 1 ELSE 0 END) rejected_count
+				FROM %i e
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)",
+				$table,
+				$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter,
+				$has_from ? 1 : 0,
+				$has_from ? $date_from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $date_to : '',
+				$has_category ? 1 : 0,
+				$has_category ? $category : ''
+			),
+			ARRAY_A
+		);
+		if ( $wpdb->last_error || ! is_array( $summary ) ) {
+			return new WP_Error( 'expense_report_failed', 'Expense report totals failed; no partial summary was returned.', array( 'status' => 503 ) );
+		}
+		$wpdb->last_error = '';
+		$rows             = Stockland_DB::read_results(
+			$wpdb->prepare(
+				' SELECT e.*,l.location_name,wu.display_name AS created_by_name
 				FROM %i e
 				LEFT JOIN %i l ON l.id=e.location_id
 				LEFT JOIN %i wu ON wu.ID=e.created_by
 				WHERE (%d = 0 OR e.status = %s)
 					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
-				ORDER BY e.expense_date DESC,e.id DESC LIMIT 500',
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)
+				ORDER BY e.expense_date DESC,e.id DESC LIMIT %d OFFSET %d',
 				$table,
 				Stockland_DB::table( 'locations' ),
 				$wpdb->users,
 				$has_status ? 1 : 0,
 				$has_status ? $status : '',
 				$company_wide ? 0 : 1,
-				$location_filter
+				$location_filter,
+				$has_from ? 1 : 0,
+				$has_from ? $date_from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $date_to : '',
+				$has_category ? 1 : 0,
+				$has_category ? $category : '',
+				$per_page,
+				$offset
 			),
 			ARRAY_A
 		);
-		return rest_ensure_response( $rows );
+		if ( $wpdb->last_error || ! is_array( $rows ) ) {
+			return new WP_Error( 'expense_report_failed', 'Expense report rows failed; no partial report was returned.', array( 'status' => 503 ) );
+		}
+		return rest_ensure_response(
+			array(
+				'rows'     => $rows,
+				'page'     => $page,
+				'per_page' => $per_page,
+				'total'    => $total,
+				'pages'    => (int) ceil( $total / $per_page ),
+				'has_more' => $offset + count( $rows ) < $total,
+				'summary'  => array(
+					'total_count'    => (int) ( $summary['total_count'] ?? 0 ),
+					'posted_count'   => (int) ( $summary['posted_count'] ?? 0 ),
+					'pending_count'  => (int) ( $summary['pending_count'] ?? 0 ),
+					'rejected_count' => (int) ( $summary['rejected_count'] ?? 0 ),
+					'posted_total'   => (string) ( $summary['posted_total'] ?? '0.00' ),
+					'pending_total'  => (string) ( $summary['pending_total'] ?? '0.00' ),
+					'rejected_total' => (string) ( $summary['rejected_total'] ?? '0.00' ),
+				),
+			)
+		);
 	}
 
 	/**
@@ -2238,6 +2404,9 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			);
 		} else {
 			$location = Stockland_DB::read_row( $wpdb->prepare( 'SELECT id,location_name,is_active FROM %i WHERE id=%d', Stockland_DB::table( 'locations' ), $location_id ), ARRAY_A );
+			if ( $branch_role && ! in_array( $category, array( 'Transport', 'Labor', 'Customer refreshments', 'Packing material', 'Other' ), true ) ) {
+				return new WP_Error( 'invalid_expense_category', 'Branch operational expenses must use Transport, Labor, Customer refreshments, Packing material, or Other.', array( 'status' => 400 ) );
+			}
 			if ( ! $location || empty( $location['is_active'] ) ) {
 				return new WP_Error( 'invalid_location', 'The assigned active branch/warehouse location was not found.', array( 'status' => 400 ) );
 			}
@@ -2299,11 +2468,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			Stockland_DB::release_named_lock( $request_lock );
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
-			$num            = $this->next_number( 'EXP-', $date );
-			$direct_post    = 'owner' === $role;
-			$status         = $direct_post ? 'POSTED' : 'PENDING';
-			$user_reference = sanitize_text_field( $p['reference'] ?? '' );
-			$reference      = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
+			$num                = $this->next_number( 'EXP-', $date );
+			$owner_expense_hold = $corporate_expense && 'owner' === $role;
+			$status             = 'PENDING';
+			$user_reference     = sanitize_text_field( $p['reference'] ?? '' );
+			$reference          = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
 			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'expenses' ),
 				array(
@@ -2324,43 +2493,18 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			$id      = (int) $wpdb->insert_id;
 			$journal = null;
-			if ( $direct_post ) {
-				$journal = Stockland_Accounting::post_journal(
-					$date,
-					'EXPENSE',
-					(string) $id,
-					'Expense ' . $num,
-					array(
-						array(
-							'account_code' => '6000',
-							'debit'        => $amount,
-							'credit'       => 0,
-							'location_id'  => $location_id > 0 ? $location_id : null,
-						),
-						array(
-							'account_code' => '1300',
-							'debit'        => $tax,
-							'credit'       => 0,
-							'location_id'  => $location_id > 0 ? $location_id : null,
-						),
-						array(
-							'account_code' => 'BANK' === $method ? '1010' : '1000',
-							'debit'        => 0,
-							'credit'       => Stockland_Money::add( $amount, $tax ),
-							'location_id'  => $location_id > 0 ? $location_id : null,
-						),
-					),
-					$uid
-				);
-				if ( ! $journal ) {
-					throw new Exception( 'Expense GL journal failed; no expense was committed.' );
-				}
-			}
-			$event = $direct_post ? 'CORPORATE_EXPENSE_POST' : ( $corporate_expense ? 'CORPORATE_EXPENSE_SUBMIT' : 'LOCATION_EXPENSE_SUBMIT' );
+			$event   = $owner_expense_hold
+				? 'OWNER_CORPORATE_EXPENSE_PENDING_AUTHORITY'
+				: ( $corporate_expense ? 'CORPORATE_EXPENSE_SUBMIT' : 'LOCATION_EXPENSE_SUBMIT' );
 			if ( ! Stockland_Audit::log( $uid, $location_id > 0 ? $location_id : null, $event, null, $amount, null, $status, $description, $num ) ) {
 				throw new Exception( 'Expense audit event failed; submission was rolled back.' );
 			}
-			if ( ! $direct_post ) {
+			if ( $owner_expense_hold ) {
+				$held_message = $num . ' remains PENDING and unposted. The creator cannot approve this corporate expense; independent final authority must be defined before it can post.';
+				if ( ! Stockland_Notifications::push_role( 'management', null, 'expense_authority_hold', 'Owner corporate expense held', $held_message, 'expense', $id, 'warning' ) ) {
+					throw new Exception( 'Owner-expense authority-hold notice could not be queued; submission was rolled back.' );
+				}
+			} else {
 				$final_role       = $corporate_expense ? 'owner' : ( $branch_role ? 'branch_manager' : 'warehouse_manager' );
 				$approval_title   = $corporate_expense ? 'Corporate expense awaiting Owner approval' : 'Location expense awaiting final approval';
 				$approval_message = $num . ' · ' . $location['location_name'] . ' · ' . $category . ' · ETB ' . number_format( (float) $amount + (float) $tax, 2, '.', '' ) . ' submitted by ' . wp_get_current_user()->display_name . '.';
@@ -2370,9 +2514,6 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				if ( ! $corporate_expense ) {
 					Stockland_Notifications::push_role( 'management', null, 'expense_submitted', 'Location expense submitted', $num . ' awaits final approval for ' . $location['location_name'] . '.', 'expense', $id, 'info' );
 				}
-			} else {
-				$report_role = 'management';
-				Stockland_Notifications::push_role( $report_role, null, 'expense_posted', 'Owner corporate expense posted', $num . ' posted for ' . $location['location_name'] . '.', 'expense', $id, 'info' );
 			}
 			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
 				throw new Exception( 'Expense commit failed.' );
@@ -2425,7 +2566,10 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}if ( 'PENDING' !== $row['status'] ) {
 				throw new Exception( 'Only PENDING expenses may be approved/rejected.' );
 			}
-			$uid              = get_current_user_id();
+			$uid = get_current_user_id();
+			if ( (int) $row['created_by'] === $uid ) {
+				throw new Exception( 'Expense creators cannot approve or reject their own expense.' );
+			}
 			$approver_role    = Stockland_Authority::role( $uid );
 			$creator_role     = Stockland_Authority::role( (int) $row['created_by'] );
 			$expense_location = (int) ( $row['location_id'] ?? 0 );

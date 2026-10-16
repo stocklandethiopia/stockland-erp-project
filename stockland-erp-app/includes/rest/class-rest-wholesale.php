@@ -35,7 +35,10 @@ class Stockland_REST_Wholesale extends Stockland_REST_Base {
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'create' ),
 				'permission_callback' => function () {
-							return current_user_can( 'stockland_create_wholesale' );},
+					$role = Stockland_Authority::role();
+					return current_user_can( 'stockland_create_wholesale' )
+						&& in_array( $role, array( Stockland_Authority::OWNER, Stockland_Authority::WAREHOUSE_MANAGER ), true );
+				},
 			)
 		);
 	}

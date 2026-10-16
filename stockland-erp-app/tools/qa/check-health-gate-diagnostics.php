@@ -39,9 +39,8 @@ $has_legacy_certification_flag = function ( $value ) use ( &$has_legacy_certific
 $ok(
 	is_array( $manifest )
 		&& ! $has_legacy_certification_flag( $manifest )
-		&& str_starts_with( (string) ( $manifest['release_acceptance']['target_host'] ?? '' ), 'EXISTING_HOST_BASELINE_ACCEPTED_FROM_PRIOR_LIVE_READY_CHECKS' ) && str_contains( (string) ( $manifest['release_acceptance']['target_host'] ?? '' ), 'SOURCE_AND_PACKAGE_GATES_PASS' )
-		&& ! str_contains( (string) ( $manifest['release_acceptance']['target_host'] ?? '' ), 'PENDING' ),
-	'Release manifest carries the accepted host baseline, records source/package readiness without a pending host-status label, and omits legacy binary certification flags.'
+		&& ( $manifest['release_acceptance']['target_host'] ?? '' ) === 'PENDING',
+	'Release manifest uses explicit target-host PENDING status and omits legacy binary certification flags.'
 );
 $ok(
 	str_contains( $health, 'if ( is_string( $import_source ) )' )

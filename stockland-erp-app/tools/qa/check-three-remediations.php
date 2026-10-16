@@ -94,7 +94,7 @@ $ok( strpos( $app, "api16('/sales'" ) !== false, 'Frontend POS does not call can
 $ok( strpos( $app, "api16('/business-calendar?month=" ) !== false, 'Frontend Calendar does not load calendar endpoint' );
 $ok( strpos( $roles, "'stockland_create_sale'" ) !== false, 'POS capability missing from role policy' );
 $ok( strpos( $plugin, 'class-stockland-business-calendar.php' ) !== false && strpos( $plugin, 'class-rest-calendar.php' ) !== false, 'Calendar classes are not bootstrapped' );
-$ok( strpos( $manifest, '"release": "16.1.67"' ) !== false, 'Release manifest is not at the current corrective release' );
+$ok( strpos( $manifest, '"release": "16.1.77"' ) !== false, 'Release manifest is not at the current corrective release' );
 $ok( strpos( $manifest, '"internal_pos_rest": true' ) !== false && strpos( $manifest, '"business_calendar_authority": true' ) !== false, 'Release manifest remediation contracts missing' );
 
 if ( $fail ) {
