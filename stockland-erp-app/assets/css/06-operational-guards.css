@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.78 • Mobile diagnostics and operational content guards • Ordered source module. */
+/* Stockland ERP 16.1.79 • Mobile diagnostics and operational content guards • Ordered source module. */
 /* 16.1.44 mobile health / statutory payroll overflow guard */
 .sl-health-grid>div{min-width:0;overflow-wrap:anywhere;word-break:normal}
 .sl-health-grid>div span{display:block;min-width:0;overflow-wrap:anywhere;white-space:normal}
@@ -82,7 +82,7 @@
 
 
 /* ============================================================================
-   16.1.78 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
+   16.1.79 GUIDED PAYROLL REVIEW LAYER — UI ONLY
    Modern sans-serif typography, full-workspace palette, readable touch controls,
    and compact procurement/order line layout. No business data/ledger behavior.
    ============================================================================ */
