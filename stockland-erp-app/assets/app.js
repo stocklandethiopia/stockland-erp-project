@@ -1,6 +1,6 @@
 (function(){'use strict';const A=window.StocklandApp;const root=document.getElementById('stockland-app');let state={boot:null,view:'dashboard',q:'',inventoryQuery:'',productQuery:'',catalog:null,catalogQuery:null,catalogSearchPending:false,catalogLoading:false,catalogRequestId:0,reqDetails:{},users:[],report:null,finance:null,financeLoaded:false,unreadNotifications:0,setupAdvancing:false,skuPickerSeq:0,calendarMonth:null,calendarData:null,posSales:[],dashboardInsights:null,dashboardInsightsLoading:false,dashboardInsightsRequestId:0};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-const uiIcon=name=>{const p={home:'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9Z',cash:'M4 7h16v10H4zM8 12h8M9 9h.01M15 15h.01',chart:'M5 19V10m7 9V5m7 14v-7',box:'M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4 7.5l8 4.5 8-4.5M12 12v9',arrow:'M4 12h16m-7-7 7 7-7 7',list:'M6 6h13M6 12h13M6 18h13M3 6h.01M3 12h.01M3 18h.01',warehouse:'M3 21V8l9-5 9 5v16M6 21v-9h12v9M9 21v-5h6v5',transfer:'M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4',return:'M9 6 4 11l5 5M4 11h10a5 5 0 0 1 5 5v1',close:'M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0Zm8-4v5l3 2',report:'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5',product:'M4 6h16M7 4v4m10-4v4M6 10h12v10H6z',upload:'M12 16V4m0 0-4 4m4-4 4 4M5 20h14',users:'M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm5 1a3 3 0 1 0 0-6',settings:'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8-3.5-2 1.2.2 2.3-2.1 2.1-2.3-.2-1.2 2H9.4l-1.2-2-2.3.2-2.1-2.1.2-2.3-2-1.2v-3l2-1.2-.2-2.3L7 3.4l2.3.2 1.2-2h3l1.2 2 2.3-.2 2.1 2.1-.2 2.3 2 1.2v3Z',audit:'M7 3h10v4H7zM6 7h12a2 2 0 0 1 2 2v9H4V9a2 2 0 0 1 2-2Zm3 5h6M9 16h6',calendar:'M5 4h14v16H5zM8 2v4m8-4v4M5 9h14M8 13h3m2 0h3m-8 4h3m2 0h3',health:'M12 20s-7-4.2-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.8-7 10-7 10',bell:'M4.5 6A2.5 2.5 0 0 1 7 3.5h10A2.5 2.5 0 0 1 19.5 6v7A2.5 2.5 0 0 1 17 15.5h-6L6 19v-3.5H7A2.5 2.5 0 0 1 4.5 13Z',profile:'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'};return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(p[name]||p.list)+'"/></svg>'};
+const uiIcon=name=>{const p={home:'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9Z',cash:'M4 7h16v10H4zM8 12h8M9 9h.01M15 15h.01',chart:'M5 19V10m7 9V5m7 14v-7',box:'M4 7.5 12 3l8 4.5v9L12 21l-8-4.5zM4 7.5l8 4.5 8-4.5M12 12v9',arrow:'M4 12h16m-7-7 7 7-7 7',list:'M6 6h13M6 12h13M6 18h13M3 6h.01M3 12h.01M3 18h.01',warehouse:'M3 21V8l9-5 9 5v16M6 21v-9h12v9M9 21v-5h6v5',transfer:'M4 7h16M16 3l4 4-4 4M20 17H4m4-4-4 4 4 4',return:'M9 6 4 11l5 5M4 11h10a5 5 0 0 1 5 5v1',close:'M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0Zm8-4v5l3 2',report:'M5 4h14v16H5zM8 8h8M8 12h8M8 16h5',product:'M4 6h16M7 4v4m10-4v4M6 10h12v10H6z',upload:'M12 16V4m0 0-4 4m4-4 4 4M5 20h14',users:'M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm5 1a3 3 0 1 0 0-6',settings:'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8-3.5-2 1.2.2 2.3-2.1 2.1-2.3-.2-1.2 2H9.4l-1.2-2-2.3.2-2.1-2.1.2-2.3-2-1.2v-3l2-1.2-.2-2.3L7 3.4l2.3.2 1.2-2h3l1.2 2 2.3-.2 2.1 2.1-.2 2.3 2 1.2v3Z',audit:'M7 3h10v4H7zM6 7h12a2 2 0 0 1 2 2v9H4V9a2 2 0 0 1 2-2Zm3 5h6M9 16h6',calendar:'M5 4h14v16H5zM8 2v4m8-4v4M5 9h14M8 13h3m2 0h3m-8 4h3m2 0h3',health:'M12 20s-7-4.2-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.8-7 10-7 10',bell:'M4.5 6A2.5 2.5 0 0 1 7 3.5h10A2.5 2.5 0 0 1 19.5 6v7A2.5 2.5 0 0 1 17 15.5h-6L6 19v-3.5H7A2.5 2.5 0 0 1 4.5 13Z',profile:'M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',search:'M21 21l-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z'};return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(p[name]||p.list)+'"/></svg>'};
 const money=n=>new Intl.NumberFormat('en-ET',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0))+' ETB';
 
 
@@ -161,10 +161,100 @@ function shell(){
 let app=document.getElementById('sl-app-shell');
 const u=state.boot.user;
 if(!app){
-root.innerHTML='<div id="sl-app-shell" class="sl-shell"><aside class="sl-sidebar"><div class="sl-brand"><img src="'+esc(A.logo)+'" alt="Stockland Ethiopia"><div><strong>STOCKLAND</strong><small>ETHIOPIA • OPERATIONS</small></div></div><div class="sl-side-caption">Business Control Center</div><nav class="sl-nav" id="sl-nav"></nav><div class="sl-side-footer"><span class="sl-status-dot"></span><div><b>System online</b><small>Live operational data</small></div></div></aside><main class="sl-main"><header class="sl-top"><div class="sl-top-left"><div class="sl-mobile"><button class="sl-btn sl-menu-btn" id="menu" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sl-mobile-navigation"><span aria-hidden="true">☰</span><span class="sl-menu-label">MENU</span></button></div><div class="sl-mega-wrap"><button class="sl-mega-trigger" id="slMegaMenuBtn" type="button" aria-label="Open ERP navigation" aria-expanded="false" aria-controls="sl-top-nav"><span class="sl-mega-trigger-icon">'+uiIcon('list')+'</span><span>Workspace</span><span class="sl-profile-caret" aria-hidden="true">⌄</span></button><nav class="sl-nav sl-top-nav" id="sl-top-nav" aria-label="ERP workspace navigation" hidden></nav></div><img class="sl-top-logo" src="'+esc(A.logo)+'" alt="Stockland Ethiopia"><div class="sl-top-brand"><h1>'+esc(state.boot.settings.business_name)+'</h1><small>'+esc(state.boot.settings.tagline)+'</small></div></div><div class="sl-top-center"><span class="sl-live-pill"><i></i> LIVE</span><span class="sl-location-chip">'+esc(u.location_name||u.branch_name||'Company-wide')+'</span><span class="sl-sync-indicator" id="slSyncIndicator"><i></i><span>LIVE SYNC</span></span></div><div class="sl-user"><button class="sl-top-action" id="slCommandBtn" type="button" title="Jump to ERP function" aria-label="Open command palette"><span class="sl-top-action-icon" aria-hidden="true">⌘K</span><span class="sl-top-action-text">COMMAND</span></button><button class="sl-top-action" id="slSopBtn" type="button" title="Open your SOP guide" aria-label="Open SOP guide"><span class="sl-top-action-icon" aria-hidden="true">?</span><span class="sl-top-action-text">SOP GUIDE</span></button><button class="sl-top-action sl-theme-trigger" id="slThemeBtn" type="button" title="Choose workspace colors" aria-label="Choose color scheme"><span class="sl-top-action-icon" aria-hidden="true">◐</span><span class="sl-top-action-text">THEME</span></button><a class="sl-btn sl-wp-admin" href="'+esc(A.wp_admin||'#')+'" style="display:'+(A.wp_admin?'inline-flex':'none')+'">ADMIN</a><button class="sl-notification-trigger" id="notificationBell" type="button" aria-label="Open operational alerts"><span class="sl-notification-icon">'+uiIcon('bell')+'</span><span class="sl-notification-label">ALERTS</span><span class="sl-notification-badge" id="notificationCount">0</span></button><div class="sl-user-copy"><b id="sl-user-name"></b><small id="sl-user-label"></small></div><div class="sl-profile-wrap"><button class="sl-avatar sl-profile-trigger" id="slProfileBtn" type="button" aria-label="Open ERP user menu" aria-haspopup="true" aria-expanded="false">'+uiIcon('profile')+'<span class="sl-profile-caret" aria-hidden="true">⌄</span></button><div class="sl-profile-menu" id="slProfileMenu" role="menu" hidden><div class="sl-profile-menu-head"><b>'+esc(u.name||'ERP User')+'</b><small>'+esc(String(u.role||'').replace(/_/g,' ').toUpperCase())+' · '+esc(u.location_name||u.branch_name||'Company-wide')+'</small></div><button type="button" role="menuitem" data-profile-view="dashboard">'+uiIcon('home')+'<span>Command Center</span></button>'+(u.capabilities?.finance_view?'<button type="button" role="menuitem" data-profile-view="finance">'+uiIcon('chart')+'<span>Finance & Procurement</span></button>':'')+(u.capabilities?.manage_users||u.capabilities?.settings?'<button type="button" role="menuitem" data-profile-view="users">'+uiIcon('users')+'<span>Users & Organization</span></button>':'')+'<button type="button" role="menuitem" data-profile-action="sop">'+uiIcon('list')+'<span>Role-based SOP guide</span></button><button type="button" role="menuitem" data-profile-action="theme">'+uiIcon('settings')+'<span>Appearance</span></button><a role="menuitem" href="'+esc(A.logout||A.home)+'">'+uiIcon('arrow')+'<span>Sign out</span></a></div></div><a class="sl-btn sl-exit" href="'+esc(A.logout||A.home)+'">EXIT</a></div></header><section class="sl-content" id="sl-content"><div class="sl-content-inner container-fluid"></div></section></main></div><div id="toast" class="sl-toast" style="display:none"></div>';
+root.innerHTML='<div id="sl-app-shell" class="sl-shell"><aside class="sl-sidebar"><div class="sl-brand"><img src="'+esc(A.logo)+'" alt="Stockland Ethiopia"><div><strong>STOCKLAND</strong><small>ETHIOPIA • OPERATIONS</small></div></div><div class="sl-side-caption">Business Control Center</div><nav class="sl-nav" id="sl-nav"></nav><div class="sl-side-footer"><span class="sl-status-dot"></span><div><b>System online</b><small>Live operational data</small></div></div></aside><main class="sl-main"><header class="sl-top"><div class="sl-top-left"><div class="sl-mobile"><button class="sl-btn sl-menu-btn" id="menu" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="sl-mobile-navigation"><span aria-hidden="true">☰</span><span class="sl-menu-label">MENU</span></button></div><div class="sl-mega-wrap"><button class="sl-mega-trigger" id="slMegaMenuBtn" type="button" aria-label="Open ERP navigation" aria-expanded="false" aria-controls="sl-top-nav"><span class="sl-mega-trigger-icon">'+uiIcon('list')+'</span><span>Workspace</span><span class="sl-profile-caret" aria-hidden="true">⌄</span></button><nav class="sl-nav sl-top-nav" id="sl-top-nav" aria-label="ERP workspace navigation" hidden></nav></div><img class="sl-top-logo" src="'+esc(A.logo)+'" alt="Stockland Ethiopia"><div class="sl-top-brand"><h1>'+esc(state.boot.settings.business_name)+'</h1><small>'+esc(state.boot.settings.tagline)+'</small></div></div><div class="sl-global-search"><label class="sl-global-search-control" for="slGlobalSearch"><span class="sl-global-search-icon">'+uiIcon('search')+'</span><input id="slGlobalSearch" type="search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="slGlobalSearchResults" placeholder="Search product, SKU, customer, order…" autocomplete="off" spellcheck="false"><kbd>⌕</kbd></label><div class="sl-global-search-results" id="slGlobalSearchResults" role="listbox" aria-label="Global search results" hidden></div></div><div class="sl-top-center"><span class="sl-live-pill"><i></i> LIVE</span><span class="sl-location-chip">'+esc(u.location_name||u.branch_name||'Company-wide')+'</span><span class="sl-sync-indicator" id="slSyncIndicator"><i></i><span>LIVE SYNC</span></span></div><div class="sl-user"><button class="sl-top-action" id="slCommandBtn" type="button" title="Jump to ERP function" aria-label="Open command palette"><span class="sl-top-action-icon" aria-hidden="true">⌘K</span><span class="sl-top-action-text">COMMAND</span></button><button class="sl-top-action" id="slSopBtn" type="button" title="Open your SOP guide" aria-label="Open SOP guide"><span class="sl-top-action-icon" aria-hidden="true">?</span><span class="sl-top-action-text">SOP GUIDE</span></button><button class="sl-top-action sl-theme-trigger" id="slThemeBtn" type="button" title="Choose workspace colors" aria-label="Choose color scheme"><span class="sl-top-action-icon" aria-hidden="true">◐</span><span class="sl-top-action-text">THEME</span></button><a class="sl-btn sl-wp-admin" href="'+esc(A.wp_admin||'#')+'" style="display:'+(A.wp_admin?'inline-flex':'none')+'">ADMIN</a><button class="sl-notification-trigger" id="notificationBell" type="button" aria-label="Open operational alerts"><span class="sl-notification-icon">'+uiIcon('bell')+'</span><span class="sl-notification-label">ALERTS</span><span class="sl-notification-badge" id="notificationCount">0</span></button><div class="sl-user-copy"><b id="sl-user-name"></b><small id="sl-user-label"></small></div><div class="sl-profile-wrap"><button class="sl-avatar sl-profile-trigger" id="slProfileBtn" type="button" aria-label="Open ERP user menu" aria-haspopup="true" aria-expanded="false">'+uiIcon('profile')+'<span class="sl-profile-caret" aria-hidden="true">⌄</span></button><div class="sl-profile-menu" id="slProfileMenu" role="menu" hidden><div class="sl-profile-menu-head"><b>'+esc(u.name||'ERP User')+'</b><small>'+esc(String(u.role||'').replace(/_/g,' ').toUpperCase())+' · '+esc(u.location_name||u.branch_name||'Company-wide')+'</small></div><button type="button" role="menuitem" data-profile-view="dashboard">'+uiIcon('home')+'<span>Command Center</span></button>'+(u.capabilities?.finance_view?'<button type="button" role="menuitem" data-profile-view="finance">'+uiIcon('chart')+'<span>Finance & Procurement</span></button>':'')+(u.capabilities?.manage_users||u.capabilities?.settings?'<button type="button" role="menuitem" data-profile-view="users">'+uiIcon('users')+'<span>Users & Organization</span></button>':'')+'<button type="button" role="menuitem" data-profile-action="sop">'+uiIcon('list')+'<span>Role-based SOP guide</span></button><button type="button" role="menuitem" data-profile-action="theme">'+uiIcon('settings')+'<span>Appearance</span></button><a role="menuitem" href="'+esc(A.logout||A.home)+'">'+uiIcon('arrow')+'<span>Sign out</span></a></div></div><a class="sl-btn sl-exit" href="'+esc(A.logout||A.home)+'">EXIT</a></div></header><section class="sl-content" id="sl-content"><div class="sl-content-inner container-fluid"></div></section></main></div><div id="toast" class="sl-toast" style="display:none"></div>';
 app=document.getElementById('sl-app-shell');
 const menu=document.getElementById('menu');if(menu)menu.onclick=mobileMenu;
 }
+}
+function closeGlobalSearch(){
+ const input=document.getElementById('slGlobalSearch'),panel=document.getElementById('slGlobalSearchResults');
+ if(panel)panel.hidden=true;
+ if(input)input.setAttribute('aria-expanded','false');
+}
+function showGlobalSearchMessage(message,isError=false){
+ const input=document.getElementById('slGlobalSearch'),panel=document.getElementById('slGlobalSearchResults');
+ if(!panel)return;
+ panel.innerHTML='<div class="sl-global-search-message'+(isError?' error':'')+'" role="status" aria-live="polite">'+esc(message)+'</div>';
+ panel.hidden=false;if(input)input.setAttribute('aria-expanded','true');
+}
+function drawGlobalSearchResults(rows){
+ const input=document.getElementById('slGlobalSearch'),panel=document.getElementById('slGlobalSearchResults');
+ if(!panel)return;
+ if(!Array.isArray(rows)||!rows.length){showGlobalSearchMessage('No matching records in your authorized scope.');return}
+ const icons={product:'box',customer:'users',sale:'cash',purchase_order:'report'};
+ const labels={product:'PRODUCT / SKU',customer:'CUSTOMER',sale:'RETAIL SALE',purchase_order:'PURCHASE ORDER'};
+ panel.innerHTML=rows.map(r=>'<button type="button" class="sl-global-search-result" role="option" data-global-type="'+esc(r.type||'')+'" data-global-target="'+esc(r.target||'')+'" data-global-query="'+esc(r.query||'')+'" data-global-title="'+esc(r.title||'')+'"><span class="sl-global-search-result-icon">'+uiIcon(icons[r.type]||'search')+'</span><span class="sl-global-search-result-copy"><b>'+esc(r.title||'Record')+'</b><small>'+esc(r.subtitle||'')+'</small></span><span class="sl-global-search-result-type">'+esc(labels[r.type]||'ERP RECORD')+'</span></button>').join('');
+ panel.hidden=false;if(input)input.setAttribute('aria-expanded','true');
+}
+function chooseGlobalSearchResult(button){
+ const type=String(button.dataset.globalType||''),query=String(button.dataset.globalQuery||''),titleText=String(button.dataset.globalTitle||'ERP record');
+ const role=String(state.boot?.user?.role||''),caps=state.boot?.user?.capabilities||{};
+ closeGlobalSearch();
+ if(type==='product'){
+  state.view='products';state.productQuery=query;state.catalog=null;state.catalogQuery=null;state.catalogSearchPending=false;state.catalogLoading=false;state.catalogRequestId++;
+ }else if(type==='customer'){
+  state.view=['branch_manager','sales_employee'].includes(role)?'branchops':'finance';
+  state.globalSearchSelection={type,query,title:titleText};
+ }else if(type==='sale'){
+  state.view=caps.create_sale?'pos':(caps.reports?'reports':'dailyreport');
+  state.globalSearchSelection={type,query,title:titleText};
+ }else if(type==='purchase_order'){
+  state.view=role==='warehouse_manager'?'warehouse':'finance';
+  state.globalSearchSelection={type,query,title:titleText};
+ }else{
+  return;
+ }
+ render();
+ if(type==='product'){
+  window.setTimeout(()=>{const target=document.getElementById('prodSearch');if(target){target.focus();target.setSelectionRange(target.value.length,target.value.length)}},0);
+ }else{
+  toast('Search match: '+titleText+' · reference '+query);
+ }
+}
+function bindGlobalSearch(){
+ const input=document.getElementById('slGlobalSearch'),panel=document.getElementById('slGlobalSearchResults');
+ if(!input||!panel||input.__slGlobalSearchBound)return;
+ input.__slGlobalSearchBound=true;
+ input.addEventListener('input',()=>{
+  const q=String(input.value||'').trim();
+  window.clearTimeout(window.__stocklandGlobalSearchTimer);
+  const seq=(Number(window.__stocklandGlobalSearchRequest)||0)+1;
+  window.__stocklandGlobalSearchRequest=seq;
+  if(q.length<2){if(q.length)showGlobalSearchMessage('Type at least 2 characters.');else closeGlobalSearch();return}
+  showGlobalSearchMessage('Searching authorized ERP records…');
+  window.__stocklandGlobalSearchTimer=window.setTimeout(async()=>{
+   try{
+    const data=await api('/app/global-search?q='+encodeURIComponent(q),{cache:'no-store'});
+    if(seq!==window.__stocklandGlobalSearchRequest||String(input.value||'').trim()!==q)return;
+    drawGlobalSearchResults(data.results);
+   }catch(error){
+    if(seq!==window.__stocklandGlobalSearchRequest)return;
+    showGlobalSearchMessage(error.message||'Search could not be completed.',true);
+   }
+  },240);
+ });
+ input.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){closeGlobalSearch();return}
+  if(event.key==='ArrowDown'&&!panel.hidden){const first=panel.querySelector('[data-global-type]');if(first){event.preventDefault();first.focus()}}
+  if(event.key==='Enter'&&!panel.hidden){const first=panel.querySelector('[data-global-type]');if(first){event.preventDefault();first.click()}}
+ });
+ panel.addEventListener('click',event=>{
+  const button=event.target.closest('[data-global-type]');
+  if(button)chooseGlobalSearchResult(button);
+ });
+ panel.addEventListener('keydown',event=>{
+  const items=[...panel.querySelectorAll('[data-global-type]')],index=items.indexOf(document.activeElement);
+  if(event.key==='Escape'){closeGlobalSearch();input.focus()}
+  else if(event.key==='ArrowDown'&&items.length){event.preventDefault();items[Math.min(items.length-1,index+1)].focus()}
+  else if(event.key==='ArrowUp'&&items.length){event.preventDefault();if(index<=0)input.focus();else items[index-1].focus()}
+ });
+ if(!window.__stocklandGlobalSearchDocBound){
+  window.__stocklandGlobalSearchDocBound=true;
+  document.addEventListener('click',event=>{
+   const box=document.querySelector('.sl-global-search');
+   if(box&&!box.contains(event.target))closeGlobalSearch();
+  });
+ }
 }
 function updateChrome(){
 const navMarkup=nav();const sideNav=document.getElementById('sl-nav');if(sideNav)sideNav.innerHTML=navMarkup;const topNav=document.getElementById('sl-top-nav');if(topNav)topNav.innerHTML=navMarkup;
@@ -174,6 +264,7 @@ const label=document.getElementById('sl-user-label');
 const name=document.getElementById('sl-user-name');
 if(name)name.textContent=u.name||'User';
 if(label)label.textContent=u.role||'Team member';
+ bindGlobalSearch();
 }
 function closeMobileMenu(restoreFocus=true){
  const d=document.querySelector('.sl-mobile-menu');
