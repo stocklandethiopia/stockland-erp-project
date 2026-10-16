@@ -1469,6 +1469,51 @@ function addReqItemV16(){
  d.querySelector('[data-remove-req-line]').onclick=()=>d.remove();
  refreshReqStockPreview(d);
 }
+function reorder(){
+  return title('Reorder Alerts','Ledger-derived stock levels by authorized location. Zero and negative stock are critical. Branch replenishment creates a normal requisition; it never moves stock directly.','<button class="sl-btn" type="button" id="refreshReorder">Refresh alerts</button>')+
+  '<div class="sl-panel"><div class="sl-block-head"><div><div class="sl-eyebrow">STOCK CONTROL</div><h3>Replenishment actions</h3><small>Use a branch requisition for branch demand. Central Warehouse purchasing follows the Owner-approved PO workflow.</small></div></div><div id="reorderTable"><div class="sl-empty">Loading live reorder status…</div></div></div>';
+}
+async function loadReorder(){
+ const el=document.getElementById('reorderTable');if(!el)return;
+ el.innerHTML='<div class="sl-notice">Reading ledger-derived reorder status…</div>';
+ try{
+  const rows=await api16('/stock/reorder');
+  if(!Array.isArray(rows))throw new Error('Reorder endpoint returned an unexpected response.');
+  if(!rows.length){el.innerHTML='<div class="sl-empty-rich"><b>No reorder rows returned.</b><span>Verify your assigned location and Product Master reorder levels.</span></div>';return;}
+  const caps=state.boot?.user?.capabilities||{};
+  el.innerHTML='<div class="sl-table-wrap"><table class="sl-table sl-responsive-cards"><thead><tr><th>Location</th><th>SKU / Product</th><th>Current stock</th><th>Reorder level</th><th>Status</th><th>Branch action</th></tr></thead><tbody>'+rows.map(x=>{
+   const current=Number(x.current_stock||0),level=Math.max(0,Number(x.reorder_level||0));
+   const status=current<=0?'CRITICAL':(current<=level?'REORDER NOW':'OK');
+   const branch=String(x.location_type||'')==='Branch';
+   const canRequest=branch&&!!caps.request&&Number(x.location_id)>0&&status!=='OK';
+   const qty=Math.max(1,Math.ceil(level||1));
+   const action=canRequest?'<div class="sl-reorder-action"><label class="sl-sr-only" for="reorderQty-'+esc(x.location_id)+'-'+esc(x.variant_id||x.sku)+'">Requisition quantity for '+esc(x.sku)+'</label><input id="reorderQty-'+esc(x.location_id)+'-'+esc(x.variant_id||x.sku)+'" class="sl-reorder-qty" type="number" min="1" step="1" value="'+qty+'" data-reorder-qty aria-label="Requisition quantity for '+esc(x.sku)+'"><button type="button" class="sl-btn sl-btn-sm primary" data-reorder-create data-location-id="'+esc(x.location_id)+'" data-sku="'+esc(x.sku)+'" data-current="'+esc(current)+'" data-level="'+esc(level)+'">Create requisition</button></div>':'<span class="sl-sub">'+(branch?'Not authorized to request for this branch.':(String(x.location_type||'')==='Warehouse'?'Use the approved purchase-order workflow.':'No action required.'))+'</span>';
+   return '<tr><td data-label="Location"><b>'+esc(x.location_name||'')+'</b><div class="sl-sub">'+esc(x.location_type||'')+'</div></td><td data-label="SKU / Product"><b>'+esc(x.sku||'')+'</b><div class="sl-sub">'+esc(x.product_name||'')+'</div></td><td data-label="Current stock">'+esc(current)+'</td><td data-label="Reorder level">'+esc(level)+'</td><td data-label="Status"><span class="sl-pill '+(status==='CRITICAL'?'bad':status==='REORDER NOW'?'warn':'ok')+'">'+status+'</span></td><td data-label="Branch action">'+action+'</td></tr>';
+  }).join('')+'</tbody></table></div>';
+  el.querySelectorAll('[data-reorder-create]').forEach(button=>button.addEventListener('click',async()=>{
+   if(button.dataset.busy==='1')return;
+   const location_id=Number(button.dataset.locationId||0),sku=String(button.dataset.sku||'').trim();
+   const input=button.parentElement.querySelector('[data-reorder-qty]');
+   const quantity=Number(input?.value);
+   if(!location_id||!sku||!Number.isInteger(quantity)||quantity<1){toast('Choose a valid whole-unit replenishment quantity.',true);return;}
+   const key=button.dataset.requestKey||(button.dataset.requestKey=newRequestKey());
+   const old=button.textContent;button.disabled=true;button.dataset.busy='1';button.textContent='Submitting…';
+   try{
+    const result=await api16('/requisitions',{method:'POST',body:JSON.stringify({request_key:key,location_id,items:[{sku,quantity}],notes:'Reorder alert: current ledger stock '+button.dataset.current+'; configured reorder level '+button.dataset.level+'. Please review and approve under the existing SOP.'})});
+    if(!result||(!Number(result.id||0)&&!result.replayed))throw new Error('Server did not confirm the requisition record. Refresh and verify before retrying.');
+    delete button.dataset.requestKey;
+    toast(result.replayed?'Existing requisition recovered after retry.':'Requisition submitted. Stock was not changed; approval and warehouse pick remain separate.');
+    await loadReorder();
+    try{await loadReqs();}catch(_e){}
+    try{await loadNotifications();}catch(_e){}
+   }catch(e){toast((e?.message||'Reorder requisition failed')+' The same request key is retained for a safe retry.',true);button.disabled=false;button.textContent=old;}
+   finally{button.dataset.busy='0';}
+  }));
+ }catch(e){
+  el.innerHTML='<div class="sl-notice sl-danger-block"><b>Reorder status could not be loaded safely.</b> '+esc(e.message)+'<div style="margin-top:10px"><button type="button" class="sl-btn" id="retryReorder">Retry</button></div></div>';
+  document.getElementById('retryReorder')?.addEventListener('click',loadReorder);
+ }
+}
 function dailyInventoryPage(){
     const locs=authorizedLocations().filter(l=>['Branch','Warehouse'].includes(l.location_type));
     const allowMulti=state.boot.user.can_all||locs.length>1;
