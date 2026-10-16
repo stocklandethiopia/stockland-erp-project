@@ -1,6 +1,6 @@
 {
-  "release": "16.1.78",
-  "description": "Six ordered CSS source modules compile to the mobile-first Stockland stylesheet; 16.1.78 aligns the dashboard analytics row and right-rail activity with the agreed reference while preserving responsive behavior and the 49-table business contract.",
+  "release": "16.1.79",
+  "description": "Six ordered source modules compile to the mobile-first Stockland stylesheet; 16.1.79 adds guided payroll setup and responsive employee-line review while preserving cumulative responsive ERP workflows.",
   "modules": [
     "01-foundation.css",
     "02-shell-navigation.css",
