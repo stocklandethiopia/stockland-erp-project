@@ -911,10 +911,12 @@ class Stockland_REST_Requisition_V16 {
 					$cur['dispatched_qty'] = $dispatch;
 					if ( false === Stockland_Ledger::post_transfer_dispatched( $cur, get_current_user_id() ) ) {
 						throw new Exception( 'Warehouse ledger could not post the pick for ' . $transfer['sku'] . '.' );
-					}$released = Stockland_DB::execute_query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $transfer['transfer_id'] ) );
+					}
+					$released = Stockland_DB::execute_query( $wpdb->prepare( "UPDATE %i SET status='Released',released_at=%s WHERE transfer_id=%s AND status='Active'", Stockland_DB::table( 'reservations' ), current_time( 'mysql' ), $transfer['transfer_id'] ) );
 					if ( false === $released ) {
 						throw new Exception( 'Warehouse reservation could not be released.' );
-					}$tr_pick_ok = Stockland_DB::update_record(
+					}
+					$tr_pick_ok = Stockland_DB::update_record(
 						Stockland_DB::table( 'transfers' ),
 						array(
 							'status'         => 'Picked',
@@ -928,7 +930,8 @@ class Stockland_REST_Requisition_V16 {
 					);
 					if ( false === $tr_pick_ok ) {
 						throw new Exception( 'Transfer pick state could not be saved.' );
-					}$ri_pick_ok = Stockland_DB::update_record( Stockland_DB::table( 'requisition_items' ), array( 'quantity_dispatched' => $dispatch ), array( 'id' => (int) $item['id'] ) );
+					}
+					$ri_pick_ok = Stockland_DB::update_record( Stockland_DB::table( 'requisition_items' ), array( 'quantity_dispatched' => $dispatch ), array( 'id' => (int) $item['id'] ) );
 					if ( false === $ri_pick_ok ) {
 						throw new Exception( 'Requisition dispatched quantity could not be saved.' );
 					}
