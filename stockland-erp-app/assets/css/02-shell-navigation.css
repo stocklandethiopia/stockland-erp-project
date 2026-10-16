@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.77 • Shell, navigation, top bar and controls • Ordered source module. */
+/* Stockland ERP 16.1.78 • Shell, navigation, top bar and controls • Ordered source module. */
 #stockland-app .sl-sidebar{min-width:0;height:100%;overflow-y:auto;overflow-x:hidden;background:var(--sl-navy);border-right:1px solid rgba(255,255,255,.10);color:#fff;padding:18px 13px;scrollbar-width:thin}
 #stockland-app .sl-sidebar::-webkit-scrollbar,#stockland-app .sl-content::-webkit-scrollbar{width:9px}
 #stockland-app .sl-sidebar::-webkit-scrollbar-thumb,#stockland-app .sl-content::-webkit-scrollbar-thumb{background:rgba(115,143,171,.4);border-radius:999px}
