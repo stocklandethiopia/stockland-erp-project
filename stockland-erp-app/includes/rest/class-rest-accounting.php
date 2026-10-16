@@ -2197,19 +2197,19 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$has_category ? 1 : 0,
 			$has_category ? $category : '',
 		);
-		$where        = 'WHERE (%d = 0 OR e.status = %s)
-			AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
-			AND (%d = 0 OR e.expense_date >= %s)
-			AND (%d = 0 OR e.expense_date <= %s)
-			AND (%d = 0 OR e.category = %s)';
-		$report_mode  = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
+				$report_mode  = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
 		if ( ! $report_mode ) {
 			$rows = Stockland_DB::read_results(
 				$wpdb->prepare(
 					' SELECT e.*,l.location_name,wu.display_name AS created_by_name
 					FROM %i e
 					LEFT JOIN %i l ON l.id=e.location_id
-					LEFT JOIN %i wu ON wu.ID=e.created_by ' . $where . '
+					LEFT JOIN %i wu ON wu.ID=e.created_by
+					WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)
 					ORDER BY e.expense_date DESC,e.id DESC LIMIT 500',
 					$table,
 					Stockland_DB::table( 'locations' ),
@@ -2223,12 +2223,21 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			return rest_ensure_response( is_array( $rows ) ? $rows : array() );
 		}
-		$page             = max( 1, absint( $r->get_param( 'page' ) ?: 1 ) );
-		$per_page         = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?: 30 ) ) );
+		$page             = max( 1, absint( $r->get_param( 'page' ) ?? 1 ) );
+		$per_page         = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?? 30 ) ) );
 		$offset           = ( $page - 1 ) * $per_page;
 		$wpdb->last_error = '';
 		$total            = (int) Stockland_DB::read_var(
-			$wpdb->prepare( 'SELECT COUNT(*) FROM %i e ' . $where, $table, ...$filters )
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i e
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)',
+				$table,
+				...$filters
+			)
 		);
 		if ( $wpdb->last_error ) {
 			return new WP_Error( 'expense_report_failed', 'Expense report count failed; no partial total was returned.', array( 'status' => 503 ) );
@@ -2243,7 +2252,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				SUM(CASE WHEN e.status='POSTED' THEN 1 ELSE 0 END) posted_count,
 				SUM(CASE WHEN e.status='PENDING' THEN 1 ELSE 0 END) pending_count,
 				SUM(CASE WHEN e.status='REJECTED' THEN 1 ELSE 0 END) rejected_count
-				FROM %i e " . $where,
+				FROM %i e
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)",
 				$table,
 				...$filters
 			),
@@ -2253,17 +2267,27 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_report_failed', 'Expense report totals failed; no partial summary was returned.', array( 'status' => 503 ) );
 		}
 		$wpdb->last_error = '';
-		$row_sql          = ' SELECT e.*,l.location_name,wu.display_name AS created_by_name
-			FROM %i e
-			LEFT JOIN %i l ON l.id=e.location_id
-			LEFT JOIN %i wu ON wu.ID=e.created_by ' . $where . '
-			ORDER BY e.expense_date DESC,e.id DESC LIMIT %d OFFSET %d';
-		$row_args         = array_merge(
-			array( $table, Stockland_DB::table( 'locations' ), $wpdb->users ),
-			$filters,
-			array( $per_page, $offset )
+		$rows             = Stockland_DB::read_results(
+			$wpdb->prepare(
+				' SELECT e.*,l.location_name,wu.display_name AS created_by_name
+				FROM %i e
+				LEFT JOIN %i l ON l.id=e.location_id
+				LEFT JOIN %i wu ON wu.ID=e.created_by
+				WHERE (%d = 0 OR e.status = %s)
+					AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
+					AND (%d = 0 OR e.expense_date >= %s)
+					AND (%d = 0 OR e.expense_date <= %s)
+					AND (%d = 0 OR e.category = %s)
+				ORDER BY e.expense_date DESC,e.id DESC LIMIT %d OFFSET %d',
+				$table,
+				Stockland_DB::table( 'locations' ),
+				$wpdb->users,
+				...$filters,
+				$per_page,
+				$offset
+			),
+			ARRAY_A
 		);
-		$rows             = Stockland_DB::read_results( $wpdb->prepare( $row_sql, ...$row_args ), ARRAY_A );
 		if ( $wpdb->last_error || ! is_array( $rows ) ) {
 			return new WP_Error( 'expense_report_failed', 'Expense report rows failed; no partial report was returned.', array( 'status' => 503 ) );
 		}
