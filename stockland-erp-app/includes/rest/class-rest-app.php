@@ -2558,7 +2558,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					}
 					foreach ( (array) $sales_rows as $row ) {
 						$label = 'Sale ' . (string) ( $row['sale_id'] ?? '' );
-						$push( 'sale', $label, trim( (string) ( $row['sku'] ?? '' ) . ' · ' . (string) ( $row['sale_date'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ), 'pos', $row['sale_id'] ?? '' );
+						$push( 'sale', $label, trim( (string) ( $row['sku'] ?? '' ) . ' · ' . (string) ( $row['sale_date'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ) ), 'pos', $row['sale_id'] ?? '' );
 					}
 				}
 			}
@@ -2580,7 +2580,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						throw new RuntimeException( 'Purchase-order search query failed.' );
 					}
 					foreach ( (array) $po_rows as $row ) {
-						$push( 'purchase_order', 'PO ' . (string) ( $row['po_number'] ?? '' ), trim( (string) ( $row['supplier_name'] ?? '' ) . ' · ' . (string) ( $row['status'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ), 'finance', $row['po_number'] ?? '' );
+						$push( 'purchase_order', 'PO ' . (string) ( $row['po_number'] ?? '' ), trim( (string) ( $row['supplier_name'] ?? '' ) . ' · ' . (string) ( $row['status'] ?? '' ) . ' · ' . (string) ( $row['location_name'] ?? '' ) ), 'finance', $row['po_number'] ?? '' );
 					}
 				}
 			}
