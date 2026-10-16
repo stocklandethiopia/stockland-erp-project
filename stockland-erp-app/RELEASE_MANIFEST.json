@@ -1,7 +1,7 @@
 {
   "release": "16.1.67",
   "release_label": "16.1.67 — Stockland Ethiopia ERP cumulative in-place update",
-  "classification": "Cumulative in-place Stockland Ethiopia ERP update. Preserves the 49-table data contract and existing ledger/workflow services; adds role-scoped dashboard analytics and applies the employee-pension-before-PAYE calculation basis.",
+  "classification": "Cumulative in-place Stockland Ethiopia ERP update. Preserves the 49-table data contract and existing ledger/workflow services; adds role-scoped dashboard analytics, the employee-pension-before-PAYE calculation basis, and safe direct warehouse Manager PICK with optional reservation.",
   "baseline": "Cumulative update from the 16.1.66 source line. Existing business records, ledger history, role boundaries and the unchanged 49-table application contract are preserved.",
   "schema_contract": {
     "core_operations": 29,
@@ -139,7 +139,8 @@
     "The existing 49-table contract and schema-version markers are unchanged.",
     "Dashboard analytics use a permission-checked, server-scoped read-only endpoint for posted retail sales trends, category totals, branch performance and recent transaction summaries; the response excludes customer/staff PII and profit/cost fields.",
     "Dashboard charts and recent transaction rows render only API-returned posted records; empty and unavailable states are explicit, with no sample/demo metrics.",
-    "Payroll rule v3 deducts the employee's pension contribution from taxable gross components before PAYE calculation, uses a versioned tax-base marker, and adds the ETB 30,000 regression case."
+    "Payroll rule v3 deducts the employee's pension contribution from taxable gross components before PAYE calculation, uses a versioned tax-base marker, and adds the ETB 30,000 regression case.",
+    "Central Warehouse Manager can PICK an Approved requisition without a reservation or pickup date, or optionally RESERVE with a required pickup date; Warehouse Employees may PICK Reserved work only. Dispatch uses the approved quantity, protects stock transactionally, prevents duplicate movement, records audit/workflow events, and supports actual branch receipt with documented variances."
   ],
   "quality": {},
   "release_acceptance": {
@@ -148,7 +149,7 @@
     "note": "Prior user-provided full System Health evidence showed LIVE READY on the established hosting environment, with the 49-table business contract, PHP runtime, XLSX capacity, 96 REST v16 routes, deep integrity/workflow checks, and Accounting/HR schema-upgrade readiness passing. This cumulative release preserves that accepted host baseline and records the exact source/package gate evidence below. Product/source CAP closure is based on the source and installer quality gates."
   },
   "corrective_release_16_1_67": {
-    "scope": "Data-backed role-scoped Command Center analytics, mobile-responsive dashboard layout, and versioned employee-pension-before-PAYE payroll base.",
+    "scope": "Data-backed role-scoped Command Center analytics, responsive dashboard, versioned employee-pension-before-PAYE payroll base, and warehouse Manager direct PICK / optional RESERVE with correct ledger quantities and branch receipt handling.",
     "business_table_contract": "49 unchanged",
     "schema_changed": false,
     "database_version_changed": false
