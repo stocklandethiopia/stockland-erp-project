@@ -2129,6 +2129,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$company_wide = Stockland_Authority::company_scope();
 		$current_role = Stockland_Authority::role();
 		$location_ids = array();
+
 		$requested_location = absint( $r->get_param( 'location_id' ) );
 		if ( ! $company_wide ) {
 			if ( 'branch_manager' === $current_role ) {
@@ -2280,10 +2281,10 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					'total_count'   => (int) ( $summary['total_count'] ?? 0 ),
 					'posted_count'  => (int) ( $summary['posted_count'] ?? 0 ),
 					'pending_count' => (int) ( $summary['pending_count'] ?? 0 ),
-					'rejected_count'=> (int) ( $summary['rejected_count'] ?? 0 ),
+					'rejected_count' => (int) ( $summary['rejected_count'] ?? 0 ),
 					'posted_total'  => (string) ( $summary['posted_total'] ?? '0.00' ),
 					'pending_total' => (string) ( $summary['pending_total'] ?? '0.00' ),
-					'rejected_total'=> (string) ( $summary['rejected_total'] ?? '0.00' ),
+					'rejected_total' => (string) ( $summary['rejected_total'] ?? '0.00' ),
 				),
 			)
 		);
