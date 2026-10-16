@@ -115,6 +115,25 @@ jobs:
           python3 tools/qa/rebuild-css.py
           test "$(git hash-object assets/bootstrap.min.css)" = "1d8bac41b3b586410aed1077d9abc05e169cb924"
           grep -q 'Bootstrap  v5.3.8' assets/bootstrap.min.css
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          stylesheets = (Path("assets/app.css"), Path("assets/app.min.css"))
+          missing = []
+          for stylesheet in stylesheets:
+              css = stylesheet.read_text(encoding="utf-8")
+              for match in re.finditer(r"""url\(\s*(['"]?)(.*?)\1\s*\)""", css, re.IGNORECASE):
+                  value = match.group(2).strip()
+                  if not value or value.startswith(("/", "#")) or value.lower().startswith(("data:", "http://", "https://", "//")):
+                      continue
+                  relative = value.split("?", 1)[0].split("#", 1)[0]
+                  if relative and not (stylesheet.parent / relative).is_file():
+                      missing.append(f"{stylesheet}: {value}")
+          if missing:
+              raise SystemExit("Missing local CSS asset(s):\n" + "\n".join(missing))
+          if not Path("assets/stockland-store-hero.jpg").is_file():
+              raise SystemExit("Approved apparel-store dashboard hero is missing: assets/stockland-store-hero.jpg")
+          PY
           python3 -m json.tool RELEASE_MANIFEST.json >/dev/null
 
       - name: Set up PHP
