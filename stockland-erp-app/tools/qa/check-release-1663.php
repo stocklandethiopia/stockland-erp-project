@@ -53,10 +53,15 @@ $ok(
 	str_contains( $authority_compact, 'returnin_array($r,array(self::WAREHOUSE_EMPLOYEE,self::WAREHOUSE_MANAGER),true);' )
 		&& str_contains( $requisition, 'Only the Central Warehouse Manager may PICK an approved requisition directly.' )
 		&& str_contains( $requisition, 'Only the Central Warehouse Manager or a Warehouse Employee may pick a reserved requisition.' )
-		&& str_contains( $requisition, "\$cur['dispatched_qty'] = \$dispatch" )
-		&& str_contains( $app, "const canPick=role==='warehouse_employee'||role==='warehouse_manager';" )
-		&& str_contains( $app, "const canDirectPick=role==='warehouse_manager'&&q.status==='Approved'" ),
-	'Central Warehouse Manager can direct-PICK approved stock; Warehouse Employees retain reserved/assigned-only picking, with exact quantity and role controls.'
+		&& 1 === preg_match( '/\\$cur\\[\\'dispatched_qty\\'\\]\\s*=\\s*\\$dispatch/', $requisition ),
+	'Server-side direct PICK is Manager-only, reserved picking remains role-scoped, and exact dispatched quantity is recorded.'
+);
+$ok(
+	str_contains( $app, "const canPick=role==='warehouse_employee'||role==='warehouse_manager';" )
+		&& str_contains( $app, "const canDirectPick=role==='warehouse_manager'&&q.status==='Approved'" )
+		&& str_contains( $app, "const canReserve=role==='warehouse_manager'" )
+		&& str_contains( $app, 'data-warehouse-action="pick">PICK / READY' ),
+	'Approved warehouse UI exposes direct PICK for the Central Warehouse Manager and retains the reserved-pick action.'
 );
 $ok(
 	str_contains( $requisition, "'warehouse_manager', \$wh, 'warehouse_requisition', 'Reserved requisition — PICK required'" )
