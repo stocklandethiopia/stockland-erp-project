@@ -53,7 +53,7 @@ $ok(
 	str_contains( $authority_compact, 'returnin_array($r,array(self::WAREHOUSE_EMPLOYEE,self::WAREHOUSE_MANAGER),true);' )
 		&& str_contains( $requisition, 'Only the Central Warehouse Manager may PICK an approved requisition directly.' )
 		&& str_contains( $requisition, 'Only the Central Warehouse Manager or a Warehouse Employee may pick a reserved requisition.' )
-		&& 1 === preg_match( '/\\$cur\\[\\'dispatched_qty\\'\\]\\s*=\\s*\\$dispatch/', $requisition ),
+		&& str_contains( $requisition, "\$cur['dispatched_qty'] = \$dispatch" ),
 	'Server-side direct PICK is Manager-only, reserved picking remains role-scoped, and exact dispatched quantity is recorded.'
 );
 $ok(
