@@ -400,7 +400,7 @@ jobs:
               **evidence,
               "state": "PASS",
           }
-          acceptance = manifest.setdefault("release_acceptance", {})
+          acceptance = manifest.setdefault("acceptance", {})
           acceptance["source_package_gate"] = source_gate_text
           acceptance["target_host"] = "PENDING"
           acceptance["production_deployment"] = "NOT_AUTHORIZED_BY_SOURCE_CI"
