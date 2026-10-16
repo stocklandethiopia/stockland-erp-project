@@ -390,10 +390,31 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( (int) ( $employee['created_by'] ?? 0 ) === $user_id ) {
 				throw new Exception( 'The employee-file creator cannot approve the same employee file.' );
 			}
-			if ( false === Stockland_DB::update_record( Stockland_DB::table( 'employees' ), array( 'status' => 'ACTIVE', 'updated_by' => $user_id ), array( 'id' => $id, 'status' => 'PENDING' ) ) ) {
+			if ( false === Stockland_DB::update_record(
+				Stockland_DB::table( 'employees' ),
+				array(
+					'status'     => 'ACTIVE',
+					'updated_by' => $user_id,
+				),
+				array(
+					'id'     => $id,
+					'status' => 'PENDING',
+				)
+			) ) {
 				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Employee approval status could not be saved.' );
 			}
-			if ( false === Stockland_Workflow::event( 'employee', $id, 'PENDING', 'ACTIVE', $user_id, $employee['branch_location_id'], array( 'employee_id' => $employee['employee_id'], 'decision' => 'APPROVE' ) ) ) {
+			if ( false === Stockland_Workflow::event(
+				'employee',
+				$id,
+				'PENDING',
+				'ACTIVE',
+				$user_id,
+				$employee['branch_location_id'],
+				array(
+					'employee_id' => $employee['employee_id'],
+					'decision'    => 'APPROVE',
+				)
+			) ) {
 				throw new Exception( 'Employee approval workflow event could not be recorded.' );
 			}
 			if ( ! Stockland_Audit::log( $user_id, $employee['branch_location_id'], 'HR_EMPLOYEE_APPROVE', null, null, 'PENDING', 'ACTIVE', 'Owner approved employee file', 'EMP' . $id, $user_id ) ) {
