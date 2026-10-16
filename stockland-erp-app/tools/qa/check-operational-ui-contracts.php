@@ -14,7 +14,7 @@ $ok      = function ( $cond, $label ) use ( &$fail, &$pass ) {
 		echo "FAIL {$label}\n";
 	}};
 $modules = json_decode( file_get_contents( $root . '/assets/css/modules.json' ), true );
-$ok( is_array( $modules ) && ( $modules['release'] ?? '' ) === '16.1.77' && count( $modules['modules'] ?? array() ) === 6, 'six ordered CSS source modules declared' );
+$ok( is_array( $modules ) && ( $modules['release'] ?? '' ) === '16.1.78' && count( $modules['modules'] ?? array() ) === 6, 'six ordered CSS source modules declared' );
 $chunks = array();
 $modsOk = is_array( $modules );
 foreach ( ( $modules['modules'] ?? array() ) as $name ) {
