@@ -71,7 +71,9 @@ $check(
 		&& str_contains( $line_update, '$period[\'status\']' )
 		&& str_contains( $line_update, 'Approved or paid payroll cannot be edited.' )
 		&& str_contains( $line_update, '$verified_exempt_total' )
-		&& str_contains( $line_update, '$preserved_exempt_components' ),
+		&& str_contains( $line_update, '$refresh_exemption_snapshot = ! $same_exempt || ! $saved_evidence;' )
+		&& str_contains( $line_update, '$preserved_exempt_components' )
+		&& str_contains( $line_update, '|| $refresh_exemption_snapshot' ),
 	'Draft line recalculation stays locked after submission and preserves previously verified exemption evidence.'
 );
 $check(
