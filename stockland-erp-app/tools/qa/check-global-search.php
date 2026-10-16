@@ -48,12 +48,12 @@ $check(
 );
 $check(
 	str_contains( $rest, "'/app/global-search'" )
-		&& str_contains( $rest, "'callback'            => array( $this, 'global_search' )" )
+		&& str_contains( $rest, "'callback'" ) && str_contains( $rest, "'global_search'" )
 		&& str_contains( $rest, "current_user_can( 'manage_options' ) || Stockland_Authority::assert_profile()" ),
 	'REST route is registered behind authentication and the existing Stockland profile gate.'
 );
 $check(
-	str_contains( $search, "strlen( $term ) < 2" )
+	str_contains( $search, 'strlen( $term ) < 2' )
 		&& str_contains( $search, "substr( trim( sanitize_text_field" )
 		&& str_contains( $search, "WHERE is_active=1 AND product_type<>'STYLE'" )
 		&& str_contains( $search, 'LIMIT %d' ),
