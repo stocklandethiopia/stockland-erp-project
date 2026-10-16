@@ -73,9 +73,20 @@ foreach ( $cases as $label => $case ) {
 			exit( 1 );
 		}
 	}
-	if ( false !== strpos( $method, '$sql' ) || false !== strpos( $method, '$where' ) ) {
+	if ( false !== strpos( $method, '$sql' ) ) {
+		fwrite( STDERR, 'FAIL: accounting ' . $label . ' query still uses a dynamic SQL variable.' . "\n" );
+		exit( 1 );
+	}
+	if ( 'expenses' !== $label && false !== strpos( $method, '$where' ) ) {
 		fwrite( STDERR, 'FAIL: accounting ' . $label . ' query still builds SQL fragments dynamically.' . "\n" );
 		exit( 1 );
+	}
+	if ( 'expenses' === $label ) {
+		$fixed_where = "\$where = 'WHERE (%d = 0 OR e.status = %s)";
+		if ( false === strpos( $method, $fixed_where ) || false === strpos( $method, "FIND_IN_SET(e.location_id, %s)" ) || false === strpos( $method, '$has_status ? $status' ) || false === strpos( $method, '$has_from ? $date_from' ) || false === strpos( $method, '$has_to ? $date_to' ) || false === strpos( $method, '$has_category ? $category' ) || false !== strpos( $method, '$where .=') ) {
+			fwrite( STDERR, "FAIL: accounting expenses filters must stay fixed SQL predicates with separately prepared values.\n" );
+			exit( 1 );
+		}
 	}
 	echo 'PASS: accounting ' . $label . " read query is static and prepared.\n";
 }
