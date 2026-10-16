@@ -87,6 +87,14 @@ $check(
 	'Header search uses the real REST API, ignores stale responses and supports keyboard dismissal.'
 );
 $check(
+	str_contains( $app, "const [,saleDate,locationId]=target.split(':');" )
+		&& str_contains( $app, "state.posSales=selectedSale?scopedRows.filter" )
+		&& str_contains( $app, "const visibleRows=selectedPO?rows.filter" )
+		&& str_contains( $app, "customerRows.slice(0,30)" )
+		&& str_contains( $app, "data-clear-global-search" ),
+	'Clicking non-product search results filters the selected authorized customer, sale or purchase order, with a clear-search action.'
+);
+$check(
 	str_contains( $nav, '.sl-global-search-control' )
 		&& str_contains( $nav, '.sl-global-search-results' )
 		&& str_contains( $nav, '.sl-global-search{grid-column:1;grid-row:2' )
