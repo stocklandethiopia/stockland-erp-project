@@ -631,7 +631,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 						'owner_verified'     => false,
 					);
 				}
-				if ( Stockland_Money::minor( $exempt ) > 0 ) {
+				$refresh_exemption_snapshot = false;
+		if ( Stockland_Money::minor( $exempt ) > 0 ) {
 					$legacy_basis    = sanitize_textarea_field( $p['statutory_classification_note'] ?? '' );
 					$legacy_evidence = sanitize_text_field( $p['exemption_evidence_reference'] ?? '' );
 					if ( Stockland_Authority::role() !== 'owner' || strlen( trim( $legacy_basis ) ) < 20 || strlen( trim( $legacy_evidence ) ) < 4 || empty( $p['owner_confirmed_exemption'] ) ) {
@@ -1264,7 +1265,8 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			}
 			$saved_evidence = Stockland_Money::minor( $saved_exempt_total ) === Stockland_Money::minor( $exempt )
 				&& Stockland_Money::minor( $verified_exempt_total ) === Stockland_Money::minor( $exempt );
-			if ( ! $same_exempt || ! $saved_evidence ) {
+			$refresh_exemption_snapshot = ! $same_exempt || ! $saved_evidence;
+			if ( $refresh_exemption_snapshot ) {
 				if ( strlen( trim( $basis ) ) < 20 || strlen( trim( $evidence ) ) < 4 || ! $exemption_confirmed ) {
 					return new WP_Error( 'classification_basis_required', 'An exempt payroll adjustment requires a current legal clause, supporting evidence reference, and explicit Owner confirmation.', array( 'status' => 400 ) );
 				}
@@ -1289,7 +1291,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				$snapshot_tax = Stockland_Money::add( $snapshot_tax, $component['amount'] ?? '0.00' );
 			}
 		}
-		if ( Stockland_Money::minor( $snapshot_tax ) !== Stockland_Money::minor( $taxable ) || Stockland_Money::minor( $snapshot_exempt ) !== Stockland_Money::minor( $exempt ) ) {
+		if ( Stockland_Money::minor( $snapshot_tax ) !== Stockland_Money::minor( $taxable ) || Stockland_Money::minor( $snapshot_exempt ) !== Stockland_Money::minor( $exempt ) || $refresh_exemption_snapshot ) {
 			$preserved_exempt_components = array();
 			$same_saved_exemption        = Stockland_Money::minor( $exempt ) > 0
 				&& Stockland_Money::minor( $exempt ) === Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' )
