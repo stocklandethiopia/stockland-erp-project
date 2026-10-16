@@ -33,7 +33,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify historical 16.1.57 baseline and current 16.1.78 identity
+      - name: Verify historical 16.1.57 baseline and current 16.1.79 identity
         id: source
         shell: bash
         run: |
@@ -48,18 +48,18 @@ jobs:
             fi
             unzip -t "$archive"
           elif [ ! -f stockland-erp-app/stockland-inventory.php ]; then
-            echo "::error title=Source baseline required::Provide the pinned historical 16.1.57 baseline ZIP or restore the tracked 16.1.78 source tree. Expected baseline SHA-256: $expected."
+            echo "::error title=Source baseline required::Provide the pinned historical 16.1.57 baseline ZIP or restore the tracked 16.1.79 source tree. Expected baseline SHA-256: $expected."
             exit 1
           fi
           test -f stockland-erp-app/stockland-inventory.php
           test -f stockland-erp-app/RELEASE_MANIFEST.json
-          grep -q 'Version:           16.1.78' stockland-erp-app/stockland-inventory.php
-          grep -Fq "define( 'STOCKLAND_VERSION', '16.1.78' );" stockland-erp-app/stockland-inventory.php
-          grep -q '"release": "16.1.78"' stockland-erp-app/RELEASE_MANIFEST.json
-          grep -q "const ROUTE_VERSION      = '16.1.78';" stockland-erp-app/includes/class-stockland-frontend.php
-          grep -q '"release": "16.1.78"' stockland-erp-app/assets/css/modules.json
+          grep -q 'Version:           16.1.79' stockland-erp-app/stockland-inventory.php
+          grep -Fq "define( 'STOCKLAND_VERSION', '16.1.79' );" stockland-erp-app/stockland-inventory.php
+          grep -q '"release": "16.1.79"' stockland-erp-app/RELEASE_MANIFEST.json
+          grep -q "const ROUTE_VERSION      = '16.1.79';" stockland-erp-app/includes/class-stockland-frontend.php
+          grep -q '"release": "16.1.79"' stockland-erp-app/assets/css/modules.json
           test -f stockland-erp-app/tools/qa/run-static-qa.php
-          test -f stockland-erp-app/tools/qa/check-release-1663.php
+          test -f stockland-erp-app/tools/qa/check-release-1679.php
           test -f stockland-erp-app/tools/qa/check-cumulative-operational-regressions.php
           echo "source_present=true" >> "$GITHUB_OUTPUT"
 
@@ -83,15 +83,15 @@ jobs:
           from pathlib import Path
           manifest = Path("RELEASE_MANIFEST.json")
           m = json.loads(manifest.read_text(encoding="utf-8"))
-          if m.get("release") != "16.1.78":
-              raise SystemExit("Refusing to package unexpected ERP release; plugin and manifest must both be 16.1.78")
+          if m.get("release") != "16.1.79":
+              raise SystemExit("Refusing to package unexpected ERP release; plugin and manifest must both be 16.1.79")
           front = m.setdefault("frontend", {})
           front["bootstrap_version"] = "5.3.8"
           front["bootstrap_source_git_blob_sha1"] = "1d8bac41b3b586410aed1077d9abc05e169cb924"
           front["bootstrap_sri_sha384"] = "sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
           m.setdefault("quality", {})["bootstrap_css_upstream_verified"] = True
           m.pop("known_open_findings", None)
-          m["release_label"] = "16.1.78 — Stockland Ethiopia ERP cumulative in-place update"
+          m["release_label"] = "16.1.79 — Stockland Ethiopia ERP cumulative in-place update"
           note = "Replaced bundled Bootstrap CSS with exact upstream v5.3.8 asset; upstream Git blob SHA and official SRI are recorded in the manifest."
           changes = m.setdefault("release_candidate_changes", [])
           if note not in changes:
@@ -387,11 +387,11 @@ jobs:
               "php_runtime": "PHP 8.4",
               "css_build": "PASS (custom CSS rebuild and Bootstrap 5.3.8 upstream hash verification)",
               "json_manifest_validation": "PASS (python json.tool)",
-              "target_host_acceptance": "PENDING: exact 16.1.78 package has not been installed; source CI does not run authenticated host workflows, ledger reconciliation, backup restoration or rollback.",
+              "target_host_acceptance": "PENDING: exact 16.1.79 package has not been installed; source CI does not run authenticated host workflows, ledger reconciliation, backup restoration or rollback.",
           }
           quality["source_gate_evidence"] = evidence
           source_gate_text = (
-              f"PASS — exact 16.1.78 source/package gate for commit "
+              f"PASS — exact 16.1.79 source/package gate for commit "
               f"{evidence['commit_sha']} in run #{evidence['workflow_run_id']}; exact target-host acceptance remains PENDING because CI does not deploy this package"
           )
           quality["source_gate"] = source_gate_text
@@ -414,7 +414,7 @@ jobs:
           release_acceptance["target_host"] = "PENDING"
           release_acceptance["production_deployment"] = "NOT_AUTHORIZED_BY_SOURCE_CI"
           release_acceptance["note"] = acceptance["note"]
-          corrective = manifest.setdefault("corrective_release_16_1_67", {})
+          corrective = manifest.setdefault("corrective_release_16_1_79", {})
           corrective["source_gate"] = source_gate_text
           corrective["source_gate_evidence"] = evidence
           # Remove legacy manually-authored binary certification labels from old manifests.
@@ -440,7 +440,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p audit/packages
-          package="audit/packages/STOCKLAND_ERP_16.1.78_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          package="audit/packages/STOCKLAND_ERP_16.1.79_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
           rm -f "$package" "$package.sha256"
           # Normalize timestamps and entry order so identical source produces
           # identical ZIP bytes/checksum on repeated builds.
@@ -455,16 +455,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package="audit/packages/STOCKLAND_ERP_16.1.78_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
+          package="audit/packages/STOCKLAND_ERP_16.1.79_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip"
           sha="$(sha256sum "$package" | awk '{print $1}')"
           python3 - "$sha" <<'PY'
           import sys
           from pathlib import Path
-          p = Path("AUDIT/16.1.78-package-identity.md")
+          p = Path("AUDIT/16.1.79-package-identity.md")
           text = p.read_text(encoding="utf-8")
           paragraphs = text.split("\n\n")
           for i, paragraph in enumerate(paragraphs):
-              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.78 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph or "previously accepted host baseline is carried forward" in paragraph or "LIVE READY host baseline is carried forward" in paragraph:
+              if "did not include the plugin source root" in paragraph or "does not yet contain the complete 16.1.79 source tree" in paragraph or "does not contain the full plugin source root" in paragraph or "Automated validation is running" in paragraph or "The canonical plugin source has been imported" in paragraph or "previously accepted host baseline is carried forward" in paragraph or "LIVE READY host baseline is carried forward" in paragraph:
                   paragraphs[i] = "The canonical source tree is tracked at stockland-erp-app/. The official Bootstrap 5.3.8 installer is built from this source and its SHA-256 is recorded by this exact release run. Source/package gates do not prove target-host acceptance; the exact package remains PENDING authenticated WordPress/MariaDB workflow, ledger/reconciliation, backup restoration and rollback checks."
           text = "\n\n".join(paragraphs)
           markers = [
@@ -477,7 +477,7 @@ jobs:
           text = text.rstrip()
           text += (
               "\n\n## Rebuilt candidate package (automated build evidence)\n\n"
-              "- Package: audit/packages/STOCKLAND_ERP_16.1.78_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n"
+              "- Package: audit/packages/STOCKLAND_ERP_16.1.79_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip\n"
               "- SHA-256: " + sys.argv[1] + "\n"
               "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\n"
               "- The full-runtime PHPCS/WPCS result is evaluated by the final workflow gate. A non-zero result leaves this artifact review-only and blocks release.\n"
@@ -489,10 +489,10 @@ jobs:
       - name: Upload built package for review
         uses: actions/upload-artifact@v6
         with:
-          name: stockland-erp-16.1.78-bootstrap-5.3.8-candidate
+          name: stockland-erp-16.1.79-bootstrap-5.3.8-candidate
           path: |
-            audit/packages/STOCKLAND_ERP_16.1.78_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip
-            audit/packages/STOCKLAND_ERP_16.1.78_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
+            audit/packages/STOCKLAND_ERP_16.1.79_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip
+            audit/packages/STOCKLAND_ERP_16.1.79_FINAL_CANONICAL_BOOTSTRAP_5.3.8.zip.sha256
           if-no-files-found: error
           retention-days: 30
 
