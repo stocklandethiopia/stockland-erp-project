@@ -152,10 +152,10 @@
   ],
   "quality": {},
   "release_acceptance": {
-    "source_package_gate": "PENDING exact-source workflow result for this 16.1.77 candidate",
+    "source_package_gate": "Authoritative exact-source CI status is recorded in acceptance.source_package_gate; this compatibility field must not be read as a separate CI result.",
     "target_host": "PENDING",
     "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
-    "note": "CI does not establish authenticated target-host behavior, live ledger reconciliation, backup restoration, rollback, or legal/payroll-adviser validation."
+    "note": "Retained for the existing system-health diagnostic contract. The acceptance object records the exact 16.1.78 source/package run. This compatibility field does not establish deployment, authenticated live workflow behavior, database/ledger reconciliation, backup restoration, rollback, or payroll/tax-adviser validation."
   },
   "corrective_release_16_1_67": {
     "scope": "Data-backed role-scoped Command Center analytics, mobile-responsive dashboard layout, and versioned employee-pension-before-PAYE payroll base.",
