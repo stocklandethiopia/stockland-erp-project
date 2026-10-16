@@ -9,7 +9,7 @@ src=(root/'assets/app.css').read_text()
 mini=(root/'assets/app.min.css').read_text()
 assert src.count('{')==src.count('}'), 'app.css braces mismatch'
 assert mini.count('{')==mini.count('}'), 'app.min.css braces mismatch'
-assert '16.1.79 MOBILE-FIRST PREMIUM PRESENTATION LAYER' in src
+assert '16.1.79 GUIDED PAYROLL REVIEW LAYER' in src
 manifest=__import__('json').loads((root/'assets/css/modules.json').read_text())
 assert manifest.get('release')=='16.1.79' and len(manifest.get('modules',[]))==6, 'six CSS module manifest mismatch'
 chunks=[]
