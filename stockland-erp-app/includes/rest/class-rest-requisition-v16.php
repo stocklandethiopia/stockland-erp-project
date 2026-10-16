@@ -647,8 +647,10 @@ class Stockland_REST_Requisition_V16 {
 		$req = $this->req( $id );
 		if ( ! $req ) {
 			return $this->deny( 'not_found', 'Requisition not found.', 404 );
-		}if ( ! in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked' ), true ) ) {
-			return $this->deny( 'invalid_state', 'This requisition is not ready for warehouse action.', 409 );
+		}
+		$allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Reserved', 'Picked' );
+		if ( ! in_array( $req['status'], $allowed_states, true ) ) {
+			return $this->deny( 'invalid_state', 'This requisition cannot be moved to the requested warehouse state.', 409 );
 		}
 		$wh   = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		$lock = Stockland_DB::acquire_day_lock( $wh, current_time( 'Y-m-d' ) );
@@ -661,6 +663,28 @@ class Stockland_REST_Requisition_V16 {
 		try {
 			$req    = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
 			$items  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
+			if ( ! $req ) {
+				throw new Exception( 'Requisition disappeared during warehouse action.' );
+			}
+			$locked_status        = (string) ( $req['status'] ?? '' );
+			$locked_allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Reserved', 'Picked' );
+			if ( ! in_array( $locked_status, $locked_allowed_states, true ) ) {
+				throw new Exception( 'This requisition cannot be moved to the requested warehouse state. Current status: ' . $locked_status . '.' );
+			}
+			if ( 'pick' === $action && 'Picked' === $locked_status ) {
+				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
+					throw new Exception( 'Could not confirm the existing warehouse pick state.' );
+				}
+				Stockland_DB::release_day_lock( $lock );
+				return rest_ensure_response(
+					array(
+						'message'        => 'This requisition is already picked; no additional stock movement was posted.',
+						'idempotent'     => true,
+						'requisition_id' => $id,
+						'status'         => 'Picked',
+					)
+				);
+			}
 			$pickup = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
 			if ( 'reserve' === $action ) {
 				if ( ! $pickup ) {
