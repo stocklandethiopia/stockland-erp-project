@@ -112,8 +112,8 @@
   "expense_authority": {
     "branch": "The active Branch Manager enters and makes the final decision only for the assigned branch. The server derives location from the active ERP profile.",
     "central_warehouse": "The active Warehouse Manager enters and makes the final decision only for Central Warehouse.",
-    "corporate": "Owner and Management record their own corporate expenses without branch attribution. Management submits its corporate expense for the Owner's independent decision; the Owner's own corporate expense is posted to the Owner corporate record. Both roles can review expense reports, but cannot decide location expenses.",
-    "ledger": "Location expenses post a balanced GL journal on approval. Management corporate expenses post their balanced journal on Owner approval. Owner corporate expenses post their balanced journal in the creation transaction. Rejections require a reason and write audit evidence."
+    "corporate": "Owner and Management record their own corporate expenses without branch attribution. Management submits corporate expenses for the Owner's independent decision. An Owner-created corporate expense remains PENDING and unposted because the creator cannot approve their own expense; it requires a separately authorized independent approver defined by the approved SOP. Both roles can review expense reports, but cannot decide location expenses.",
+    "ledger": "Location expenses post a balanced GL journal only on the assigned independent final authority approval. Management corporate expenses post their balanced journal on independent Owner approval. Owner-created corporate expenses remain pending and unposted until an approved independent approver exists; the source must fail closed rather than self-post. Rejections require a reason and write audit evidence."
   },
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
