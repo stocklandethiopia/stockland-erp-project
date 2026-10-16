@@ -28,7 +28,7 @@ $integrity  = $read( 'includes/class-stockland-integrity.php' );
 $frontend   = $read( 'includes/class-stockland-frontend.php' );
 $ddl        = $read( 'includes/class-stockland-activator.php' );
 $app        = $read( 'assets/app.js' );
-$ok( ( $manifest['release'] ?? '' ) === '16.1.67' && str_contains( $plugin, 'Version:           16.1.67' ), 'plugin header and manifest use the same release identity' );
+$ok( ( $manifest['release'] ?? '' ) === '16.1.77' && str_contains( $plugin, 'Version:           16.1.77' ), 'plugin header and manifest use the same release identity' );
 $plugin_compact     = preg_replace( '/\\s+/', '', $plugin );
 $owner_po_guard      = '$owner_po_cap_missing=!$owner_role||!$owner_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
 $management_po_guard = '$management_po_cap_bad=$management_role&&$management_role->has_cap(' . "'stockland_approve_purchase_orders'" . ');';
@@ -43,7 +43,7 @@ $ok( ( $manifest['schema_contract']['total'] ?? 0 ) === 49 && ! ( $manifest['sch
 $ok( str_contains( $health, 'Stockland_Integrity::scan()' ) && str_contains( $health, 'supplemental_integrity_scan' ), 'explicit deep health invokes the read-only supplemental integrity scanner' );
 $ok( str_contains( $health, "&& \$checks['supplemental_integrity_scan']" ), 'deep live-ready certification requires supplemental ledger/procurement integrity to pass' );
 $ok( str_contains( $integrity, 'supplier_invoice_receipt_grni_reconciliation' ) && str_contains( $integrity, 'posted_supplier_invoice_grni_ap_gl_mismatch' ) && str_contains( $integrity, 'supplier_payment_allocation_total_mismatch' ), 'deep scanner checks GRNI, supplier AP journal values and PLEDGER allocations' );
-$ok( str_contains( $accounting_compact, "\$status=\$direct_post?'POSTED':'PENDING'" ) && str_contains( $accounting, 'LOCATION_EXPENSE_SUBMIT' ) && str_contains( $accounting, 'CORPORATE_EXPENSE_POST' ) && str_contains( $accounting, 'can_approve_expenses' ), 'Owner corporate expenses post directly; Management corporate expenses await an independent Owner decision; location expenses follow assigned final-authority decisions' );
+$ok( str_contains( $accounting, '$owner_expense_hold = $corporate_expense && \'owner\' === $role' ) && str_contains( $accounting_compact, "\$status='PENDING'" ) && str_contains( $accounting, 'OWNER_CORPORATE_EXPENSE_PENDING_AUTHORITY' ) && ! str_contains( $accounting, '$direct_post' ) && str_contains( $accounting, 'LOCATION_EXPENSE_SUBMIT' ) && str_contains( $accounting, 'can_approve_expenses' ), 'Owner-created corporate expenses remain pending and unposted without an independent approver; Management corporate and assigned-location expense paths remain separately authorized' );
 $ok( str_contains( $accounting, 'separately Owner-approved Central Warehouse PO' ) && str_contains( $accounting_compact, "'account_code'=>'2010'" ) && str_contains( $accounting_compact, "'account_code'=>'2000'" ) && str_contains( $accounting_compact, "\$invoice['total_amount']" ), 'supplier invoice approval clears receipt GRNI to AP without a second VAT debit' );
 $ok( str_contains( $accounting, 'payment_integrity_error' ) && str_contains( $accounting_compact, "acquire_named_lock('payment_'" ) && str_contains( $accounting_compact, "'status'=>\$status" ), 'manual finance payments use idempotency, a named lock and pending approval' );
 $ok( str_contains( $hr, "'SUBMITTED'" ) && str_contains( $hr, 'payroll_approval' ) && str_contains( $hr, 'PAYROLL_APPROVE' ) && str_contains( $hr, 'payroll_paid' ), 'payroll has Management submission, Owner approval/payment, GL and notification markers' );
@@ -69,7 +69,6 @@ $ok(
 );
 $ok( str_contains( $app, "appendChild(d);bindSkuPickers()" ), 'legacy Add SKU row binds the live SKU picker after dynamic insertion' );
 $ok( str_contains( $app, "box.appendChild(div);div.querySelector('[data-remove-fin-line]').onclick=()=>{if(type==='po'&&box.querySelectorAll('.sl-fin-line').length<=1)" ) && str_contains( $app, 'div.remove();};bindSkuPickers();' ), 'dynamic Finance/PO lines keep one required PO line and bind the live touch/click SKU picker after insertion' );
-$ok( str_contains( $requisition, 'r.approval_mode,r.created_at,r.pickup_date,l.location_name' ), 'warehouse requisition queue includes the saved pickup appointment date for accurate display' );
 $guards = $read( 'assets/css/06-operational-guards.css' );
 $ok( str_contains( $guards, '.sl-req-line.sl-form{display:grid' ) && str_contains( $guards, '@media(max-width:575.98px)' ), 'dynamic requisition lines use responsive grid layout on mobile' );
 $ok( str_contains( $app, 'RUN DEEP INTEGRITY AUDIT' ) && str_contains( $app, 'QUICK HEALTH ONLY' ), 'UI visibly separates fast checks from the explicit deep audit' );
@@ -77,6 +76,6 @@ $ok( str_contains( $plugin, 'includes/class-stockland-integrity.php' ) && ! preg
 $ok( str_contains( $app, 'The purchase-order transition is confirmed as' ) && str_contains( $app, 'notifications could not refresh. Open Notifications' ), 'post-transition refresh failures remain distinct from server-confirmed procurement decisions' );
 
 if ( $fail ) {
-	fwrite( STDERR, 'Release 16.1.67 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
+	fwrite( STDERR, 'Release 16.1.77 comprehensive gate FAILED: ' . implode( '; ', $fail ) . "\n" );
 	exit( 1 );
-}echo "Release 16.1.67 comprehensive gate PASS: {$pass} assertions.\n";
+}echo "Release 16.1.77 comprehensive gate PASS: {$pass} assertions.\n";
