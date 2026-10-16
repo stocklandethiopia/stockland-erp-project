@@ -62,7 +62,7 @@ $check(
 $check(
 	str_contains( $search, 'Stockland_Authority::can_view_external_purchase_orders()' )
 		&& str_contains( $search, '$this->scope_locations()' )
-		&& str_contains( $search, "$this->append_scope_filter( 's.branch_location_id'" )
+		&& str_contains( $search, "\\$this->append_scope_filter( 's.branch_location_id'" )
 		&& str_contains( $search, 'po.location_id IN(' ),
 	'Customer, sales and purchase-order search is role/capability/location scoped.'
 );
