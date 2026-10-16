@@ -24,6 +24,8 @@ $accounting = $read( 'includes/rest/class-rest-accounting.php' );
 $css_nav = $read( 'assets/css/02-shell-navigation.css' );
 $stock = $read( 'includes/rest/class-rest-stock.php' );
 $hr_rest = $read( 'includes/rest/class-rest-hr.php' );
+$roles   = $read( 'includes/class-stockland-roles.php' );
+$wholesale = $read( 'includes/rest/class-rest-wholesale.php' );
 $ddl = $read( 'includes/class-stockland-activator.php' );
 $fail = array();
 $pass = 0;
@@ -52,6 +54,19 @@ $check( str_contains( $app, 'DAILY COST REPORT' ) && str_contains( $app, 'Custom
 $check( str_contains( $payroll, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )' ) && str_contains( $payroll, 'ET-PAYE-1395-2025-v3-PENSION-BASE' ), 'Server PAYE taxable base deducts employee pension under the agreed rule version' );
 $check( str_contains( $app, 'taxableIncome=Math.max(0,incomeBeforePension-emp)' ) && str_contains( $app, 'PAYE base after pension' ), 'Frontend payroll preview uses the same pension-first PAYE base' );
 $check( str_contains( $payroll_test, "'27900.00'" ) && str_contains( $payroll_test, "'7715.00'" ) && str_contains( $payroll_test, "'20185.00'" ), 'ETB 30,000 agreed payroll regression expects tax 7,715 and net 20,185' );
+$warehouse_role_start = strpos( $roles, 'self::ROLE_WAREHOUSE_MANAGER  => array_fill_keys(' );
+$warehouse_role_end   = strpos( $roles, 'self::ROLE_AUDITOR', $warehouse_role_start );
+$warehouse_role_caps  = false !== $warehouse_role_start && false !== $warehouse_role_end ? substr( $roles, $warehouse_role_start, $warehouse_role_end - $warehouse_role_start ) : '';
+$employee_role_start  = strpos( $roles, 'self::ROLE_WAREHOUSE_EMPLOYEE => array_fill_keys(' );
+$employee_role_end    = strpos( $roles, 'self::ROLE_WAREHOUSE_MANAGER', $employee_role_start );
+$employee_role_caps   = false !== $employee_role_start && false !== $employee_role_end ? substr( $roles, $employee_role_start, $employee_role_end - $employee_role_start ) : '';
+$check(
+	str_contains( $warehouse_role_caps, "'stockland_create_wholesale'" )
+		&& ! str_contains( $employee_role_caps, "'stockland_create_wholesale'" )
+		&& str_contains( $wholesale, 'Stockland_Authority::WAREHOUSE_MANAGER' )
+		&& str_contains( $wholesale, 'Stockland_Authority::OWNER' ),
+	'Central Warehouse Manager can create authorized wholesale sales; Warehouse Employee cannot, while Owner retains the authorized override.'
+);
 $check( str_contains( $app, 'loadDashboardInsights' ) && str_contains( $app, 'dashboardTrendHtml' ) && str_contains( $app, 'dashboardCategoryHtml' ) && str_contains( $app, 'dashboardBranchesHtml' ) && str_contains( $app, 'dashboardTransactionsHtml' ), 'Dashboard analytics render sales trend, category mix, branch performance and recent transactions' );
 $check(
 	str_contains( $app, "else if(f.id==='whForm')" )
