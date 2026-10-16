@@ -2185,19 +2185,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$has_from     = '' !== $date_from;
 		$has_to       = '' !== $date_to;
 		$has_category = '' !== $category;
-		$filters      = array(
-			$has_status ? 1 : 0,
-			$has_status ? $status : '',
-			$company_wide ? 0 : 1,
-			$location_filter,
-			$has_from ? 1 : 0,
-			$has_from ? $date_from : '',
-			$has_to ? 1 : 0,
-			$has_to ? $date_to : '',
-			$has_category ? 1 : 0,
-			$has_category ? $category : '',
-		);
-				$report_mode  = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
+		$report_mode  = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
 		if ( ! $report_mode ) {
 			$rows = Stockland_DB::read_results(
 				$wpdb->prepare(
@@ -2214,7 +2202,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					$table,
 					Stockland_DB::table( 'locations' ),
 					$wpdb->users,
-					...$filters
+					$has_status ? 1 : 0,
+					$has_status ? $status : '',
+					$company_wide ? 0 : 1,
+					$location_filter,
+					$has_from ? 1 : 0,
+					$has_from ? $date_from : '',
+					$has_to ? 1 : 0,
+					$has_to ? $date_to : '',
+					$has_category ? 1 : 0,
+					$has_category ? $category : ''
 				),
 				ARRAY_A
 			);
@@ -2226,7 +2223,6 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$page             = max( 1, absint( $r->get_param( 'page' ) ?? 1 ) );
 		$per_page         = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?? 30 ) ) );
 		$offset           = ( $page - 1 ) * $per_page;
-		$page_filters     = array_merge( $filters, array( $per_page, $offset ) );
 		$wpdb->last_error = '';
 		$total            = (int) Stockland_DB::read_var(
 			$wpdb->prepare(
@@ -2237,7 +2233,16 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 					AND (%d = 0 OR e.expense_date <= %s)
 					AND (%d = 0 OR e.category = %s)',
 				$table,
-				...$filters
+				$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter,
+				$has_from ? 1 : 0,
+				$has_from ? $date_from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $date_to : '',
+				$has_category ? 1 : 0,
+				$has_category ? $category : ''
 			)
 		);
 		if ( $wpdb->last_error ) {
@@ -2283,7 +2288,18 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 				$table,
 				Stockland_DB::table( 'locations' ),
 				$wpdb->users,
-				...$page_filters
+$has_status ? 1 : 0,
+				$has_status ? $status : '',
+				$company_wide ? 0 : 1,
+				$location_filter,
+				$has_from ? 1 : 0,
+				$has_from ? $date_from : '',
+				$has_to ? 1 : 0,
+				$has_to ? $date_to : '',
+				$has_category ? 1 : 0,
+				$has_category ? $category : '',
+				$per_page,
+				$offset
 			),
 			ARRAY_A
 		);
