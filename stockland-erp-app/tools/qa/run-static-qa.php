@@ -27,6 +27,7 @@ $commands = array(
 	'php ' . escapeshellarg( $root . '/tools/qa/check-critical-workflows.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-three-remediations.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-payroll-statutory.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-payroll-review-ui.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-hr-schema-contract.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/smoke-pos-controller.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-corrective-1653-regressions.php' ),
