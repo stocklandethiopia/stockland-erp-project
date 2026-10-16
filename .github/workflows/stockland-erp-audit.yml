@@ -447,7 +447,7 @@ jobs:
               "- SHA-256: " + sys.argv[1] + "\n"
               "- Bootstrap CSS source blob SHA-1: 1d8bac41b3b586410aed1077d9abc05e169cb924.\n"
               "- The full-runtime PHPCS/WPCS result is evaluated by the final workflow gate. A non-zero result leaves this artifact review-only and blocks release.\n"
-              "- CI syntax, unit and static QA results are separate from authenticated WordPress/MariaDB staging certification, which remains required.\n"
+              "- Prior user-provided actual-host LIVE READY baseline is carried forward; this workflow does not deploy. Verify only the new dashboard/payroll behavior and agreed post-update health checks on the established host using the existing in-place update and backup procedure.\n"
           )
           p.write_text(text, encoding="utf-8")
           PY
