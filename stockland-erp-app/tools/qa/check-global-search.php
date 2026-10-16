@@ -55,7 +55,10 @@ $check(
 $check(
 	str_contains( $search, 'strlen( $term ) < 2' )
 		&& str_contains( $search, "substr( trim( sanitize_text_field" )
-		&& str_contains( $search, "WHERE is_active=1 AND product_type<>'STYLE'" )
+		&& str_contains( $search, "WHERE product_type<>'STYLE'" )
+		&& str_contains( $search, '$product_status_filter' )
+		&& str_contains( $search, "stockland_manage_products" )
+		&& str_contains( $search, "INACTIVE MASTER SKU" )
 		&& str_contains( $search, 'LIMIT %d' ),
 	'Search input is sanitized/bounded; only active non-style Product Master variants are returned in capped result sets.'
 );
