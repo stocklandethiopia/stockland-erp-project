@@ -2220,8 +2220,10 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			return rest_ensure_response( is_array( $rows ) ? $rows : array() );
 		}
-		$page             = max( 1, absint( $r->get_param( 'page' ) ?? 1 ) );
-		$per_page         = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?? 30 ) ) );
+		$page_input       = absint( $r->get_param( 'page' ) );
+		$per_page_input   = absint( $r->get_param( 'per_page' ) );
+		$page             = max( 1, $page_input > 0 ? $page_input : 1 );
+		$per_page         = min( 100, max( 10, $per_page_input > 0 ? $per_page_input : 30 ) );
 		$offset           = ( $page - 1 ) * $per_page;
 		$wpdb->last_error = '';
 		$total            = (int) Stockland_DB::read_var(
