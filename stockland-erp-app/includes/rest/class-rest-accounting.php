@@ -2299,11 +2299,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			Stockland_DB::release_named_lock( $request_lock );
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
-			$num            = $this->next_number( 'EXP-', $date );
+			$num                = $this->next_number( 'EXP-', $date );
 			$owner_expense_hold = $corporate_expense && 'owner' === $role;
 			$status             = 'PENDING';
-			$user_reference = sanitize_text_field( $p['reference'] ?? '' );
-			$reference      = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
+			$user_reference     = sanitize_text_field( $p['reference'] ?? '' );
+			$reference          = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
 			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'expenses' ),
 				array(
@@ -2324,7 +2324,7 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			$id      = (int) $wpdb->insert_id;
 			$journal = null;
-			$event = $owner_expense_hold ? 'OWNER_CORPORATE_EXPENSE_PENDING_AUTHORITY' : ( $corporate_expense ? 'CORPORATE_EXPENSE_SUBMIT' : 'LOCATION_EXPENSE_SUBMIT' );
+			$event   = $owner_expense_hold ? 'OWNER_CORPORATE_EXPENSE_PENDING_AUTHORITY' : ( $corporate_expense ? 'CORPORATE_EXPENSE_SUBMIT' : 'LOCATION_EXPENSE_SUBMIT' );
 			if ( ! Stockland_Audit::log( $uid, $location_id > 0 ? $location_id : null, $event, null, $amount, null, $status, $description, $num ) ) {
 				throw new Exception( 'Expense audit event failed; submission was rolled back.' );
 			}
