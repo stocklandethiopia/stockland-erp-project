@@ -177,6 +177,12 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 			),
 			ARRAY_A
 		);
+		if ( $wpdb->last_error ) {
+			return new WP_Error( 'reorder_read_failed', 'Live reorder status could not be calculated. No empty or healthy status was assumed; retry the report.', array( 'status' => 503 ) );
+		}
+		if ( ! is_array( $rows ) ) {
+			return new WP_Error( 'reorder_read_failed', 'Live reorder status returned an unexpected result. No empty or healthy status was assumed; retry the report.', array( 'status' => 503 ) );
+		}
 		foreach ( $rows as &$row ) {
 			$current       = (float) $row['current_stock'];
 			$level         = (float) $row['reorder_level'];
