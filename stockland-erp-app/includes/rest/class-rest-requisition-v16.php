@@ -661,12 +661,12 @@ class Stockland_REST_Requisition_V16 {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start warehouse requisition action.', array( 'status' => 500 ) );}
 		try {
-			$req    = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
-			$items  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
+			$req   = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
+			$items = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
 			if ( ! $req ) {
 				throw new Exception( 'Requisition disappeared during warehouse action.' );
 			}
-			$locked_status        = (string) ( $req['status'] ?? '' );
+			$locked_status         = (string ( $req['status'] ?? '' );
 			$locked_allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Reserved', 'Picked' );
 			if ( ! in_array( $locked_status, $locked_allowed_states, true ) ) {
 				throw new Exception( 'This requisition cannot be moved to the requested warehouse state. Current status: ' . $locked_status . '.' );
