@@ -279,6 +279,7 @@ class Stockland_Roles {
 					'read',
 					'stockland_view_warehouse',
 					'stockland_view_warehouse_availability',
+					'stockland_create_wholesale',
 					'stockland_receive_warehouse',
 					'stockland_manage_reservations',
 					'stockland_manage_transfers',
