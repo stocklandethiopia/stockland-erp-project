@@ -751,6 +751,9 @@ class Stockland_REST_Requisition_V16 {
 				$pickup   = current_time( 'Y-m-d' );
 				$prepared = 0;
 				foreach ( $items as $item ) {
+					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
+						continue;
+					}
 					$transfer = Stockland_DB::read_row(
 						$wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status='Approved' ORDER BY created_at LIMIT 1 FOR UPDATE", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ),
 						ARRAY_A
@@ -913,6 +916,9 @@ class Stockland_REST_Requisition_V16 {
 					throw new Exception( 'Reserve the requisition before picking.' );
 				}
 				foreach ( $items as $item ) {
+					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
+						continue;
+					}
 					$transfer = Stockland_DB::read_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status='Reserved' LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
 						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
