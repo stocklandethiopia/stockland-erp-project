@@ -781,7 +781,7 @@ class Stockland_REST_Requisition_V16 {
 					if ( (float) ( $item['quantity_approved'] ?? 0 ) <= 0 ) {
 						continue;
 					}
-					$qty = (float) $item['quantity_approved'];
+					$qty       = (float) $item['quantity_approved'];
 					$transfer = Stockland_DB::read_row( $wpdb->prepare( "SELECT * FROM %i WHERE requisition_item_id=%d AND requisition_id=%s AND status NOT IN('Rejected','Cancelled','Completed') ORDER BY created_at LIMIT 1", Stockland_DB::table( 'transfers' ), (int) $item['id'], $id ), ARRAY_A );
 					if ( ! $transfer ) {
 						throw new Exception( 'Required warehouse transfer record is missing for requisition item ' . $item['id'] . '. The requisition cannot advance.' );
