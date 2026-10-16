@@ -99,16 +99,16 @@ class Stockland_REST_Stock extends Stockland_REST_Base {
 						COALESCE((SELECT SUM(r.quantity_reserved) FROM %i r WHERE r.location_id=%d AND r.status='Active' AND (r.variant_id=p.variant_id OR (r.variant_id IS NULL AND r.sku=p.sku))),0) available_stock
 						FROM %i p WHERE p.is_active=1 AND p.product_type<>'STYLE' AND p.sku=%s LIMIT 1",
 						(int) $location_id,
-					$tx,
-					(int) $location_id,
-					$res,
-					(int) $location_id,
-					$tx,
-					(int) $location_id,
-					$res,
-					(int) $location_id,
-					$products,
-					(string) $product['sku']
+						$tx,
+						(int) $location_id,
+						$res,
+						(int) $location_id,
+						$tx,
+						(int) $location_id,
+						$res,
+						(int) $location_id,
+						$products,
+						(string) $product['sku']
 					),
 					ARRAY_A
 				);
