@@ -82,12 +82,26 @@ foreach ( $cases as $label => $case ) {
 		exit( 1 );
 	}
 	if ( 'expenses' === $label ) {
-		$fixed_where = preg_match( '/\$where\s*=\s*\'WHERE \(%d = 0 OR e\.status = %s\)/', $method );
-		if ( 1 !== $fixed_where || false === strpos( $method, "FIND_IN_SET(e.location_id, %s)" ) || false === strpos( $method, '$has_status ? $status' ) || false === strpos( $method, '$has_from ? $date_from' ) || false === strpos( $method, '$has_to ? $date_to' ) || false === strpos( $method, '$has_category ? $category' ) || false !== strpos( $method, '$where .=') ) {
-			fwrite( STDERR, "FAIL: accounting expenses filters must stay fixed SQL predicates with separately prepared values.\n" );
+		$fixed_predicates = array(
+			"WHERE (%d = 0 OR e.status = %s)",
+			"FIND_IN_SET(e.location_id, %s)",
+			"$has_status ? $status",
+			"$has_from ? $date_from",
+			"$has_to ? $date_to",
+			"$has_category ? $category",
+		);
+		foreach ( $fixed_predicates as $predicate ) {
+			if ( false === strpos( $method, $predicate ) ) {
+				fwrite( STDERR, "FAIL: accounting expense filters must stay fixed SQL predicates with separately prepared values: " . $predicate . "\n" );
+				exit( 1 );
+			}
+		}
+		if ( false !== strpos( $method, '$where .=' ) || false !== strpos( $method, '$sql' ) || false === strpos( $method, '$filters = array(' ) ) {
+			fwrite( STDERR, "FAIL: accounting expense query must not construct SQL fragments dynamically.\n" );
 			exit( 1 );
 		}
 	}
+
 	echo 'PASS: accounting ' . $label . " read query is static and prepared.\n";
 }
 
