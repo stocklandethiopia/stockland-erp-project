@@ -2171,7 +2171,10 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 		$date_from       = sanitize_text_field( (string) $r->get_param( 'date_from' ) );
 		$date_to         = sanitize_text_field( (string) $r->get_param( 'date_to' ) );
 		$category        = sanitize_text_field( (string) $r->get_param( 'category' ) );
-		foreach ( array( 'date_from' => $date_from, 'date_to' => $date_to ) as $label => $date_value ) {
+		foreach ( array(
+			'date_from' => $date_from,
+			'date_to'   => $date_to,
+		) as $label => $date_value ) {
 			if ( '' !== $date_value && ( ! preg_match( '/^\\d{4}-\\d{2}-\\d{2}$/', $date_value ) || ! checkdate( (int) substr( $date_value, 5, 2 ), (int) substr( $date_value, 8, 2 ), (int) substr( $date_value, 0, 4 ) ) ) ) {
 				return new WP_Error( 'invalid_expense_date', 'Expense report dates must be valid YYYY-MM-DD calendar dates.', array( 'status' => 400 ) );
 			}
@@ -2194,12 +2197,12 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			$has_category ? 1 : 0,
 			$has_category ? $category : '',
 		);
-		$where = 'WHERE (%d = 0 OR e.status = %s)
+		$where        = 'WHERE (%d = 0 OR e.status = %s)
 			AND (%d = 0 OR FIND_IN_SET(e.location_id, %s))
 			AND (%d = 0 OR e.expense_date >= %s)
 			AND (%d = 0 OR e.expense_date <= %s)
 			AND (%d = 0 OR e.category = %s)';
-		$report_mode = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
+		$report_mode  = null !== $r->get_param( 'page' ) || null !== $r->get_param( 'per_page' ) || '1' === (string) $r->get_param( 'report' ) || $has_from || $has_to || $has_category || $requested_location;
 		if ( ! $report_mode ) {
 			$rows = Stockland_DB::read_results(
 				$wpdb->prepare(
@@ -2220,18 +2223,18 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			return rest_ensure_response( is_array( $rows ) ? $rows : array() );
 		}
-		$page     = max( 1, absint( $r->get_param( 'page' ) ?: 1 ) );
-		$per_page = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?: 30 ) ) );
-		$offset   = ( $page - 1 ) * $per_page;
+		$page             = max( 1, absint( $r->get_param( 'page' ) ?: 1 ) );
+		$per_page         = min( 100, max( 10, absint( $r->get_param( 'per_page' ) ?: 30 ) ) );
+		$offset           = ( $page - 1 ) * $per_page;
 		$wpdb->last_error = '';
-		$total = (int) Stockland_DB::read_var(
+		$total            = (int) Stockland_DB::read_var(
 			$wpdb->prepare( 'SELECT COUNT(*) FROM %i e ' . $where, $table, ...$filters )
 		);
 		if ( $wpdb->last_error ) {
 			return new WP_Error( 'expense_report_failed', 'Expense report count failed; no partial total was returned.', array( 'status' => 503 ) );
 		}
 		$wpdb->last_error = '';
-		$summary = Stockland_DB::read_row(
+		$summary          = Stockland_DB::read_row(
 			$wpdb->prepare(
 				"SELECT COUNT(*) total_count,
 				COALESCE(SUM(CASE WHEN e.status='POSTED' THEN e.amount+e.tax_amount ELSE 0 END),0) posted_total,
@@ -2250,35 +2253,35 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'expense_report_failed', 'Expense report totals failed; no partial summary was returned.', array( 'status' => 503 ) );
 		}
 		$wpdb->last_error = '';
-		$row_sql = ' SELECT e.*,l.location_name,wu.display_name AS created_by_name
+		$row_sql          = ' SELECT e.*,l.location_name,wu.display_name AS created_by_name
 			FROM %i e
 			LEFT JOIN %i l ON l.id=e.location_id
 			LEFT JOIN %i wu ON wu.ID=e.created_by ' . $where . '
 			ORDER BY e.expense_date DESC,e.id DESC LIMIT %d OFFSET %d';
-		$row_args = array_merge(
+		$row_args         = array_merge(
 			array( $table, Stockland_DB::table( 'locations' ), $wpdb->users ),
 			$filters,
 			array( $per_page, $offset )
 		);
-		$rows = Stockland_DB::read_results( $wpdb->prepare( $row_sql, ...$row_args ), ARRAY_A );
+		$rows             = Stockland_DB::read_results( $wpdb->prepare( $row_sql, ...$row_args ), ARRAY_A );
 		if ( $wpdb->last_error || ! is_array( $rows ) ) {
 			return new WP_Error( 'expense_report_failed', 'Expense report rows failed; no partial report was returned.', array( 'status' => 503 ) );
 		}
 		return rest_ensure_response(
 			array(
-				'rows'      => $rows,
-				'page'      => $page,
-				'per_page'  => $per_page,
-				'total'     => $total,
-				'pages'     => (int) ceil( $total / $per_page ),
-				'has_more'  => $offset + count( $rows ) < $total,
-				'summary'   => array(
-					'total_count'   => (int) ( $summary['total_count'] ?? 0 ),
-					'posted_count'  => (int) ( $summary['posted_count'] ?? 0 ),
-					'pending_count' => (int) ( $summary['pending_count'] ?? 0 ),
+				'rows'     => $rows,
+				'page'     => $page,
+				'per_page' => $per_page,
+				'total'    => $total,
+				'pages'    => (int) ceil( $total / $per_page ),
+				'has_more' => $offset + count( $rows ) < $total,
+				'summary'  => array(
+					'total_count'    => (int) ( $summary['total_count'] ?? 0 ),
+					'posted_count'   => (int) ( $summary['posted_count'] ?? 0 ),
+					'pending_count'  => (int) ( $summary['pending_count'] ?? 0 ),
 					'rejected_count' => (int) ( $summary['rejected_count'] ?? 0 ),
-					'posted_total'  => (string) ( $summary['posted_total'] ?? '0.00' ),
-					'pending_total' => (string) ( $summary['pending_total'] ?? '0.00' ),
+					'posted_total'   => (string) ( $summary['posted_total'] ?? '0.00' ),
+					'pending_total'  => (string) ( $summary['pending_total'] ?? '0.00' ),
 					'rejected_total' => (string) ( $summary['rejected_total'] ?? '0.00' ),
 				),
 			)
@@ -2415,11 +2418,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			Stockland_DB::release_named_lock( $request_lock );
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
-			$num            = $this->next_number( 'EXP-', $date );
+			$num                = $this->next_number( 'EXP-', $date );
 			$owner_expense_hold = $corporate_expense && 'owner' === $role;
-			$status         = 'PENDING';
-			$user_reference = sanitize_text_field( $p['reference'] ?? '' );
-			$reference      = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
+			$status             = 'PENDING';
+			$user_reference     = sanitize_text_field( $p['reference'] ?? '' );
+			$reference          = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
 			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'expenses' ),
 				array(
