@@ -1090,14 +1090,16 @@ function openCompensationEditor(button){
 
 function slPayrollLineEditForm(line,periodId){
   const owner=state.boot.user.role==='owner';
+  const legacy=String(line.statutory_status||'LEGACY').toUpperCase()!=='CALCULATED';
   const currentBreakdown=(()=>{try{const v=JSON.parse(line.allowance_breakdown_json||'[]');return Array.isArray(v)?v:[]}catch(_e){return[]}})();
   const exemptComponent=currentBreakdown.find(x=>String(x.tax_treatment||'').toUpperCase()==='EXEMPT')||{};
   const verified=!!exemptComponent.owner_verified&&String(exemptComponent.legal_basis||'').trim().length>=20&&String(exemptComponent.evidence_reference||'').trim().length>=4;
   return '<details class="sl-payroll-line-edit"><summary>Edit draft amounts</summary><form class="sl-payroll-line-form" data-payroll-line-form data-period-id="'+esc(periodId)+'" data-line-id="'+esc(line.id)+'">'+
+    (legacy?'<div class="sl-notice sl-notice-warn">Legacy draft line: confirm the allowance split, pensionable salary and other deductions. The previous total deduction is not copied into “Other deductions” because it may already include PAYE or pension.</div>':'')+
     '<div class="sl-payroll-edit-grid">'+
-      '<div class="sl-field"><label>Taxable allowances (ETB)</label><input name="taxable_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.taxable_allowance_total??line.allowance_total??'0.00')+'" required></div>'+
-      '<div class="sl-field"><label>Exempt allowances (ETB)</label><input name="exempt_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.exempt_allowance_total??'0.00')+'" '+(owner?'':'readonly')+' required><small class="sl-sub">'+(owner?'A change requires legal basis, evidence and Owner confirmation.':'Locked for Management; only the Owner may change an exemption.')+'</small></div>'+
-      '<div class="sl-field"><label>Pensionable salary (ETB)</label><input name="pensionable_salary" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.pensionable_salary??line.base_salary??'0.00')+'" required></div>'+
+      '<div class="sl-field"><label>Taxable allowances (ETB)</label><input name="taxable_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(legacy?(line.allowance_total??'0.00'):(line.taxable_allowance_total??line.allowance_total??'0.00'))+'" required></div>'+
+      '<div class="sl-field"><label>Exempt allowances (ETB)</label><input name="exempt_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(legacy?'0.00':(line.exempt_allowance_total??'0.00'))+'" '+(owner?'':'readonly')+' required><small class="sl-sub">'+(owner?'A change requires legal basis, evidence and Owner confirmation.':'Locked for Management; only the Owner may change an exemption.')+'</small></div>'+
+      '<div class="sl-field"><label>Pensionable salary (ETB)</label><input name="pensionable_salary" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(legacy?(line.base_salary??'0.00'):(line.pensionable_salary??line.base_salary??'0.00'))+'" required></div>'+
       '<div class="sl-field"><label>Other deductions (ETB)</label><input name="other_deduction_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.other_deduction_total??'0.00')+'" required></div>'+
       (owner?'<div class="sl-field full"><label>Current legal basis for exemption / non-standard pensionable salary</label><textarea name="statutory_classification_note" minlength="20" placeholder="Enter the current legal clause and application to this employee">'+esc(exemptComponent.legal_basis||'')+'</textarea></div><div class="sl-field"><label>Evidence reference</label><input name="exemption_evidence_reference" value="'+esc(exemptComponent.evidence_reference||'')+'" placeholder="Document reference"></div><label class="sl-payroll-owner-check"><input type="checkbox" name="owner_confirmed_exemption" value="1" '+(verified?'checked':'')+'><span>As Owner, verify the legal basis and evidence for any exemption.</span></label>':'')+
       '<div class="sl-field full"><label>Adjustment reason / notes</label><textarea name="notes" rows="2" placeholder="Keep a short reason for this draft adjustment">'+esc(line.notes||'')+'</textarea></div>'+
@@ -1112,6 +1114,8 @@ function renderPayrollReview(period){
   const canEdit=status==='DRAFT'&&!!caps.payroll_manage;
   const canApprove=status==='SUBMITTED'&&!!caps.payroll_approve;
   const canPay=status==='APPROVED'&&!!caps.payroll_approve;
+  const currentRule=String(state.hr?.statutory_rules?.rule_version||'');
+  const allLinesCalculated=lines.length>0&&!!currentRule&&lines.every(line=>String(line.statutory_status||'').toUpperCase()==='CALCULATED'&&String(line.tax_rule_version||'')===currentRule);
   const rows=lines.map(line=>{
     const breakdown=(()=>{try{const v=JSON.parse(line.allowance_breakdown_json||'[]');return Array.isArray(v)?v:[]}catch(_e){return[]}})();
     const parts=breakdown.map(x=>'<span class="sl-payroll-component">'+esc(x.label||x.category||'Allowance')+' · '+money(x.amount||0)+' '+esc(String(x.tax_treatment||'TAXABLE').toUpperCase())+'</span>').join('');
@@ -1132,8 +1136,10 @@ function renderPayrollReview(period){
     '</article>';
   }).join('');
   let actionHtml='';
-  if(canEdit&&lines.length){
+  if(canEdit&&allLinesCalculated){
     actionHtml='<button type="button" class="sl-btn primary" data-pay-review-action="SUBMIT" data-pay-id="'+esc(period.id)+'">SUBMIT FOR OWNER APPROVAL</button>';
+  }else if(canEdit&&lines.length){
+    actionHtml='<p class="sl-notice sl-notice-warn">Recalculate every legacy or older-rule line before submission. Each line must use '+esc(currentRule)+' and show CALCULATED status. No journal is posted by this review.</p>';
   }else if(canApprove){
     actionHtml='<button type="button" class="sl-btn primary" data-pay-review-action="APPROVE" data-pay-id="'+esc(period.id)+'">OWNER APPROVE & POST GL</button>';
   }else if(canPay){
