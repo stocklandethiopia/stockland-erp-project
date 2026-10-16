@@ -2300,8 +2300,8 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
 			$num                = $this->next_number( 'EXP-', $date );
-			$owner_expense_hold = $corporate_expense && 'owner' === $role;
-			$status             = 'PENDING';
+			$direct_post = $corporate_expense && 'owner' === $role;
+			$status      = $direct_post ? 'POSTED' : 'PENDING';
 			$user_reference     = sanitize_text_field( $p['reference'] ?? '' );
 			$reference          = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
 			if ( false === Stockland_DB::insert_record(
@@ -2324,14 +2324,46 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			}
 			$id      = (int) $wpdb->insert_id;
 			$journal = null;
-			$event   = $owner_expense_hold ? 'OWNER_CORPORATE_EXPENSE_PENDING_AUTHORITY' : ( $corporate_expense ? 'CORPORATE_EXPENSE_SUBMIT' : 'LOCATION_EXPENSE_SUBMIT' );
+			if ( $direct_post ) {
+				$journal = Stockland_Accounting::post_journal(
+					$date,
+					'EXPENSE',
+					(string) $id,
+					'Expense ' . $num,
+					array(
+						array(
+							'account_code' => '6000',
+							'debit'        => $amount,
+							'credit'       => 0,
+							'location_id'  => null,
+						),
+						array(
+							'account_code' => '1300',
+							'debit'        => $tax,
+							'credit'       => 0,
+							'location_id'  => null,
+						),
+						array(
+							'account_code' => 'BANK' === $method ? '1010' : '1000',
+							'debit'        => 0,
+							'credit'       => Stockland_Money::add( $amount, $tax ),
+							'location_id'  => null,
+						),
+					),
+					$uid
+				);
+				if ( ! $journal ) {
+					throw new Exception( 'Owner corporate expense GL journal failed; submission was rolled back.' );
+				}
+			}
+			$event = $direct_post ? 'CORPORATE_EXPENSE_OWNER_APPROVE' : ( $corporate_expense ? 'CORPORATE_EXPENSE_SUBMIT' : 'LOCATION_EXPENSE_SUBMIT' );
 			if ( ! Stockland_Audit::log( $uid, $location_id > 0 ? $location_id : null, $event, null, $amount, null, $status, $description, $num ) ) {
 				throw new Exception( 'Expense audit event failed; submission was rolled back.' );
 			}
-			if ( $owner_expense_hold ) {
-				$hold_message = $num . ' was submitted by the Owner and remains PENDING / unposted. The existing role contract has no independent authority to approve Owner-created corporate expenses; no GL journal was created.';
-				if ( ! Stockland_Notifications::push_role( 'management', null, 'owner_expense_authority_hold', 'Owner corporate expense held pending independent authority', $hold_message, 'expense', $id, 'warning' ) ) {
-					throw new Exception( 'Owner-expense authority notice could not be queued; the expense submission was rolled back.' );
+			if ( $direct_post ) {
+				$posted_message = $num . ' was posted by the Owner under the Owner corporate-expense authority. GL journal ' . (int) $journal . '.';
+				if ( ! Stockland_Notifications::push_role( 'management', null, 'expense_owner_posted', 'Owner corporate expense posted', $posted_message, 'expense', $id, 'info' ) ) {
+					throw new Exception( 'Owner-expense posting notice could not be queued; the expense submission was rolled back.' );
 				}
 			} else {
 				$final_role       = $corporate_expense ? 'owner' : ( $branch_role ? 'branch_manager' : 'warehouse_manager' );
