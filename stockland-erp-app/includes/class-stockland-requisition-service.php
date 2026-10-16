@@ -83,9 +83,9 @@ class Stockland_Requisition_Service {
 			0,
 			32
 		);
-		$key_hash = substr( hash( 'sha256', strtolower( $request_key ) ), 0, 20 );
-		$marker   = '[[SLREQ:' . $key_hash . ':' . $fingerprint . ']]';
-		$lock     = Stockland_DB::acquire_named_lock( 'requisition_create_' . $key_hash, 10 );
+		$key_hash    = substr( hash( 'sha256', strtolower( $request_key ) ), 0, 20 );
+		$marker      = '[[SLREQ:' . $key_hash . ':' . $fingerprint . ']]';
+		$lock        = Stockland_DB::acquire_named_lock( 'requisition_create_' . $key_hash, 10 );
 		if ( empty( $lock['ok'] ) ) {
 			return new WP_Error( 'busy', 'This requisition submission is already being processed. Retry the same form shortly.', array( 'status' => 409 ) );
 		}
@@ -215,5 +215,4 @@ class Stockland_Requisition_Service {
 	public static function display_notes( $notes ) {
 		return trim( (string) preg_replace( '/^\\[\\[SLREQ:[a-f0-9]{20}:[a-f0-9]{32}\\]\\]\\s*/i', '', (string) $notes ) );
 	}
-
 }
