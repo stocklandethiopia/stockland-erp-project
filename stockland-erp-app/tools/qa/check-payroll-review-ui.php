@@ -33,6 +33,9 @@ $get       = false !== $get_start && false !== $get_end ? substr( $rest, $get_st
 $line_start = strpos( $rest, 'public function payroll_line_update' );
 $line_end   = false !== $line_start ? strpos( $rest, 'private function payroll_detail', $line_start ) : false;
 $line_update = false !== $line_start && false !== $line_end ? substr( $rest, $line_start, $line_end - $line_start ) : '';
+$submit_start = strpos( $rest, 'public function payroll_submit' );
+$submit_end   = false !== $submit_start ? strpos( $rest, 'public function payroll_approve', $submit_start ) : false;
+$submit       = false !== $submit_start && false !== $submit_end ? substr( $rest, $submit_start, $submit_end - $submit_start ) : '';
 $check(
 	str_contains( $rest, "'/hr/payroll/(?P<id>" )
 		&& str_contains( $rest, "'methods'             => 'GET'")
@@ -88,6 +91,12 @@ $check(
 		&& str_contains( $css, '@media(max-width:760px)')
 		&& str_contains( $css, '.sl-payroll-setup-grid'),
 	'Payroll simplification keeps service-contract warnings, historical record policy and responsive review styling.'
+);
+$check(
+	str_contains( $submit, '$unverified_lines > 0' )
+		&& str_contains( $submit, 'Could not verify payroll line classifications; submission was blocked.' )
+		&& str_contains( $submit, 'Recalculate and review every payroll line under the current statutory rule before submission.' ),
+	'Payroll submission is blocked server-side when any line is not calculated under the current rule or line verification fails.'
 );
 $check(
 	str_contains( $statutory, 'ET-PAYE-1395-2025-v3-PENSION-BASE')
