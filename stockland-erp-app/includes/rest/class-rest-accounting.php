@@ -2299,11 +2299,11 @@ class Stockland_REST_Accounting extends Stockland_REST_Base {
 			Stockland_DB::release_named_lock( $request_lock );
 			return new WP_Error( 'transaction_failed', 'Could not start expense transaction.', array( 'status' => 500 ) );}
 		try {
-			$num                = $this->next_number( 'EXP-', $date );
+			$num            = $this->next_number( 'EXP-', $date );
 			$owner_expense_hold = $corporate_expense && 'owner' === $role;
-			$status             = 'PENDING';
-			$user_reference     = sanitize_text_field( $p['reference'] ?? '' );
-			$reference          = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
+			$status         = 'PENDING';
+			$user_reference = sanitize_text_field( $p['reference'] ?? '' );
+			$reference      = substr( $marker . ( '' !== $user_reference ? ' ' . $user_reference : '' ), 0, 100 );
 			if ( false === Stockland_DB::insert_record(
 				Stockland_DB::table( 'expenses' ),
 				array(
