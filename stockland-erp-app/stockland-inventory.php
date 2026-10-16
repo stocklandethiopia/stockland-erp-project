@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Stockland Ethiopia ERP
  * Description:       Fresh production ERP for Stockland Ethiopia. Supports controlled branch POS entry and branch Daily POS XLSX reconciliation. Includes Product Master, inventory ledger, warehouse/requisitions/transfers, procurement, double-entry finance, audit, owner-controlled organization and live PWA frontend.
- * Version:           16.1.77
+ * Version:           16.1.78
  * Author:            Stockland Ethiopia
  * Text Domain:       stockland-inventory
  * Requires PHP:      8.4
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // No direct access.
 }
 
-define( 'STOCKLAND_VERSION', '16.1.77' );
+define( 'STOCKLAND_VERSION', '16.1.78' );
 define( 'STOCKLAND_ROLE_CAPS_VERSION', '16.1.66-finance-procurement-authority-v1' );
 define( 'STOCKLAND_CORE_SCHEMA_VERSION', '16.1.1' );
 define( 'STOCKLAND_ACCOUNTING_SCHEMA_VERSION', '16.1.15' );
