@@ -175,6 +175,7 @@ class Stockland_Roles {
 					'stockland_review_requisitions',
 					'stockland_approve_transfers',
 					'stockland_request_adjustment',
+					'stockland_manage_expenses',
 				),
 				true
 			)
@@ -284,6 +285,7 @@ class Stockland_Roles {
 					'stockland_review_requisitions',
 					'stockland_approve_transfers',
 					'stockland_request_adjustment',
+					'stockland_manage_expenses',
 				),
 				true
 			),
@@ -340,7 +342,13 @@ class Stockland_Roles {
 			foreach ( $stockland_caps as $cap ) {
 				$admin->remove_cap( $cap );}
 			foreach ( self::base_caps() as $cap ) {
-				$admin->add_cap( $cap );}
+				// PO approval is added at account level only for an active ERP Owner profile.
+				if ( 'stockland_approve_purchase_orders' === $cap ) {
+					continue;
+				}
+				$admin->add_cap( $cap );
+			}
+			$admin->remove_cap( 'stockland_approve_purchase_orders' );
 			$admin->add_cap( 'stockland_owner' );
 			$admin->add_cap( 'stockland_install_schema' );
 		}

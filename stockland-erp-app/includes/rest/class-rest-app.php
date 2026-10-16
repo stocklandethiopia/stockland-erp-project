@@ -257,6 +257,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 		);
 		register_rest_route(
 			self::NAMESPACE_V1,
+			'/app/dashboard/insights',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'dashboard_insights' ),
+				'permission_callback' => function () {
+					return is_user_logged_in() && ( current_user_can( 'manage_options' ) || Stockland_Authority::assert_profile() );
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE_V1,
 			'/app/operations/daily',
 			array(
 				'methods'             => 'GET',
@@ -589,9 +600,9 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'receive_transfer'       => (bool) current_user_can( 'stockland_receive_transfer' ),
 						'request_adjustment'     => (bool) current_user_can( 'stockland_request_adjustment' ),
 						'reports'                => (bool) ( current_user_can( 'stockland_view_branch_reports' ) || current_user_can( 'stockland_view_all_branches' ) || current_user_can( 'stockland_view_warehouse' ) ),
-						'finance_view'           => (bool) current_user_can( 'stockland_view_financials' ),
+						'finance_view'           => (bool) ( current_user_can( 'stockland_view_financials' ) || Stockland_Authority::can_submit_expenses() ),
 						'finance_manage'         => (bool) current_user_can( 'stockland_manage_settings' ),
-						'finance'                => (bool) current_user_can( 'stockland_view_financials' ),
+						'finance'                => (bool) ( current_user_can( 'stockland_view_financials' ) || Stockland_Authority::can_submit_expenses() ),
 						'manage_suppliers'       => (bool) current_user_can( 'stockland_manage_suppliers' ),
 						'manage_customers'       => (bool) current_user_can( 'stockland_manage_customers' ),
 						'manage_po'              => (bool) current_user_can( 'stockland_manage_purchase_orders' ),
@@ -599,7 +610,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 						'po_approve'             => (bool) Stockland_Authority::can_approve_external_purchase_order(),
 						'po_receive'             => (bool) Stockland_Authority::can_receive_external_purchase_order(),
 						'manage_payments'        => (bool) current_user_can( 'stockland_manage_payments' ),
-						'manage_expenses'        => (bool) ( in_array( Stockland_Authority::role(), array( 'owner', 'management', 'branch_manager' ), true ) && current_user_can( 'stockland_manage_expenses' ) ),
+						'manage_expenses'        => (bool) ( in_array( Stockland_Authority::role(), array( 'owner', 'management', 'branch_manager', 'warehouse_manager' ), true ) && current_user_can( 'stockland_manage_expenses' ) ),
 						'expense_approve'        => (bool) Stockland_Authority::can_approve_expenses(),
 						'finance_approve'        => (bool) Stockland_Authority::can_approve_finance(),
 						'manage_payables'        => (bool) current_user_can( 'stockland_manage_payables' ),
@@ -1113,15 +1124,17 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			'full_import_and_workflow_contract_gates',
 		);
 		$diagnostics['deferred_checks'] = $deferred;
-		$diagnostics['live_ready_rule'] = 'Quick checks are not production certification. Live readiness requires a separately controlled deep integrity scan; deferred checks are not assumed healthy.';
+		$diagnostics['live_ready_rule'] = 'Quick health skips the full integrity matrix. Live readiness is UNVERIFIED until explicit deep integrity checks run; deferred checks are not assumed healthy.';
 		$failed_checks                  = array();
 		foreach ( $checks as $key => $value ) {
 			if ( ! $value ) {
 				$failed_checks[] = $key;
 			}
 		}
-		$checks['live_ready'] = false;
-		$checks['ok']         = false;
+		// Fail closed: quick mode did not evaluate mandatory deep gates.
+		$checks['live_ready']             = false;
+		$checks['ok']                     = false;
+		$diagnostics['live_ready_status'] = 'NOT_EVALUATED';
 		return rest_ensure_response(
 			array(
 				'ok'                  => false,
@@ -1144,7 +1157,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 				'data_policy'         => 'Read-only quick health check; no business data is changed.',
 				'failed_checks'       => $failed_checks,
 				'deferred_checks'     => $deferred,
-				'live_ready_reasons'  => array( 'Deep integrity scans are deferred; no production-ready claim is made.' ),
+				'live_ready_reasons'  => array( 'Deep integrity checks are deferred; live readiness is UNVERIFIED.' ),
 			)
 		);
 	}
@@ -2428,6 +2441,137 @@ class Stockland_REST_App extends Stockland_REST_Base {
 			Stockland_DB::execute_query( 'ROLLBACK' );
 			return new WP_Error( 'settings_failed', $e->getMessage(), array( 'status' => 409 ) );}
 	}
+	/**
+	 * Returns role-scoped, read-only dashboard visualizations from posted retail sales.
+	 *
+	 * The response intentionally excludes customer/staff PII, cost and profit fields.
+	 * Every sales query is bounded by the active ERP profile's location scope.
+	 *
+	 * @return mixed Dashboard series and recent posted sales.
+	 */
+	public function dashboard_insights() {
+		global $wpdb;
+		$scope = $this->scope_locations();
+		if ( false === $scope ) {
+			return new WP_Error( 'location_scope_unavailable', 'A valid Stockland location scope is required for dashboard analytics.', array( 'status' => 403 ) );
+		}
+
+		$sales     = Stockland_DB::table( 'sales' );
+		$products  = Stockland_DB::table( 'products' );
+		$locations = Stockland_DB::table( 'locations' );
+		$today     = current_time( 'Y-m-d' );
+		$today_obj = DateTimeImmutable::createFromFormat( '!Y-m-d', $today, wp_timezone() );
+		if ( ! $today_obj ) {
+			return new WP_Error( 'dashboard_date_invalid', 'The configured business date could not be resolved.', array( 'status' => 500 ) );
+		}
+		$trend_start = $today_obj->modify( '-6 days' )->format( 'Y-m-d' );
+		$month_start = $today_obj->modify( 'first day of this month' )->format( 'Y-m-d' );
+
+		$trend_args = array( $sales, $trend_start, $today );
+		$trend_sql  = "SELECT sale_date, COALESCE(SUM(sales_total),0) sales
+			FROM %i WHERE posting_status='CLOSED' AND sale_date BETWEEN %s AND %s";
+		$trend_sql .= $this->append_scope_filter( 'branch_location_id', $trend_args, $scope );
+		$trend_sql .= ' GROUP BY sale_date ORDER BY sale_date';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query fragments and scope column are constants; identifiers and values are bound in prepare().
+		$trend_rows = Stockland_DB::read_results( $wpdb->prepare( $trend_sql, $trend_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'The posted sales trend could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
+		$trend_map = array();
+		foreach ( (array) $trend_rows as $row ) {
+			$trend_map[ (string) $row['sale_date'] ] = (float) $row['sales'];
+		}
+		$trend = array();
+		for ( $index = 0; $index < 7; $index++ ) {
+			$day     = $today_obj->modify( '-' . ( 6 - $index ) . ' days' )->format( 'Y-m-d' );
+			$trend[] = array(
+				'date'  => $day,
+				'sales' => (float) ( $trend_map[ $day ] ?? 0 ),
+			);
+		}
+
+		$category_args = array( $sales, $products, $month_start, $today );
+		$category_sql  = "SELECT COALESCE(NULLIF(TRIM(p.category),''),'Uncategorized') category, COALESCE(SUM(s.sales_total),0) sales
+			FROM %i s LEFT JOIN %i p ON (p.variant_id=s.variant_id OR (s.variant_id IS NULL AND p.sku=s.sku))
+			WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s";
+		$category_sql .= $this->append_scope_filter( 's.branch_location_id', $category_args, $scope );
+		$category_sql .= " GROUP BY COALESCE(NULLIF(TRIM(p.category),''),'Uncategorized') ORDER BY sales DESC LIMIT 8";
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
+		$categories = Stockland_DB::read_results( $wpdb->prepare( $category_sql, $category_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'The category sales summary could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
+
+		$branch_args = array( $locations, $sales, $month_start, $today );
+		$branch_sql  = "SELECT l.id location_id,l.location_name,COALESCE(SUM(s.sales_total),0) sales
+			FROM %i l LEFT JOIN %i s ON s.branch_location_id=l.id AND s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s
+			WHERE l.location_type='Branch' AND l.is_active=1";
+		$branch_sql .= $this->append_scope_filter( 'l.id', $branch_args, $scope );
+		$branch_sql .= ' GROUP BY l.id,l.location_name ORDER BY sales DESC LIMIT 12';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
+		$branches = Stockland_DB::read_results( $wpdb->prepare( $branch_sql, $branch_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'The branch performance summary could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
+
+		$recent_start = $today_obj->modify( '-30 days' )->format( 'Y-m-d' );
+		$recent_args  = array( $sales, $locations, $recent_start, $today );
+		$recent_sql   = "SELECT s.sale_id,s.sale_date,s.sales_total,s.posting_status,s.quantity_sold,l.location_name
+			FROM %i s LEFT JOIN %i l ON l.id=s.branch_location_id
+			WHERE s.posting_status='CLOSED' AND s.sale_date BETWEEN %s AND %s";
+		$recent_sql  .= $this->append_scope_filter( 's.branch_location_id', $recent_args, $scope );
+		$recent_sql  .= ' ORDER BY s.sale_date DESC,s.created_at DESC LIMIT 8';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Fixed query fragments; table identifiers and scope values are bound with prepare().
+		$recent = Stockland_DB::read_results( $wpdb->prepare( $recent_sql, $recent_args ), ARRAY_A );
+		if ( '' !== (string) $wpdb->last_error ) {
+			return new WP_Error( 'dashboard_query_failed', 'Recent posted transactions could not be loaded. Check System Health before retrying.', array( 'status' => 500 ) );
+		}
+
+		return rest_ensure_response(
+			array(
+				'trend'        => $trend,
+				'categories'   => array_map(
+					static function ( $row ) {
+						return array(
+							'category' => (string) $row['category'],
+							'sales'    => (float) $row['sales'],
+						);
+					},
+					(array) $categories
+				),
+				'branches'     => array_map(
+					static function ( $row ) {
+						return array(
+							'location_id'   => (int) $row['location_id'],
+							'location_name' => (string) $row['location_name'],
+							'sales'         => (float) $row['sales'],
+						);
+					},
+					(array) $branches
+				),
+				'recent_sales' => array_map(
+					static function ( $row ) {
+						return array(
+							'sale_id'        => (string) $row['sale_id'],
+							'sale_date'      => (string) $row['sale_date'],
+							'sales_total'    => (float) $row['sales_total'],
+							'posting_status' => (string) $row['posting_status'],
+							'quantity_sold'  => (float) $row['quantity_sold'],
+							'location_name'  => (string) ( $row['location_name'] ?? '' ),
+						);
+					},
+					(array) $recent
+				),
+				'range'        => array(
+					'from'       => $trend_start,
+					'to'         => $today,
+					'month_from' => $month_start,
+				),
+				'source'       => 'CLOSED_RETAIL_SALES_ONLY',
+			)
+		);
+	}
+
 	/**
 	 * Aggregates sales and financial summaries for a validated date range and scope.
 	 *

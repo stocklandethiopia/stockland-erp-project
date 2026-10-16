@@ -21,6 +21,7 @@ $commands = array(
 	'python3 ' . escapeshellarg( $root . '/tools/qa/rebuild-css.py' ),
 	'bash ' . escapeshellarg( $root . '/tools/qa/check-css.sh' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-operational-ui-contracts.php' ),
+	'php ' . escapeshellarg( $root . '/tools/qa/check-dashboard-insights.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-menu-mobile-layout.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-runtime-hygiene.php' ),
 	'php ' . escapeshellarg( $root . '/tools/qa/check-critical-workflows.php' ),

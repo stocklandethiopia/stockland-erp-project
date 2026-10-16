@@ -249,7 +249,7 @@ class Stockland_REST_Requisition_V16 {
 				if ( Stockland_Authority::can_pick_requisition() ) {
 					$actions[] = 'PICK';
 				} else {
-					$pending = 'Warehouse Employee';
+					$pending = 'Central Warehouse Manager or Warehouse Employee';
 				}
 			} elseif ( 'Picked' === $st ) {
 				if ( Stockland_Authority::can_receive_requisition() ) {
@@ -642,13 +642,15 @@ class Stockland_REST_Requisition_V16 {
 			return $this->deny( 'forbidden', 'Only the Store/Warehouse Manager can reserve an approved requisition.', 403 );
 		}
 		if ( 'pick' === $action && ! Stockland_Authority::can_pick_requisition() ) {
-			return $this->deny( 'forbidden', 'Only Store/Warehouse personnel can pick a reserved requisition.', 403 );
+			return $this->deny( 'forbidden', 'Only the Central Warehouse Manager or a Warehouse Employee may pick a reserved requisition.', 403 );
 		}
 		$req = $this->req( $id );
 		if ( ! $req ) {
 			return $this->deny( 'not_found', 'Requisition not found.', 404 );
-		}if ( ! in_array( $req['status'], array( 'Approved', 'Reserved', 'Picked' ), true ) ) {
-			return $this->deny( 'invalid_state', 'This requisition is not ready for warehouse action.', 409 );
+		}
+		$allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Reserved', 'Picked' );
+		if ( ! in_array( $req['status'], $allowed_states, true ) ) {
+			return $this->deny( 'invalid_state', 'This requisition cannot be moved to the requested warehouse state.', 409 );
 		}
 		$wh   = (int) Stockland_DB::get_location_id( 'Central Warehouse' );
 		$lock = Stockland_DB::acquire_day_lock( $wh, current_time( 'Y-m-d' ) );
@@ -659,8 +661,30 @@ class Stockland_REST_Requisition_V16 {
 			Stockland_DB::release_day_lock( $lock );
 			return new WP_Error( 'transaction_failed', 'Could not start warehouse requisition action.', array( 'status' => 500 ) );}
 		try {
-			$req    = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
-			$items  = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
+			$req   = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s FOR UPDATE', Stockland_DB::table( 'requisitions' ), $id ), ARRAY_A );
+			$items = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE requisition_id=%s ORDER BY id', Stockland_DB::table( 'requisition_items' ), $id ), ARRAY_A );
+			if ( ! $req ) {
+				throw new Exception( 'Requisition disappeared during warehouse action.' );
+			}
+			$locked_status         = (string) ( $req['status'] ?? '' );
+			$locked_allowed_states = 'reserve' === $action ? array( 'Approved', 'Reserved' ) : array( 'Reserved', 'Picked' );
+			if ( ! in_array( $locked_status, $locked_allowed_states, true ) ) {
+				throw new Exception( 'This requisition cannot be moved to the requested warehouse state. Current status: ' . $locked_status . '.' );
+			}
+			if ( 'pick' === $action && 'Picked' === $locked_status ) {
+				if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
+					throw new Exception( 'Could not confirm the existing warehouse pick state.' );
+				}
+				Stockland_DB::release_day_lock( $lock );
+				return rest_ensure_response(
+					array(
+						'message'        => 'This requisition is already picked; no additional stock movement was posted.',
+						'idempotent'     => true,
+						'requisition_id' => $id,
+						'status'         => 'Picked',
+					)
+				);
+			}
 			$pickup = isset( $payload['pickup_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $payload['pickup_date'] ) ? $payload['pickup_date'] : ( $req['pickup_date'] ?? null );
 			if ( 'reserve' === $action ) {
 				if ( ! $pickup ) {
@@ -736,7 +760,8 @@ class Stockland_REST_Requisition_V16 {
 					throw new Exception( 'Audit event could not be recorded.' );
 				}
 				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Warehouse reservation confirmed', 'Requisition ' . $id . ' is reserved. Pickup appointment: ' . $pickup . '. Please bring the approved receiving representative.', 'info' );
-				Stockland_Notifications::push_role( 'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
+				Stockland_Notifications::push_role( 'warehouse_manager', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: the Central Warehouse Manager or a Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
+				Stockland_Notifications::push_role( 'warehouse_employee', $wh, 'warehouse_requisition', 'Reserved requisition — PICK required', 'Requisition ' . $id . ' is reserved. Next action: the Central Warehouse Manager or a Warehouse Employee may PICK the approved quantities. Pickup appointment: ' . $pickup . '.', 'requisition', $id, 'action' );
 			} else {
 				if ( ! in_array( $req['status'], array( 'Reserved', 'Picked' ), true ) ) {
 					throw new Exception( 'Reserve the requisition before picking.' );
