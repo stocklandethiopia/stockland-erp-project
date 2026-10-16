@@ -2539,7 +2539,7 @@ class Stockland_REST_App extends Stockland_REST_Base {
 					throw new RuntimeException( 'Customer search query failed.' );
 				}
 				foreach ( (array) $customer_rows as $row ) {
-					$push( 'customer', $row['customer_name'] ?? '', trim( (string) ( $row['customer_code'] ?? '' ) . ' · ' . (string) ( $row['customer_type'] ?? 'Customer' ), 'finance', $row['customer_code'] ?? $row['customer_name'] ?? '' );
+					$push( 'customer', $row['customer_name'] ?? '', trim( (string) ( $row['customer_code'] ?? '' ) . ' · ' . (string) ( $row['customer_type'] ?? 'Customer' ) ), 'finance', $row['customer_code'] ?? $row['customer_name'] ?? '' );
 				}
 			}
 			if ( current_user_can( 'stockland_view_own_branch' ) || current_user_can( 'stockland_view_all_branches' ) ) {
