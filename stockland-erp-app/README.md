@@ -51,8 +51,6 @@ The update preserves the existing business-data model: 49 application tables acr
 
 Product Master is the SKU catalog. Adding a product master record does not itself post stock. For an external supplier purchase, select a stockable SKU from the live picker, enter quantity and unit cost, and create/submit the purchase order. Receiving the Owner-approved order is the stock-posting step. Branch replenishment continues through the requisition and transfer workflows.
 
-**Warehouse requisitions:** After the required branch, Management and Owner decisions are complete, the Central Warehouse Manager can choose **PICK / READY** immediately from an Approved requisition when sufficient stock is available, or choose **RESERVE** first to set a pickup appointment. Reservation is optional for the Manager; a pickup date is required only when reserving. Warehouse Employees pick Reserved requisitions. Picking posts through the existing transfer ledger and records workflow/audit evidence; a repeated PICK does not create another stock movement. Branch receipt is a separate step performed by the authorized Branch Manager. Physical count remains a separate inventory-adjustment workflow, not a movement action.
-
 ## Design and compatibility
 
 The interface uses the local Bootstrap 5.3.8 stylesheet and a compact six-module responsive CSS build. Finance forms use live data, role-scoped actions and server-side validation. The plugin does not seed demonstration sales, stock movements, payroll entries, orders or customer transactions.
