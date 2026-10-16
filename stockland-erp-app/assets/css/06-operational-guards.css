@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.67 • Mobile diagnostics and operational content guards • Ordered source module. */
+/* Stockland ERP 16.1.77 • Mobile diagnostics and operational content guards • Ordered source module. */
 /* 16.1.44 mobile health / statutory payroll overflow guard */
 .sl-health-grid>div{min-width:0;overflow-wrap:anywhere;word-break:normal}
 .sl-health-grid>div span{display:block;min-width:0;overflow-wrap:anywhere;white-space:normal}
@@ -82,7 +82,7 @@
 
 
 /* ============================================================================
-   16.1.67 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
+   16.1.77 MOBILE-FIRST PREMIUM PRESENTATION LAYER — UI ONLY
    Modern sans-serif typography, full-workspace palette, readable touch controls,
    and compact procurement/order line layout. No business data/ledger behavior.
    ============================================================================ */
@@ -349,7 +349,7 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
 }
 
 
-/* Stockland ERP 16.1.67 dashboard: data-driven command center aligned to the approved layout. */
+/* Stockland ERP 16.1.77 dashboard: data-driven command center aligned to the approved layout. */
 #stockland-app .sl-dashboard-shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,318px);gap:14px;align-items:start;min-width:0}
 #stockland-app .sl-dashboard-main,#stockland-app .sl-dashboard-side{display:grid;gap:13px;min-width:0}
 #stockland-app .sl-dashboard-hero{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;min-height:188px;margin:0;overflow:hidden;padding:26px 28px;border:1px solid #172b4b;border-radius:17px;color:#fff;background-color:#0b1730;background-image:linear-gradient(90deg,rgba(8,25,52,.97) 0%,rgba(8,25,52,.89) 48%,rgba(8,25,52,.70) 100%),url("stockland-operations-background.svg");background-size:cover;background-position:center;box-shadow:0 10px 26px rgba(10,28,56,.12)}
@@ -480,3 +480,5 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
  #stockland-app .sl-dashboard-action-icon{width:28px;height:28px}
  #stockland-app .sl-dashboard-card .sl-block-head{padding:11px}
 }
+/* Reorder action controls: compact, touch-friendly and safe on narrow screens. */
+.sl-reorder-action{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.sl-reorder-qty{width:88px;min-width:72px;min-height:38px;border:1px solid var(--sl-border);border-radius:8px;padding:7px 9px;font:inherit;background:var(--sl-surface);color:var(--sl-text)}.sl-reorder-action .sl-btn{white-space:nowrap}
