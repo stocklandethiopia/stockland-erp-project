@@ -692,8 +692,8 @@ class Stockland_REST_Requisition_V16 {
 					},
 					$lines
 				);
-				Stockland_Notifications::push_role( 'warehouse_manager', $wh, 'warehouse_requisition', 'Approved requisition — RESERVE required', 'Requisition ' . $id . ' from ' . $req['location_name'] . ' is approved. Next action: Store/Warehouse Manager must RESERVE the approved quantities. ' . implode( '; ', $summary ), 'requisition', $id, 'action' );
-				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Requisition approved', 'Requisition ' . $id . ' is approved. Central Warehouse will reserve and prepare the requested items.', 'info' );
+				Stockland_Notifications::push_role( 'warehouse_manager', $wh, 'warehouse_requisition', 'Approved requisition — PICK NOW or RESERVE', 'Requisition ' . $id . ' from ' . $req['location_name'] . ' is approved. The Central Warehouse Manager may PICK NOW, or RESERVE the approved quantities when a scheduled pickup is needed. ' . implode( '; ', $summary ), 'requisition', $id, 'action' );
+				Stockland_Notifications::notify_branch( (int) $req['branch_location_id'], $id, 'Requisition approved', 'Requisition ' . $id . ' is approved. Central Warehouse may PICK NOW or reserve the requested items for a scheduled pickup.', 'info' );
 			} elseif ( ! $final ) {
 				$waiting = ( 'management' === $stage ? 'Owner' : 'Management' );
 				Stockland_Notifications::notify_approvers( $id, $req['branch_location_id'], 'Requisition awaiting ' . $waiting . ' approval', $req['location_name'] . ' requisition ' . $id . ' has one approval line completed and is awaiting ' . $waiting . '.' );}
