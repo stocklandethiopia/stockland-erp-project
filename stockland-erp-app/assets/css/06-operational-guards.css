@@ -584,3 +584,13 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
  .sl-payroll-review-head-actions .sl-pill{font-size:10px}
  .sl-payroll-line-net strong{font-size:16px}
 }
+
+
+/* 16.1.79 Owner-only payroll component classification controls. */
+.sl-payroll-owner-classification>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sl-payroll-owner-classification .sl-payroll-line-form{margin-top:8px}
+.sl-payroll-owner-component{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;margin-bottom:10px;border:1px solid var(--sl-line,#d9e3ed);border-radius:9px;background:var(--sl-paper,#fff)}
+.sl-payroll-owner-component span{font-size:12px;color:var(--sl-muted,#60758b)}
+.sl-payroll-owner-component strong{font-size:14px;color:var(--sl-text,#17324f);font-variant-numeric:tabular-nums}
+.sl-payroll-owner-check{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid var(--sl-line,#d9e3ed);border-radius:9px;background:var(--sl-paper,#fff);font-size:12px;line-height:1.45}
+.sl-payroll-owner-check input{flex:0 0 auto;margin-top:3px}
