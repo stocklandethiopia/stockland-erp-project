@@ -215,17 +215,6 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		);
 		register_rest_route(
 			self::NAMESPACE_V1,
-			'/hr/payroll/(?P<id>\\d+)/line/(?P<line_id>\\d+)/classification',
-			array(
-				'methods'             => 'POST',
-				'callback'            => array( $this, 'payroll_line_classification_update' ),
-				'permission_callback' => function () {
-					return Stockland_Authority::can_approve_payroll();
-				},
-			)
-		);
-		register_rest_route(
-			self::NAMESPACE_V1,
 			'/hr/payroll/(?P<id>\\d+)/submit',
 			array(
 				'methods'             => 'POST',
