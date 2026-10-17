@@ -42,7 +42,8 @@ $ok(
 		&& ( $manifest['release_acceptance']['target_host'] ?? '' ) === 'PENDING'
 		&& ( $manifest['release_acceptance']['production_deployment'] ?? '' ) === 'NOT_AUTHORIZED_BY_SOURCE_CI'
 		&& ( $manifest['acceptance']['target_host'] ?? '' ) === 'PENDING'
-		&& ( $manifest['acceptance']['production_deployment'] ?? '' ) === 'NOT_AUTHORIZED_BY_SOURCE_CI',
+		&& ( $manifest['acceptance']['production_deployment'] ?? '' ) === 'NOT_AUTHORIZED_BY_SOURCE_CI'
+		&& ! str_contains( (string) ( $manifest['corrective_release_16_1_79']['source_gate'] ?? '' ), 'must pass full CI/ERP regression suite' ),
 	'Release manifest keeps exact target-host acceptance PENDING, prevents CI from implying deployment, and omits legacy binary certification flags.'
 );
 $ok(

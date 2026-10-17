@@ -1,4 +1,4 @@
-/* Stockland ERP 16.1.78 • Breakpoint and responsive layout rules • Ordered source module. */
+/* Stockland ERP 16.1.79 • Breakpoint and responsive layout rules • Ordered source module. */
 /* ==========================================================================
    16.1.39 RESPONSIVE SYSTEM
    Bootstrap-aligned breakpoints; one intentional cascade for all devices.
@@ -188,3 +188,18 @@
   #stockland-app .sl-table-wrap>.sl-responsive-cards td .sl-btn{width:100%;min-height:42px;white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){#stockland-app *,#stockland-app *::before,#stockland-app *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* 16.1.79 • Responsive global-search row stays with breakpoint rules. */
+@media (max-width:991.98px){
+ .sl-global-search{grid-column:1;grid-row:2;width:100%;max-width:none}
+ .sl-global-search-control{height:42px}
+ .sl-global-search-results{top:calc(100% + 5px);width:100%;max-height:50vh}
+ .sl-top-left{grid-row:1;grid-column:1}
+ .sl-user{grid-row:3;grid-column:1}
+}
+@media (max-width:575.98px){
+ .sl-global-search-control{height:40px;padding-inline:9px}
+ .sl-global-search-control input{font-size:12px}
+ .sl-global-search-result{grid-template-columns:32px minmax(0,1fr);gap:8px}
+ .sl-global-search-result-type{display:none}
+}

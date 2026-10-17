@@ -1,8 +1,8 @@
 {
-  "release": "16.1.78",
-  "release_label": "16.1.78 — Stockland Ethiopia ERP cumulative in-place update",
-  "classification": "Cumulative in-place update on the merged 16.1.77 source line. Preserves existing operational, finance, procurement, payroll and warehouse corrections and adds a live role-scoped global record search. The existing 49-table contract and ledger/workflow services remain unchanged.",
-  "baseline": "Cumulative repair from exact merged source commit eade7cbe39bfca57334a6cbea08d21ee144052b6 (16.1.77), retaining the fixes reconciled from 16.1.73–16.1.77. No blind ZIP merge; existing business data and the unchanged 49-table contract are preserved.",
+  "release": "16.1.79",
+  "release_label": "16.1.79 — Stockland Ethiopia ERP cumulative in-place update",
+  "classification": "Cumulative in-place update on the validated 16.1.78 source line. Simplifies payroll month entry and adds a role-aware line-by-line draft review/edit route through the existing API while preserving Management submission, independent Owner GL approval/payment, statutory payroll rules and the exact 49-table contract.",
+  "baseline": "Derived from GitHub main source commit 6bb6288633929f020d1869e54e607ee9f3261886 (16.1.78), with the payroll usability changes isolated to the frontend review flow and draft-line validation reuse. No blind ZIP merge, business-data mutation, schema migration or table addition.",
   "schema_contract": {
     "core_operations": 29,
     "accounting_procurement": 16,
@@ -120,7 +120,7 @@
   },
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
-    "rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
+    "rule_version": "ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME",
     "law_effective_date": "2025-07-08",
     "first_full_month": "2025-08-01",
     "tax_schedule": "Monthly Ethiopian employment-income PAYE schedule under the configured statutory rule version.",
@@ -149,20 +149,29 @@
     "Owner-created corporate expenses remain pending and unposted until an independent authority is defined; no self-approval or direct Owner GL self-post is allowed.",
     "The top header adds an always-visible global search across active Product Master SKU/variant records plus inactive variants only for Product Master managers, permitted customers, location-scoped retail sales and authorized purchase orders; results return safe labels/references, prefix-match identifiers and preserve role/location scope.",
     "Mobile and tablet header layout reserves its own responsive search row without replacing the existing mega-menu, command palette, SOP, alerts or profile controls.",
-    "Dashboard composition now matches the agreed three-panel desktop analytics row and right-rail activity placement; exact-host acceptance remains PENDING."
+    "Dashboard composition now matches the agreed three-panel desktop analytics row and right-rail activity placement; exact-host acceptance remains PENDING.",
+    "16.1.79: Payroll period creation uses one month picker and deterministically derives the YYYY-MM key, first date and actual calendar month-end, avoiding manual date/key mismatch.",
+    "16.1.79: Payroll period rows open a single responsive review view with employee-level base, taxable/exempt allowance, PAYE, employee pension, other deductions, net pay and calculation status from the existing payroll REST detail response.",
+    "16.1.79: Management can edit only DRAFT payroll lines; edits call the existing server calculator and transactional audit endpoint. Legacy/stale-rule lines must be recalculated and reclassified before submission.",
+    "16.1.79: The review view gates Management submission, independent Owner approval/GL posting and separate Owner bank/cash payment by current period status and existing role capabilities; approval and payment require explicit confirmation.",
+    "16.1.79: A line edit can reuse a currently calculated, current-rule non-standard pensionable salary classification only when the pensionable amount is unchanged. New, legacy, stale-rule or changed non-standard amounts still require a documented legal/contract basis.",
+    "16.1.79: Existing statutory rates, rule version ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME, gross-income PAYE calculation; employee pension deducted after PAYE, RETAINER_SERVICE exclusion and 49-table/database schema versions remain unchanged."
   ],
   "quality": {
-    "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
+    "source_gate": "PENDING — exact corrected 16.1.79 source/package run not yet executed.",
     "source_gate_evidence": {
       "state": "PENDING",
+      "release": "16.1.79",
+      "branch": "release/16.1.79-payroll-simple-review",
+      "base_commit": "6bb6288633929f020d1869e54e607ee9f3261886",
       "target_host_acceptance": "PENDING"
     }
   },
   "release_acceptance": {
-    "source_package_gate": "PENDING — exact corrected 16.1.78 source/package run will be recorded by CI.",
+    "source_package_gate": "PENDING — exact corrected 16.1.79 source/package run will be recorded by CI.",
     "target_host": "PENDING",
     "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
-    "note": "Exact 16.1.78 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Older 16.1.66 LIVE READY host evidence does not certify this exact package."
+    "note": "The exact 16.1.79 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Historical host screenshots do not certify this exact package."
   },
   "corrective_release_16_1_67": {
     "scope": "Data-backed role-scoped Command Center analytics, mobile-responsive dashboard layout, and versioned employee-pension-before-PAYE payroll base.",
@@ -184,15 +193,27 @@
     "business_table_contract": "49 unchanged",
     "target_host_acceptance": "PENDING — historical 16.1.66 host evidence does not certify the exact 16.1.78 release."
   },
-  "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
+  "source_gate": "PENDING — exact corrected 16.1.79 source/package run not yet executed.",
   "source_gate_evidence": {
     "state": "PENDING",
+    "release": "16.1.79",
+    "branch": "release/16.1.79-payroll-simple-review",
+    "base_commit": "6bb6288633929f020d1869e54e607ee9f3261886",
     "target_host_acceptance": "PENDING"
   },
   "acceptance": {
-    "source_package_gate": "PENDING — exact corrected 16.1.78 source/package run will be recorded by CI.",
+    "source_package_gate": "PENDING — exact corrected 16.1.79 source/package run will be recorded by CI.",
     "target_host": "PENDING",
     "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
-    "note": "Exact 16.1.78 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Older 16.1.66 LIVE READY host evidence does not certify this exact package."
+    "note": "The exact 16.1.79 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Historical host screenshots do not certify this exact package."
+  },
+  "corrective_release_16_1_79": {
+    "scope": "Simplified monthly payroll period creation and review-first employee-line workflow over the existing REST endpoints; Management-only draft editing/submission; independent Owner approval/GL posting and Owner payment; preserved Ethiopian PAYE/pension formula and audit.",
+    "business_table_contract": "49 unchanged",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "statutory_rule_version": "ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME",
+    "source_gate": "PENDING — exact source/package gate result will be recorded by the release workflow; target-host acceptance remains PENDING.",
+    "target_host_acceptance": "PENDING — no WordPress installation or live database transactions were run here."
   }
 }

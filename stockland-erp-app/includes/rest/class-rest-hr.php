@@ -277,11 +277,24 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	/**
 	 * Reads payroll data within the caller's authorized scope.
 	 *
+	 * @param int $period_id Optional single period ID to bound a detail response.
 	 * @return array The authorized payroll rows.
 	 */
-	private function payroll_rows() {
+	private function payroll_rows( $period_id = 0 ) {
 		global $wpdb;
 		$p = Stockland_DB::table( 'payroll_periods' );
+		if ( (int) $period_id > 0 ) {
+			$row = Stockland_DB::read_row(
+				$wpdb->prepare(
+					'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by WHERE p.id=%d LIMIT 1',
+					$p,
+					$wpdb->users,
+					(int) $period_id
+				),
+				ARRAY_A
+			);
+			return $row ? array( $row ) : array();
+		}
 		return Stockland_DB::read_results( $wpdb->prepare( 'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100', $p, $wpdb->users ), ARRAY_A );
 	}
 
@@ -709,7 +722,15 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	public function payroll_list( WP_REST_Request $r ) {
 		global $wpdb;
-		$rows = $this->payroll_rows();
+		$period_id_raw = $r->get_param( 'period_id' );
+		$period_id     = 0;
+		if ( null !== $period_id_raw && '' !== $period_id_raw ) {
+			$period_id = absint( $period_id_raw );
+			if ( 0 === $period_id ) {
+				return new WP_Error( 'invalid_payroll_period_id', 'Payroll period ID must be a positive integer.', array( 'status' => 400 ) );
+			}
+		}
+		$rows = $this->payroll_rows( $period_id );
 		if ( ! $rows ) {
 			return rest_ensure_response( array() );
 		}
@@ -1028,7 +1049,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	public function payroll_generate( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
-			return $this->deny( 'Only an active Owner or Management profile can prepare payroll.', 403 );
+			return $this->deny( 'Only active Stockland Management may generate payroll.', 403 );
 		}
 		global $wpdb;
 		$id = (int) $r['id'];
@@ -1172,7 +1193,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	public function payroll_line_update( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
-			return $this->deny( 'Only an active Owner or Management profile can edit draft payroll.', 403 );
+			return $this->deny( 'Only active Stockland Management may edit draft payroll.', 403 );
 		}
 		global $wpdb;
 		$pid    = (int) $r['id'];
@@ -1225,8 +1246,16 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				}
 			}
 		}
-		if ( Stockland_Money::minor( $pensionable ) !== Stockland_Money::minor( $line['base_salary'] ) && strlen( trim( $basis ) ) < 20 ) {
-			return new WP_Error( 'classification_basis_required', 'A non-standard pensionable salary requires a documented legal/contract basis of at least 20 characters.', array( 'status' => 400 ) );
+		$current_pensionable_minor = Stockland_Money::minor( $line['pensionable_salary'] ?? $line['base_salary'] );
+		$new_pensionable_minor     = Stockland_Money::minor( $pensionable );
+		$base_salary_minor         = Stockland_Money::minor( $line['base_salary'] );
+		$line_rule_is_current      = ( $line['statutory_status'] ?? '' ) === 'CALCULATED'
+			&& ( $line['tax_rule_version'] ?? '' ) === Stockland_Payroll_Statutory::RULE_VERSION;
+		$reuses_classification     = $line_rule_is_current
+			&& $new_pensionable_minor === $current_pensionable_minor
+			&& $new_pensionable_minor !== $base_salary_minor;
+		if ( $new_pensionable_minor !== $base_salary_minor && ! $reuses_classification && strlen( trim( $basis ) ) < 20 ) {
+			return new WP_Error( 'classification_basis_required', 'A new or legacy non-standard pensionable salary requires a documented legal/contract basis of at least 20 characters.', array( 'status' => 400 ) );
 		}
 		if ( '' !== $basis ) {
 			$note = substr( $note . ' | Classification basis: ' . $basis . ( '' !== $evidence ? ' | Evidence: ' . $evidence : '' ), 0, 500 );
