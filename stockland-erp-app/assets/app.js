@@ -1081,8 +1081,8 @@ async function openPayrollReview(periodId){
   const caps=state.boot.user.capabilities||{};
   let period=null;
   try{
-    const periods=await api16('/hr/payroll');
-    period=(Array.isArray(periods)?periods:[]).find(p=>String(p.id)===String(periodId))||null;
+    const periods=await api16('/hr/payroll?period_id='+encodeURIComponent(periodId));
+    period=(Array.isArray(periods)&&periods.length===1)?periods[0]:null;
   }catch(err){toast(err.message||'Could not load payroll detail.',true);return}
   if(!period){toast('Payroll period was not found. Refresh HR and try again.',true);return}
   const lines=Array.isArray(period.lines)?period.lines:[];
