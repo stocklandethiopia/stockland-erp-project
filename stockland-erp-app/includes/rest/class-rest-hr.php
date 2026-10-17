@@ -1225,8 +1225,16 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				}
 			}
 		}
-		if ( Stockland_Money::minor( $pensionable ) !== Stockland_Money::minor( $line['base_salary'] ) && strlen( trim( $basis ) ) < 20 ) {
-			return new WP_Error( 'classification_basis_required', 'A non-standard pensionable salary requires a documented legal/contract basis of at least 20 characters.', array( 'status' => 400 ) );
+		$current_pensionable_minor = Stockland_Money::minor( $line['pensionable_salary'] ?? $line['base_salary'] );
+		$new_pensionable_minor     = Stockland_Money::minor( $pensionable );
+		$base_salary_minor         = Stockland_Money::minor( $line['base_salary'] );
+		$line_rule_is_current      = ( $line['statutory_status'] ?? '' ) === 'CALCULATED'
+			&& ( $line['tax_rule_version'] ?? '' ) === Stockland_Payroll_Statutory::RULE_VERSION;
+		$reuses_classification     = $line_rule_is_current
+			&& $new_pensionable_minor === $current_pensionable_minor
+			&& $new_pensionable_minor !== $base_salary_minor;
+		if ( $new_pensionable_minor !== $base_salary_minor && ! $reuses_classification && strlen( trim( $basis ) ) < 20 ) {
+			return new WP_Error( 'classification_basis_required', 'A new or legacy non-standard pensionable salary requires a documented legal/contract basis of at least 20 characters.', array( 'status' => 400 ) );
 		}
 		if ( '' !== $basis ) {
 			$note = substr( $note . ' | Classification basis: ' . $basis . ( '' !== $evidence ? ' | Evidence: ' . $evidence : '' ), 0, 500 );
