@@ -4,6 +4,9 @@
 
 ## Payroll workflow simplification in 16.1.79
 
+- Owner tax classification is a separate Owner-only action for each existing allowance component. It can change TAXABLE/EXEMPT treatment only (not the amount); EXEMPT needs a legal basis, evidence reference and explicit Owner confirmation. The server checks that the component snapshot reconciles before mutation, recalculates and audits transactionally, and preserves every other component. Management cannot change exemption totals from its draft amount editor.
+
+
 - Management’s HR & Payroll workspace uses two collapsed setup panels: Add employee and Create monthly payroll. The payroll period key, start date and end date prefill the current full calendar month and remain editable.
 - The payroll table now leads users through Generate → Review / Edit Draft → Submit for Owner Approval. The review opens one period and its employee lines, showing base, gross, taxable income, PAYE, employee and employer pension, other deductions, net pay, and allowance classification.
 - Draft line adjustments recalculate through the existing server-side statutory service and are audited. Submitted, approved and paid periods cannot be edited; the Owner still makes the independent approval/GL decision and separately records the bank/cash payment.
