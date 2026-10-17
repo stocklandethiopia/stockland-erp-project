@@ -53,8 +53,9 @@ $check(
 );
 $check(
 	str_contains( $app, 'async function openPayrollReview(periodId)' )
-		&& str_contains( $app, "api16('/hr/payroll')" )
+		&& str_contains( $app, "api16('/hr/payroll?period_id='+encodeURIComponent(periodId))" )
 		&& str_contains( $app, 'Array.isArray(period.lines)' )
+		&& str_contains( $app, 'period=(Array.isArray(periods)&&periods.length===1)?periods[0]:null' )
 		&& str_contains( $app, 'data-label="Employee"' )
 		&& str_contains( $app, 'data-label="Net pay"' ),
 	'Review view consumes real payroll rows and presents employee-level amounts with mobile labels.'
@@ -97,7 +98,11 @@ $check(
 	'Review actions call existing submit/approve/pay REST transitions, with confirmations before posting/payment.'
 );
 $check(
-	str_contains( $hr_rest, "'/hr/payroll/" ) && str_contains( $hr_rest, 'public function payroll_line_update' )
+	str_contains( $hr_rest, "'/hr/payroll/" )
+		&& str_contains( $hr_rest, 'public function payroll_line_update' )
+		&& str_contains( $hr_rest, '$r->get_param( \'period_id\' )' )
+		&& str_contains( $hr_rest, 'private function payroll_rows( $period_id = 0 )' )
+		&& str_contains( $hr_rest, 'WHERE p.id=%d LIMIT 1' )
 		&& str_contains( $hr_rest, 'Stockland_Authority::can_manage_payroll()' )
 		&& str_contains( $hr_rest, 'Stockland_Authority::can_approve_payroll()' ),
 	'Existing payroll endpoints remain protected by server-side Management vs Owner authority.'
