@@ -1,0 +1,171 @@
+<?php
+/**
+ * Source-contract checks for the guided payroll review workflow.
+ * Static coverage does not replace authenticated payroll posting/restore acceptance.
+ */
+if ( PHP_SAPI !== 'cli' ) {
+	http_response_code( 404 );
+	exit;
+}
+$root = dirname( __DIR__, 2 );
+$read = static function ( $relative ) use ( $root ) {
+	return file_get_contents( $root . '/' . $relative );
+};
+$rest = $read( 'includes/rest/class-rest-hr.php' );
+$app = $read( 'assets/app.js' );
+$css = $read( 'assets/css/06-operational-guards.css' );
+$statutory = $read( 'includes/class-stockland-payroll-statutory.php' );
+$tax_qa = $read( 'tools/qa/check-payroll-statutory.php' );
+$fail = array();
+$pass = 0;
+$check = static function ( $condition, $label ) use ( &$fail, &$pass ) {
+	if ( $condition ) {
+		++$pass;
+		echo "PASS {$label}\n";
+	} else {
+		$fail[] = $label;
+		echo "FAIL {$label}\n";
+	}
+};
+$get_start = strpos( $rest, 'public function payroll_get' );
+$get_end   = false !== $get_start ? strpos( $rest, 'public function payroll_create', $get_start ) : false;
+$get       = false !== $get_start && false !== $get_end ? substr( $rest, $get_start, $get_end - $get_start ) : '';
+$line_start = strpos( $rest, 'public function payroll_line_update' );
+$line_end   = false !== $line_start ? strpos( $rest, 'private function payroll_detail', $line_start ) : false;
+$line_update = false !== $line_start && false !== $line_end ? substr( $rest, $line_start, $line_end - $line_start ) : '';
+$submit_start = strpos( $rest, 'public function payroll_submit' );
+$submit_end   = false !== $submit_start ? strpos( $rest, 'public function payroll_approve', $submit_start ) : false;
+$submit       = false !== $submit_start && false !== $submit_end ? substr( $rest, $submit_start, $submit_end - $submit_start ) : '';
+$classify_start = strpos( $rest, 'public function payroll_line_classification_update' );
+$classify_end   = false !== $classify_start ? strpos( $rest, 'public function payroll_submit', $classify_start ) : false;
+$classify       = false !== $classify_start && false !== $classify_end ? substr( $rest, $classify_start, $classify_end - $classify_start ) : '';
+$editor_start = strpos( $app, 'function slPayrollLineEditForm' );
+$editor_end   = false !== $editor_start ? strpos( $app, 'function slPayrollOwnerClassificationForm', $editor_start ) : false;
+$editor       = false !== $editor_start && false !== $editor_end ? substr( $app, $editor_start, $editor_end - $editor_start ) : '';
+$class_route  = "'/hr/payroll/(?P<id>\\\\d+)/line/(?P<line_id>\\\\d+)/classification'";
+$class_route_start = strpos( $rest, $class_route );
+$class_route_block_start = false !== $class_route_start ? strrpos( substr( $rest, 0, $class_route_start ), 'register_rest_route(' ) : false;
+$class_route_block_end = false !== $class_route_start ? strpos( $rest, "\n\t\t);" , $class_route_start ) : false;
+$class_route_block = false !== $class_route_block_start && false !== $class_route_block_end ? substr( $rest, $class_route_block_start, $class_route_block_end - $class_route_block_start + strlen( "\n\t\t);" ) ) : '';
+$check(
+	str_contains( $rest, "'/hr/payroll/(?P<id>" )
+		&& str_contains( $rest, "'methods'             => 'GET'")
+		&& str_contains( $rest, "'callback'            => array( \$this, 'payroll_get' )")
+		&& str_contains( $rest, 'Stockland_Authority::can_view_payroll()'),
+	'Payroll detail GET endpoint is registered behind existing payroll-view authority.'
+);
+$check(
+	'' !== $get
+		&& str_contains( $get, '$this->payroll_detail( (int) $r[\'id\'] )')
+		&& str_contains( $get, "new WP_Error( 'not_found'")
+		&& ! preg_match( '/(?:INSERT INTO|UPDATE\\s+|DELETE FROM|START TRANSACTION|COMMIT|ROLLBACK)/i', $get ),
+	'Payroll detail endpoint is a bounded read-only lookup and returns 404 for a missing period.'
+);
+$check(
+	str_contains( $app, 'function openPayrollReview(id)')
+		&& str_contains( $app, "api16('/hr/payroll/'+encodeURIComponent(id))")
+		&& str_contains( $app, 'function renderPayrollReview(period)')
+		&& str_contains( $app, 'function renderPayrollTable(d,c)')
+		&& str_contains( $app, "document.querySelectorAll('[data-pay-review]')"),
+	'Payroll list opens the read-only detail panel using the GET endpoint instead of a direct approval click.'
+);
+$check(
+	str_contains( $app, "const canEdit=status==='DRAFT'&&!!caps.payroll_manage;")
+		&& str_contains( $app, "const canApprove=status==='SUBMITTED'&&!!caps.payroll_approve;")
+		&& str_contains( $app, "const canPay=status==='APPROVED'&&!!caps.payroll_approve;")
+		&& str_contains( $app, "data-payroll-line-form")
+		&& str_contains( $app, "function slPayrollOwnerClassificationForm(line,periodId,componentIndex,component,currentRule)")
+		&& str_contains( $app, "legacyTaxableDefault")
+		&& str_contains( $app, "legacyExemptDefault")
+		&& str_contains( $app, "'/hr/payroll/'+encodeURIComponent(form.dataset.periodId)+'/line/'+encodeURIComponent(form.dataset.lineId)"),
+	'Only Management can edit DRAFT lines; Owner approval/payment actions are status-gated in the review panel.'
+);
+$check(
+	str_contains( $line_update, "'DRAFT' !==" )
+		&& str_contains( $line_update, '$period[\'status\']' )
+		&& str_contains( $line_update, 'Approved or paid payroll cannot be edited.' )
+		&& str_contains( $line_update, '$verified_exempt_total' )
+		&& str_contains( $line_update, '$refresh_exemption_snapshot = ! $same_exempt || ! $saved_evidence;' )
+		&& str_contains( $line_update, '$preserved_exempt_components' )
+		&& str_contains( $line_update, '|| $refresh_exemption_snapshot' ),
+	'Draft line recalculation stays locked after submission and preserves previously verified exemption evidence.'
+);
+$check(
+	str_contains( $app, 'name="payroll_month" type="month"' )
+		&& str_contains( $app, "d.period_key=month;d.start_date=month+'-01';d.end_date=month+'-'+lastDay" )
+		&& str_contains( $app, 'if(!/^\\d{4}-(0[1-9]|1[0-2])$/.test(month))' )
+		&& str_contains( $app, "form.elements.namedItem('payroll_month')" )
+		&& str_contains( $app, 'CREATE DRAFT PAYROLL' )
+		&& str_contains( $app, 'sl-payroll-setup' ),
+	'Payroll period uses one month selector and derives the correct calendar dates; setup forms remain collapsed until opened.'
+);
+$check(
+	str_contains( $app, 'RETAINER_SERVICE')
+		&& str_contains( $app, 'service contract(s) were excluded from employee PAYE payroll')
+		&& str_contains( $rest, 'Preserve posted payroll; do not silently recalculate historical periods.')
+		&& str_contains( $css, '.sl-payroll-review')
+		&& str_contains( $css, '@media(max-width:760px)')
+		&& str_contains( $css, '.sl-payroll-setup-grid'),
+	'Payroll simplification keeps service-contract warnings, historical record policy and responsive review styling.'
+);
+$check(
+	str_contains( $rest, "'/hr/payroll/(?P<id>\\\\d+)/line/(?P<line_id>\\\\d+)/classification'" )
+		&& str_contains( $rest, "'callback'            => array( \$this, 'payroll_line_classification_update' )" )
+		&& str_contains( $rest, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $classify, "Stockland_Authority::role() !== 'owner'" )
+		&& str_contains( $classify, "'DRAFT' !==" )
+		&& str_contains( $classify, "FOR UPDATE" )
+		&& str_contains( $classify, "Stockland_Payroll_Statutory::RULE_VERSION" )
+		&& str_contains( $classify, "'PAYROLL_EXEMPTION_VERIFY'" ),
+	'Owner-only component classification is permission-gated, limited to DRAFT/current-rule lines, and audited.'
+);
+$check(
+	str_contains( $rest, $class_route )
+		&& 1 === substr_count( $rest, $class_route )
+		&& str_contains( $classify, '$component_index' )
+		&& str_contains( $classify, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $class_route_block, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $class_route_block, "'callback'            => array( \$this, 'payroll_line_classification_update' )" )
+		&& str_contains( $classify, "Stockland_Authority::role() !== 'owner'" )
+		&& ! str_contains( $classify, "\$p['amount']" )
+		&& ! str_contains( $classify, "\$p['base_salary']" ),
+	'Owner classification has one dedicated route and cannot alter allowance amount, base salary or other pay values.'
+);
+$check(
+	str_contains( $editor, 'readonly required' )
+		&& ! str_contains( $editor, '(owner?' )
+		&& str_contains( $editor, 'The Owner must classify each allowance component separately.' )
+		&& str_contains( $line_update, 'owner_exemption_review_required' )
+		&& str_contains( $line_update, '$locked_period' )
+		&& str_contains( $line_update, '$locked_line' ),
+	'Management amount editing remains separate from Owner classification and rechecks locked DRAFT state.'
+);
+$check(
+	str_contains( $classify, '$prior_taxable' )
+		&& str_contains( $classify, '$prior_exempt' )
+		&& str_contains( $classify, 'Allowance components do not reconcile to the saved payroll line totals.' )
+		&& str_contains( $classify, '$components[ $component_index ][\'tax_treatment\'] = $tax_treatment' )
+		&& str_contains( $line_update, 'owner_exemption_review_required' )
+		&& str_contains( $line_update, '$locked_period' )
+		&& str_contains( $line_update, '$locked_line' ),
+	'Owner classification preserves all other allowance components and Management amount edits fail closed on component mismatch or concurrent status changes.'
+);
+$check(
+	str_contains( $submit, '$unverified_lines > 0' )
+		&& str_contains( $submit, 'Could not verify payroll line classifications; submission was blocked.' )
+		&& str_contains( $submit, 'Recalculate and review every payroll line under the current statutory rule before submission.' ),
+	'Payroll submission is blocked server-side when any line is not calculated under the current rule or line verification fails.'
+);
+$check(
+	str_contains( $statutory, 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME')
+		&& str_contains( $statutory, 'TAXABLE_GROSS_EMPLOYMENT_INCOME')
+		&& ! str_contains( $statutory, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )')
+		&& str_contains( $tax_qa, "'8450.00'")
+		&& str_contains( $tax_qa, "'19450.00'"),
+	'PAYE uses gross taxable employment income under v4, with employee pension deducted separately.'
+);
+if ( $fail ) {
+	fwrite( STDERR, 'Payroll review QA FAILED: ' . implode( '; ', $fail ) . "\n" );
+	exit( 1 );
+}
+echo "Payroll review QA PASS: {$pass} assertions.\n";

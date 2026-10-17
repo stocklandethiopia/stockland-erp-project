@@ -7,8 +7,8 @@ ASSET=ROOT/'assets'
 MODULE_DIR=ASSET/'css'
 manifest=json.loads((MODULE_DIR/'modules.json').read_text())
 modules=manifest.get('modules',[])
-if manifest.get('release')!='16.1.78' or len(modules)!=6 or len(set(modules))!=6:
-    raise SystemExit('Expected release 16.1.78 with exactly six unique CSS modules')
+if manifest.get('release')!='16.1.79' or len(modules)!=6 or len(set(modules))!=6:
+    raise SystemExit('Expected release 16.1.79 with exactly six unique CSS modules')
 chunks=[]
 for name in modules:
     path=MODULE_DIR/name

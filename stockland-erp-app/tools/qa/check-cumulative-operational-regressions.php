@@ -1,6 +1,6 @@
 <?php
 /**
- * Source-contract regression checks for cumulative release 16.1.78.
+ * Source-contract regression checks for cumulative release 16.1.79.
  * These static checks do not replace authenticated database/ledger acceptance.
  */
 if ( PHP_SAPI !== 'cli' ) {
@@ -43,7 +43,7 @@ $expense_decision_start = strpos( $accounting, 'public function expense_status' 
 $expense_create = false !== $expense_create_start && false !== $expense_decision_start
 	? substr( $accounting, $expense_create_start, $expense_decision_start - $expense_create_start )
 	: '';
-$check( str_contains( $plugin, 'Version:           16.1.78' ) && ( $manifest['release'] ?? '' ) === '16.1.78' && str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.78' );" ), 'Plugin, manifest and runtime version are aligned at 16.1.78' );
+$check( str_contains( $plugin, 'Version:           16.1.79' ) && ( $manifest['release'] ?? '' ) === '16.1.79' && str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.79' );" ), 'Plugin, manifest and runtime version are aligned at 16.1.79' );
 $check( ( $manifest['schema_contract']['total'] ?? 0 ) === 49, 'Release manifest preserves the 49-table business schema contract' );
 $check( str_contains( $ddl, "'requisitions'" ) && str_contains( $ddl, "'transactions'" ), 'Core requisition and stock-ledger tables remain in the core DDL contract' );
 $check( str_contains( $stock, 'valid Product Master variant may have no posted movement yet' ) && str_contains( $stock, "'stock_read_failed'" ) && str_contains( $stock, 'current_stock' ) && str_contains( $stock, 'CRITICAL' ), 'SKU stock lookup returns verified zero balances and negative/zero stock is treated as critical' );
@@ -51,9 +51,9 @@ $check( str_contains( $stock, 'l.id location_id,l.location_type,l.location_name'
 $check( str_contains( $app, 'function reorder()' ) && str_contains( $app, 'async function loadReorder()' ) && str_contains( $app, 'data-reorder-create' ) && str_contains( $app, 'request_key:key' ) && str_contains( $app, 'location_id,items:' ), 'Reorder screen loads live data and creates a normal idempotent branch requisition instead of directly mutating stock' );
 $check( str_contains( $accounting, "'has_more'" ) && str_contains( $accounting, "'posted_total'" ) && str_contains( $accounting, "'pending_total'" ) && str_contains( $accounting, 'date_from' ) && str_contains( $accounting, 'per_page' ), 'Expense report provides scoped pagination, date/category filters and server-calculated posted/pending totals' );
 $check( str_contains( $app, 'DAILY COST REPORT' ) && str_contains( $app, 'Customer refreshments' ) && str_contains( $app, 'Packing material' ) && str_contains( $app, 'loadMoreBranchCosts' ) && str_contains( $app, 'Branch Manager is the final authority' ), 'Branch cost UI exposes required categories, paginated report and correct Branch Manager authority wording' );
-$check( str_contains( $payroll, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )' ) && str_contains( $payroll, 'ET-PAYE-1395-2025-v3-PENSION-BASE' ), 'Server PAYE taxable base deducts employee pension under the agreed rule version' );
-$check( str_contains( $app, 'taxableIncome=Math.max(0,incomeBeforePension-emp)' ) && str_contains( $app, 'PAYE base after pension' ), 'Frontend payroll preview uses the same pension-first PAYE base' );
-$check( str_contains( $payroll_test, "'27900.00'" ) && str_contains( $payroll_test, "'7715.00'" ) && str_contains( $payroll_test, "'20185.00'" ), 'ETB 30,000 agreed payroll regression expects tax 7,715 and net 20,185' );
+$check( str_contains( $payroll, 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME' ) && str_contains( $payroll, 'TAXABLE_GROSS_EMPLOYMENT_INCOME' ) && ! str_contains( $payroll, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )' ), 'Server PAYE uses taxable employment income before employee pension withholding under rule v4' );
+$check( str_contains( $app, 'taxableIncome=Math.max(0,incomeBeforePension)' ) && str_contains( $app, 'PAYE base before employee pension withholding' ), 'Frontend payroll preview uses the same gross-income PAYE base' );
+$check( str_contains( $payroll_test, "'30000.00'" ) && str_contains( $payroll_test, "'8450.00'" ) && str_contains( $payroll_test, "'19450.00'" ), 'ETB 30,000 gross-income payroll regression expects tax 8,450 and net 19,450' );
 $warehouse_role_start = strpos( $roles, 'self::ROLE_WAREHOUSE_MANAGER  => array_fill_keys(' );
 $warehouse_role_end   = strpos( $roles, 'self::ROLE_AUDITOR', $warehouse_role_start );
 $warehouse_role_caps  = false !== $warehouse_role_start && false !== $warehouse_role_end ? substr( $roles, $warehouse_role_start, $warehouse_role_end - $warehouse_role_start ) : '';

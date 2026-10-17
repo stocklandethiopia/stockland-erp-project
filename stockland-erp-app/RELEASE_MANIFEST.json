@@ -1,8 +1,8 @@
 {
-  "release": "16.1.78",
-  "release_label": "16.1.78 — Stockland Ethiopia ERP cumulative in-place update",
-  "classification": "Cumulative in-place update on the merged 16.1.77 source line. Preserves existing operational, finance, procurement, payroll and warehouse corrections and adds a live role-scoped global record search. The existing 49-table contract and ledger/workflow services remain unchanged.",
-  "baseline": "Cumulative repair from exact merged source commit eade7cbe39bfca57334a6cbea08d21ee144052b6 (16.1.77), retaining the fixes reconciled from 16.1.73–16.1.77. No blind ZIP merge; existing business data and the unchanged 49-table contract are preserved.",
+  "release": "16.1.79",
+  "release_label": "16.1.79 — guided payroll review and in-place corrective update candidate",
+  "classification": "Cumulative in-place corrective update preserving the existing 49-table business contract and database version. Simplifies the monthly payroll operator flow, adds a permission-checked read-only payroll detail route, exposes Management-only DRAFT amount editing and a separate Owner-only per-component TAXABLE/EXEMPT classification action, requires current-rule recalculation before submission, and preserves allowance component/evidence integrity. The current PAYE rule uses taxable employment income before employee pension withholding; existing posted payroll is not recalculated, and old-rule DRAFT lines must be recalculated before submission. Ethiopian payroll/tax professional acceptance is still required before production payroll. Exact source gate and WordPress acceptance remain separate.",
+  "baseline": "Built from the existing 16.1.78 GitHub source with a focused payroll UX and submission-safety correction. Historical 16.1.78 source/package status is retained under historical_release_16_1_78. CI must attach a fresh 16.1.79 source-gate result to the exact branch head and package checksum.",
   "schema_contract": {
     "core_operations": 29,
     "accounting_procurement": 16,
@@ -120,7 +120,7 @@
   },
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
-    "rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
+    "rule_version": "ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME",
     "law_effective_date": "2025-07-08",
     "first_full_month": "2025-08-01",
     "tax_schedule": "Monthly Ethiopian employment-income PAYE schedule under the configured statutory rule version.",
@@ -149,20 +149,31 @@
     "Owner-created corporate expenses remain pending and unposted until an independent authority is defined; no self-approval or direct Owner GL self-post is allowed.",
     "The top header adds an always-visible global search across active Product Master SKU/variant records plus inactive variants only for Product Master managers, permitted customers, location-scoped retail sales and authorized purchase orders; results return safe labels/references, prefix-match identifiers and preserve role/location scope.",
     "Mobile and tablet header layout reserves its own responsive search row without replacing the existing mega-menu, command palette, SOP, alerts or profile controls.",
-    "Dashboard composition now matches the agreed three-panel desktop analytics row and right-rail activity placement; exact-host acceptance remains PENDING."
+    "Dashboard composition now matches the agreed three-panel desktop analytics row and right-rail activity placement; exact-host acceptance remains PENDING.",
+    "16.1.79: HR & Payroll setup forms are collapsed progressive-disclosure panels; the monthly payroll period defaults to the current calendar month and remains editable before creation.",
+    "16.1.79: the payroll table offers a Review / Edit Draft step. A permission-checked GET detail route returns one payroll period and its lines without changing state.",
+    "16.1.79: the review panel shows per-employee base, gross, taxable income, PAYE, employee/employer pension, other deductions, net pay and allowance components before Management submits or the Owner approves.",
+    "16.1.79: only DRAFT lines are editable. Submit, independent Owner approval/GL posting and payment are performed through the existing authorized endpoints; submitted, approved and paid periods are read-only.",
+    "16.1.79: server blocks submission if a line is not CALCULATED under the current statutory rule version or classification verification fails. Invalid saved exemption amounts return a controlled conflict response; verified exemption evidence is preserved when unrelated draft values are recalculated.",
+    "16.1.79: no changes to Stockland_Payroll_Statutory tax brackets, pension rates, tax-base formula, DB version 16.1.1, or the exact 49-table contract. No live payroll was generated, posted, approved or paid by this source update.",
+    "16.1.79: Owner-only payroll component classification is a separate permission-checked route; only an existing allowance component's TAXABLE/EXEMPT treatment can change. Component amount, base salary, pensionable salary and other deductions are not editable through this route.",
+    "16.1.79: Owner classification recalculates a DRAFT line from the saved allowance components, validates that the component snapshot reconciles to its current totals before mutation, preserves all other components, requires basis/evidence/confirmation, logs PAYROLL_EXEMPTION_VERIFY and writes transactionally.",
+    "16.1.79: Management line editing stays on its existing authorized route, cannot change exempt totals, and rechecks the DRAFT period and unchanged line under row locks before committing. Server submission refuses uncalculated/current-rule-mismatched lines."
   ],
   "quality": {
-    "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
+    "source_gate": "PENDING — exact 16.1.79 package/source workflow has not yet passed.",
     "source_gate_evidence": {
       "state": "PENDING",
-      "target_host_acceptance": "PENDING"
+      "release": "16.1.79",
+      "target_host_acceptance": "PENDING",
+      "note": "Do not reuse the historical 16.1.78 result. The exact 16.1.79 commit and built package checksum must be recorded by its own successful workflow."
     }
   },
   "release_acceptance": {
-    "source_package_gate": "PENDING — exact corrected 16.1.78 source/package run will be recorded by CI.",
+    "source_package_gate": "PENDING — exact 16.1.79 source/package gate will be recorded by CI.",
     "target_host": "PENDING",
     "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
-    "note": "Exact 16.1.78 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Older 16.1.66 LIVE READY host evidence does not certify this exact package."
+    "note": "No WordPress deployment or live payroll write was performed. Source CI will not certify the host. Authenticated target-host acceptance, real-data read-only integrity review, role-separated payroll and other ERP workflows, restore/rollback, and independent Ethiopian payroll/tax adviser verification remain required."
   },
   "corrective_release_16_1_67": {
     "scope": "Data-backed role-scoped Command Center analytics, mobile-responsive dashboard layout, and versioned employee-pension-before-PAYE payroll base.",
@@ -184,15 +195,58 @@
     "business_table_contract": "49 unchanged",
     "target_host_acceptance": "PENDING — historical 16.1.66 host evidence does not certify the exact 16.1.78 release."
   },
-  "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
+  "source_gate": "PENDING — exact 16.1.79 source/package run not yet executed.",
   "source_gate_evidence": {
     "state": "PENDING",
-    "target_host_acceptance": "PENDING"
+    "release": "16.1.79",
+    "target_host_acceptance": "PENDING",
+    "note": "Exact-release CI evidence is required. Authenticated WordPress database/browser acceptance, real payroll flow, statutory adviser sign-off, backup restore and rollback have not yet been performed."
   },
   "acceptance": {
-    "source_package_gate": "PENDING — exact corrected 16.1.78 source/package run will be recorded by CI.",
+    "source_package_gate": "PENDING — exact 16.1.79 workflow result.",
     "target_host": "PENDING",
     "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
-    "note": "Exact 16.1.78 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Older 16.1.66 LIVE READY host evidence does not certify this exact package."
+    "note": "This candidate simplifies payroll review and adds submission guardrails but does not certify the live site or tax/legal treatment. Keep historical posted payroll unchanged and test on a controlled backup/staging copy before deployment."
+  },
+  "historical_release_16_1_78": {
+    "release": "16.1.78",
+    "release_label": "16.1.78 — Stockland Ethiopia ERP cumulative in-place update",
+    "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
+    "source_gate_evidence": {
+      "state": "PENDING",
+      "target_host_acceptance": "PENDING"
+    },
+    "quality": {
+      "source_gate": "PENDING — exact corrected 16.1.78 source/package run not yet executed.",
+      "source_gate_evidence": {
+        "state": "PENDING",
+        "target_host_acceptance": "PENDING"
+      }
+    },
+    "release_acceptance": {
+      "source_package_gate": "PENDING — exact corrected 16.1.78 source/package run will be recorded by CI.",
+      "target_host": "PENDING",
+      "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
+      "note": "Exact 16.1.78 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Older 16.1.66 LIVE READY host evidence does not certify this exact package."
+    },
+    "acceptance": {
+      "source_package_gate": "PENDING — exact corrected 16.1.78 source/package run will be recorded by CI.",
+      "target_host": "PENDING",
+      "production_deployment": "NOT_AUTHORIZED_BY_SOURCE_CI",
+      "note": "Exact 16.1.78 installer has not been installed and tested on the target WordPress/MariaDB host. Source/package CI does not establish authenticated business workflow behavior, live ledger/AP/AR/GL reconciliation, backup restoration, rollback, or payroll/legal validation. Older 16.1.66 LIVE READY host evidence does not certify this exact package."
+    },
+    "note": "Historical source/package state retained as provenance. It is not test evidence for 16.1.79."
+  },
+  "corrective_release_16_1_79": {
+    "scope": "Guided monthly payroll setup and review; read-only payroll detail; Management-only DRAFT amount edits; separate Owner-only per-component TAXABLE/EXEMPT classification; current-rule submission gate; exemption evidence preservation; responsive review panel.",
+    "business_table_contract": "49 unchanged",
+    "schema_changed": false,
+    "database_version_changed": false,
+    "statutory_formula_changed": false,
+    "historical_payroll_rewritten": false,
+    "target_host_acceptance": "PENDING",
+    "owner_classification": "Separate Owner-only route can modify tax treatment only for one existing allowance component; amount is immutable; requires confirmation and classification basis, with evidence required for EXEMPT.",
+    "management_boundary": "Management can edit DRAFT payroll line amounts only; cannot change exempt totals; period and line are rechecked under FOR UPDATE locks before commit.",
+    "transaction_controls": "Owner component classification runs in a transaction; verifies the pre-change component sum matches line totals; recalculates statutory results and period totals, audits the change, then commits. No change on audit or commit failure."
   }
 }
