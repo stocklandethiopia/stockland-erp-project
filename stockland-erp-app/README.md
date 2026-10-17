@@ -8,7 +8,7 @@
 - Click **Generate Draft** to calculate employee lines using the existing server-side Ethiopian PAYE/pension rules. The review opens with each employee's base, allowances, PAYE, pension, other deductions, net pay and calculation status.
 - Management can correct eligible **DRAFT** line values and save them through the existing audited calculation endpoint. Legacy or stale-rule lines must be recalculated before submission; the Owner cannot edit or submit a Management draft.
 - Management submits the reviewed period. The independent Owner reviews the submitted lines, confirms approval, and posts the balanced payroll journal. The Owner then separately records bank or cash payment with a confirmation step. Submitted/approved/paid periods are locked against line edits.
-- Exemption evidence, non-standard pensionable salary rationale, rule version, pension-first PAYE math, the ETB 30,000 regression, and RETAINER_SERVICE exclusion remain in force. This UI change does not rewrite posted payroll or historical transactions.
+- Exemption evidence, non-standard pensionable salary rationale, rule version, gross-income PAYE math (employee pension deducted after PAYE), the ETB 30,000 regression (PAYE ETB 8,450; net ETB 19,450), and RETAINER_SERVICE exclusion remain in force. This UI change does not rewrite posted payroll or historical transactions.
 - The 49-table contract and database schema versions remain unchanged. The full source/package CI is required before calling this candidate release-ready; authenticated WordPress/MariaDB acceptance has not been performed in this branch.
 
 ## Cumulative workflow baseline carried forward from 16.1.78

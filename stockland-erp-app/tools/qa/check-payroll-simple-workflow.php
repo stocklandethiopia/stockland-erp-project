@@ -130,13 +130,13 @@ $check(
 	'Authority helpers keep payroll preparation Management-only and final approval/payment Owner-only.'
 );
 $check(
-	str_contains( $statutory, 'ET-PAYE-1395-2025-v3-PENSION-BASE' )
-		&& str_contains( $statutory, 'TAXABLE_GROSS_LESS_EMPLOYEE_PENSION' )
+	str_contains( $statutory, 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME' )
+		&& str_contains( $statutory, 'TAXABLE_GROSS_EMPLOYMENT_INCOME' )
 		&& str_contains( $statutory, "EMPLOYEE_PENSION_RATE = '0.07'" )
 		&& str_contains( $statutory, "EMPLOYER_PENSION_RATE = '0.11'" )
 		&& str_contains( $statutory_test, "'30000.00'" )
-		&& str_contains( $statutory_test, "'7715.00'" )
-		&& str_contains( $statutory_test, "'20185.00'" ),
+		&& str_contains( $statutory_test, "'8450.00'" )
+		&& str_contains( $statutory_test, "'19450.00'" ),
 	'PAYE/pension formulas and the ETB 30,000 regression remain unchanged.'
 );
 $check(

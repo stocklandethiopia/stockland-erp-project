@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * legislation/directives change. Historical payroll rows are never recalculated.
  */
 final class Stockland_Payroll_Statutory {
-	const RULE_VERSION          = 'ET-PAYE-1395-2025-v3-PENSION-BASE';
+	const RULE_VERSION          = 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME';
 	const EMPLOYEE_PENSION_RATE = '0.07';
 	const EMPLOYER_PENSION_RATE = '0.11';
 	// Proclamation No. 1395/2025, Effective Date clause 4(3), applies the other
@@ -166,15 +166,9 @@ final class Stockland_Payroll_Statutory {
 		$employee_pension = Stockland_Money::percentage( $pensionable, self::EMPLOYEE_PENSION_RATE );
 		$employer_pension = Stockland_Money::percentage( $pensionable, self::EMPLOYER_PENSION_RATE );
 
-		// The payroll policy's PAYE base is taxable gross components less the
-		// employee's mandatory pension contribution. Employer pension is not
-		// deducted from employee earnings. Clamp only the tax base at zero;
-		// gross pay and deduction validation remain independent.
+		// Ethiopian PAYE is calculated on taxable gross employment income. The employee pension contribution is a separate deduction after PAYE, not a deduction from the PAYE tax base.
 		$taxable_gross  = Stockland_Money::add( $base, $taxable_allow );
-		$taxable_income = Stockland_Money::subtract( $taxable_gross, $employee_pension );
-		if ( Stockland_Money::minor( $taxable_income ) < 0 ) {
-			$taxable_income = '0.00';
-		}
+		$taxable_income = $taxable_gross;
 		list( $income_tax, $income_tax_rate ) = self::income_tax( $taxable_income );
 		$deduction_total                      = Stockland_Money::add( Stockland_Money::add( $income_tax, $employee_pension ), $other );
 		$net                                  = Stockland_Money::subtract( $gross, $deduction_total );
@@ -189,7 +183,7 @@ final class Stockland_Payroll_Statutory {
 			'allowance_total'         => $allowance_total,
 			'other_deduction_total'   => $other,
 			'taxable_income'          => $taxable_income,
-			'tax_base_basis'          => 'TAXABLE_GROSS_LESS_EMPLOYEE_PENSION',
+			'tax_base_basis'          => 'TAXABLE_GROSS_EMPLOYMENT_INCOME',
 			'income_tax'              => $income_tax,
 			'income_tax_rate'         => $income_tax_rate,
 			'pensionable_salary'      => $pensionable,

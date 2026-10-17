@@ -40,15 +40,15 @@ try {
 	$r    = Stockland_Payroll_Statutory::calculate( '20000.00', '1000.00', '500.00', '20000.00', '200.00' );
 	$want = array(
 		'gross_pay'           => '21500.00',
-		'taxable_income'      => '19600.00',
-		'income_tax'          => '4810.00',
+		'taxable_income'      => '21000.00',
+		'income_tax'          => '5300.00',
 		'employee_pension'    => '1400.00',
 		'employer_pension'    => '2200.00',
-		'deduction_total'     => '6410.00',
-		'net_pay'             => '15090.00',
+		'deduction_total'     => '6900.00',
+		'net_pay'             => '14600.00',
 		'employer_cost_total' => '23700.00',
-		'tax_rule_version'    => 'ET-PAYE-1395-2025-v3-PENSION-BASE',
-		'tax_base_basis'      => 'TAXABLE_GROSS_LESS_EMPLOYEE_PENSION',
+		'tax_rule_version'    => 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME',
+		'tax_base_basis'      => 'TAXABLE_GROSS_EMPLOYMENT_INCOME',
 		'statutory_status'    => 'CALCULATED',
 	);
 	foreach ( $want as $k => $v ) {
@@ -63,16 +63,16 @@ try {
 
 // Regression from the approved Stockland payroll example:
 // ETB 30,000 base/pensionable salary -> 7% pension = 2,100,
-// PAYE base = 27,900, PAYE = 7,715, net pay = 20,185.
+// PAYE base = 30,000, PAYE = 8,450, net pay = 19,450.
 try {
 	$r = Stockland_Payroll_Statutory::calculate( '30000.00', '0.00', '0.00', '30000.00', '0.00' );
 	$want = array(
 		'gross_pay'        => '30000.00',
-		'taxable_income'   => '27900.00',
-		'income_tax'       => '7715.00',
+		'taxable_income'   => '30000.00',
+		'income_tax'       => '8450.00',
 		'employee_pension' => '2100.00',
 		'employer_pension' => '3300.00',
-		'net_pay'          => '20185.00',
+		'net_pay'          => '19450.00',
 	);
 	foreach ( $want as $key => $value ) {
 		if ( ( $r[ $key ] ?? null ) !== $value ) {

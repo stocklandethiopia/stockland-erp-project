@@ -120,7 +120,7 @@
   },
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
-    "rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
+    "rule_version": "ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME",
     "law_effective_date": "2025-07-08",
     "first_full_month": "2025-08-01",
     "tax_schedule": "Monthly Ethiopian employment-income PAYE schedule under the configured statutory rule version.",
@@ -155,7 +155,7 @@
     "16.1.79: Management can edit only DRAFT payroll lines; edits call the existing server calculator and transactional audit endpoint. Legacy/stale-rule lines must be recalculated and reclassified before submission.",
     "16.1.79: The review view gates Management submission, independent Owner approval/GL posting and separate Owner bank/cash payment by current period status and existing role capabilities; approval and payment require explicit confirmation.",
     "16.1.79: A line edit can reuse a currently calculated, current-rule non-standard pensionable salary classification only when the pensionable amount is unchanged. New, legacy, stale-rule or changed non-standard amounts still require a documented legal/contract basis.",
-    "16.1.79: Existing statutory rates, rule version ET-PAYE-1395-2025-v3-PENSION-BASE, pension-first PAYE calculation, RETAINER_SERVICE exclusion and 49-table/database schema versions remain unchanged."
+    "16.1.79: Existing statutory rates, rule version ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME, gross-income PAYE calculation; employee pension deducted after PAYE, RETAINER_SERVICE exclusion and 49-table/database schema versions remain unchanged."
   ],
   "quality": {
     "source_gate": "PENDING — exact corrected 16.1.79 source/package run not yet executed.",
@@ -212,7 +212,7 @@
     "business_table_contract": "49 unchanged",
     "schema_changed": false,
     "database_version_changed": false,
-    "statutory_rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
+    "statutory_rule_version": "ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME",
     "source_gate": "PENDING — exact source/package gate result will be recorded by the release workflow; target-host acceptance remains PENDING.",
     "target_host_acceptance": "PENDING — no WordPress installation or live database transactions were run here."
   }
