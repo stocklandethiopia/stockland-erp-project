@@ -1134,13 +1134,19 @@ function renderPayrollReview(period){
   const status=String(period.status||'UNKNOWN').toUpperCase();
   const lines=Array.isArray(period.lines)?period.lines:[];
   const canEdit=status==='DRAFT'&&!!caps.payroll_manage;
+  const canOwnerClassify=status==='DRAFT'&&!!caps.payroll_approve;
   const canApprove=status==='SUBMITTED'&&!!caps.payroll_approve;
   const canPay=status==='APPROVED'&&!!caps.payroll_approve;
   const currentRule=String(state.hr?.statutory_rules?.rule_version||'');
   const allLinesCalculated=lines.length>0&&!!currentRule&&lines.every(line=>String(line.statutory_status||'').toUpperCase()==='CALCULATED'&&String(line.tax_rule_version||'')===currentRule);
   const rows=lines.map(line=>{
     const breakdown=(()=>{try{const v=JSON.parse(line.allowance_breakdown_json||'[]');return Array.isArray(v)?v:[]}catch(_e){return[]}})();
-    const parts=breakdown.map(x=>'<span class="sl-payroll-component">'+esc(x.label||x.category||'Allowance')+' · '+money(x.amount||0)+' '+esc(String(x.tax_treatment||'TAXABLE').toUpperCase())+'</span>').join('');
+    const parts=breakdown.map(x=>{
+      const type=String(x.tax_treatment||'TAXABLE').toUpperCase();
+      const verified=type!=='EXEMPT'||(!!x.owner_verified&&String(x.legal_basis||'').trim().length>=20&&String(x.evidence_reference||'').trim().length>=4);
+      return '<span class="sl-payroll-component">'+esc(x.label||x.category||'Allowance')+' · '+money(x.amount||0)+' '+esc(type)+(type==='EXEMPT'?' · '+(verified?'OWNER VERIFIED':'REVIEW REQUIRED'):'')+'</span>';
+    }).join('');
+    const ownerForms=canOwnerClassify?breakdown.map((component,index)=>slPayrollOwnerClassificationForm(line,period.id,index,component,currentRule)).join(''):'';
     return '<article class="sl-payroll-review-line"><div class="sl-payroll-review-line-head"><div><b>'+esc(line.employee_name||'Employee')+'</b><small>'+esc(line.employee_code||'')+' · '+esc(line.branch_location_id||'No branch')+'</small></div><div class="sl-payroll-line-net"><span>NET PAY</span><strong>'+money(line.net_pay||0)+'</strong></div></div>'+
       '<div class="sl-payroll-review-metrics">'+
         '<div><span>Base</span><b>'+money(line.base_salary||0)+'</b></div>'+
@@ -1153,8 +1159,9 @@ function renderPayrollReview(period){
         '<div><span>Rule</span><b>'+esc(line.tax_rule_version||line.statutory_status||'Legacy review required')+'</b></div>'+
       '</div>'+
       '<div class="sl-payroll-review-allowances"><span>Taxable allowances '+money(line.taxable_allowance_total||0)+'</span><span>Exempt allowances '+money(line.exempt_allowance_total||0)+'</span></div>'+
-      (parts?'<details class="sl-payroll-components"><summary>Allowance components ('+breakdown.length+')</summary>'+parts+'</details>':'')+
+      (parts?'<details class="sl-payroll-components"><summary>Allowance components ('+breakdown.length+')</summary>'+parts+'</details>':'<p class="sl-sub">No allowance components are present in this payroll snapshot.</p>')+
       (canEdit?slPayrollLineEditForm(line,period.id):'')+
+      (canOwnerClassify?(breakdown.length?ownerForms:'<div class="sl-notice sl-notice-warn">This line has no classified allowance component. Add or correct compensation in the employee’s approved compensation setup before generating a new draft.</div>'):'')+
     '</article>';
   }).join('');
   let actionHtml='';
@@ -1166,6 +1173,8 @@ function renderPayrollReview(period){
     actionHtml='<button type="button" class="sl-btn primary" data-pay-review-action="APPROVE" data-pay-id="'+esc(period.id)+'">OWNER APPROVE & POST GL</button>';
   }else if(canPay){
     actionHtml='<button type="button" class="sl-btn gold" data-pay-review-action="PAY_BANK" data-pay-id="'+esc(period.id)+'">RECORD BANK PAYMENT</button> <button type="button" class="sl-btn" data-pay-review-action="PAY_CASH" data-pay-id="'+esc(period.id)+'">RECORD CASH PAYMENT</button>';
+  }else if(status==='DRAFT'&&caps.payroll_approve){
+    actionHtml='<p class="sl-sub">Owner may verify each allowance classification in this draft. Management remains responsible for submitting the period for independent approval.</p>';
   }else if(status==='DRAFT'&&canEdit&&!lines.length){
     actionHtml='<p class="sl-sub">Generate the payroll lines from approved employee compensation before review or submission.</p>';
   }else if(status==='SUBMITTED'){
@@ -1215,6 +1224,32 @@ function renderPayrollReview(period){
       if(button){button.disabled=false;button.textContent='SAVE & RECALCULATE LINE'}
     }
   }));
+  overlay.querySelectorAll('[data-payroll-classification-form]').forEach(form=>{
+    const treatmentField=form.elements.namedItem('tax_treatment');
+    const evidenceField=form.elements.namedItem('exemption_evidence_reference');
+    const syncEvidence=()=>{if(evidenceField&&treatmentField)evidenceField.required=treatmentField.value==='EXEMPT';};
+    treatmentField?.addEventListener('change',syncEvidence);
+    syncEvidence();
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      if(!form.reportValidity())return;
+      const payload=Object.fromEntries(new FormData(form));
+      payload.component_index=Number(form.dataset.componentIndex);
+      payload.owner_confirmed_classification=!!form.elements.namedItem('owner_confirmed_classification')?.checked;
+      const button=form.querySelector('button[type="submit"]');
+      if(button){button.disabled=true;button.textContent='Saving Owner classification…';}
+      try{
+        const out=await api16('/hr/payroll/'+encodeURIComponent(form.dataset.periodId)+'/line/'+encodeURIComponent(form.dataset.lineId)+'/classification',{method:'POST',body:JSON.stringify(payload)});
+        toast('Owner classification saved and audited. All other allowance components were preserved.');
+        await loadHR();
+        await load();
+        renderPayrollReview(out);
+      }catch(err){
+        toast(err.message||'Owner classification failed; no classification was saved.',true);
+        if(button){button.disabled=false;button.textContent='SAVE OWNER CLASSIFICATION';}
+      }
+    });
+  });
   overlay.querySelectorAll('[data-pay-review-action]').forEach(button=>button.addEventListener('click',async()=>{
     const action=button.dataset.payReviewAction,id=button.dataset.payId;
     button.disabled=true;button.textContent='Processing…';
