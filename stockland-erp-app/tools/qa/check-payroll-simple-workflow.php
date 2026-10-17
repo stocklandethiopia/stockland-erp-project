@@ -72,7 +72,7 @@ $check(
 		&& ! str_contains( $payroll_table, '>PAY BANK</button>' )
 		&& str_contains( $app, "if(a==='REVIEW'){await openPayrollReview(id);return}" ),
 	'Payroll summary rows route users to a role-aware review step instead of one-click posting/payment.'
-)
+);
 $check(
 	str_contains( $app, 'function openPayrollLineEditor(period,line,reviewOverlay)' )
 		&& str_contains( $app, "api16('/hr/payroll/'+encodeURIComponent(period.id)+'/line/'+encodeURIComponent(line.id)" )
