@@ -93,8 +93,8 @@ $check(
 $check(
 	str_contains( $app, 'slPayrollCurrentMonthDefaults(pf)' )
 		&& str_contains( $app, 'slPayrollCurrentMonthDefaults(form,true)' )
-		&& str_contains( $app, "periodStart=periodKey+'-01'" )
-		&& str_contains( $app, "periodEnd=periodKey+'-'+last" )
+		&& str_contains( $app, "start_date:key+'-01'" )
+		&& str_contains( $app, "end_date:key+'-'+last" )
 		&& str_contains( $app, 'CREATE DRAFT PAYROLL' )
 		&& str_contains( $app, 'sl-payroll-setup' ),
 	'Payroll period form defaults to the current full calendar month and keeps setup forms collapsed until opened.'
