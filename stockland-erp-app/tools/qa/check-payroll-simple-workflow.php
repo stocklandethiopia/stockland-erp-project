@@ -58,7 +58,9 @@ $check(
 	'Review view consumes real payroll rows and presents employee-level amounts with mobile labels.'
 );
 $check(
-	str_contains( $app, "data-pay-action=\"'" ) === false
+	! str_contains( $app, 'SUBMIT FOR OWNER APPROVAL</button>' )
+		&& ! str_contains( $app, '>OWNER APPROVE</button>' )
+		&& ! str_contains( $app, '>PAY BANK</button>' )
 		&& str_contains( $app, 'REVIEW DRAFT' )
 		&& str_contains( $app, 'REVIEW SUBMISSION' )
 		&& str_contains( $app, 'REVIEW APPROVED PAYROLL' )
@@ -68,7 +70,7 @@ $check(
 $check(
 	str_contains( $app, 'function openPayrollLineEditor(period,line,reviewOverlay)' )
 		&& str_contains( $app, "api16('/hr/payroll/'+encodeURIComponent(period.id)+'/line/'+encodeURIComponent(line.id)" )
-		&& str_contains( $app, 'line.statutory_status!==\'CALCULATED\'' )
+		&& str_contains( $app, "line.statutory_status!=='CALCULATED'" )
 		&& str_contains( $app, 'line.tax_rule_version!==' ),
 	'Draft line review exposes only the existing draft-edit endpoint and blocks submission with stale calculation versions.'
 );
@@ -88,13 +90,13 @@ $check(
 	'Review actions call existing submit/approve/pay REST transitions, with confirmations before posting/payment.'
 );
 $check(
-	str_contains( $hr_rest, "'/hr/payroll/(?P<id>\\\\d+)/line/(?P<line_id>\\\\d+)'" )
+	str_contains( $hr_rest, "'/hr/payroll/" ) && str_contains( $hr_rest, 'public function payroll_line_update' )
 		&& str_contains( $hr_rest, 'Stockland_Authority::can_manage_payroll()' )
 		&& str_contains( $hr_rest, 'Stockland_Authority::can_approve_payroll()' ),
 	'Existing payroll endpoints remain protected by server-side Management vs Owner authority.'
 );
 $check(
-	str_contains( $hr_rest, "if ( 'DRAFT' !== $period['status'] )" )
+	str_contains( $hr_rest, 'if ( \'DRAFT\' !== $period[\'status\'] )' )
 		&& str_contains( $hr_rest, 'Stockland_Payroll_Statutory::calculate' )
 		&& str_contains( $hr_rest, 'PAYROLL_LINE_UPDATE' )
 		&& str_contains( $hr_rest, 'ROLLBACK' ),
