@@ -1,6 +1,6 @@
 <?php
 /**
- * Regression contract for the 16.1.78 global ERP record search.
+ * Regression contract for the 16.1.79 global ERP record search.
  * This is a source-level check; authenticated live acceptance remains separate.
  */
 if ( PHP_SAPI !== 'cli' ) {
@@ -34,11 +34,11 @@ $search_start = strpos( $rest, 'public function global_search(' );
 $search_end   = strpos( $rest, 'public function dashboard_insights(', $search_start );
 $search       = false !== $search_start && false !== $search_end ? substr( $rest, $search_start, $search_end - $search_start ) : '';
 $check(
-	( $manifest['release'] ?? '' ) === '16.1.78'
-		&& str_contains( $plugin, 'Version:           16.1.78' )
-		&& str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.78' );" )
-		&& str_contains( $frontend, "const ROUTE_VERSION      = '16.1.78';" ),
-	'Plugin, frontend cache version and release manifest are aligned at 16.1.78.'
+	( $manifest['release'] ?? '' ) === '16.1.79'
+		&& str_contains( $plugin, 'Version:           16.1.79' )
+		&& str_contains( $plugin, "define( 'STOCKLAND_VERSION', '16.1.79' );" )
+		&& str_contains( $frontend, "const ROUTE_VERSION      = '16.1.79';" ),
+	'Plugin, frontend cache version and release manifest are aligned at 16.1.79.'
 );
 $check(
 	( $manifest['schema_contract']['total'] ?? 0 ) === 49
@@ -103,9 +103,9 @@ $check(
 	'Header search has a dedicated responsive row and bounded result panel.'
 );
 $check(
-	( $modules['release'] ?? '' ) === '16.1.78'
+	( $modules['release'] ?? '' ) === '16.1.79'
 		&& count( $modules['modules'] ?? array() ) === 6,
-	'Six ordered CSS modules are versioned together at 16.1.78.'
+	'Six ordered CSS modules are versioned together at 16.1.79.'
 );
 if ( $fail ) {
 	fwrite( STDERR, 'FAIL global-search QA: ' . count( $fail ) . " failure(s)\n" );
