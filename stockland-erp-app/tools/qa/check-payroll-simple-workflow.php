@@ -104,7 +104,8 @@ $check(
 		&& str_contains( $hr_rest, 'private function payroll_rows( $period_id = 0 )' )
 		&& str_contains( $hr_rest, 'WHERE p.id=%d LIMIT 1' )
 		&& str_contains( $hr_rest, 'Stockland_Authority::can_manage_payroll()' )
-		&& str_contains( $hr_rest, 'Stockland_Authority::can_approve_payroll()' ),
+		&& str_contains( $hr_rest, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $hr_rest, 'Only active Stockland Management may edit draft payroll.' ),
 	'Existing payroll endpoints remain protected by server-side Management vs Owner authority.'
 );
 $check(

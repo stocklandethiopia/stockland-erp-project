@@ -1193,7 +1193,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	public function payroll_line_update( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
-			return $this->deny( 'Only an active Owner or Management profile can edit draft payroll.', 403 );
+			return $this->deny( 'Only active Stockland Management may edit draft payroll.', 403 );
 		}
 		global $wpdb;
 		$pid    = (int) $r['id'];
