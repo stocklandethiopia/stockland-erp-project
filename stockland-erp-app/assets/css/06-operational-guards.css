@@ -536,3 +536,48 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
  .sl-payroll-review-actions{display:grid;grid-template-columns:1fr;width:100%}
  .sl-payroll-review-actions .sl-btn{width:100%;min-height:44px}
 }
+
+
+/* 16.1.79 • Compact alerts: keep the decision visible and tuck long copy behind Details. */
+.sl-notification-card{padding:12px 13px}
+.sl-notification-card-main{display:grid;grid-template-columns:8px minmax(0,1fr);gap:10px;align-items:start}
+.sl-notification-copy{min-width:0}
+.sl-notification-copy>strong{display:block;color:var(--sl-ink);font-size:12px;line-height:1.35;font-weight:850;overflow-wrap:anywhere}
+.sl-notification-preview{margin:4px 0 0;color:var(--sl-text);font-size:11px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.sl-notification-meta{display:block;margin-top:6px;color:var(--sl-muted);font-size:9px;line-height:1.35;overflow-wrap:anywhere}
+.sl-notification-details{margin-top:7px;padding-top:7px;border-top:1px solid var(--sl-line)}
+.sl-notification-details summary{cursor:pointer;color:var(--sl-cobalt);font-size:10px;font-weight:850;outline-offset:3px}
+.sl-notification-details p{margin:6px 0 0;color:var(--sl-text);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.sl-notification-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
+.sl-notification-actions .sl-btn{min-height:34px}
+@media(max-width:575.98px){
+ #stockland-app .sl-top-logo{display:block!important;width:28px;height:28px;flex:0 0 28px;border-radius:8px}
+ #stockland-app .sl-top-brand h1{font-size:11px;max-width:44vw}
+ #stockland-app .sl-top-brand small{font-size:8px;max-width:44vw}
+ #stockland-app .sl-mega-trigger{gap:4px;padding:6px 7px;font-size:10px}
+ #stockland-app .sl-mega-trigger-icon{width:18px;height:18px}
+ #stockland-app .sl-alert-drawer .sl-drawer-head p{max-width:26ch;font-size:10px;line-height:1.4}
+ #stockland-app .sl-notification-card{padding:10px}
+ #stockland-app .sl-notification-actions{display:grid;grid-template-columns:minmax(0,1fr);width:100%}
+ #stockland-app .sl-notification-actions .sl-btn{width:100%;min-height:42px}
+}
+
+/* Print contract for daily and operational reports: print the report, not the ERP chrome. */
+@media print{
+ @page{margin:12mm}
+ html,body,#stockland-app,#sl-app-shell{position:static!important;width:100%!important;height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
+ .sl-sidebar,.sl-top,.sl-mobile-menu,.sl-overlay,.sl-drawer,.sl-toast,.sl-profile-menu,.sl-command-overlay,.sl-action-row,.sl-actions,.sl-quick-actions,.sl-btn,.sl-icon-btn{display:none!important}
+ .sl-main,.sl-content,.sl-content-inner,.sl-panel,.sl-table-wrap{position:static!important;width:100%!important;max-width:none!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:0!important;padding:0!important;background:#fff!important;box-shadow:none!important}
+ .sl-page-title{position:static!important;padding:0 0 8pt!important;border:0!important;border-bottom:1px solid #aab4c0!important;background:#fff!important;box-shadow:none!important}
+ .sl-page-title h2{font-size:18pt!important;color:#111!important}
+ .sl-page-title p{font-size:9pt!important;color:#333!important}
+ .sl-table,.sl-responsive-cards{display:table!important;width:100%!important;min-width:0!important;table-layout:auto!important;border-collapse:collapse!important;font-size:8pt!important}
+ .sl-table thead{display:table-header-group!important}
+ .sl-table tbody{display:table-row-group!important}
+ .sl-table tr{display:table-row!important;break-inside:avoid!important}
+ .sl-table th,.sl-table td{display:table-cell!important;white-space:normal!important;overflow-wrap:anywhere!important;padding:4pt 5pt!important;border:1px solid #cbd5e1!important;background:#fff!important;color:#111!important}
+ .sl-table td:before{display:none!important;content:none!important}
+ .sl-card,.sl-panel,.sl-report-section{break-inside:avoid!important;border:1px solid #d1d5db!important}
+ .sl-hero,.sl-dashboard-kpi-card{background:#fff!important;color:#111!important}
+ a[href]:after{content:""!important}
+}
