@@ -164,10 +164,8 @@
       "release": "16.1.79",
       "branch": "release/16.1.79-payroll-simple-review",
       "base_commit": "6bb6288633929f020d1869e54e607ee9f3261886",
-      "target_host_acceptance": "PENDING",
-      "live_certification": false
-    },
-    "live_certification": false
+      "target_host_acceptance": "PENDING"
+    }
   },
   "release_acceptance": {
     "source_package_gate": "PENDING — exact corrected 16.1.79 source/package run will be recorded by CI.",
@@ -217,6 +215,5 @@
     "statutory_rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
     "source_gate": "PENDING — exact 16.1.79 branch must pass full CI/ERP regression suite.",
     "target_host_acceptance": "PENDING — no WordPress installation or live database transactions were run here."
-  },
-  "live_certification": false
+  }
 }
