@@ -1,7 +1,7 @@
 {
   "release": "16.1.79",
   "release_label": "16.1.79 — guided payroll review and in-place corrective update candidate",
-  "classification": "Cumulative in-place corrective update preserving the existing 49-table business contract and database version. Simplifies the monthly payroll operator flow, adds a permission-checked read-only payroll detail route, exposes Management-only DRAFT amount editing and a separate Owner-only per-component TAXABLE/EXEMPT classification action, requires current-rule recalculation before submission, and preserves allowance component/evidence integrity. No PAYE/pension formula or historical posted payroll is changed. Exact source gate and WordPress acceptance remain separate.",
+  "classification": "Cumulative in-place corrective update preserving the existing 49-table business contract and database version. Simplifies the monthly payroll operator flow, adds a permission-checked read-only payroll detail route, exposes Management-only DRAFT amount editing and a separate Owner-only per-component TAXABLE/EXEMPT classification action, requires current-rule recalculation before submission, and preserves allowance component/evidence integrity. The current PAYE rule uses taxable employment income before employee pension withholding; existing posted payroll is not recalculated, and old-rule DRAFT lines must be recalculated before submission. Ethiopian payroll/tax professional acceptance is still required before production payroll. Exact source gate and WordPress acceptance remain separate.",
   "baseline": "Built from the existing 16.1.78 GitHub source with a focused payroll UX and submission-safety correction. Historical 16.1.78 source/package status is retained under historical_release_16_1_78. CI must attach a fresh 16.1.79 source-gate result to the exact branch head and package checksum.",
   "schema_contract": {
     "core_operations": 29,
@@ -120,7 +120,7 @@
   },
   "payroll": {
     "statutory_service": "Stockland_Payroll_Statutory",
-    "rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
+    "rule_version": "ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME",
     "law_effective_date": "2025-07-08",
     "first_full_month": "2025-08-01",
     "tax_schedule": "Monthly Ethiopian employment-income PAYE schedule under the configured statutory rule version.",
