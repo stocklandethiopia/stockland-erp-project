@@ -1,7 +1,7 @@
 {
   "release": "16.1.79",
   "release_label": "16.1.79 — guided payroll review and in-place corrective update candidate",
-  "classification": "Cumulative in-place corrective update preserving the existing 49-table business contract and database version. Simplifies the monthly payroll operator flow, adds a permission-checked read-only payroll detail route, exposes draft-only line review/recalculation, requires all lines to be recalculated under the current statutory rule before submission, and preserves verified exemption evidence. No payroll tax rates/formula or historical posted payroll is changed. Exact source gate and WordPress acceptance remain separate.",
+  "classification": "Cumulative in-place corrective update preserving the existing 49-table business contract and database version. Simplifies the monthly payroll operator flow, adds a permission-checked read-only payroll detail route, exposes Management-only DRAFT amount editing and a separate Owner-only per-component TAXABLE/EXEMPT classification action, requires current-rule recalculation before submission, and preserves allowance component/evidence integrity. No PAYE/pension formula or historical posted payroll is changed. Exact source gate and WordPress acceptance remain separate.",
   "baseline": "Built from the existing 16.1.78 GitHub source with a focused payroll UX and submission-safety correction. Historical 16.1.78 source/package status is retained under historical_release_16_1_78. CI must attach a fresh 16.1.79 source-gate result to the exact branch head and package checksum.",
   "schema_contract": {
     "core_operations": 29,
@@ -155,7 +155,10 @@
     "16.1.79: the review panel shows per-employee base, gross, taxable income, PAYE, employee/employer pension, other deductions, net pay and allowance components before Management submits or the Owner approves.",
     "16.1.79: only DRAFT lines are editable. Submit, independent Owner approval/GL posting and payment are performed through the existing authorized endpoints; submitted, approved and paid periods are read-only.",
     "16.1.79: server blocks submission if a line is not CALCULATED under the current statutory rule version or classification verification fails. Invalid saved exemption amounts return a controlled conflict response; verified exemption evidence is preserved when unrelated draft values are recalculated.",
-    "16.1.79: no changes to Stockland_Payroll_Statutory tax brackets, pension rates, tax-base formula, DB version 16.1.1, or the exact 49-table contract. No live payroll was generated, posted, approved or paid by this source update."
+    "16.1.79: no changes to Stockland_Payroll_Statutory tax brackets, pension rates, tax-base formula, DB version 16.1.1, or the exact 49-table contract. No live payroll was generated, posted, approved or paid by this source update.",
+    "16.1.79: Owner-only payroll component classification is a separate permission-checked route; only an existing allowance component's TAXABLE/EXEMPT treatment can change. Component amount, base salary, pensionable salary and other deductions are not editable through this route.",
+    "16.1.79: Owner classification recalculates a DRAFT line from the saved allowance components, validates that the component snapshot reconciles to its current totals before mutation, preserves all other components, requires basis/evidence/confirmation, logs PAYROLL_EXEMPTION_VERIFY and writes transactionally.",
+    "16.1.79: Management line editing stays on its existing authorized route, cannot change exempt totals, and rechecks the DRAFT period and unchanged line under row locks before committing. Server submission refuses uncalculated/current-rule-mismatched lines."
   ],
   "quality": {
     "source_gate": "PENDING — exact 16.1.79 package/source workflow has not yet passed.",
@@ -235,12 +238,15 @@
     "note": "Historical source/package state retained as provenance. It is not test evidence for 16.1.79."
   },
   "corrective_release_16_1_79": {
-    "scope": "Guided monthly payroll setup/review, read-only period detail, draft-only line recalculation, current-rule submission gate, exemption evidence preservation, and responsive review panel.",
+    "scope": "Guided monthly payroll setup and review; read-only payroll detail; Management-only DRAFT amount edits; separate Owner-only per-component TAXABLE/EXEMPT classification; current-rule submission gate; exemption evidence preservation; responsive review panel.",
     "business_table_contract": "49 unchanged",
     "schema_changed": false,
     "database_version_changed": false,
     "statutory_formula_changed": false,
     "historical_payroll_rewritten": false,
-    "target_host_acceptance": "PENDING"
+    "target_host_acceptance": "PENDING",
+    "owner_classification": "Separate Owner-only route can modify tax treatment only for one existing allowance component; amount is immutable; requires confirmation and classification basis, with evidence required for EXEMPT.",
+    "management_boundary": "Management can edit DRAFT payroll line amounts only; cannot change exempt totals; period and line are rechecked under FOR UPDATE locks before commit.",
+    "transaction_controls": "Owner component classification runs in a transaction; verifies the pre-change component sum matches line totals; recalculates statutory results and period totals, audits the change, then commits. No change on audit or commit failure."
   }
 }
