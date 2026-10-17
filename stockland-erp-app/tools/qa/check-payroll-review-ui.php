@@ -43,6 +43,10 @@ $editor_start = strpos( $app, 'function slPayrollLineEditForm' );
 $editor_end   = false !== $editor_start ? strpos( $app, 'function slPayrollOwnerClassificationForm', $editor_start ) : false;
 $editor       = false !== $editor_start && false !== $editor_end ? substr( $app, $editor_start, $editor_end - $editor_start ) : '';
 $class_route  = "'/hr/payroll/(?P<id>\\\\d+)/line/(?P<line_id>\\\\d+)/classification'";
+$class_route_start = strpos( $rest, $class_route );
+$class_route_block_start = false !== $class_route_start ? strrpos( substr( $rest, 0, $class_route_start ), 'register_rest_route(' ) : false;
+$class_route_block_end = false !== $class_route_start ? strpos( $rest, "\n\t\t);" , $class_route_start ) : false;
+$class_route_block = false !== $class_route_block_start && false !== $class_route_block_end ? substr( $rest, $class_route_block_start, $class_route_block_end - $class_route_block_start + strlen( "\n\t\t);" ) ) : '';
 $check(
 	str_contains( $rest, "'/hr/payroll/(?P<id>" )
 		&& str_contains( $rest, "'methods'             => 'GET'")
@@ -119,7 +123,9 @@ $check(
 	str_contains( $rest, $class_route )
 		&& 1 === substr_count( $rest, $class_route )
 		&& str_contains( $classify, '$component_index' )
-		&& str_contains( $classify, 'Stockland_Authority::can_approve_payroll()' ) === false
+		&& str_contains( $classify, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $class_route_block, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $class_route_block, "'callback'            => array( $this, 'payroll_line_classification_update' )" )
 		&& str_contains( $classify, "Stockland_Authority::role() !== 'owner'" )
 		&& ! str_contains( $classify, "\$p['amount']" )
 		&& ! str_contains( $classify, "\$p['base_salary']" ),
