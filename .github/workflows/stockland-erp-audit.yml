@@ -311,14 +311,21 @@ jobs:
           test ! -d stockland-erp-app/vendor
           test ! -d stockland-erp-app/.phpunit.cache
 
-      - name: Run ERP static/integrity QA and JS checks
+      - name: Run ERP JavaScript syntax checks
         working-directory: stockland-erp-app
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check assets/app.js
+          node --check assets/pwa.js
+
+      - name: Run ERP static/integrity QA
+        working-directory: stockland-erp-app
+        shell: bash
         run: |
           set -euo pipefail
           php tools/qa/run-static-qa.php
           php tools/qa/smoke-integrity-scan.php
-          node --check assets/app.js
-          node --check assets/pwa.js
 
       - name: Record verified CI quality results in release manifest
         working-directory: stockland-erp-app
