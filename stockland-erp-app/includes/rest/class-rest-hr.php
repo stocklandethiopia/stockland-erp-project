@@ -204,6 +204,28 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		);
 		register_rest_route(
 			self::NAMESPACE_V1,
+			'/hr/payroll/(?P<id>\\d+)/line/(?P<line_id>\\d+)/classification',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'payroll_line_classification_update' ),
+				'permission_callback' => function () {
+					return Stockland_Authority::can_approve_payroll();
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/hr/payroll/(?P<id>\\d+)/line/(?P<line_id>\\d+)/classification',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'payroll_line_classification_update' ),
+				'permission_callback' => function () {
+					return Stockland_Authority::can_approve_payroll();
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE_V1,
 			'/hr/payroll/(?P<id>\\d+)/submit',
 			array(
 				'methods'             => 'POST',
@@ -631,8 +653,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 						'owner_verified'     => false,
 					);
 				}
-				$refresh_exemption_snapshot = false;
-		if ( Stockland_Money::minor( $exempt ) > 0 ) {
+				if ( Stockland_Money::minor( $exempt ) > 0 ) {
 					$legacy_basis    = sanitize_textarea_field( $p['statutory_classification_note'] ?? '' );
 					$legacy_evidence = sanitize_text_field( $p['exemption_evidence_reference'] ?? '' );
 					if ( Stockland_Authority::role() !== 'owner' || strlen( trim( $legacy_basis ) ) < 20 || strlen( trim( $legacy_evidence ) ) < 4 || empty( $p['owner_confirmed_exemption'] ) ) {
@@ -1240,6 +1261,11 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 		$basis               = sanitize_textarea_field( $p['statutory_classification_note'] ?? '' );
 		$evidence            = sanitize_text_field( $p['exemption_evidence_reference'] ?? '' );
 		$exemption_confirmed = Stockland_Authority::role() === 'owner' && ! empty( $p['owner_confirmed_exemption'] );
+		$refresh_exemption_snapshot = false;
+		$current_exempt_minor = Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' );
+		if ( Stockland_Authority::role() !== 'owner' && Stockland_Money::minor( $exempt ) !== $current_exempt_minor ) {
+			return new WP_Error( 'owner_exemption_review_required', 'Only the Owner may change an allowance tax classification. Save other draft adjustments, then ask the Owner to review this exemption.', array( 'status' => 403 ) );
+		}
 		if ( Stockland_Money::minor( $exempt ) > 0 ) {
 			$old_exempt      = Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' );
 			$same_exempt     = Stockland_Money::minor( $exempt ) === $old_exempt;
@@ -1378,6 +1404,172 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			return null;
 		}$p['lines'] = Stockland_DB::read_results( $wpdb->prepare( 'SELECT * FROM %i WHERE period_id=%d ORDER BY employee_name', Stockland_DB::table( 'payroll_lines' ), $id ), ARRAY_A );
 		return $p;}
+
+	/**
+	 * Reclassifies one allowance component in a DRAFT payroll line.
+	 *
+	 * This endpoint is Owner-only and changes only the tax treatment of an existing
+	 * component. Amounts, other components and statutory rates remain unchanged.
+	 *
+	 * @param WP_REST_Request $r REST request containing the component classification.
+	 * @return mixed Updated draft payroll detail.
+	 */
+	public function payroll_line_classification_update( WP_REST_Request $r ) {
+		if ( ! Stockland_Authority::can_approve_payroll() || Stockland_Authority::role() !== 'owner' ) {
+			return $this->deny( 'Only the active Stockland Owner may verify a payroll exemption or tax reclassification.', 403 );
+		}
+		global $wpdb;
+		$period_id = (int) $r['id'];
+		$line_id   = (int) $r['line_id'];
+		$p         = (array) $r->get_json_params();
+		$component_index = filter_var( $p['component_index'] ?? null, FILTER_VALIDATE_INT );
+		if ( false === $component_index || $component_index < 0 ) {
+			return new WP_Error( 'invalid_component_index', 'Select an existing allowance component to reclassify.', array( 'status' => 400 ) );
+		}
+		$tax_treatment = strtoupper( sanitize_text_field( (string) ( $p['tax_treatment'] ?? '' ) ) );
+		if ( ! in_array( $tax_treatment, array( 'TAXABLE', 'EXEMPT' ), true ) ) {
+			return new WP_Error( 'invalid_tax_treatment', 'Choose TAXABLE or EXEMPT for the selected component.', array( 'status' => 400 ) );
+		}
+		$basis        = sanitize_textarea_field( (string) ( $p['statutory_classification_note'] ?? '' ) );
+		$evidence     = sanitize_text_field( (string) ( $p['exemption_evidence_reference'] ?? '' ) );
+		$confirmed    = ! empty( $p['owner_confirmed_classification'] );
+		$classification_note = sanitize_textarea_field( (string) ( $p['notes'] ?? '' ) );
+		if ( ! $confirmed || strlen( trim( $basis ) ) < 20 ) {
+			return new WP_Error( 'classification_basis_required', 'Owner confirmation and a specific legal/contract basis or reason of at least 20 characters are required.', array( 'status' => 400 ) );
+		}
+		if ( 'EXEMPT' === $tax_treatment && strlen( trim( $evidence ) ) < 4 ) {
+			return new WP_Error( 'classification_evidence_required', 'An EXEMPT component requires a supporting evidence reference of at least 4 characters.', array( 'status' => 400 ) );
+		}
+		if ( false === Stockland_DB::execute_query( 'START TRANSACTION' ) ) {
+			return new WP_Error( 'transaction_failed', 'Could not start payroll classification transaction.', array( 'status' => 500 ) );
+		}
+		try {
+			$period = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d FOR UPDATE', Stockland_DB::table( 'payroll_periods' ), $period_id ), ARRAY_A );
+			if ( ! $period ) {
+				throw new Exception( 'Payroll period not found.' );
+			}
+			if ( 'DRAFT' !== $period['status'] ) {
+				throw new Exception( 'Only DRAFT payroll can be classified. Submitted, approved and paid periods are locked.' );
+			}
+			$line = Stockland_DB::read_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id=%d AND period_id=%d FOR UPDATE', Stockland_DB::table( 'payroll_lines' ), $line_id, $period_id ), ARRAY_A );
+			if ( ! $line ) {
+				throw new Exception( 'Payroll line not found in this period.' );
+			}
+			if ( 'CALCULATED' !== (string) ( $line['statutory_status'] ?? '' ) || Stockland_Payroll_Statutory::RULE_VERSION !== (string) ( $line['tax_rule_version'] ?? '' ) ) {
+				throw new Exception( 'Recalculate this draft line under the current statutory rule before classifying an allowance.' );
+			}
+			$components = json_decode( (string) ( $line['allowance_breakdown_json'] ?? '' ), true );
+			if ( ! is_array( $components ) || ! array_key_exists( $component_index, $components ) || ! is_array( $components[ $component_index ] ) ) {
+				throw new Exception( 'The saved allowance component snapshot is missing or incomplete; no change was made.' );
+			}
+			$old_component = $components[ $component_index ];
+			try {
+				$amount = $this->money( $old_component['amount'] ?? null );
+			} catch ( Throwable $e ) {
+				throw new Exception( 'The selected component has an invalid saved amount; it requires authorized review before classification.' );
+			}
+			if ( Stockland_Money::minor( $amount ) <= 0 ) {
+				throw new Exception( 'A zero-value component cannot be reclassified. Correct the draft compensation source instead.' );
+			}
+			$old_treatment = strtoupper( (string) ( $old_component['tax_treatment'] ?? 'TAXABLE' ) );
+			if ( ! in_array( $old_treatment, array( 'TAXABLE', 'EXEMPT' ), true ) ) {
+				throw new Exception( 'The selected component has an unknown saved tax treatment; no change was made.' );
+			}
+			$components[ $component_index ]['tax_treatment'] = $tax_treatment;
+			if ( 'EXEMPT' === $tax_treatment ) {
+				$components[ $component_index ]['legal_basis']        = substr( trim( $basis ), 0, 500 );
+				$components[ $component_index ]['evidence_reference'] = substr( trim( $evidence ), 0, 190 );
+				$components[ $component_index ]['owner_verified']     = true;
+				$components[ $component_index ]['verified_by']        = (int) get_current_user_id();
+				$components[ $component_index ]['verified_at']        = current_time( 'mysql' );
+			} else {
+				$components[ $component_index ]['legal_basis']        = '';
+				$components[ $component_index ]['evidence_reference'] = '';
+				$components[ $component_index ]['owner_verified']     = false;
+				$components[ $component_index ]['verified_by']        = null;
+				$components[ $component_index ]['verified_at']        = null;
+			}
+			$taxable = '0.00';
+			$exempt  = '0.00';
+			foreach ( $components as $component ) {
+				if ( ! is_array( $component ) ) {
+					throw new Exception( 'The allowance snapshot contains an invalid component; no change was made.' );
+				}
+				try {
+					$component_amount = $this->money( $component['amount'] ?? null );
+				} catch ( Throwable $e ) {
+					throw new Exception( 'An allowance component contains an invalid amount; no change was made.' );
+				}
+				if ( strtoupper( (string) ( $component['tax_treatment'] ?? 'TAXABLE' ) ) === 'EXEMPT' ) {
+					$exempt = Stockland_Money::add( $exempt, $component_amount );
+				} else {
+					$taxable = Stockland_Money::add( $taxable, $component_amount );
+				}
+			}
+			if ( Stockland_Money::minor( $taxable ) !== Stockland_Money::minor( $line['taxable_allowance_total'] ?? '0.00' ) || Stockland_Money::minor( $exempt ) !== Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' ) ) {
+				throw new Exception( 'Allowance components do not reconcile to the saved payroll line totals. No change was made; Management must resolve the draft line first.' );
+			}
+			if ( Stockland_Money::minor( $taxable ) === 0 && Stockland_Money::minor( $exempt ) === 0 && ! $components ) {
+				throw new Exception( 'There are no allowance components to classify.' );
+			}
+			$calc = Stockland_Payroll_Statutory::calculate(
+				$line['base_salary'],
+				$taxable,
+				$exempt,
+				$line['pensionable_salary'] ?? $line['base_salary'],
+				$line['other_deduction_total'] ?? '0.00'
+			);
+			$note = substr(
+				trim(
+					(string) ( $line['notes'] ?? '' ) . ' | Owner classification: ' . $classification_note .
+					' | Component ' . ( (int) $component_index + 1 ) . ' ' . $old_treatment . ' → ' . $tax_treatment .
+					' | Basis: ' . trim( $basis ) .
+					( '' !== $evidence ? ' | Evidence: ' . trim( $evidence ) : '' )
+				),
+				0,
+				500
+			);
+			if ( false === Stockland_DB::update_record(
+				Stockland_DB::table( 'payroll_lines' ),
+				array_merge(
+					$calc,
+					array(
+						'notes'                    => $note,
+						'allowance_breakdown_json' => wp_json_encode( $components ),
+					)
+				),
+				array(
+					'id'        => $line_id,
+					'period_id' => $period_id,
+				)
+			) ) {
+				throw new Exception( $wpdb->last_error ? $wpdb->last_error : 'Payroll classification could not be saved.' );
+			}
+			$totals = $this->save_payroll_totals( $period_id );
+			$audit = wp_json_encode(
+				array(
+					'rule_version'     => Stockland_Payroll_Statutory::RULE_VERSION,
+					'component_index'  => (int) $component_index,
+					'old_treatment'    => $old_treatment,
+					'new_treatment'    => $tax_treatment,
+					'amount'           => $amount,
+					'legal_basis'      => trim( $basis ),
+					'evidence'         => trim( $evidence ),
+					'classified_by'    => (int) get_current_user_id(),
+				)
+			);
+			if ( ! Stockland_Audit::log( get_current_user_id(), $line['branch_location_id'], 'PAYROLL_EXEMPTION_VERIFY', null, $calc['net_pay'], $line['net_pay'], $calc['net_pay'], (string) $audit, 'PAY' . $period_id ) ) {
+				throw new Exception( 'Audit failed; payroll classification was rolled back.' );
+			}
+			if ( false === Stockland_DB::execute_query( 'COMMIT' ) ) {
+				throw new Exception( 'Payroll classification commit failed.' );
+			}
+			return rest_ensure_response( $this->payroll_detail( $period_id ) );
+		} catch ( Throwable $e ) {
+			Stockland_DB::execute_query( 'ROLLBACK' );
+			return new WP_Error( 'payroll_classification_failed', $e->getMessage(), array( 'status' => 409 ) );
+		}
+	}
 
 	/**
 	 * Management submits a completed draft; only the Owner may approve/pay it.
