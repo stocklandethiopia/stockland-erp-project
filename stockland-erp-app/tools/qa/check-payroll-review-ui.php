@@ -36,6 +36,9 @@ $line_update = false !== $line_start && false !== $line_end ? substr( $rest, $li
 $submit_start = strpos( $rest, 'public function payroll_submit' );
 $submit_end   = false !== $submit_start ? strpos( $rest, 'public function payroll_approve', $submit_start ) : false;
 $submit       = false !== $submit_start && false !== $submit_end ? substr( $rest, $submit_start, $submit_end - $submit_start ) : '';
+$classify_start = strpos( $rest, 'public function payroll_line_classification_update' );
+$classify_end   = false !== $classify_start ? strpos( $rest, 'public function payroll_submit', $classify_start ) : false;
+$classify       = false !== $classify_start && false !== $classify_end ? substr( $rest, $classify_start, $classify_end - $classify_start ) : '';
 $check(
 	str_contains( $rest, "'/hr/payroll/(?P<id>" )
 		&& str_contains( $rest, "'methods'             => 'GET'")
@@ -63,7 +66,7 @@ $check(
 		&& str_contains( $app, "const canApprove=status==='SUBMITTED'&&!!caps.payroll_approve;")
 		&& str_contains( $app, "const canPay=status==='APPROVED'&&!!caps.payroll_approve;")
 		&& str_contains( $app, "data-payroll-line-form")
-		&& str_contains( $app, "const owner=state.boot.user.role==='owner';")
+		&& str_contains( $app, "function slPayrollOwnerClassificationForm(line,periodId,componentIndex,component,currentRule)")
 		&& str_contains( $app, "legacyTaxableDefault")
 		&& str_contains( $app, "legacyExemptDefault")
 		&& str_contains( $app, "'/hr/payroll/'+encodeURIComponent(form.dataset.periodId)+'/line/'+encodeURIComponent(form.dataset.lineId)"),
@@ -96,6 +99,26 @@ $check(
 		&& str_contains( $css, '@media(max-width:760px)')
 		&& str_contains( $css, '.sl-payroll-setup-grid'),
 	'Payroll simplification keeps service-contract warnings, historical record policy and responsive review styling.'
+);
+$check(
+	str_contains( $rest, "'/hr/payroll/(?P<id>\\\\d+)/line/(?P<line_id>\\\\d+)/classification'" )
+		&& str_contains( $rest, "'callback'            => array( $this, 'payroll_line_classification_update' )" )
+		&& str_contains( $rest, 'Stockland_Authority::can_approve_payroll()' )
+		&& str_contains( $classify, "Stockland_Authority::role() !== 'owner'" )
+		&& str_contains( $classify, "'DRAFT' !== $period['status']" )
+		&& str_contains( $classify, "Stockland_Payroll_Statutory::RULE_VERSION" )
+		&& str_contains( $classify, "'PAYROLL_EXEMPTION_VERIFY'" ),
+	'Owner-only component classification is permission-gated, limited to DRAFT/current-rule lines, and audited.'
+);
+$check(
+	str_contains( $classify, '$prior_taxable' )
+		&& str_contains( $classify, '$prior_exempt' )
+		&& str_contains( $classify, 'Allowance components do not reconcile to the saved payroll line totals.' )
+		&& str_contains( $classify, '$components[ $component_index ][\'tax_treatment\'] = $tax_treatment' )
+		&& str_contains( $line_update, 'owner_exemption_review_required' )
+		&& str_contains( $line_update, '$locked_period' )
+		&& str_contains( $line_update, '$locked_line' ),
+	'Owner classification preserves all other allowance components and Management amount edits fail closed on component mismatch or concurrent status changes.'
 );
 $check(
 	str_contains( $submit, '$unverified_lines > 0' )
