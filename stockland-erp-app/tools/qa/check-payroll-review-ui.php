@@ -91,13 +91,13 @@ $check(
 	'Draft line recalculation stays locked after submission and preserves previously verified exemption evidence.'
 );
 $check(
-	str_contains( $app, 'slPayrollCurrentMonthDefaults(pf)' )
-		&& str_contains( $app, 'slPayrollCurrentMonthDefaults(form,true)' )
-		&& str_contains( $app, "start_date:key+'-01'" )
-		&& str_contains( $app, "end_date:key+'-'+last" )
+	str_contains( $app, 'name="payroll_month" type="month"' )
+		&& str_contains( $app, "d.period_key=month;d.start_date=month+'-01';d.end_date=month+'-'+lastDay" )
+		&& str_contains( $app, 'if(!/^\\d{4}-(0[1-9]|1[0-2])$/.test(month))' )
+		&& str_contains( $app, "form.elements.namedItem('payroll_month')" )
 		&& str_contains( $app, 'CREATE DRAFT PAYROLL' )
 		&& str_contains( $app, 'sl-payroll-setup' ),
-	'Payroll period form defaults to the current full calendar month and keeps setup forms collapsed until opened.'
+	'Payroll period uses one month selector and derives the correct calendar dates; setup forms remain collapsed until opened.'
 );
 $check(
 	str_contains( $app, 'RETAINER_SERVICE')
@@ -157,11 +157,12 @@ $check(
 	'Payroll submission is blocked server-side when any line is not calculated under the current rule or line verification fails.'
 );
 $check(
-	str_contains( $statutory, 'ET-PAYE-1395-2025-v3-PENSION-BASE')
-		&& str_contains( $statutory, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )')
-		&& str_contains( $tax_qa, "'7715.00'")
-		&& str_contains( $tax_qa, "'20185.00'"),
-	'PAYE/pension formula and agreed ETB 30,000 regression remain unchanged.'
+	str_contains( $statutory, 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME')
+		&& str_contains( $statutory, 'TAXABLE_GROSS_EMPLOYMENT_INCOME')
+		&& ! str_contains( $statutory, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )')
+		&& str_contains( $tax_qa, "'8450.00'")
+		&& str_contains( $tax_qa, "'19450.00'"),
+	'PAYE uses gross taxable employment income under v4, with employee pension deducted separately.'
 );
 if ( $fail ) {
 	fwrite( STDERR, 'Payroll review QA FAILED: ' . implode( '; ', $fail ) . "\n" );
