@@ -277,11 +277,24 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	/**
 	 * Reads payroll data within the caller's authorized scope.
 	 *
+	 * @param int $period_id Optional single period ID to bound a detail response.
 	 * @return array The authorized payroll rows.
 	 */
-	private function payroll_rows() {
+	private function payroll_rows( $period_id = 0 ) {
 		global $wpdb;
 		$p = Stockland_DB::table( 'payroll_periods' );
+		if ( (int) $period_id > 0 ) {
+			$row = Stockland_DB::read_row(
+				$wpdb->prepare(
+					'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by WHERE p.id=%d LIMIT 1',
+					$p,
+					$wpdb->users,
+					(int) $period_id
+				),
+				ARRAY_A
+			);
+			return $row ? array( $row ) : array();
+		}
 		return Stockland_DB::read_results( $wpdb->prepare( 'SELECT p.*,u.display_name approved_by_name FROM %i p LEFT JOIN %i u ON u.ID=p.approved_by ORDER BY p.end_date DESC,p.id DESC LIMIT 100', $p, $wpdb->users ), ARRAY_A );
 	}
 
@@ -709,7 +722,15 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	public function payroll_list( WP_REST_Request $r ) {
 		global $wpdb;
-		$rows = $this->payroll_rows();
+		$period_id_raw = $r->get_param( 'period_id' );
+		$period_id     = 0;
+		if ( null !== $period_id_raw && '' !== $period_id_raw ) {
+			$period_id = absint( $period_id_raw );
+			if ( 0 === $period_id ) {
+				return new WP_Error( 'invalid_payroll_period_id', 'Payroll period ID must be a positive integer.', array( 'status' => 400 ) );
+			}
+		}
+		$rows = $this->payroll_rows( $period_id );
 		if ( ! $rows ) {
 			return rest_ensure_response( array() );
 		}
