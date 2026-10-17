@@ -37,9 +37,10 @@ $check(
 $check(
 	( $manifest['schema_contract']['total'] ?? 0 ) === 49
 		&& ( $manifest['schema_contract']['new_business_table'] ?? true ) === false
-		&& ( $manifest['schema_contract']['core_schema_version'] ?? '' ) === '16.1.1'
-		&& ( $manifest['schema_contract']['accounting_schema_version'] ?? '' ) === '16.1.15'
-		&& ( $manifest['schema_contract']['hr_schema_version'] ?? '' ) === '16.1.3',
+		&& str_contains( $plugin, "define( 'STOCKLAND_CORE_SCHEMA_VERSION', '16.1.1' );" )
+		&& str_contains( $plugin, "define( 'STOCKLAND_ACCOUNTING_SCHEMA_VERSION', '16.1.15' );" )
+		&& str_contains( $plugin, "define( 'STOCKLAND_HR_SCHEMA_VERSION', '16.1.3' );" )
+		&& str_contains( $plugin, "define( 'STOCKLAND_DB_VERSION', '16.1.1' );" ),
 	'Payroll usability changes preserve all 49 tables and all existing schema markers.'
 );
 $check(
