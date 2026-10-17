@@ -213,7 +213,7 @@
     "schema_changed": false,
     "database_version_changed": false,
     "statutory_rule_version": "ET-PAYE-1395-2025-v3-PENSION-BASE",
-    "source_gate": "PENDING — exact 16.1.79 branch must pass full CI/ERP regression suite.",
+    "source_gate": "PENDING — exact source/package gate result will be recorded by the release workflow; target-host acceptance remains PENDING.",
     "target_host_acceptance": "PENDING — no WordPress installation or live database transactions were run here."
   }
 }

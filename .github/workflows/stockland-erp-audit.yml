@@ -417,6 +417,10 @@ jobs:
           corrective = manifest.setdefault("corrective_release_16_1_67", {})
           corrective["source_gate"] = source_gate_text
           corrective["source_gate_evidence"] = evidence
+          corrective_1679 = manifest.setdefault("corrective_release_16_1_79", {})
+          corrective_1679["source_gate"] = source_gate_text
+          corrective_1679["source_gate_evidence"] = evidence
+          corrective_1679["target_host_acceptance"] = "PENDING — exact 16.1.79 package has not been installed and tested on the target WordPress/MariaDB host."
           # Remove legacy manually-authored binary certification labels from old manifests.
           def remove_legacy_certification_flags(value):
               if isinstance(value, dict):
