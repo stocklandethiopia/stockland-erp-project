@@ -1089,7 +1089,6 @@ function openCompensationEditor(button){
 }
 
 function slPayrollLineEditForm(line,periodId){
-  const owner=state.boot.user.role==='owner';
   const legacy=String(line.statutory_status||'LEGACY').toUpperCase()!=='CALCULATED';
   const currentBreakdown=(()=>{try{const v=JSON.parse(line.allowance_breakdown_json||'[]');return Array.isArray(v)?v:[]}catch(_e){return[]}})();
   const minor=value=>Math.round((Number(value)||0)*100);
@@ -1097,8 +1096,6 @@ function slPayrollLineEditForm(line,periodId){
   const breakdownExempt=currentBreakdown.reduce((sum,item)=>String(item.tax_treatment||'TAXABLE').toUpperCase()==='EXEMPT'?sum+minor(item.amount):sum,0);
   const legacyTaxableDefault=currentBreakdown.length?(breakdownTaxable/100).toFixed(2):(line.allowance_total??'0.00');
   const legacyExemptDefault=currentBreakdown.length?(breakdownExempt/100).toFixed(2):'0.00';
-  const exemptComponent=currentBreakdown.find(x=>String(x.tax_treatment||'').toUpperCase()==='EXEMPT')||{};
-  const verified=!!exemptComponent.owner_verified&&String(exemptComponent.legal_basis||'').trim().length>=20&&String(exemptComponent.evidence_reference||'').trim().length>=4;
   return '<details class="sl-payroll-line-edit"><summary>Edit draft amounts</summary><form class="sl-payroll-line-form" data-payroll-line-form data-period-id="'+esc(periodId)+'" data-line-id="'+esc(line.id)+'">'+
     (legacy?'<div class="sl-notice sl-notice-warn">Legacy draft line: confirm the allowance split, pensionable salary and other deductions. The previous total deduction is not copied into “Other deductions” because it may already include PAYE or pension.</div>':'')+
     '<div class="sl-payroll-edit-grid">'+
@@ -1106,11 +1103,31 @@ function slPayrollLineEditForm(line,periodId){
       '<div class="sl-field"><label>Exempt allowances (ETB)</label><input name="exempt_allowance_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(legacy?legacyExemptDefault:(line.exempt_allowance_total??'0.00'))+'" '+(owner?'':'readonly')+' required><small class="sl-sub">'+(owner?'A change requires legal basis, evidence and Owner confirmation.':'Locked for Management; only the Owner may change an exemption.')+'</small></div>'+
       '<div class="sl-field"><label>Pensionable salary (ETB)</label><input name="pensionable_salary" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(legacy?(line.base_salary??'0.00'):(line.pensionable_salary??line.base_salary??'0.00'))+'" required></div>'+
       '<div class="sl-field"><label>Other deductions (ETB)</label><input name="other_deduction_total" type="number" min="0" step="0.01" inputmode="decimal" value="'+esc(line.other_deduction_total??'0.00')+'" required></div>'+
-      (owner?'<div class="sl-field full"><label>Current legal basis for exemption / non-standard pensionable salary</label><textarea name="statutory_classification_note" minlength="20" placeholder="Enter the current legal clause and application to this employee">'+esc(exemptComponent.legal_basis||'')+'</textarea></div><div class="sl-field"><label>Evidence reference</label><input name="exemption_evidence_reference" value="'+esc(exemptComponent.evidence_reference||'')+'" placeholder="Document reference"></div><label class="sl-payroll-owner-check"><input type="checkbox" name="owner_confirmed_exemption" value="1" '+(verified?'checked':'')+'><span>As Owner, verify the legal basis and evidence for any exemption.</span></label>':'')+
+      '<div class="sl-field full"><small class="sl-sub">The exemption amount is locked here. The Owner must review each allowance component and record legal basis/evidence in the separate Owner classification action.</small></div>'+
       '<div class="sl-field full"><label>Adjustment reason / notes</label><textarea name="notes" rows="2" placeholder="Keep a short reason for this draft adjustment">'+esc(line.notes||'')+'</textarea></div>'+
       '<div class="sl-field full"><button class="sl-btn primary" type="submit">SAVE & RECALCULATE LINE</button></div>'+
     '</div></form></details>';
 }
+
+function slPayrollOwnerClassificationForm(line,periodId,componentIndex,component,currentRule){
+  const treatment=String(component.tax_treatment||'TAXABLE').toUpperCase()==='EXEMPT'?'EXEMPT':'TAXABLE';
+  const evidenceOk=treatment==='TAXABLE'||(!!component.owner_verified&&String(component.legal_basis||'').trim().length>=20&&String(component.evidence_reference||'').trim().length>=4);
+  const status=String(line.statutory_status||'').toUpperCase();
+  if(status!=='CALCULATED'||!currentRule||String(line.tax_rule_version||'')!==currentRule){
+    return '<div class="sl-notice sl-notice-warn">Owner classification is blocked until Management recalculates this line under the current statutory rule.</div>';
+  }
+  return '<details class="sl-payroll-line-edit sl-payroll-owner-classification"><summary>Owner review · '+esc(component.label||component.category||('Allowance '+(Number(componentIndex)+1)))+' <span class="sl-pill '+(evidenceOk?'ok':'warn')+'">'+(evidenceOk?(treatment==='EXEMPT'?'EXEMPT VERIFIED':'TAXABLE CLASSIFICATION'):'EVIDENCE REVIEW REQUIRED')+'</span></summary>'+
+    '<form class="sl-payroll-line-form" data-payroll-classification-form data-period-id="'+esc(periodId)+'" data-line-id="'+esc(line.id)+'" data-component-index="'+esc(componentIndex)+'">'+
+      '<div class="sl-payroll-owner-component"><span>Saved amount — amount cannot be changed here</span><strong>'+money(component.amount||0)+' ETB</strong></div>'+
+      '<div class="sl-payroll-edit-grid">'+
+        '<div class="sl-field"><label>Tax treatment</label><select name="tax_treatment" required><option value="TAXABLE" '+(treatment==='TAXABLE'?'selected':'')+'>Taxable — included in PAYE base</option><option value="EXEMPT" '+(treatment==='EXEMPT'?'selected':'')+'>Exempt — requires legal evidence</option></select></div>'+
+        '<div class="sl-field full"><label>Legal/contract basis or reason for classification</label><textarea name="statutory_classification_note" minlength="20" required>'+esc(component.legal_basis||'')+'</textarea></div>'+
+        '<div class="sl-field full"><label>Evidence reference (required for EXEMPT)</label><input name="exemption_evidence_reference" value="'+esc(component.evidence_reference||'')+'" placeholder="Document, contract or legal evidence reference"></div>'+
+        '<label class="sl-payroll-owner-check"><input type="checkbox" name="owner_confirmed_classification" value="1" required><span>As Owner, I have reviewed this component and confirm its selected tax treatment.</span></label>'+
+        '<div class="sl-field full"><button class="sl-btn primary" type="submit">SAVE OWNER CLASSIFICATION</button></div>'+
+      '</div></form></details>';
+}
+
 function renderPayrollReview(period){
   document.querySelector('[data-payroll-review-overlay]')?.remove();
   const caps=state.boot.user.capabilities||{};
