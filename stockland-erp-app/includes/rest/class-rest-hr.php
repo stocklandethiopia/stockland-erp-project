@@ -1501,6 +1501,30 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 			if ( ! is_array( $components ) || ! array_key_exists( $component_index, $components ) || ! is_array( $components[ $component_index ] ) ) {
 				throw new Exception( 'The saved allowance component snapshot is missing or incomplete; no change was made.' );
 			}
+			$prior_taxable = '0.00';
+			$prior_exempt  = '0.00';
+			foreach ( $components as $saved_component ) {
+				if ( ! is_array( $saved_component ) ) {
+					throw new Exception( 'The saved allowance snapshot contains an invalid component; no change was made.' );
+				}
+				try {
+					$saved_amount = $this->money( $saved_component['amount'] ?? null );
+				} catch ( Throwable $e ) {
+					throw new Exception( 'The saved allowance snapshot contains an invalid amount; no change was made.' );
+				}
+				$saved_treatment = strtoupper( (string) ( $saved_component['tax_treatment'] ?? 'TAXABLE' ) );
+				if ( ! in_array( $saved_treatment, array( 'TAXABLE', 'EXEMPT' ), true ) ) {
+					throw new Exception( 'The saved allowance snapshot contains an unknown tax treatment; no change was made.' );
+				}
+				if ( 'EXEMPT' === $saved_treatment ) {
+					$prior_exempt = Stockland_Money::add( $prior_exempt, $saved_amount );
+				} else {
+					$prior_taxable = Stockland_Money::add( $prior_taxable, $saved_amount );
+				}
+			}
+			if ( Stockland_Money::minor( $prior_taxable ) !== Stockland_Money::minor( $line['taxable_allowance_total'] ?? '0.00' ) || Stockland_Money::minor( $prior_exempt ) !== Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' ) ) {
+				throw new Exception( 'Allowance components do not reconcile to the saved payroll line totals. No change was made; Management must resolve the draft line first.' );
+			}
 			$old_component = $components[ $component_index ];
 			try {
 				$amount = $this->money( $old_component['amount'] ?? null );
@@ -1544,9 +1568,6 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 				} else {
 					$taxable = Stockland_Money::add( $taxable, $component_amount );
 				}
-			}
-			if ( Stockland_Money::minor( $taxable ) !== Stockland_Money::minor( $line['taxable_allowance_total'] ?? '0.00' ) || Stockland_Money::minor( $exempt ) !== Stockland_Money::minor( $line['exempt_allowance_total'] ?? '0.00' ) ) {
-				throw new Exception( 'Allowance components do not reconcile to the saved payroll line totals. No change was made; Management must resolve the draft line first.' );
 			}
 			if ( Stockland_Money::minor( $taxable ) === 0 && Stockland_Money::minor( $exempt ) === 0 && ! $components ) {
 				throw new Exception( 'There are no allowance components to classify.' );
