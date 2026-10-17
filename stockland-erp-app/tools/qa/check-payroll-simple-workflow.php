@@ -46,7 +46,8 @@ $check(
 	str_contains( $app, 'name="payroll_month" type="month" required' )
 		&& str_contains( $app, 'period_key:month' )
 		&& str_contains( $app, "start_date:month+'-01'" )
-		&& str_contains( $app, "String(lastDay).padStart(2,'0')" ),
+		&& str_contains( $app, "String(lastDay).padStart(2,'0')" )
+		&& str_contains( $app, 'if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))' ),
 	'Monthly payroll period creation uses one month picker and derives the exact calendar dates.'
 );
 $check(
@@ -57,16 +58,21 @@ $check(
 		&& str_contains( $app, 'data-label="Net pay"' ),
 	'Review view consumes real payroll rows and presents employee-level amounts with mobile labels.'
 );
+$payroll_table_start = strpos( $app, "const pe=document.getElementById('hrPayroll');" );
+$payroll_table_end   = strpos( $app, "document.querySelectorAll('[data-hr-comp]')", $payroll_table_start );
+$payroll_table       = false !== $payroll_table_start && false !== $payroll_table_end
+	? substr( $app, $payroll_table_start, $payroll_table_end - $payroll_table_start )
+	: '';
 $check(
-	! str_contains( $app, 'SUBMIT FOR OWNER APPROVAL</button>' )
-		&& ! str_contains( $app, '>OWNER APPROVE</button>' )
-		&& ! str_contains( $app, '>PAY BANK</button>' )
-		&& str_contains( $app, 'REVIEW DRAFT' )
-		&& str_contains( $app, 'REVIEW SUBMISSION' )
-		&& str_contains( $app, 'REVIEW APPROVED PAYROLL' )
+	str_contains( $payroll_table, 'REVIEW DRAFT' )
+		&& str_contains( $payroll_table, 'REVIEW SUBMISSION' )
+		&& str_contains( $payroll_table, 'REVIEW APPROVED PAYROLL' )
+		&& ! str_contains( $payroll_table, 'SUBMIT FOR OWNER APPROVAL</button>' )
+		&& ! str_contains( $payroll_table, '>OWNER APPROVE</button>' )
+		&& ! str_contains( $payroll_table, '>PAY BANK</button>' )
 		&& str_contains( $app, "if(a==='REVIEW'){await openPayrollReview(id);return}" ),
-	'Payroll periods lead into a single role-aware review path instead of one-click posting actions.'
-);
+	'Payroll summary rows route users to a role-aware review step instead of one-click posting/payment.'
+)
 $check(
 	str_contains( $app, 'function openPayrollLineEditor(period,line,reviewOverlay)' )
 		&& str_contains( $app, "api16('/hr/payroll/'+encodeURIComponent(period.id)+'/line/'+encodeURIComponent(line.id)" )
