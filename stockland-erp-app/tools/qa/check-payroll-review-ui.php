@@ -105,7 +105,8 @@ $check(
 		&& str_contains( $rest, "'callback'            => array( $this, 'payroll_line_classification_update' )" )
 		&& str_contains( $rest, 'Stockland_Authority::can_approve_payroll()' )
 		&& str_contains( $classify, "Stockland_Authority::role() !== 'owner'" )
-		&& str_contains( $classify, "'DRAFT' !== $period['status']" )
+		&& str_contains( $classify, "'DRAFT' !==" )
+		&& str_contains( $classify, "FOR UPDATE" )
 		&& str_contains( $classify, "Stockland_Payroll_Statutory::RULE_VERSION" )
 		&& str_contains( $classify, "'PAYROLL_EXEMPTION_VERIFY'" ),
 	'Owner-only component classification is permission-gated, limited to DRAFT/current-rule lines, and audited.'
