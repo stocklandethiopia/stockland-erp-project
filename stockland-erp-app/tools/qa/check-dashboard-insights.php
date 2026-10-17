@@ -50,8 +50,8 @@ $checks['desktop_dashboard_has_three_analytics_columns'] = (bool) preg_match( '/
 $checks['dashboard_data_driven_styles_in_bundles'] = str_contains( $css, '.sl-dashboard-shell' ) && str_contains( $css, '.sl-dashboard-linechart' ) && str_contains( $css, '.sl-dashboard-donut' ) && str_contains( $mini, '.sl-dashboard-shell' ) && str_contains( $mini, '.sl-dashboard-donut' );
 $checks['responsive_dashboard_breakpoints'] = preg_match( '/@media\s*\(max-width:\s*991px\)/', $css ) && preg_match( '/@media\s*\(max-width:\s*700px\)/', $css ) && preg_match( '/@media\s*\(max-width:\s*390px\)/', $css );
 $checks['css_source_modules_remain_six_ordered'] = ( $modules['release'] ?? '' ) === '16.1.79' && count( $modules['modules'] ?? array() ) === 6;
-$checks['payroll_base_less_employee_pension'] = str_contains( $payroll, 'ET-PAYE-1395-2025-v3-PENSION-BASE' ) && str_contains( $payroll, 'TAXABLE_GROSS_LESS_EMPLOYEE_PENSION' ) && str_contains( $payroll, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )' );
-$checks['etb_30000_payroll_regression_present'] = str_contains( $payroll_test, "'30000.00'" ) && str_contains( $payroll_test, "'27900.00'" ) && str_contains( $payroll_test, "'7715.00'" ) && str_contains( $payroll_test, "'20185.00'" );
+$checks['payroll_base_gross_employment_income'] = str_contains( $payroll, 'ET-PAYE-1395-2025-v4-GROSS-EMPLOYMENT-INCOME' ) && str_contains( $payroll, 'TAXABLE_GROSS_EMPLOYMENT_INCOME' ) && str_contains( $payroll, '$taxable_income = $taxable_gross;' ) && ! str_contains( $payroll, 'Stockland_Money::subtract( $taxable_gross, $employee_pension )' );
+$checks['etb_30000_payroll_regression_present'] = str_contains( $payroll_test, "'30000.00'" ) && str_contains( $payroll_test, "'8450.00'" ) && str_contains( $payroll_test, "'19450.00'" );
 
 $failed = array();
 foreach ( $checks as $name => $ok ) {
