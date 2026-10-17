@@ -1049,7 +1049,7 @@ class Stockland_REST_HR extends Stockland_REST_Base {
 	 */
 	public function payroll_generate( WP_REST_Request $r ) {
 		if ( ! $this->payroll_manager() ) {
-			return $this->deny( 'Only an active Owner or Management profile can prepare payroll.', 403 );
+			return $this->deny( 'Only active Stockland Management may generate payroll.', 403 );
 		}
 		global $wpdb;
 		$id = (int) $r['id'];
