@@ -1,8 +1,17 @@
-# Stockland Ethiopia ERP 16.1.78
+# Stockland Ethiopia ERP 16.1.79
 
 **Stockland ERP** is a role-based, responsive operations and finance platform for Stockland Ethiopia, supporting the central warehouse, branches, Product Master, retail operations, procurement, finance, reporting and payroll.
 
-## Cumulative workflow corrections in 16.1.78
+## 16.1.79 payroll simplification and review flow
+
+- Management creates a payroll period by choosing one calendar month. The key and correct first/last dates are generated automatically.
+- Click **Generate Draft** to calculate employee lines using the existing server-side Ethiopian PAYE/pension rules. The review opens with each employee's base, allowances, PAYE, pension, other deductions, net pay and calculation status.
+- Management can correct eligible **DRAFT** line values and save them through the existing audited calculation endpoint. Legacy or stale-rule lines must be recalculated before submission; the Owner cannot edit or submit a Management draft.
+- Management submits the reviewed period. The independent Owner reviews the submitted lines, confirms approval, and posts the balanced payroll journal. The Owner then separately records bank or cash payment with a confirmation step. Submitted/approved/paid periods are locked against line edits.
+- Exemption evidence, non-standard pensionable salary rationale, rule version, pension-first PAYE math, the ETB 30,000 regression, and RETAINER_SERVICE exclusion remain in force. This UI change does not rewrite posted payroll or historical transactions.
+- The 49-table contract and database schema versions remain unchanged. The full source/package CI is required before calling this candidate release-ready; authenticated WordPress/MariaDB acceptance has not been performed in this branch.
+
+## Cumulative workflow baseline carried forward from 16.1.78
 
 - Requisition creation requires a stable retry key; identical retries return the existing request and a reused key with different content returns a conflict.
 - Branch requisition drafts display live branch availability and read-only Central Warehouse/peer-branch sourcing. A failed source lookup is not presented as zero stock and does not mutate inventory.
@@ -48,7 +57,7 @@ The ERP enforces the authority model on the server as well as in the interface. 
 ## Install or update in WordPress
 
 1. Back up the current plugin files and WordPress database before an in-place update.
-2. In WordPress, open **Plugins → Add New Plugin → Upload Plugin** and select the Stockland ERP 16.1.78 installer ZIP.
+2. On an isolated WordPress backup/staging copy, open **Plugins → Add New Plugin → Upload Plugin** and select the 16.1.79 candidate ZIP only after its checksum and all release gates pass. Do not install it on production before acceptance/rollback approval.
 3. For an in-place update, choose the option to replace the existing Stockland ERP plugin when WordPress offers it. For a fresh installation, install and activate the plugin.
 4. Open the Stockland ERP front end. Use the Owner's Users & Organization controls to assign each active ERP role and its branch/location.
 5. Use **Finance & Procurement** from the ERP navigation for purchasing, expenses, AP/AR, payments and financial reporting.
@@ -66,10 +75,10 @@ The interface uses the local Bootstrap 5.3.8 stylesheet and a compact six-module
 
 ## Acceptance boundary
 
-The automated source/package gate validates code quality and package integrity; it does not by itself establish production acceptance. Target-host acceptance is currently **PENDING** until the exact packaged SHA-256 is verified on the intended WordPress/PHP/MariaDB environment, the 49-table schema and existing data are reconciled, role-separated requisition/picking, procurement, finance, imports and payroll flows pass, and backup restoration plus rollback are demonstrated. The plugin does not include demonstration sales, stock movements, payroll entries or orders.
+The automated source/package gate validates code quality and package integrity; it does not by itself establish production acceptance. For 16.1.79, target-host acceptance is **PENDING** until the exact packaged SHA-256 is confirmed on the intended WordPress/PHP/MariaDB installation, the existing 49-table schema/data is reconciled, role-separated operational workflows pass and a recovery path is proven. This branch has not been installed on WordPress and does not include demonstration sales, stock movements, payroll entries or orders.
 
 
-**Release acceptance:** source/package CI is separate from authenticated target-host acceptance. Do not infer live database reconciliation, backup restoration, rollback or payroll/legal approval from CI alone. The package remains blocked from production certification until the master release acceptance record contains evidence for those gates.
+**Release acceptance:** source/package CI is separate from authenticated target-host acceptance. Do not infer live database reconciliation, backup restoration, rollback or payroll/legal approval from CI alone. The 16.1.79 candidate remains not live-certified until the master release acceptance record contains evidence for those gates.
 
 
 ### 16.1.78 global search
