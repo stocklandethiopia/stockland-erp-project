@@ -571,7 +571,8 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
  .sl-page-title{position:static!important;padding:0 0 8pt!important;border:0!important;border-bottom:1px solid #aab4c0!important;background:#fff!important;box-shadow:none!important}
  .sl-page-title h2{font-size:18pt!important;color:#111!important}
  .sl-page-title p{font-size:9pt!important;color:#333!important}
- .sl-table,.sl-responsive-cards{display:table!important;width:100%!important;min-width:0!important;table-layout:auto!important;border-collapse:collapse!important;font-size:8pt!important}
+ .sl-table{display:table!important;width:100%!important;min-width:0!important;table-layout:auto!important;border-collapse:collapse!important;font-size:8pt!important}
+ .sl-responsive-cards{display:table-row-group!important;width:100%!important;min-width:0!important;border-collapse:collapse!important;font-size:8pt!important}
  .sl-table thead{display:table-header-group!important}
  .sl-table tbody{display:table-row-group!important}
  .sl-table tr{display:table-row!important;break-inside:avoid!important}

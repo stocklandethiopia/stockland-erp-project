@@ -98,7 +98,7 @@ $check(
 $check(
 	str_contains( $nav, '.sl-global-search-control' )
 		&& str_contains( $nav, '.sl-global-search-results' )
-		&& str_contains( $nav, '.sl-global-search{grid-column:1;grid-row:2' )
+		&& str_contains( $responsive, '.sl-global-search{grid-column:1;grid-row:2' )
 		&& str_contains( $responsive, 'grid-template-rows:40px 42px 44px' ),
 	'Header search has a dedicated responsive row and bounded result panel.'
 );
