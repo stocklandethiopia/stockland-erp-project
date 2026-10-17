@@ -500,3 +500,39 @@ body[data-sl-theme] #stockland-app .sl-sidebar,
 }
 /* Reorder action controls: compact, touch-friendly and safe on narrow screens. */
 .sl-reorder-action{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.sl-reorder-qty{width:88px;min-width:72px;min-height:38px;border:1px solid var(--sl-border);border-radius:8px;padding:7px 9px;font:inherit;background:var(--sl-surface);color:var(--sl-text)}.sl-reorder-action .sl-btn{white-space:nowrap}
+
+/* 16.1.79 • Guided payroll review and draft line editing. */
+.sl-payroll-optional-notes{padding:10px 12px;border:1px solid #d9e4ef;border-radius:10px;background:#f8fbff}
+.sl-payroll-optional-notes summary{cursor:pointer;color:#23486e;font-size:12px;font-weight:800}
+.sl-payroll-optional-notes textarea{width:100%;margin-top:10px}
+.sl-overlay .sl-payroll-review,.sl-overlay .sl-payroll-line-editor{width:min(1180px,100%);max-height:min(93dvh,1000px);overflow:auto;background:#f4f7fb;border:1px solid #c6d7e8;border-radius:18px;box-shadow:0 26px 80px rgba(7,28,54,.30);color:#142d4b}
+.sl-overlay .sl-payroll-line-editor{width:min(760px,100%)}
+.sl-payroll-review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px;background:#0b1730;color:#fff;border-radius:16px 16px 0 0}
+.sl-payroll-review-head h2{font-size:clamp(20px,3vw,27px);line-height:1.2;margin:4px 0 6px;color:#fff;font-weight:900}
+.sl-payroll-review-head p{margin:0;color:#dceafa;font-size:12px;line-height:1.5}
+.sl-payroll-review-body{padding:16px;display:grid;gap:13px}
+.sl-payroll-review-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.sl-payroll-review-summary>div{min-width:0;padding:12px;border:1px solid #d6e2ee;border-radius:11px;background:#fff}
+.sl-payroll-review-summary span{display:block;color:#5e738a;font-size:11px;font-weight:800;line-height:1.35}
+.sl-payroll-review-summary b{display:block;margin-top:5px;color:#173b60;font-size:clamp(14px,1.7vw,19px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.sl-payroll-review-summary .emphasis{background:#edf5ff;border-color:#b9d4f5}
+.sl-payroll-review-table{max-width:100%;overflow:auto;background:#fff;border:1px solid #dce5ef;border-radius:12px}
+.sl-payroll-review-table .sl-table{min-width:940px;margin:0}
+.sl-payroll-review-table .sl-table th{white-space:normal}
+.sl-payroll-review-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap}
+.sl-payroll-line-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sl-payroll-line-form .sl-field{display:grid;gap:6px;min-width:0}
+.sl-payroll-line-form .sl-field label{font-size:12px;font-weight:800;color:#3c5672}
+.sl-payroll-line-form .sl-field input,.sl-payroll-line-form .sl-field textarea{width:100%;min-width:0;min-height:44px;border:1px solid #c5d4e4;border-radius:10px;background:#fff;color:#142d4b;padding:10px 12px;font:inherit}
+.sl-payroll-line-form .sl-field input[readonly]{background:#edf2f7;color:#52677c}
+.sl-payroll-line-form .sl-field input:focus,.sl-payroll-line-form .sl-field textarea:focus{outline:3px solid rgba(59,130,246,.24);outline-offset:1px;border-color:#4887e8}
+.sl-payroll-review [hidden],.sl-payroll-line-editor [hidden]{display:none!important}
+@media(max-width:760px){
+ .sl-overlay .sl-payroll-review,.sl-overlay .sl-payroll-line-editor{width:100%;max-height:96dvh;border-radius:13px}
+ .sl-payroll-review-head{padding:14px;border-radius:11px 11px 0 0}
+ .sl-payroll-review-body{padding:10px}
+ .sl-payroll-review-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sl-payroll-line-fields{grid-template-columns:1fr}
+ .sl-payroll-review-actions{display:grid;grid-template-columns:1fr;width:100%}
+ .sl-payroll-review-actions .sl-btn{width:100%;min-height:44px}
+}
