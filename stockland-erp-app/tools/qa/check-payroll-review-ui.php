@@ -39,6 +39,10 @@ $submit       = false !== $submit_start && false !== $submit_end ? substr( $rest
 $classify_start = strpos( $rest, 'public function payroll_line_classification_update' );
 $classify_end   = false !== $classify_start ? strpos( $rest, 'public function payroll_submit', $classify_start ) : false;
 $classify       = false !== $classify_start && false !== $classify_end ? substr( $rest, $classify_start, $classify_end - $classify_start ) : '';
+$editor_start = strpos( $app, 'function slPayrollLineEditForm' );
+$editor_end   = false !== $editor_start ? strpos( $app, 'function slPayrollOwnerClassificationForm', $editor_start ) : false;
+$editor       = false !== $editor_start && false !== $editor_end ? substr( $app, $editor_start, $editor_end - $editor_start ) : '';
+$class_route  = "'/hr/payroll/(?P<id>\\\\d+)/line/(?P<line_id>\\\\d+)/classification'";
 $check(
 	str_contains( $rest, "'/hr/payroll/(?P<id>" )
 		&& str_contains( $rest, "'methods'             => 'GET'")
@@ -110,6 +114,25 @@ $check(
 		&& str_contains( $classify, "Stockland_Payroll_Statutory::RULE_VERSION" )
 		&& str_contains( $classify, "'PAYROLL_EXEMPTION_VERIFY'" ),
 	'Owner-only component classification is permission-gated, limited to DRAFT/current-rule lines, and audited.'
+);
+$check(
+	str_contains( $rest, $class_route )
+		&& 1 === substr_count( $rest, $class_route )
+		&& str_contains( $classify, '$component_index' )
+		&& str_contains( $classify, 'Stockland_Authority::can_approve_payroll()' ) === false
+		&& str_contains( $classify, "Stockland_Authority::role() !== 'owner'" )
+		&& ! str_contains( $classify, "\$p['amount']" )
+		&& ! str_contains( $classify, "\$p['base_salary']" ),
+	'Owner classification has one dedicated route and cannot alter allowance amount, base salary or other pay values.'
+);
+$check(
+	str_contains( $editor, 'readonly required' )
+		&& ! str_contains( $editor, '(owner?' )
+		&& str_contains( $editor, 'The Owner must classify each allowance component separately.' )
+		&& str_contains( $line_update, 'owner_exemption_review_required' )
+		&& str_contains( $line_update, '$locked_period' )
+		&& str_contains( $line_update, '$locked_line' ),
+	'Management amount editing remains separate from Owner classification and rechecks locked DRAFT state.'
 );
 $check(
 	str_contains( $classify, '$prior_taxable' )
