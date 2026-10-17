@@ -169,8 +169,8 @@ final class Stockland_Payroll_Statutory {
 		// Proclamation 1395/2025 Article 11 applies its monthly rates to employment income.
 		// Calculate PAYE on taxable employment income before employee-pension withholding.
 		// Employee and employer pension contributions remain separately accounted below.
-		$taxable_gross  = Stockland_Money::add( $base, $taxable_allow );
-		$taxable_income = $taxable_gross;
+		$taxable_gross                        = Stockland_Money::add( $base, $taxable_allow );
+		$taxable_income                       = $taxable_gross;
 		list( $income_tax, $income_tax_rate ) = self::income_tax( $taxable_income );
 		$deduction_total                      = Stockland_Money::add( Stockland_Money::add( $income_tax, $employee_pension ), $other );
 		$net                                  = Stockland_Money::subtract( $gross, $deduction_total );
