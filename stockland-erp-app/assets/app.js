@@ -1065,7 +1065,7 @@ function openPayrollLineEditor(period,line,reviewOverlay){
     e.preventDefault();if(!form.reportValidity())return;
     const taxable=Number(form.elements.taxable_allowance_total.value),pensionable=Number(form.elements.pensionable_salary.value),other=Number(form.elements.other_deduction_total.value),basis=String(form.elements.statutory_classification_note.value||'').trim();
     if(!Number.isFinite(taxable)||taxable<0||!Number.isFinite(pensionable)||pensionable<0||!Number.isFinite(other)||other<0){toast('Enter non-negative amounts in ETB.',true);return}
-    if(Math.abs(pensionable-base)>0.005&&Math.abs(pensionable-pensionValue)>0.005&&basis.length<20){toast('A change to non-standard pensionable salary needs a 20+ character legal/contract reason.',true);form.elements.statutory_classification_note.focus();return}
+    const ruleNow=state.hr?.statutory_rules?.rule_version||'';const classificationMustBeReconfirmed=line.statutory_status!=='CALCULATED'||line.tax_rule_version!==ruleNow;if(Math.abs(pensionable-base)>0.005&&(Math.abs(pensionable-pensionValue)>0.005||classificationMustBeReconfirmed)&&basis.length<20){toast('A new or legacy non-standard pensionable salary needs a 20+ character legal/contract reason.',true);form.elements.statutory_classification_note.focus();return}
     save.disabled=true;save.textContent='Saving…';
     try{
       await api16('/hr/payroll/'+encodeURIComponent(period.id)+'/line/'+encodeURIComponent(line.id),{method:'POST',body:JSON.stringify({taxable_allowance_total:taxable.toFixed(2),exempt_allowance_total:exempt.toFixed(2),pensionable_salary:pensionable.toFixed(2),other_deduction_total:other.toFixed(2),notes:String(form.elements.notes.value||''),statutory_classification_note:basis})});
